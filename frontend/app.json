@@ -1,0 +1,20 @@
+{
+  "expo": {
+    "name": "BizMatch",
+    "slug": "bizmatch",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.bizmatch.app"
+    },
+    "android": {
+      "package": "com.bizmatch.app"
+    },
+    "scheme": "bizmatch",
+    "plugins": [
+      "expo-secure-store"
+    ]
+  }
+}
