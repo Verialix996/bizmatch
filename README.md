@@ -18,7 +18,7 @@ A matchmaking platform for entrepreneurs and investors.
 
 ```bash
 git clone https://github.com/Verialix996/bizmatch.git
-cd bizmatch/app
+cd bizmatch
 ```
 
 ### 2. Backend
@@ -60,35 +60,51 @@ The server will run on `http://localhost:3000`.
 
 ### 3. Frontend
 
+Open a second terminal:
+
 ```bash
-cd ../frontend
+cd frontend
 npm install
-```
-
-Open `src/services/api.js` and set `API_URL` to your machine's local IP address:
-
-```js
-const API_URL = 'http://YOUR_LOCAL_IP:3000/api';
-```
-
-To find your local IP:
-- **Windows:** run `ipconfig` in terminal → look for IPv4 Address
-- **Mac/Linux:** run `ifconfig` or `ip a` → look for inet address
-
-Start the frontend:
-
-```bash
 npx expo start --clear
 ```
 
-Scan the QR code with the Expo Go app on your phone. Make sure your phone and computer are on the **same WiFi network**.
+Scan the QR code with the Expo Go app on your phone.
+
+> **Important:** Your phone and computer must be on the **same WiFi network**. The app automatically detects the correct IP — no manual configuration needed.
+
+---
+
+## Verify Everything is Working
+
+With the backend running, test the API:
+
+```bash
+curl http://localhost:3000/health
+```
+
+Expected response:
+```json
+{"status":"ok"}
+```
+
+Test registration:
+```bash
+curl -X POST http://localhost:3000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","name":"Test","password":"12345678","role":"entrepreneur"}'
+```
+
+Expected response:
+```json
+{"message":"Registered. Check your email for the verification code."}
+```
 
 ---
 
 ## Project Structure
 
 ```
-app/
+bizmatch/
 ├── backend/
 │   ├── migrations/        # Database setup scripts
 │   ├── src/
