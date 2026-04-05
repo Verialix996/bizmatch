@@ -13,6 +13,9 @@
       "package": "com.bizmatch.app"
     },
     "scheme": "bizmatch",
+    "web": {
+      "bundler": "metro"
+    },
     "plugins": [
       "expo-secure-store"
     ]

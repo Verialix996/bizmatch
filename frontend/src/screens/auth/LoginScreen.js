@@ -1,4 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { login } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
@@ -6,8 +7,10 @@ import useAuthStore from '../../store/authStore';
 export default function LoginScreen({ navigation }) {
   const { control, handleSubmit } = useForm();
   const setAuth = useAuthStore(s => s.setAuth);
+  const [error, setError] = useState('');
 
   const onSubmit = async ({ email, password }) => {
+    setError('');
     try {
       const { data } = await login({ email, password });
       if (data.requires2FA) {
@@ -16,8 +19,7 @@ export default function LoginScreen({ navigation }) {
         await setAuth(data.token, data.user);
       }
     } catch (err) {
-      const msg = err.response?.data?.error || 'Login failed';
-      Alert.alert('Error', msg);
+      setError(err.response?.data?.error || 'Login failed');
     }
   };
 
@@ -57,6 +59,8 @@ export default function LoginScreen({ navigation }) {
         )}
       />
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <TouchableOpacity style={styles.button} onPress={handleSubmit(onSubmit)}>
         <Text style={styles.buttonText}>Login</Text>
       </TouchableOpacity>
@@ -80,4 +84,5 @@ const styles = StyleSheet.create({
   button:    { backgroundColor: '#1A1A2E', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 8 },
   buttonText:{ color: '#fff', fontWeight: 'bold', fontSize: 16 },
   link:      { textAlign: 'center', color: '#1A1A2E', marginTop: 12 },
+  error:     { color: '#e74c3c', marginBottom: 8, textAlign: 'center' },
 });

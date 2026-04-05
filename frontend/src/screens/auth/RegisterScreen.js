@@ -1,17 +1,19 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { register } from '../../services/auth.service';
 
 export default function RegisterScreen({ navigation }) {
   const { control, handleSubmit } = useForm();
+  const [error, setError] = useState('');
 
   const onSubmit = async (data) => {
+    setError('');
     try {
       await register(data);
       navigation.navigate('VerifyOtp', { email: data.email });
     } catch (err) {
-      const msg = err.response?.data?.error || 'Registration failed';
-      Alert.alert('Error', msg);
+      setError(err.response?.data?.error || 'Registration failed');
     }
   };
 
@@ -61,6 +63,8 @@ export default function RegisterScreen({ navigation }) {
         )}
       />
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <TouchableOpacity style={styles.button} onPress={handleSubmit(onSubmit)}>
         <Text style={styles.buttonText}>Sign Up</Text>
       </TouchableOpacity>
@@ -85,4 +89,5 @@ const styles = StyleSheet.create({
   button:          { backgroundColor: '#1A1A2E', borderRadius: 8, padding: 14, alignItems: 'center' },
   buttonText:      { color: '#fff', fontWeight: 'bold', fontSize: 16 },
   link:            { textAlign: 'center', color: '#1A1A2E', marginTop: 16 },
+  error:           { color: '#e74c3c', marginBottom: 8, textAlign: 'center' },
 });

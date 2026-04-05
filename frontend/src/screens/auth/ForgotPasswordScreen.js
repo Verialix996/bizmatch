@@ -1,17 +1,21 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import { forgotPassword } from '../../services/auth.service';
 
 export default function ForgotPasswordScreen({ navigation }) {
   const [email, setEmail] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
 
   const onSubmit = async () => {
+    setMessage('');
+    setError('');
     try {
       await forgotPassword(email);
-      Alert.alert('Sent', 'If that email exists, a reset link was sent.');
-      navigation.navigate('Login');
+      setMessage('If that email exists, a reset link was sent.');
+      setTimeout(() => navigation.navigate('Login'), 2000);
     } catch {
-      Alert.alert('Error', 'Something went wrong.');
+      setError('Something went wrong.');
     }
   };
 
@@ -28,6 +32,9 @@ export default function ForgotPasswordScreen({ navigation }) {
         onChangeText={setEmail}
         value={email}
       />
+
+      {message ? <Text style={styles.success}>{message}</Text> : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
 
       <TouchableOpacity style={styles.button} onPress={onSubmit}>
         <Text style={styles.buttonText}>Send Reset Link</Text>
@@ -48,4 +55,6 @@ const styles = StyleSheet.create({
   button:    { backgroundColor: '#1A1A2E', borderRadius: 8, padding: 14, alignItems: 'center' },
   buttonText:{ color: '#fff', fontWeight: 'bold', fontSize: 16 },
   link:      { textAlign: 'center', color: '#1A1A2E', marginTop: 16 },
+  success:   { color: '#27ae60', marginBottom: 8, textAlign: 'center' },
+  error:     { color: '#e74c3c', marginBottom: 8, textAlign: 'center' },
 });

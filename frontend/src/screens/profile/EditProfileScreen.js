@@ -1,4 +1,5 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import api from '../../services/api';
 
@@ -6,18 +7,19 @@ export default function EditProfileScreen({ route, navigation }) {
   const existing = route.params?.profile;
   const { control, handleSubmit } = useForm({ defaultValues: existing || {} });
   const isNew = !existing?.bio;
+  const [error, setError] = useState('');
 
   const onSubmit = async (data) => {
+    setError('');
     try {
       if (isNew) {
         await api.post('/profile', data);
       } else {
         await api.put('/profile', data);
       }
-      Alert.alert('Saved', 'Profile updated.');
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Failed to save profile');
+      setError(err.response?.data?.error || 'Failed to save profile');
     }
   };
 
@@ -54,6 +56,8 @@ export default function EditProfileScreen({ route, navigation }) {
         )}
       />
 
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
       <TouchableOpacity style={styles.button} onPress={handleSubmit(onSubmit)}>
         <Text style={styles.buttonText}>Save</Text>
       </TouchableOpacity>
@@ -68,4 +72,5 @@ const styles = StyleSheet.create({
   input:      { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginBottom: 4 },
   button:     { backgroundColor: '#1A1A2E', borderRadius: 8, padding: 14, alignItems: 'center', marginTop: 24 },
   buttonText: { color: '#fff', fontWeight: 'bold', fontSize: 16 },
+  error:      { color: '#e74c3c', marginBottom: 8, textAlign: 'center' },
 });

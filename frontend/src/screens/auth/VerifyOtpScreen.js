@@ -1,4 +1,4 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet } from 'react-native';
 import { useState } from 'react';
 import { verifyEmail, resendOtp } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
@@ -6,23 +6,28 @@ import useAuthStore from '../../store/authStore';
 export default function VerifyOtpScreen({ route }) {
   const { email } = route.params;
   const [code, setCode] = useState('');
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
   const setAuth = useAuthStore(s => s.setAuth);
 
   const onVerify = async () => {
+    setError('');
     try {
       const { data } = await verifyEmail(email, code);
       await setAuth(data.token, null);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Invalid code');
+      setError(err.response?.data?.error || 'Invalid code');
     }
   };
 
   const onResend = async () => {
+    setMessage('');
+    setError('');
     try {
       await resendOtp(email);
-      Alert.alert('Sent', 'A new code was sent to your email.');
+      setMessage('A new code was sent to your email.');
     } catch {
-      Alert.alert('Error', 'Failed to resend code.');
+      setError('Failed to resend code.');
     }
   };
 
@@ -40,6 +45,9 @@ export default function VerifyOtpScreen({ route }) {
         onChangeText={setCode}
         value={code}
       />
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {message ? <Text style={styles.success}>{message}</Text> : null}
 
       <TouchableOpacity style={styles.button} onPress={onVerify}>
         <Text style={styles.buttonText}>Verify</Text>
@@ -60,4 +68,6 @@ const styles = StyleSheet.create({
   button:    { backgroundColor: '#1A1A2E', borderRadius: 8, padding: 14, alignItems: 'center' },
   buttonText:{ color: '#fff', fontWeight: 'bold', fontSize: 16 },
   link:      { textAlign: 'center', color: '#1A1A2E', marginTop: 16 },
+  error:     { color: '#e74c3c', marginBottom: 8, textAlign: 'center' },
+  success:   { color: '#27ae60', marginBottom: 8, textAlign: 'center' },
 });
