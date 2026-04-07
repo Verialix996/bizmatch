@@ -20,8 +20,13 @@ A matchmaking platform for entrepreneurs and investors.
 
 ### 1. Install prerequisites
 
-- [Node.js](https://nodejs.org) v18 or higher (includes npm)
 - [Git for Windows](https://gitforwindows.org/) — includes Git Bash
+- [Node.js](https://nodejs.org) v18 or higher — **during installation, check the box that says "Automatically install the necessary tools"** (this installs the C++ build tools required by `better-sqlite3`)
+
+> If you already have Node.js installed without build tools, run this in PowerShell as Administrator:
+> ```powershell
+> npm install --global windows-build-tools
+> ```
 
 ### 2. Clone the repository
 
