@@ -23,10 +23,7 @@ A matchmaking platform for entrepreneurs and investors.
 - [Git for Windows](https://gitforwindows.org/) — includes Git Bash
 - [Node.js](https://nodejs.org) v18 or higher — **during installation, check the box that says "Automatically install the necessary tools"** (this installs the C++ build tools required by `better-sqlite3`)
 
-> If you already have Node.js installed without build tools, run this in PowerShell as Administrator:
-> ```powershell
-> npm install --global windows-build-tools
-> ```
+> If you already have Node.js installed without build tools, download and install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and select the **"Desktop development with C++"** workload.
 
 ### 2. Clone the repository
 
@@ -55,14 +52,32 @@ Copy the example environment file:
   copy .env.example .env
   ```
 
-Open `.env` in Notepad or any text editor and fill in the required values (see table below).
+Open `.env` in Notepad or any text editor and fill in:
 
-Run migrations and start the backend:
+| Variable | Description |
+|---|---|
+| `JWT_SECRET` | Any long random string |
+| `GMAIL_USER` | Your Gmail address |
+| `GMAIL_APP_PASSWORD` | Gmail app password (see below) |
 
-```bash
+**Getting a Gmail App Password:**
+1. Go to [myaccount.google.com](https://myaccount.google.com) → Security
+2. Enable 2-Step Verification
+3. Search for "App Passwords" → create one → copy the 16-character code
+
+Run migrations:
+
+```powershell
 npm run migrate
+```
+
+Start the backend:
+
+```powershell
 npm run dev
 ```
+
+The server will run on `http://localhost:3000`.
 
 ### 4. Frontend
 
@@ -76,15 +91,28 @@ npx expo start --clear
 
 Scan the QR code with the Expo Go app. Your phone and PC must be on the **same WiFi network**.
 
-### 5. Verify (Windows PowerShell)
+### 5. Verify (PowerShell)
 
-The `curl` command in PowerShell works differently. Use this instead:
+In PowerShell, `curl` is an alias for `Invoke-WebRequest` and uses different syntax. Use these commands instead:
+
+Test the API:
 
 ```powershell
 Invoke-WebRequest http://localhost:3000/health | Select-Object -ExpandProperty Content
 ```
 
-Or install [curl for Windows](https://curl.se/windows/) and use the standard curl commands as shown below.
+Expected response: `{"status":"ok"}`
+
+Test registration:
+
+```powershell
+Invoke-WebRequest -Uri http://localhost:3000/api/auth/register `
+  -Method POST `
+  -ContentType "application/json" `
+  -Body '{"email":"test@test.com","name":"Test","password":"12345678","role":"entrepreneur"}' | Select-Object -ExpandProperty Content
+```
+
+Expected response: `{"message":"Registered. Check your email for the verification code."}`
 
 ---
 
