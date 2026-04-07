@@ -67,6 +67,10 @@ const UserModel = {
   setVerificationStatus(id, status) {
     getDb().prepare('UPDATE users SET verification_status = ? WHERE id = ?').run(status, id);
   },
+
+  setRole(id, role) {
+    getDb().prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+  },
 };
 
 module.exports = UserModel;

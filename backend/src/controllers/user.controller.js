@@ -35,4 +35,18 @@ async function setVerificationStatus(req, res, next) {
   }
 }
 
-module.exports = { deleteAccount, getUser, setVerificationStatus };
+// PATCH /api/users/me/role
+async function setRole(req, res, next) {
+  try {
+    const { role } = req.body;
+    if (!['entrepreneur', 'investor'].includes(role)) {
+      return res.status(400).json({ error: 'role must be entrepreneur or investor' });
+    }
+    UserModel.setRole(req.user.id, role);
+    res.json({ role });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { deleteAccount, getUser, setVerificationStatus, setRole };

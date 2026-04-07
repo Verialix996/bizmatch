@@ -1,3 +1,45 @@
+# ── Sensitive ────────────────────────────────────────────────────────────────
 paswords.txt
+.env
+.env.*
+!.env.example
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+.pnp
+.pnp.js
+
+# ── Database ──────────────────────────────────────────────────────────────────
+backend/data/*.db
+backend/data/*.db-shm
+backend/data/*.db-wal
+
+# ── Uploads & logs ────────────────────────────────────────────────────────────
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/logs/
+
+# ── Build / cache ─────────────────────────────────────────────────────────────
+.expo/
+dist/
+build/
+web-build/
+*.tsbuildinfo
+
+# ── OS & editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# ── Test / debug artefacts ───────────────────────────────────────────────────
+ALGO_TEST.md
+*.jpeg
+*.jpg
+*.zip
+stitch_match_messaging_chat/
+
+# ── Personal folders ─────────────────────────────────────────────────────────
 אקסלרטור א/
 אקסלרטור ב/

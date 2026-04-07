@@ -8,6 +8,10 @@ const useAuthStore = create((set) => ({
     set({ token, user });
   },
 
+  updateUser: (updates) => {
+    set(state => ({ user: state.user ? { ...state.user, ...updates } : state.user }));
+  },
+
   logout: () => {
     set({ token: null, user: null });
   },
