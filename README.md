@@ -12,7 +12,78 @@ A matchmaking platform for entrepreneurs and investors.
 
 ---
 
-## Setup
+## Windows Setup
+
+> **Recommended:** Use [Git Bash](https://gitforwindows.org/) (installed with Git for Windows) — it lets you follow the exact same commands as below without any changes.
+>
+> If you prefer **PowerShell**, the only differences are noted inline.
+
+### 1. Install prerequisites
+
+- [Node.js](https://nodejs.org) v18 or higher (includes npm)
+- [Git for Windows](https://gitforwindows.org/) — includes Git Bash
+
+### 2. Clone the repository
+
+Open **Git Bash** (or PowerShell) and run:
+
+```bash
+git clone https://github.com/Verialix996/bizmatch.git
+cd bizmatch
+```
+
+### 3. Backend
+
+```bash
+cd backend
+npm install
+```
+
+Copy the example environment file:
+
+- **Git Bash:**
+  ```bash
+  cp .env.example .env
+  ```
+- **PowerShell / Command Prompt:**
+  ```powershell
+  copy .env.example .env
+  ```
+
+Open `.env` in Notepad or any text editor and fill in the required values (see table below).
+
+Run migrations and start the backend:
+
+```bash
+npm run migrate
+npm run dev
+```
+
+### 4. Frontend
+
+Open a **second** Git Bash / PowerShell window:
+
+```bash
+cd frontend
+npm install
+npx expo start --clear
+```
+
+Scan the QR code with the Expo Go app. Your phone and PC must be on the **same WiFi network**.
+
+### 5. Verify (Windows PowerShell)
+
+The `curl` command in PowerShell works differently. Use this instead:
+
+```powershell
+Invoke-WebRequest http://localhost:3000/health | Select-Object -ExpandProperty Content
+```
+
+Or install [curl for Windows](https://curl.se/windows/) and use the standard curl commands as shown below.
+
+---
+
+## Setup (macOS / Linux)
 
 ### 1. Clone the repository
 
