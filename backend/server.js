@@ -1,4 +1,5 @@
 require('dotenv').config();
+require('./migrations/run');
 const app = require('./src/app');
 const { testConnection } = require('./src/config/db');
 const logger = require('./src/utils/logger');
