@@ -2,13 +2,13 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
-  SafeAreaView,
+  SafeAreaView, StatusBar,
 } from 'react-native';
 import { getFeed, swipe } from '../../services/match.service';
 import { getProjectFeed, swipeProject } from '../../services/project.service';
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
-import { colors, cardShadow } from '../../theme';
+import { colors, cardShadow, radius } from '../../theme';
 
 const SWIPE_THRESHOLD = 120;
 const ROTATION_FACTOR = 12;
@@ -26,6 +26,14 @@ function StageBadge({ stage }) {
   );
 }
 
+function NotifButton() {
+  return (
+    <View style={styles.notifBtn}>
+      <Text style={styles.notifIcon}>🔔</Text>
+    </View>
+  );
+}
+
 function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop }) {
   const animatedStyle = isTop ? {
     transform: [
@@ -33,18 +41,17 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
       { translateY: position.y },
       { rotate: cardRotation },
     ],
-  } : { transform: [{ scale: 0.96 }, { translateY: 14 }] };
+  } : { transform: [{ scale: 0.96 }, { translateY: 12 }] };
 
   const roleLabel = profile.role === 'investor'
     ? `INVESTOR · ${profile.investmentDomain || 'Multi-sector'}`
-    : `ENTREPRENEUR · Looking for ${profile.role === 'investor' ? 'Deals' : 'Co-founder'}`;
+    : `ENTREPRENEUR · ${stageLabel[profile.ventureStage] || 'Early Stage'}`;
 
   return (
     <Animated.View
       style={[styles.card, animatedStyle, !isTop && styles.cardBack]}
       {...(isTop ? panHandlers : {})}
     >
-      {/* Photo area */}
       <View style={styles.cardPhoto}>
         {profile.photoUrl ? (
           <Image source={{ uri: profile.photoUrl }} style={styles.photoImg} />
@@ -66,16 +73,15 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
         {isTop && (
           <>
             <Animated.View style={[styles.overlayLike, { opacity: likeOpacity }]}>
-              <Text style={styles.overlayText}>LIKE</Text>
+              <Text style={styles.overlayLikeText}>LIKE</Text>
             </Animated.View>
             <Animated.View style={[styles.overlayPass, { opacity: passOpacity }]}>
-              <Text style={styles.overlayText}>PASS</Text>
+              <Text style={styles.overlayPassText}>PASS</Text>
             </Animated.View>
           </>
         )}
       </View>
 
-      {/* Card body */}
       <View style={styles.cardBody}>
         <Text style={styles.roleLabel}>{roleLabel}</Text>
 
@@ -88,7 +94,7 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
             ))}
             {profile.skills.length > 3 && (
               <View style={styles.chip}>
-                <Text style={styles.chipText}>+{profile.skills.length - 3} more</Text>
+                <Text style={styles.chipText}>+{profile.skills.length - 3}</Text>
               </View>
             )}
           </View>
@@ -99,10 +105,14 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
         ) : null}
 
         {profile.fundingNeeds ? (
-          <Text style={styles.metaLine}>Seeking ${profile.fundingNeeds.toLocaleString()}</Text>
+          <Text style={styles.metaLine}>
+            Seeking ${profile.fundingNeeds.toLocaleString()}
+          </Text>
         ) : null}
         {profile.maxInvestment ? (
-          <Text style={styles.metaLine}>Invests up to ${profile.maxInvestment.toLocaleString()}</Text>
+          <Text style={styles.metaLine}>
+            Invests up to ${profile.maxInvestment.toLocaleString()}
+          </Text>
         ) : null}
       </View>
     </Animated.View>
@@ -116,14 +126,13 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
       { translateY: position.y },
       { rotate: cardRotation },
     ],
-  } : { transform: [{ scale: 0.96 }, { translateY: 14 }] };
+  } : { transform: [{ scale: 0.96 }, { translateY: 12 }] };
 
   return (
     <Animated.View
       style={[styles.card, animatedStyle, !isTop && styles.cardBack]}
       {...(isTop ? panHandlers : {})}
     >
-      {/* Photo / placeholder area */}
       <View style={styles.cardPhoto}>
         {project.ownerPhoto ? (
           <Image source={{ uri: project.ownerPhoto }} style={styles.photoImg} />
@@ -143,10 +152,10 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
         {isTop && (
           <>
             <Animated.View style={[styles.overlayLike, { opacity: likeOpacity }]}>
-              <Text style={styles.overlayText}>LIKE</Text>
+              <Text style={styles.overlayLikeText}>LIKE</Text>
             </Animated.View>
             <Animated.View style={[styles.overlayPass, { opacity: passOpacity }]}>
-              <Text style={styles.overlayText}>PASS</Text>
+              <Text style={styles.overlayPassText}>PASS</Text>
             </Animated.View>
           </>
         )}
@@ -160,7 +169,9 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
         {project.ownerSkills?.length > 0 && (
           <View style={styles.chipRow}>
             {project.ownerSkills.slice(0, 3).map((s, i) => (
-              <View key={i} style={styles.chip}><Text style={styles.chipText}>{s}</Text></View>
+              <View key={i} style={styles.chip}>
+                <Text style={styles.chipText}>{s}</Text>
+              </View>
             ))}
           </View>
         )}
@@ -170,7 +181,9 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
         ) : null}
 
         {project.fundingNeeded ? (
-          <Text style={styles.metaLine}>Seeking ${project.fundingNeeded.toLocaleString()}</Text>
+          <Text style={styles.metaLine}>
+            Seeking ${project.fundingNeeded.toLocaleString()}
+          </Text>
         ) : null}
 
         <View style={styles.linkRow}>
@@ -201,13 +214,15 @@ function MatchModal({ visible, matchedName, onClose }) {
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
         <View style={styles.modalBox}>
-          <View style={styles.modalIconRow}>
-            <Text style={styles.modalEmoji}>✦</Text>
+          <View style={styles.modalIconCircle}>
+            <Text style={styles.modalIconText}>✦</Text>
           </View>
           <Text style={styles.modalTitle}>It's a Match!</Text>
-          <Text style={styles.modalSub}>You and {matchedName} have connected.</Text>
-          <TouchableOpacity style={styles.modalBtn} onPress={onClose}>
-            <Text style={styles.modalBtnText}>Keep Swiping</Text>
+          <Text style={styles.modalSub}>
+            You and {matchedName} have connected.
+          </Text>
+          <TouchableOpacity style={styles.modalBtn} onPress={onClose} activeOpacity={0.85}>
+            <Text style={styles.modalBtnText}>KEEP SWIPING</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -272,14 +287,10 @@ export default function SwipeScreen() {
       try {
         if (isEntrepreneur) {
           const res = await swipe(item.userId, direction);
-          if (res.data.matched) {
-            setMatchModal({ visible: true, name: item.name });
-          }
+          if (res.data.matched) setMatchModal({ visible: true, name: item.name });
         } else {
           const res = await swipeProject(item.projectId, direction);
-          if (res.data.matched) {
-            setMatchModal({ visible: true, name: item.title });
-          }
+          if (res.data.matched) setMatchModal({ visible: true, name: item.title });
         }
       } catch (e) {
         console.error('Swipe failed', e);
@@ -302,31 +313,35 @@ export default function SwipeScreen() {
         } else if (g.dx < -SWIPE_THRESHOLD) {
           sendSwipeRef.current('pass');
         } else {
-          Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+          Animated.spring(position, {
+            toValue: { x: 0, y: 0 }, useNativeDriver: false,
+          }).start();
         }
       },
     })
   ).current;
 
-  const visibleProfiles = feed.slice(currentIndex.current, currentIndex.current + 2);
+  const visibleCards = feed.slice(currentIndex.current, currentIndex.current + 2);
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>BizMatch</Text>
-        <TouchableOpacity style={styles.notifBtn}>
-          <Text style={styles.notifIcon}>🔔</Text>
-        </TouchableOpacity>
+        <NotifButton />
       </View>
 
       {/* Title */}
       <View style={styles.titleBlock}>
         <Text style={styles.sectionLabel}>DISCOVERY FEED</Text>
-        <Text style={styles.pageTitle}>{isEntrepreneur ? 'New Connections' : 'New Projects'}</Text>
+        <Text style={styles.pageTitle}>
+          {isEntrepreneur ? 'New Connections' : 'New Projects'}
+        </Text>
       </View>
 
-      {/* Mode toggle (entrepreneurs only) */}
+      {/* Mode toggle — entrepreneurs only */}
       {isEntrepreneur && (
         <View style={styles.toggle}>
           {['investors', 'partners'].map(m => (
@@ -334,8 +349,12 @@ export default function SwipeScreen() {
               key={m}
               style={[styles.toggleBtn, mode === m && styles.toggleBtnActive]}
               onPress={() => setMode(m)}
+              activeOpacity={0.8}
             >
-              <Text style={[styles.toggleBtnText, mode === m && styles.toggleBtnTextActive]}>
+              <Text style={[
+                styles.toggleBtnText,
+                mode === m && styles.toggleBtnTextActive,
+              ]}>
                 {m === 'investors' ? 'Find Investors' : 'Find Partners'}
               </Text>
             </TouchableOpacity>
@@ -347,21 +366,25 @@ export default function SwipeScreen() {
       <View style={styles.deckArea}>
         {loading ? (
           <ActivityIndicator size="large" color={colors.primary} />
-        ) : visibleProfiles.length === 0 ? (
+        ) : visibleCards.length === 0 ? (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No more profiles</Text>
+            <Text style={styles.emptyTitle}>All caught up</Text>
             <Text style={styles.emptySub}>Check back later for new matches</Text>
-            <TouchableOpacity style={styles.refreshBtn} onPress={() => loadFeed(mode)}>
+            <TouchableOpacity
+              style={styles.refreshBtn}
+              onPress={() => loadFeed(mode)}
+              activeOpacity={0.85}
+            >
               <Text style={styles.refreshBtnText}>Refresh</Text>
             </TouchableOpacity>
           </View>
         ) : (
           <>
-            {visibleProfiles[1] ? (
+            {visibleCards[1] ? (
               isEntrepreneur ? (
                 <ProfileCard
-                  key={`back-${visibleProfiles[1].userId}`}
-                  profile={visibleProfiles[1]}
+                  key={`back-${visibleCards[1].userId}`}
+                  profile={visibleCards[1]}
                   isTop={false}
                   position={position}
                   likeOpacity={likeOpacity}
@@ -370,8 +393,8 @@ export default function SwipeScreen() {
                 />
               ) : (
                 <ProjectCard
-                  key={`back-${visibleProfiles[1].projectId}`}
-                  project={visibleProfiles[1]}
+                  key={`back-${visibleCards[1].projectId}`}
+                  project={visibleCards[1]}
                   isTop={false}
                   position={position}
                   likeOpacity={likeOpacity}
@@ -380,10 +403,11 @@ export default function SwipeScreen() {
                 />
               )
             ) : null}
+
             {isEntrepreneur ? (
               <ProfileCard
-                key={`top-${visibleProfiles[0].userId}`}
-                profile={visibleProfiles[0]}
+                key={`top-${visibleCards[0].userId}`}
+                profile={visibleCards[0]}
                 isTop={true}
                 panHandlers={panResponder.panHandlers}
                 position={position}
@@ -393,8 +417,8 @@ export default function SwipeScreen() {
               />
             ) : (
               <ProjectCard
-                key={`top-${visibleProfiles[0].projectId}`}
-                project={visibleProfiles[0]}
+                key={`top-${visibleCards[0].projectId}`}
+                project={visibleCards[0]}
                 isTop={true}
                 panHandlers={panResponder.panHandlers}
                 position={position}
@@ -408,25 +432,29 @@ export default function SwipeScreen() {
       </View>
 
       {/* Action buttons */}
-      {!loading && visibleProfiles.length > 0 && (
+      {!loading && visibleCards.length > 0 && (
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.passBtn]}
             onPress={() => sendSwipe('pass')}
             disabled={swiping}
+            activeOpacity={0.8}
           >
             <Text style={styles.passBtnText}>✕</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionBtn, styles.starBtn]}
-            onPress={() => {}}
+            activeOpacity={0.8}
           >
             <Text style={styles.starBtnText}>★</Text>
           </TouchableOpacity>
+
           <TouchableOpacity
             style={[styles.actionBtn, styles.likeBtn]}
             onPress={() => sendSwipe('like')}
             disabled={swiping}
+            activeOpacity={0.8}
           >
             <Text style={styles.likeBtnText}>♥</Text>
           </TouchableOpacity>
@@ -443,161 +471,371 @@ export default function SwipeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: {
+    flex: 1,
+    backgroundColor: colors.backgroundSoft,
+  },
 
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 24, paddingTop: 8, paddingBottom: 4,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingTop: 8,
+    paddingBottom: 4,
   },
-  logo: { fontSize: 20, fontWeight: '800', color: colors.onSurface, letterSpacing: -0.4 },
-  notifBtn: { width: 40, height: 40, justifyContent: 'center', alignItems: 'center' },
-  notifIcon: { fontSize: 20 },
+  logo: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.4,
+  },
+  notifBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  notifIcon: { fontSize: 16 },
 
-  titleBlock: { paddingHorizontal: 24, paddingBottom: 8 },
-  sectionLabel: {
-    fontSize: 11, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2,
+  titleBlock: {
+    paddingHorizontal: 24,
+    paddingBottom: 12,
   },
-  pageTitle: { fontSize: 28, fontWeight: '800', color: colors.onSurface, letterSpacing: -0.5 },
+  sectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
+  },
+  pageTitle: {
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.5,
+  },
 
   toggle: {
-    flexDirection: 'row', alignSelf: 'center',
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 12, padding: 4, marginBottom: 8, marginHorizontal: 24,
+    flexDirection: 'row',
+    marginHorizontal: 24,
+    backgroundColor: colors.surface,
+    borderRadius: radius.md,
+    padding: 3,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  toggleBtn: { flex: 1, paddingVertical: 8, borderRadius: 10, alignItems: 'center' },
-  toggleBtnActive: { backgroundColor: colors.primary },
-  toggleBtnText: { fontSize: 13, fontWeight: '600', color: colors.onSurfaceVariant },
-  toggleBtnTextActive: { color: '#fff' },
+  toggleBtn: {
+    flex: 1,
+    paddingVertical: 9,
+    borderRadius: radius.sm,
+    alignItems: 'center',
+  },
+  toggleBtnActive: {
+    backgroundColor: colors.primary,
+  },
+  toggleBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textHint,
+  },
+  toggleBtnTextActive: {
+    color: '#fff',
+  },
 
-  deckArea: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+  deckArea: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 
   card: {
     position: 'absolute',
     width: 340,
     borderRadius: 20,
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.surface,
     overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
     ...cardShadow,
   },
-  cardBack: {},
+  cardBack: {
+    shadowOpacity: 0.03,
+  },
 
-  cardPhoto: { width: '100%', height: 220, position: 'relative' },
-  photoImg: { width: '100%', height: '100%', resizeMode: 'cover' },
+  cardPhoto: {
+    width: '100%',
+    height: 210,
+    position: 'relative',
+  },
+  photoImg: {
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
   photoPlaceholder: {
-    width: '100%', height: '100%',
-    backgroundColor: colors.primaryContainer,
-    justifyContent: 'center', alignItems: 'center',
+    width: '100%',
+    height: '100%',
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  photoInitial: { fontSize: 72, fontWeight: '800', color: '#fff' },
+  photoInitial: {
+    fontSize: 72,
+    fontWeight: '800',
+    color: 'rgba(255,255,255,0.9)',
+  },
   cardPhotoOverlay: {
-    position: 'absolute', bottom: 0, left: 0, right: 0, height: 80,
-    backgroundColor: 'rgba(7,0,73,0.45)',
+    position: 'absolute',
+    bottom: 0, left: 0, right: 0,
+    height: 80,
+    backgroundColor: 'rgba(2,36,102,0.5)',
   },
-  cardNameBlock: { position: 'absolute', bottom: 10, left: 14 },
-  cardName: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.4 },
-  cardLocation: { fontSize: 13, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
+  cardNameBlock: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+  },
+  cardName: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: -0.4,
+  },
+  cardLocation: {
+    fontSize: 12,
+    color: 'rgba(255,255,255,0.75)',
+    marginTop: 2,
+  },
 
   stageBadge: {
-    position: 'absolute', top: 12, right: 12,
-    backgroundColor: colors.primaryContainer,
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
+    position: 'absolute',
+    top: 12,
+    right: 12,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.4)',
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
   },
-  stageBadgeText: { fontSize: 11, fontWeight: '700', color: '#fff', letterSpacing: 0.5 },
+  stageBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.5,
+  },
 
   overlayLike: {
-    position: 'absolute', top: 20, left: 16,
-    backgroundColor: 'rgba(46,160,113,0.2)',
-    borderWidth: 2, borderColor: '#2ea071',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
+    position: 'absolute',
+    top: 20,
+    left: 16,
+    backgroundColor: 'rgba(0,77,186,0.15)',
+    borderWidth: 2,
+    borderColor: colors.primary,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  overlayLikeText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primary,
   },
   overlayPass: {
-    position: 'absolute', top: 20, right: 16,
-    backgroundColor: 'rgba(186,26,26,0.2)',
-    borderWidth: 2, borderColor: '#ba1a1a',
-    borderRadius: 8, paddingHorizontal: 12, paddingVertical: 6,
+    position: 'absolute',
+    top: 20,
+    right: 16,
+    backgroundColor: 'rgba(192,57,43,0.15)',
+    borderWidth: 2,
+    borderColor: colors.error,
+    borderRadius: radius.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
   },
-  overlayText: { fontSize: 18, fontWeight: '800', color: '#fff' },
+  overlayPassText: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.error,
+  },
 
-  cardBody: { padding: 16 },
+  cardBody: {
+    padding: 16,
+  },
   roleLabel: {
-    fontSize: 11, fontWeight: '700', color: colors.secondary,
-    letterSpacing: 0.8, textTransform: 'uppercase', marginBottom: 10,
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.primary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 10,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 },
+  chipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 10,
+  },
   chip: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  chipText: { fontSize: 12, fontWeight: '600', color: colors.onSurfaceVariant },
+  chipText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   bioQuote: {
-    fontSize: 13, color: colors.onSurfaceVariant, fontStyle: 'italic', lineHeight: 20,
+    fontSize: 13,
+    color: colors.textHint,
+    fontStyle: 'italic',
+    lineHeight: 19,
   },
-  metaLine: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 6 },
-  linkRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  metaLine: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 6,
+    fontWeight: '600',
+  },
+  linkRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+  },
   linkBtn: {
-    flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 5,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  linkBtnText: { fontSize: 12, fontWeight: '600', color: colors.secondary },
+  linkBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
 
   actionRow: {
-    flexDirection: 'row', justifyContent: 'center', alignItems: 'center',
-    gap: 20, paddingBottom: 16, paddingTop: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 20,
+    paddingBottom: 20,
+    paddingTop: 12,
   },
   actionBtn: {
-    justifyContent: 'center', alignItems: 'center', borderRadius: 999,
-    shadowColor: '#131b2e', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08, shadowRadius: 12, elevation: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: radius.pill,
+    backgroundColor: colors.surface,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceBorder,
+    ...cardShadow,
+    shadowOpacity: 0.04,
   },
-  passBtn: {
-    width: 56, height: 56,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1.5, borderColor: colors.outlineVariant,
-  },
-  passBtnText: { fontSize: 22, color: '#ba1a1a' },
-  starBtn: {
-    width: 48, height: 48,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderWidth: 1.5, borderColor: colors.outlineVariant,
-  },
-  starBtnText: { fontSize: 20, color: colors.secondary },
+  passBtn: { width: 56, height: 56 },
+  passBtnText: { fontSize: 22, color: colors.error },
+  starBtn: { width: 48, height: 48 },
+  starBtnText: { fontSize: 20, color: colors.primary },
   likeBtn: {
-    width: 64, height: 64,
+    width: 64,
+    height: 64,
     backgroundColor: colors.primary,
+    borderColor: colors.primary,
   },
   likeBtnText: { fontSize: 26, color: '#fff' },
 
-  emptyState: { alignItems: 'center', padding: 24 },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: colors.onSurface, marginBottom: 8 },
-  emptySub: { color: colors.onSurfaceVariant, marginBottom: 24 },
-  refreshBtn: {
-    backgroundColor: colors.primary, borderRadius: 12,
-    paddingHorizontal: 28, paddingVertical: 12,
+  emptyState: {
+    alignItems: 'center',
+    padding: 32,
   },
-  refreshBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    marginBottom: 8,
+  },
+  emptySub: {
+    color: colors.textHint,
+    marginBottom: 24,
+    fontSize: 14,
+  },
+  refreshBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: 28,
+    paddingVertical: 13,
+  },
+  refreshBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
+  },
 
   modalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(7,0,73,0.6)',
-    justifyContent: 'center', alignItems: 'center',
+    flex: 1,
+    backgroundColor: 'rgba(2,36,102,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   modalBox: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderRadius: 24, padding: 32, alignItems: 'center', width: 300,
-    shadowColor: '#131b2e', shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.12, shadowRadius: 32, elevation: 12,
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 32,
+    alignItems: 'center',
+    width: 300,
+    ...cardShadow,
   },
-  modalIconRow: { marginBottom: 8 },
-  modalEmoji: { fontSize: 36, color: colors.primary },
+  modalIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  modalIconText: {
+    fontSize: 24,
+    color: '#fff',
+  },
   modalTitle: {
-    fontSize: 26, fontWeight: '800', color: colors.onSurface,
-    letterSpacing: -0.5, marginBottom: 8,
+    fontSize: 26,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.5,
+    marginBottom: 8,
   },
-  modalSub: { color: colors.onSurfaceVariant, textAlign: 'center', marginBottom: 24, lineHeight: 20 },
+  modalSub: {
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 20,
+    fontSize: 14,
+  },
   modalBtn: {
     backgroundColor: colors.primary,
-    borderRadius: 12, paddingHorizontal: 32, paddingVertical: 14, width: '100%', alignItems: 'center',
+    borderRadius: radius.md,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    width: '100%',
+    alignItems: 'center',
   },
-  modalBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  modalBtnText: {
+    color: '#fff',
+    fontWeight: '800',
+    fontSize: 14,
+    letterSpacing: 1,
+  },
 });

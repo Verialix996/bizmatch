@@ -2,13 +2,12 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  SafeAreaView, ActivityIndicator, Image,
+  SafeAreaView, ActivityIndicator, Image, StatusBar,
 } from 'react-native';
 import { getMessages, sendMessage } from '../../services/match.service';
 import useAuthStore from '../../store/authStore';
-import { colors } from '../../theme';
+import { colors, cardShadow, radius } from '../../theme';
 
-// SQLite datetime('now') returns UTC without 'Z' — append it so JS parses correctly.
 function parseUTC(dateStr) {
   if (!dateStr) return new Date(NaN);
   return new Date(dateStr.endsWith('Z') ? dateStr : dateStr + 'Z');
@@ -16,22 +15,43 @@ function parseUTC(dateStr) {
 
 function formatTime(dateStr) {
   if (!dateStr) return '';
-  return parseUTC(dateStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  return parseUTC(dateStr).toLocaleTimeString([], {
+    hour: '2-digit', minute: '2-digit',
+  });
 }
 
 function formatDateDivider(dateStr) {
   if (!dateStr) return '';
-  return parseUTC(dateStr).toLocaleDateString([], { weekday: 'long', month: 'long', day: 'numeric' }).toUpperCase();
+  const d = parseUTC(dateStr);
+  const today = new Date();
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+
+  if (d.toDateString() === today.toDateString()) return 'TODAY';
+  if (d.toDateString() === yesterday.toDateString()) return 'YESTERDAY';
+  return d.toLocaleDateString([], {
+    weekday: 'long', month: 'long', day: 'numeric',
+  }).toUpperCase();
 }
 
 function Avatar({ photoUrl, name, size = 36 }) {
   const initials = name ? name[0].toUpperCase() : '?';
   if (photoUrl) {
-    return <Image source={{ uri: photoUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    );
   }
   return (
-    <View style={[styles.avatarPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.avatarInitial, { fontSize: size * 0.4 }]}>{initials}</Text>
+    <View style={[
+      styles.avatarPlaceholder,
+      { width: size, height: size, borderRadius: size / 2 },
+    ]}>
+      <Text style={[styles.avatarInitial, { fontSize: size * 0.38 }]}>
+        {initials}
+      </Text>
     </View>
   );
 }
@@ -75,30 +95,50 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
-  // Group messages by date for dividers
   const renderItem = ({ item, index }) => {
     const isOwn = item.sender_id === user?.id;
     const prevMsg = messages[index - 1];
     const showDivider = !prevMsg || (
-      parseUTC(item.created_at).toDateString() !== parseUTC(prevMsg.created_at).toDateString()
+      parseUTC(item.created_at).toDateString() !==
+      parseUTC(prevMsg.created_at).toDateString()
     );
 
     return (
       <>
         {showDivider && (
           <View style={styles.dateDivider}>
-            <Text style={styles.dateDividerText}>{formatDateDivider(item.created_at)}</Text>
+            <View style={styles.dateDividerLine} />
+            <Text style={styles.dateDividerText}>
+              {formatDateDivider(item.created_at)}
+            </Text>
+            <View style={styles.dateDividerLine} />
           </View>
         )}
-        <View style={[styles.msgRow, isOwn ? styles.msgRowOwn : styles.msgRowTheir]}>
+        <View style={[
+          styles.msgRow,
+          isOwn ? styles.msgRowOwn : styles.msgRowTheir,
+        ]}>
           {!isOwn && (
-            <Avatar photoUrl={match.photoUrl} name={match.name} size={32} />
+            <Avatar
+              photoUrl={match.photoUrl}
+              name={match.name}
+              size={28}
+            />
           )}
-          <View style={[styles.bubble, isOwn ? styles.bubbleOwn : styles.bubbleTheir]}>
-            <Text style={[styles.bubbleText, isOwn ? styles.bubbleTextOwn : styles.bubbleTextTheir]}>
+          <View style={[
+            styles.bubble,
+            isOwn ? styles.bubbleOwn : styles.bubbleTheir,
+          ]}>
+            <Text style={[
+              styles.bubbleText,
+              isOwn ? styles.bubbleTextOwn : styles.bubbleTextTheir,
+            ]}>
               {item.body}
             </Text>
-            <Text style={[styles.bubbleTime, isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeTheir]}>
+            <Text style={[
+              styles.bubbleTime,
+              isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeTheir,
+            ]}>
               {formatTime(item.created_at)}
             </Text>
           </View>
@@ -109,11 +149,17 @@ export default function ChatScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
+
       {/* Header */}
       <View style={styles.header}>
-        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity
+          style={styles.backBtn}
+          onPress={() => navigation.goBack()}
+        >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>
+
         <View style={styles.headerCenter}>
           <Avatar photoUrl={match.photoUrl} name={match.name} size={38} />
           <View style={styles.headerInfo}>
@@ -121,7 +167,8 @@ export default function ChatScreen({ route, navigation }) {
             <Text style={styles.headerStatus}>ACTIVE NOW</Text>
           </View>
         </View>
-        <TouchableOpacity style={styles.headerAction}>
+
+        <TouchableOpacity style={styles.headerActionBtn}>
           <Text style={styles.headerActionIcon}>📹</Text>
         </TouchableOpacity>
       </View>
@@ -147,7 +194,15 @@ export default function ChatScreen({ route, navigation }) {
             showsVerticalScrollIndicator={false}
             ListEmptyComponent={
               <View style={styles.emptyChat}>
-                <Text style={styles.emptyChatText}>You matched! Say hello 👋</Text>
+                <View style={styles.emptyChatIcon}>
+                  <Text style={{ fontSize: 28 }}>👋</Text>
+                </View>
+                <Text style={styles.emptyChatTitle}>
+                  You matched with {match.name}!
+                </Text>
+                <Text style={styles.emptyChatSub}>
+                  Say hello and start the conversation
+                </Text>
               </View>
             }
           />
@@ -159,17 +214,21 @@ export default function ChatScreen({ route, navigation }) {
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder="Type a professional response..."
-            placeholderTextColor={colors.onSurfaceVariant}
+            placeholder="Type a message..."
+            placeholderTextColor={colors.textHint}
             multiline
             maxLength={1000}
             returnKeyType="send"
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
+            style={[
+              styles.sendBtn,
+              (!input.trim() || sending) && styles.sendBtnDisabled,
+            ]}
             onPress={handleSend}
             disabled={!input.trim() || sending}
+            activeOpacity={0.85}
           >
             <Text style={styles.sendBtnText}>▶</Text>
           </TouchableOpacity>
@@ -180,86 +239,215 @@ export default function ChatScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: {
+    flex: 1,
+    backgroundColor: colors.backgroundSoft,
+  },
   flex: { flex: 1 },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  centered: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 
+  // Header
   header: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderBottomWidth: 1, borderBottomColor: colors.surfaceContainerLow,
-    gap: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceBorder,
+    gap: 10,
+    ...cardShadow,
+    shadowOpacity: 0.03,
   },
   backBtn: { padding: 4 },
-  backIcon: { fontSize: 22, color: colors.onSurface },
-  headerCenter: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10 },
-  headerInfo: {},
-  headerName: { fontSize: 15, fontWeight: '700', color: colors.onSurface },
-  headerStatus: {
-    fontSize: 10, fontWeight: '700', color: '#2ea071',
-    letterSpacing: 0.8, textTransform: 'uppercase',
+  backIcon: {
+    fontSize: 24,
+    color: colors.primaryDark,
   },
-  headerAction: { padding: 4 },
-  headerActionIcon: { fontSize: 20 },
+  headerCenter: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerInfo: { flex: 1 },
+  headerName: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primaryDark,
+  },
+  headerStatus: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.success,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginTop: 1,
+  },
+  headerActionBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.backgroundSoft,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerActionIcon: { fontSize: 16 },
 
   avatarPlaceholder: {
-    backgroundColor: colors.primaryContainer,
-    justifyContent: 'center', alignItems: 'center',
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  avatarInitial: { fontWeight: '700', color: '#fff' },
+  avatarInitial: {
+    fontWeight: '800',
+    color: '#fff',
+  },
 
-  msgList: { padding: 16, gap: 4 },
+  // Messages
+  msgList: {
+    padding: 16,
+    gap: 4,
+    paddingBottom: 8,
+  },
 
-  dateDivider: { alignItems: 'center', marginVertical: 16 },
+  dateDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+    gap: 10,
+  },
+  dateDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.surfaceBorder,
+  },
   dateDividerText: {
-    fontSize: 10, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 1, textTransform: 'uppercase',
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1,
   },
 
-  msgRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginVertical: 2 },
+  msgRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 7,
+    marginVertical: 2,
+  },
   msgRowOwn: { justifyContent: 'flex-end' },
   msgRowTheir: { justifyContent: 'flex-start' },
 
-  bubble: { maxWidth: '72%', borderRadius: 16, padding: 12 },
+  bubble: {
+    maxWidth: '72%',
+    borderRadius: 18,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
   bubbleOwn: {
     backgroundColor: colors.primary,
     borderBottomRightRadius: 4,
   },
   bubbleTheir: {
-    backgroundColor: colors.surfaceContainerLowest,
+    backgroundColor: colors.surface,
     borderBottomLeftRadius: 4,
-    shadowColor: '#131b2e', shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05, shadowRadius: 8, elevation: 2,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...cardShadow,
+    shadowOpacity: 0.03,
   },
-  bubbleText: { fontSize: 14, lineHeight: 20 },
+  bubbleText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
   bubbleTextOwn: { color: '#fff' },
-  bubbleTextTheir: { color: colors.onSurface },
-  bubbleTime: { fontSize: 10, marginTop: 4 },
-  bubbleTimeOwn: { color: 'rgba(255,255,255,0.6)', textAlign: 'right' },
-  bubbleTimeTheir: { color: colors.onSurfaceVariant },
+  bubbleTextTheir: { color: colors.primaryDark },
+  bubbleTime: {
+    fontSize: 10,
+    marginTop: 4,
+  },
+  bubbleTimeOwn: {
+    color: 'rgba(255,255,255,0.55)',
+    textAlign: 'right',
+  },
+  bubbleTimeTheir: { color: colors.textHint },
 
-  emptyChat: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 80 },
-  emptyChatText: { color: colors.onSurfaceVariant, fontSize: 14 },
+  // Empty state
+  emptyChat: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 80,
+    paddingHorizontal: 32,
+  },
+  emptyChatIcon: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  emptyChatTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  emptyChatSub: {
+    fontSize: 13,
+    color: colors.textHint,
+    textAlign: 'center',
+    lineHeight: 19,
+  },
 
+  // Input bar
   inputBar: {
-    flexDirection: 'row', alignItems: 'flex-end', gap: 10,
-    paddingHorizontal: 16, paddingVertical: 12,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopWidth: 1, borderTopColor: colors.surfaceContainerLow,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceBorder,
   },
   input: {
     flex: 1,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10,
-    fontSize: 14, color: colors.onSurface,
-    maxHeight: 120, lineHeight: 20,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: 22,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 14,
+    color: colors.primaryDark,
+    maxHeight: 120,
+    lineHeight: 20,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
   sendBtn: {
-    width: 44, height: 44, borderRadius: 22,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  sendBtnDisabled: { backgroundColor: colors.outlineVariant },
-  sendBtnText: { fontSize: 16, color: '#fff' },
+  sendBtnDisabled: {
+    backgroundColor: colors.surfaceBorder,
+  },
+  sendBtnText: {
+    fontSize: 15,
+    color: '#fff',
+  },
 });

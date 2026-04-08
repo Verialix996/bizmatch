@@ -1,28 +1,32 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, SafeAreaView, Image,
+  TouchableOpacity, ActivityIndicator, SafeAreaView, Image, Alert
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import useAuthStore from '../../store/authStore';
 import api from '../../services/api';
-import { colors } from '../../theme';
+import { colors, typography, radius, cardShadow } from '../../theme';
 
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
 };
 
-function Avatar({ photoUrl, name, size = 80 }) {
+function Avatar({ photoUrl, name, size = 100 }) {
   if (photoUrl) {
     return (
       <Image
         source={{ uri: photoUrl }}
-        style={{ width: size, height: size, borderRadius: size / 2, resizeMode: 'cover' }}
+        style={{ 
+          width: size, height: size, borderRadius: size / 2, 
+          resizeMode: 'cover', borderWidth: 3, borderColor: colors.surface 
+        }}
       />
     );
   }
   return (
     <View style={[styles.avatarPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={{ fontSize: size * 0.4, fontWeight: '800', color: '#fff' }}>
+      <Text style={[typography.displayLarge, { color: colors.textOnPrimary }]}>
         {name ? name[0].toUpperCase() : '?'}
       </Text>
     </View>
@@ -31,7 +35,7 @@ function Avatar({ photoUrl, name, size = 80 }) {
 
 function Section({ title, children }) {
   return (
-    <View style={styles.section}>
+    <View style={styles.card}>
       <Text style={styles.sectionLabel}>{title}</Text>
       {children}
     </View>
@@ -57,12 +61,40 @@ export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    api.get('/profile')
-      .then(res => setProfile(res.data))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  // Re-fetch data every time the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      setLoading(true);
+      api.get('/profile')
+        .then(res => setProfile(res.data))
+        .catch(() => {})
+        .finally(() => setLoading(false));
+    }, [])
+  );
+
+  const handleDeleteProfile = () => {
+    Alert.alert(
+      "Delete Profile",
+      "Are you sure you want to permanently delete your profile and account? This action cannot be undone.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete", 
+          style: "destructive", 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await api.delete('/users/me'); // Call to delete user
+              logout(); // Clear auth state
+            } catch (err) {
+              setLoading(false);
+              Alert.alert("Error", "Could not delete profile. Please try again.");
+            }
+          }
+        }
+      ]
+    );
+  };
 
   if (loading) {
     return (
@@ -85,89 +117,108 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Hero */}
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        
+        {/* Hero Section */}
         <View style={styles.hero}>
-          <View style={styles.heroBg} />
-          <View style={styles.heroTextBlock}>
-            <Text style={styles.heroName}>{user?.name}</Text>
-            <Text style={styles.heroRole}>{roleTitle}</Text>
-          </View>
-          <View style={styles.heroAvatarWrap}>
-            <Avatar photoUrl={profile?.photo_url} name={user?.name} size={88} />
-          </View>
+          <Avatar photoUrl={profile?.photo_url} name={user?.name} size={100} />
+          <Text style={styles.heroName}>{user?.name}</Text>
+          <Text style={styles.heroRole}>{roleTitle}</Text>
         </View>
 
-        <View style={styles.body}>
-          {/* No profile yet */}
-          {!profile?.bio && (
-            <View style={styles.emptyBanner}>
-              <Text style={styles.emptyBannerText}>Complete your profile to start matching</Text>
-            </View>
-          )}
+        {/* Missing Profile Banner */}
+        {!profile?.bio && (
+          <View style={styles.emptyBanner}>
+            <Text style={styles.emptyBannerText}>Complete your profile to start matching</Text>
+          </View>
+        )}
 
-          {/* About */}
+        {/* Data Cards */}
+        <View style={styles.body}>
           {profile?.bio ? (
             <Section title="ABOUT ME">
               <Text style={styles.bioText}>{profile.bio}</Text>
             </Section>
           ) : null}
 
-          {/* Skills */}
           {skills.length > 0 && (
             <Section title="CORE EXPERTISE">
               <ChipRow items={skills} />
             </Section>
           )}
 
-          {/* Investor fields */}
+          {/* Investor Specific Data */}
           {isInvestor && (
-            <>
-              {profile?.investment_domain ? (
-                <Section title="INVESTMENT DOMAIN">
-                  <Text style={styles.metaValue}>{profile.investment_domain}</Text>
-                </Section>
-              ) : null}
-              {profile?.preferred_stage ? (
-                <Section title="TARGET STAGE">
-                  <Text style={styles.metaValue}>{stageLabel[profile.preferred_stage] || profile.preferred_stage}</Text>
-                </Section>
-              ) : null}
-              {profile?.max_investment ? (
-                <Section title="MAX INVESTMENT">
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>INVESTMENT GOALS</Text>
+              
+              {profile?.investment_domain && (
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Domain</Text>
+                  <Text style={styles.dataValue}>{profile.investment_domain}</Text>
+                </View>
+              )}
+              
+              {profile?.preferred_stage && (
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Target Stage</Text>
+                  <Text style={styles.dataValue}>{stageLabel[profile.preferred_stage] || profile.preferred_stage}</Text>
+                </View>
+              )}
+              
+              {profile?.max_investment && (
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Max Investment</Text>
                   <Text style={styles.highlight}>${Number(profile.max_investment).toLocaleString()}</Text>
-                </Section>
-              ) : null}
-            </>
+                </View>
+              )}
+            </View>
           )}
 
-          {/* Entrepreneur fields */}
-          {!isInvestor && (
-            <>
-              {profile?.venture_stage ? (
-                <Section title="VENTURE STAGE">
-                  <Text style={styles.metaValue}>{stageLabel[profile.venture_stage] || profile.venture_stage}</Text>
-                </Section>
-              ) : null}
-              {profile?.funding_needs ? (
-                <Section title="SEEKING">
+          {/* Entrepreneur Specific Data */}
+          {!isInvestor && (profile?.venture_stage || profile?.funding_needs) && (
+            <View style={styles.card}>
+              <Text style={styles.sectionLabel}>VENTURE DETAILS</Text>
+              
+              {profile?.venture_stage && (
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Stage</Text>
+                  <Text style={styles.dataValue}>{stageLabel[profile.venture_stage] || profile.venture_stage}</Text>
+                </View>
+              )}
+              
+              {profile?.funding_needs && (
+                <View style={styles.dataRow}>
+                  <Text style={styles.dataLabel}>Seeking</Text>
                   <Text style={styles.highlight}>${Number(profile.funding_needs).toLocaleString()}</Text>
-                </Section>
-              ) : null}
-            </>
+                </View>
+              )}
+            </View>
           )}
 
-          {/* Actions */}
-          <TouchableOpacity
-            style={styles.editBtn}
-            onPress={() => navigation.navigate('EditProfile', { profile })}
-          >
-            <Text style={styles.editBtnText}>{profile?.bio ? 'Edit Profile' : 'Create Profile'}</Text>
-          </TouchableOpacity>
+          {/* Action Buttons */}
+          <View style={styles.actionsContainer}>
+            <TouchableOpacity
+              style={styles.btnPrimary}
+              onPress={() => navigation.navigate('EditProfile', { profile })}
+            >
+              <Text style={styles.btnPrimaryText}>
+                {profile?.bio ? 'Edit Profile' : 'Create Profile'}
+              </Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
-            <Text style={styles.logoutBtnText}>Log Out</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.btnSecondary}
+              onPress={() => navigation.navigate('AccountSettings')} 
+            >
+              <Text style={styles.btnSecondaryText}>Account Settings (Change Name)</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.btnLogout} onPress={logout}>
+              <Text style={styles.btnLogoutText}>Log Out</Text>
+            </TouchableOpacity>
+          </View>
+
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -175,61 +226,160 @@ export default function ProfileScreen({ navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
-  centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-
-  hero: { height: 200, position: 'relative' },
-  heroBg: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: colors.primaryContainer,
+  container: { 
+    flex: 1, 
+    backgroundColor: colors.backgroundSoft 
   },
-  heroAvatarWrap: {
-    position: 'absolute', bottom: -44, left: 24,
-    borderWidth: 3, borderColor: colors.surface, borderRadius: 999,
+  centered: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center' 
+  },
+  scrollContent: {
+    paddingBottom: 40,
+  },
+
+  // ── Hero ───────────────────────────────────────
+  hero: { 
+    alignItems: 'center',
+    paddingTop: 40,
+    paddingBottom: 24,
+    paddingHorizontal: 24,
   },
   avatarPlaceholder: {
     backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center', 
+    alignItems: 'center',
+    borderWidth: 4,
+    borderColor: colors.surface,
+    ...cardShadow,
   },
-  heroTextBlock: {
-    position: 'absolute', bottom: 20, left: 130, right: 16,
+  heroName: { 
+    ...typography.displayMedium, 
+    color: colors.textPrimary, 
+    marginTop: 16,
+    textAlign: 'center',
   },
-  heroName: { fontSize: 22, fontWeight: '800', color: '#fff', letterSpacing: -0.4 },
-  heroRole: { fontSize: 12, color: 'rgba(255,255,255,0.75)', marginTop: 2 },
+  heroRole: { 
+    ...typography.titleSmall, 
+    color: colors.primary, 
+    marginTop: 4,
+    textAlign: 'center',
+  },
 
-  body: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
+  body: { 
+    paddingHorizontal: 20, 
+  },
 
+  // ── Banners & Cards ────────────────────────────
   emptyBanner: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 12, padding: 16, marginBottom: 20,
+    backgroundColor: colors.warningLight,
+    borderRadius: radius.md, 
+    padding: 16, 
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(230, 126, 34, 0.2)',
   },
-  emptyBannerText: { fontSize: 13, color: colors.onSurfaceVariant, textAlign: 'center' },
+  emptyBannerText: { 
+    ...typography.bodyMedium,
+    color: colors.warning, 
+    textAlign: 'center',
+    fontWeight: '600'
+  },
 
-  section: { marginBottom: 24 },
+  card: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 20,
+    marginBottom: 16,
+    ...cardShadow,
+  },
   sectionLabel: {
-    fontSize: 10, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
+    ...typography.labelSmall,
+    color: colors.textHint,
+    marginBottom: 12,
   },
-  bioText: { fontSize: 14, color: colors.onSurfaceVariant, lineHeight: 22 },
-  metaValue: { fontSize: 15, color: colors.onSurface, fontWeight: '600' },
-  highlight: { fontSize: 24, fontWeight: '800', color: colors.primary, letterSpacing: -0.4 },
+  
+  // ── Content ────────────────────────────────────
+  bioText: { 
+    ...typography.bodyLarge, 
+    color: colors.textSecondary 
+  },
+  
+  dataRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.surfaceBorder,
+  },
+  dataLabel: {
+    ...typography.bodyMedium,
+    color: colors.textSecondary,
+  },
+  dataValue: { 
+    ...typography.titleSmall, 
+    color: colors.textPrimary,
+  },
+  highlight: { 
+    ...typography.titleMedium, 
+    color: colors.primary, 
+  },
 
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  // ── Chips ──────────────────────────────────────
+  chipRow: { 
+    flexDirection: 'row', 
+    flexWrap: 'wrap', 
+    gap: 8 
+  },
   chip: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.pill, 
+    paddingHorizontal: 14, 
+    paddingVertical: 8,
   },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.onSurfaceVariant },
+  chipText: { 
+    ...typography.labelLarge, 
+    color: colors.primary 
+  },
 
-  editBtn: {
-    backgroundColor: colors.primary, borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center', marginBottom: 12,
+  // ── Actions ────────────────────────────────────
+  actionsContainer: {
+    marginTop: 16,
+    gap: 12,
   },
-  editBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
+  btnPrimary: {
+    backgroundColor: colors.buttonPrimary, 
+    borderRadius: radius.pill,
+    paddingVertical: 16, 
+    alignItems: 'center', 
+  },
+  btnPrimaryText: { 
+    color: colors.buttonPrimaryText, 
+    ...typography.labelLarge,
+    letterSpacing: 0.5,
+  },
+  
+  btnSecondary: {
+    backgroundColor: colors.surface, 
+    borderRadius: radius.pill,
+    paddingVertical: 16, 
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.buttonOutlineBorder,
+  },
+  btnSecondaryText: { 
+    color: colors.buttonOutlineText, 
+    ...typography.labelLarge,
+  },
 
-  logoutBtn: {
-    borderRadius: 14, paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1.5, borderColor: colors.outlineVariant,
+  btnLogout: {
+    paddingVertical: 16, 
+    alignItems: 'center',
   },
-  logoutBtnText: { color: colors.onSurfaceVariant, fontWeight: '600', fontSize: 15 },
+  btnLogoutText: { 
+    color: colors.textSecondary, 
+    ...typography.labelLarge,
+  },
 });

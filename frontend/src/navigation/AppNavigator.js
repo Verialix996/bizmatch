@@ -4,6 +4,7 @@ import { Text } from 'react-native';
 import useAuthStore from '../store/authStore';
 import { colors } from '../theme';
 
+import WelcomeScreen        from '../screens/auth/WelcomeScreen';
 import LoginScreen          from '../screens/auth/LoginScreen';
 import RegisterScreen       from '../screens/auth/RegisterScreen';
 import VerifyOtpScreen      from '../screens/auth/VerifyOtpScreen';
@@ -21,7 +22,11 @@ const Tab   = createBottomTabNavigator();
 
 function TabIcon({ label, focused }) {
   const icons = { Discover: '🔍', Matches: '💬', Projects: '📁', Profile: '👤' };
-  return <Text style={{ fontSize: focused ? 22 : 19, opacity: focused ? 1 : 0.5 }}>{icons[label]}</Text>;
+  return (
+    <Text style={{ fontSize: focused ? 22 : 19, opacity: focused ? 1 : 0.5 }}>
+      {icons[label]}
+    </Text>
+  );
 }
 
 function MainTabs() {
@@ -30,21 +35,21 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         headerShown: false,
         tabBarStyle: {
-          backgroundColor: colors.surfaceContainerLowest,
-          borderTopColor: colors.surfaceContainerLow,
+          backgroundColor: '#FFFFFF',
+          borderTopColor: '#DDE3F0',
           height: 60,
           paddingBottom: 8,
         },
         tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.onSurfaceVariant,
+        tabBarInactiveTintColor: colors.textHint,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
         tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
       })}
     >
-      <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
-      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Matches' }} />
-      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
-      <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen name="Discover" component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
+      <Tab.Screen name="Matches"  component={MatchesScreen}  options={{ tabBarLabel: 'Matches' }} />
+      <Tab.Screen name="Projects" component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
+      <Tab.Screen name="Profile"  component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -63,6 +68,7 @@ export default function AppNavigator() {
         </>
       ) : (
         <>
+          <Stack.Screen name="Welcome"        component={WelcomeScreen} />
           <Stack.Screen name="Login"          component={LoginScreen} />
           <Stack.Screen name="Register"       component={RegisterScreen} />
           <Stack.Screen name="VerifyOtp"      component={VerifyOtpScreen} />
