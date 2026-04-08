@@ -2,7 +2,7 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, ScrollView, SafeAreaView,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
@@ -47,7 +47,7 @@ export default function EditProfileScreen({ route, navigation }) {
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
 
-  const isNew = !existing?.bio;
+  const isNew = !existing?.user_id;
   const hasRole = !!currentUser?.role;
 
   // For new profiles with no role, show role selection step first
@@ -56,12 +56,29 @@ export default function EditProfileScreen({ route, navigation }) {
   const [roleError, setRoleError] = useState('');
   const [saveError, setSaveError] = useState('');
 
+  // Skills bubble state
+  const [skills, setSkills] = useState(() => {
+    if (!existing?.skills) return [];
+    return Array.isArray(existing.skills) ? existing.skills : [];
+  });
+  const [skillInput, setSkillInput] = useState('');
+  const skillInputRef = useRef(null);
+
+  const addSkill = () => {
+    const trimmed = skillInput.trim();
+    if (trimmed && !skills.includes(trimmed)) {
+      setSkills(prev => [...prev, trimmed]);
+    }
+    setSkillInput('');
+  };
+
+  const removeSkill = (skill) => {
+    setSkills(prev => prev.filter(s => s !== skill));
+  };
+
   const { control, handleSubmit } = useForm({
     defaultValues: {
       bio: existing?.bio || '',
-      skills: existing?.skills
-        ? (Array.isArray(existing.skills) ? existing.skills.join(', ') : existing.skills)
-        : '',
       venture_stage: existing?.venture_stage || '',
       funding_needs: existing?.funding_needs ? String(existing.funding_needs) : '',
       investment_domain: existing?.investment_domain || '',
@@ -87,12 +104,10 @@ export default function EditProfileScreen({ route, navigation }) {
 
   const onSubmit = async (data) => {
     setSaveError('');
-    // Parse skills from comma-separated string to array
     const payload = {
       ...data,
-      skills: data.skills
-        ? data.skills.split(',').map(s => s.trim()).filter(Boolean)
-        : [],
+      skills,
+      role_type: role,
       funding_needs: data.funding_needs ? Number(data.funding_needs) : null,
       max_investment: data.max_investment ? Number(data.max_investment) : null,
     };
@@ -170,20 +185,41 @@ export default function EditProfileScreen({ route, navigation }) {
           )}
         />
 
-        <Text style={styles.fieldLabel}>Skills (comma separated)</Text>
-        <Controller
-          control={control}
-          name="skills"
-          render={({ field: { onChange, value } }) => (
-            <TextInput
-              style={styles.input}
-              placeholder="e.g. React, Finance, Marketing"
-              onChangeText={onChange}
-              value={value}
-              placeholderTextColor={colors.onSurfaceVariant}
-            />
+        <Text style={styles.fieldLabel}>Skills</Text>
+        <View style={styles.skillsContainer}>
+          {skills.length > 0 && (
+            <View style={styles.skillBubbles}>
+              {skills.map(skill => (
+                <View key={skill} style={styles.skillBubble}>
+                  <Text style={styles.skillBubbleText}>{skill}</Text>
+                  <TouchableOpacity onPress={() => removeSkill(skill)} style={styles.skillBubbleRemove}>
+                    <Text style={styles.skillBubbleRemoveText}>×</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
           )}
-        />
+          <View style={styles.skillInputRow}>
+            <TextInput
+              ref={skillInputRef}
+              style={styles.skillInput}
+              value={skillInput}
+              onChangeText={setSkillInput}
+              placeholder="Add a skill..."
+              placeholderTextColor={colors.onSurfaceVariant}
+              returnKeyType="done"
+              onSubmitEditing={addSkill}
+              blurOnSubmit={false}
+            />
+            <TouchableOpacity
+              style={[styles.skillAddBtn, !skillInput.trim() && styles.skillAddBtnDisabled]}
+              onPress={addSkill}
+              disabled={!skillInput.trim()}
+            >
+              <Text style={styles.skillAddBtnText}>+</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {!isInvestor && (
           <>
@@ -370,4 +406,38 @@ const styles = StyleSheet.create({
   saveBtnText: { color: '#fff', fontWeight: '700', fontSize: 15 },
 
   error: { color: colors.error, marginTop: 8, textAlign: 'center', fontSize: 13 },
+
+  // Skills bubble input
+  skillsContainer: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: 10, padding: 10, marginBottom: 4,
+  },
+  skillBubbles: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10,
+  },
+  skillBubble: {
+    flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6,
+    gap: 6,
+  },
+  skillBubbleText: { fontSize: 13, fontWeight: '600', color: '#fff' },
+  skillBubbleRemove: {
+    width: 18, height: 18, borderRadius: 9,
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  skillBubbleRemoveText: { color: '#fff', fontSize: 14, lineHeight: 18, fontWeight: '700' },
+  skillInputRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  skillInput: {
+    flex: 1, fontSize: 14, color: colors.onSurface,
+    paddingVertical: 6,
+  },
+  skillAddBtn: {
+    width: 32, height: 32, borderRadius: 16,
+    backgroundColor: colors.primary,
+    justifyContent: 'center', alignItems: 'center',
+  },
+  skillAddBtnDisabled: { backgroundColor: colors.outlineVariant },
+  skillAddBtnText: { color: '#fff', fontSize: 20, lineHeight: 28, fontWeight: '700' },
 });

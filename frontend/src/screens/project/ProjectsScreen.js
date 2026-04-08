@@ -5,7 +5,7 @@ import {
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
-import { getMyProjects, createProject, updateProject, deleteProject, uploadDeck, uploadVideo, getPartners, addPartner, removePartner } from '../../services/project.service';
+import { getMyProjects, createProject, updateProject, deleteProject, uploadDeck, uploadVideo, getPartners, addPartner, removePartner, setVisibility } from '../../services/project.service';
 import { getMatches } from '../../services/match.service';
 import { colors } from '../../theme';
 
@@ -28,7 +28,7 @@ function PartnerAvatar({ name, photoUrl, size = 32 }) {
   );
 }
 
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners }) {
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onToggleVisibility }) {
   const [partners, setPartners] = useState([]);
 
   useFocusEffect(useCallback(() => {
@@ -62,6 +62,14 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           ) : null}
         </View>
         <View style={styles.cardActions}>
+          <TouchableOpacity
+            onPress={() => onToggleVisibility(project.id, project.visibility === 'private' ? 'public' : 'private')}
+            style={[styles.actionBtn, project.visibility === 'private' && styles.privateBadge]}
+          >
+            <Text style={[styles.actionBtnText, project.visibility === 'private' && styles.privateBadgeText]}>
+              {project.visibility === 'private' ? '🔒 Private' : '🌐 Public'}
+            </Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={() => onEdit(project)} style={styles.actionBtn}>
             <Text style={styles.actionBtnText}>Edit</Text>
           </TouchableOpacity>
@@ -347,6 +355,17 @@ export default function ProjectsScreen() {
     }
   };
 
+  const handleToggleVisibility = async (projectId, newVisibility) => {
+    try {
+      await setVisibility(projectId, newVisibility);
+      setProjects(prev =>
+        prev.map(p => p.id === projectId ? { ...p, visibility: newVisibility } : p)
+      );
+    } catch {
+      Alert.alert('Error', 'Could not update project visibility.');
+    }
+  };
+
   const handleUploadDeck = async (projectId) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -425,6 +444,7 @@ export default function ProjectsScreen() {
               onUploadDeck={handleUploadDeck}
               onUploadVideo={handleUploadVideo}
               onManagePartners={handleManagePartners}
+              onToggleVisibility={handleToggleVisibility}
             />
           ))
         )}
@@ -482,6 +502,8 @@ const styles = StyleSheet.create({
   actionBtnText: { fontSize: 12, fontWeight: '600', color: colors.onSurfaceVariant },
   deleteBtn: { backgroundColor: '#fff0f0' },
   deleteBtnText: { color: colors.error },
+  privateBadge: { backgroundColor: '#f0f0ff' },
+  privateBadgeText: { color: colors.primary },
   cardDesc: { fontSize: 13, color: colors.onSurfaceVariant, lineHeight: 18, marginBottom: 10 },
   cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   metaChip: {

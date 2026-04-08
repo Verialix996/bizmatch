@@ -2,7 +2,8 @@ import {
   View, Text, StyleSheet, ScrollView,
   TouchableOpacity, ActivityIndicator, SafeAreaView, Image,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useState, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import useAuthStore from '../../store/authStore';
 import api from '../../services/api';
 import { colors } from '../../theme';
@@ -57,12 +58,13 @@ export default function ProfileScreen({ navigation }) {
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    setLoading(true);
     api.get('/profile')
       .then(res => setProfile(res.data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, []);
+  }, []));
 
   if (loading) {
     return (
