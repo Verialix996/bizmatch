@@ -1,5 +1,0 @@
-[build]
-buildCommand = "npm install && node migrations/run.js"
-
-[deploy]
-startCommand = "node server.js"
