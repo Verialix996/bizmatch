@@ -32,7 +32,8 @@ Thumbs.db
 .idea/
 .vscode/
 *.swp
-
+.vs
+.claude
 # ── Test / debug artefacts ───────────────────────────────────────────────────
 ALGO_TEST.md
 *.jpeg
