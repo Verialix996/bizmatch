@@ -14,8 +14,13 @@ const ProfileModel = {
          venture_stage, funding_needs,
          investment_domain, preferred_stage, max_investment)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(userId, bio, JSON.stringify(skills), JSON.stringify(hobbies), role_type,
-          venture_stage, funding_needs, investment_domain, preferred_stage, max_investment);
+    ).run(
+      userId, bio || null,
+      JSON.stringify(skills || []), JSON.stringify(hobbies || []),
+      role_type || null,
+      venture_stage || null, funding_needs || null,
+      investment_domain || null, preferred_stage || null, max_investment || null
+    );
     return { id: result.lastInsertRowid, userId };
   },
 
@@ -30,7 +35,8 @@ const ProfileModel = {
     for (const key of allowed) {
       if (data[key] !== undefined) {
         fields.push(`${key} = ?`);
-        values.push(['skills', 'hobbies'].includes(key) ? JSON.stringify(data[key]) : data[key]);
+        const val = ['skills', 'hobbies'].includes(key) ? JSON.stringify(data[key]) : data[key];
+        values.push(val === '' ? null : val);
       }
     }
     if (!fields.length) return;
