@@ -19,10 +19,7 @@ const app = express();
 
 // Security & parsing
 app.use(helmet());
-app.use(cors({
-  origin: process.env.NODE_ENV === 'development' ? true : process.env.FRONTEND_URL,
-  credentials: true,
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use('/uploads', express.static(require('path').join(__dirname, '../uploads')));
 app.use(express.urlencoded({ extended: true }));
