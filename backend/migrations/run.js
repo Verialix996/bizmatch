@@ -13,7 +13,12 @@ async function runMigrations() {
     uri: urlObj.toString(),
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   });
-  await setupPool.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+  try {
+    await setupPool.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+  } catch (err) {
+    // Managed MySQL (e.g. Railway) may not allow CREATE DATABASE — ignore and proceed
+    console.warn(`Could not auto-create database "${dbName}": ${err.message}`);
+  }
   await setupPool.end();
 
   // Now connect to the actual database
