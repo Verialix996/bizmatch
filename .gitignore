@@ -43,6 +43,7 @@ Thumbs.db
 .vs
 .claude
 # ── Test / debug artefacts ───────────────────────────────────────────────────
+testing/
 backend/scripts/FOR_TESTING_ONLY.js
 backend/scripts/FOR_TESTING_ONLY_credentials.txt
 bugs.txt
