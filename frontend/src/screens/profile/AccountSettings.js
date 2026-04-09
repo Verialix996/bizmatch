@@ -1,6 +1,6 @@
 import {
-  View, Text, TextInput, TouchableOpacity, 
-  StyleSheet, SafeAreaView, Alert, ScrollView, ActivityIndicator
+  View, Text, TextInput, TouchableOpacity,
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal
 } from 'react-native';
 import { useState } from 'react';
 import api from '../../services/api';
@@ -17,25 +17,23 @@ export default function AccountSettingsScreen({ navigation }) {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
 
+  // Modal states
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+
   const handleSave = async () => {
     if (!name.trim()) {
       setError('Name cannot be empty.');
       return;
     }
-    
     setError('');
     setSuccess('');
     setLoading(true);
-    
     try {
-      // 1. Update the database
       await api.patch('/users/me', { name: name.trim() });
-      
-      // 2. Update the local store so ProfileScreen updates immediately
       updateUser({ ...user, name: name.trim() });
-      
       setSuccess('Account updated successfully.');
-      setTimeout(() => navigation.goBack(), 1500); 
+      setTimeout(() => navigation.goBack(), 1500);
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to update account.');
     } finally {
@@ -43,32 +41,69 @@ export default function AccountSettingsScreen({ navigation }) {
     }
   };
 
-  const handleDeleteAccount = () => {
-    Alert.alert(
-      "Delete Account",
-      "Are you sure? This will permanently erase your profile, matches, and messages. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Delete Everything", 
-          style: "destructive", 
-          onPress: async () => {
-            try {
-              setLoading(true);
-              await api.delete('/users/me'); 
-              logout(); 
-            } catch (err) {
-              setLoading(false);
-              Alert.alert("Error", "Could not delete profile. Please try again.");
-            }
-          }
-        }
-      ]
-    );
+  const handleDeleteConfirmed = async () => {
+    setShowConfirmModal(false);
+    setLoading(true);
+    try {
+      await api.delete('/users/me');
+      setShowSuccessModal(true);
+    } catch (err) {
+      setLoading(false);
+      setError('Could not delete account. Please try again.');
+    }
   };
 
   return (
     <SafeAreaView style={styles.container}>
+
+      {/* ── Confirm Delete Modal ── */}
+      <Modal visible={showConfirmModal} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <Text style={styles.modalTitle}>Delete Account</Text>
+            <Text style={styles.modalBody}>
+              Are you sure? This will permanently erase your profile, matches, and messages.{'\n\n'}This cannot be undone.
+            </Text>
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.btnCancel}
+                onPress={() => setShowConfirmModal(false)}
+              >
+                <Text style={styles.btnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnConfirmDelete}
+                onPress={handleDeleteConfirmed}
+              >
+                <Text style={styles.btnConfirmDeleteText}>Delete Everything</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ── Success Modal ── */}
+      <Modal visible={showSuccessModal} transparent animationType="fade">
+        <View style={styles.overlay}>
+          <View style={styles.modal}>
+            <Text style={styles.successIcon}>✓</Text>
+            <Text style={styles.modalTitle}>Account Deleted</Text>
+            <Text style={styles.modalBody}>
+              Your account has been successfully deleted.
+            </Text>
+            <TouchableOpacity
+              style={styles.btnPrimary}
+              onPress={() => {
+                setShowSuccessModal(false);
+                logout();
+              }}
+            >
+              <Text style={styles.btnPrimaryText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backText}>← Back</Text>
@@ -78,10 +113,10 @@ export default function AccountSettingsScreen({ navigation }) {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        
+
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>PERSONAL DETAILS</Text>
-          
+
           <Text style={styles.fieldLabel}>FULL NAME</Text>
           <TextInput
             style={styles.input}
@@ -104,8 +139,8 @@ export default function AccountSettingsScreen({ navigation }) {
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
           {success ? <Text style={styles.successText}>{success}</Text> : null}
 
-          <TouchableOpacity 
-            style={[styles.btnPrimary, loading && styles.btnDisabled]} 
+          <TouchableOpacity
+            style={[styles.btnPrimary, loading && styles.btnDisabled]}
             onPress={handleSave}
             disabled={loading}
           >
@@ -122,9 +157,9 @@ export default function AccountSettingsScreen({ navigation }) {
           <Text style={styles.dangerText}>
             Deleting your account will permanently erase all your data.
           </Text>
-          <TouchableOpacity 
-            style={styles.btnDelete} 
-            onPress={handleDeleteAccount} 
+          <TouchableOpacity
+            style={styles.btnDelete}
+            onPress={() => setShowConfirmModal(true)}
             disabled={loading}
           >
             <Text style={styles.btnDeleteText}>Delete Account</Text>
@@ -138,10 +173,12 @@ export default function AccountSettingsScreen({ navigation }) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.backgroundSoft },
-  header: { 
-    flexDirection: 'row', 
-    alignItems: 'center', 
-    paddingHorizontal: 20, 
+
+  // Header
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
     paddingVertical: 16,
     backgroundColor: colors.surface,
     borderBottomWidth: 1,
@@ -150,7 +187,11 @@ const styles = StyleSheet.create({
   backBtn: { flex: 1 },
   backText: { color: colors.primary, ...typography.labelLarge },
   headerTitle: { ...typography.titleLarge, color: colors.textPrimary, flex: 2, textAlign: 'center' },
+
+  // Scroll
   scrollContent: { padding: 20 },
+
+  // Card
   card: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
@@ -173,6 +214,8 @@ const styles = StyleSheet.create({
   helperText: { ...typography.caption, color: colors.textHint, marginTop: -8, marginBottom: 20 },
   errorText: { color: colors.error, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
   successText: { color: colors.success, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
+
+  // Buttons
   btnPrimary: { backgroundColor: colors.buttonPrimary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: colors.buttonPrimaryText, ...typography.labelLarge },
@@ -180,4 +223,42 @@ const styles = StyleSheet.create({
   dangerText: { ...typography.bodyMedium, color: colors.textSecondary, marginBottom: 24 },
   btnDelete: { backgroundColor: colors.errorLight, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDeleteText: { color: colors.buttonDestructive, ...typography.labelLarge },
+
+  // Modal
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 36, 102, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modal: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 28,
+    width: '100%',
+    maxWidth: 400,
+    ...cardShadow,
+  },
+  modalTitle: { ...typography.titleMedium, color: colors.textPrimary, textAlign: 'center', marginBottom: 12 },
+  modalBody: { ...typography.bodyMedium, color: colors.textSecondary, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  successIcon: { fontSize: 40, textAlign: 'center', marginBottom: 12 },
+  modalActions: { flexDirection: 'row', gap: 12 },
+  btnCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  btnCancelText: { color: colors.textSecondary, ...typography.labelLarge },
+  btnConfirmDelete: {
+    flex: 1,
+    backgroundColor: colors.error,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  btnConfirmDeleteText: { color: '#fff', ...typography.labelLarge },
 });

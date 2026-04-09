@@ -4,7 +4,7 @@ const { getDb } = require('../config/db');
  * Send a message within a match conversation.
  * Verifies the sender is part of the match before inserting.
  */
-function sendMessage(matchId, senderId, body, messageType = 'text', metadata = null) {
+function sendMessage(matchId, senderId, body) {
   const db = getDb();
 
   const match = db
@@ -14,11 +14,12 @@ function sendMessage(matchId, senderId, body, messageType = 'text', metadata = n
   if (!match) return null;
 
   const result = db
-    .prepare('INSERT INTO messages (match_id, sender_id, body, message_type, metadata) VALUES (?, ?, ?, ?, ?)')
-    .run(matchId, senderId, body, messageType, metadata ? JSON.stringify(metadata) : null);
+    .prepare('INSERT INTO messages (match_id, sender_id, body) VALUES (?, ?, ?)')
+    .run(matchId, senderId, body);
 
-  const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(result.lastInsertRowid);
-  return { ...row, metadata: row.metadata ? JSON.parse(row.metadata) : null };
+  return db
+    .prepare('SELECT * FROM messages WHERE id = ?')
+    .get(result.lastInsertRowid);
 }
 
 /**
@@ -36,7 +37,7 @@ function getMessages(matchId, userId, limit = 50, offset = 0) {
 
   return db
     .prepare(
-      `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at,
+      `SELECT m.id, m.match_id, m.sender_id, m.body, m.created_at,
               u.name AS sender_name, u.photo_url AS sender_photo
        FROM messages m
        JOIN users u ON u.id = m.sender_id
@@ -44,8 +45,7 @@ function getMessages(matchId, userId, limit = 50, offset = 0) {
        ORDER BY m.created_at ASC
        LIMIT ? OFFSET ?`
     )
-    .all(matchId, limit, offset)
-    .map(r => ({ ...r, metadata: r.metadata ? JSON.parse(r.metadata) : null }));
+    .all(matchId, limit, offset);
 }
 
 /**

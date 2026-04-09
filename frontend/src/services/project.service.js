@@ -27,9 +27,3 @@ export const uploadVideo = (projectId, fileUri, fileName) => {
 export const getPartners    = (projectId)              => api.get(`/projects/${projectId}/partners`);
 export const addPartner     = (projectId, partnerUserId) => api.post(`/projects/${projectId}/partners`, { partnerUserId });
 export const removePartner  = (projectId, partnerUserId) => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
-
-export const setVisibility      = (projectId, visibility)          => api.patch(`/projects/${projectId}/visibility`, { visibility });
-export const getNdaStatus       = (projectId)                      => api.get(`/projects/${projectId}/nda-status`);
-export const signNda            = (projectId)                      => api.post(`/projects/${projectId}/sign-nda`);
-export const invitePartner      = (projectId, matchId, inviteeId)  => api.post(`/projects/${projectId}/invite-partner`, { matchId, inviteeId });
-export const respondInvitation  = (invitationId, accept)           => api.post(`/projects/invitations/${invitationId}/respond`, { accept });

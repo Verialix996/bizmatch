@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
@@ -239,9 +239,9 @@ export default function SwipeScreen() {
   const [swiping, setSwiping] = useState(false);
   const [matchModal, setMatchModal] = useState({ visible: false, name: '' });
   const [mode, setMode] = useState('investors');
+  const [currentIndex, setCurrentIndex] = useState(0);
 
   const position = useRef(new Animated.ValueXY()).current;
-  const currentIndex = useRef(0);
 
   const likeOpacity = position.x.interpolate({
     inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp',
@@ -261,7 +261,7 @@ export default function SwipeScreen() {
         ? await getFeed(feedMode)
         : await getProjectFeed();
       setFeed(res.data);
-      currentIndex.current = 0;
+      setCurrentIndex(0);
       position.setValue({ x: 0, y: 0 });
     } catch (e) {
       console.error('Failed to load feed', e);
@@ -274,7 +274,7 @@ export default function SwipeScreen() {
 
   const sendSwipe = useCallback(async (direction) => {
     if (swiping) return;
-    const item = feed[currentIndex.current];
+    const item = feed[currentIndex];
     if (!item) return;
 
     setSwiping(true);
@@ -295,10 +295,10 @@ export default function SwipeScreen() {
       } catch (e) {
         console.error('Swipe failed', e);
       }
-      currentIndex.current += 1;
+      setCurrentIndex(i => i + 1);
       setSwiping(false);
     });
-  }, [feed, swiping, position, isEntrepreneur]);
+  }, [feed, currentIndex, swiping, position, isEntrepreneur]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
@@ -321,7 +321,7 @@ export default function SwipeScreen() {
     })
   ).current;
 
-  const visibleCards = feed.slice(currentIndex.current, currentIndex.current + 2);
+  const visibleCards = feed.slice(currentIndex, currentIndex + 2);
 
   return (
     <SafeAreaView style={styles.container}>

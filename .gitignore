@@ -1,5 +1,4 @@
 # ── Sensitive ────────────────────────────────────────────────────────────────
-paswords.txt
 .env
 .env.*
 !.env.example
@@ -35,6 +34,9 @@ Thumbs.db
 .vs
 .claude
 # ── Test / debug artefacts ───────────────────────────────────────────────────
+backend/scripts/FOR_TESTING_ONLY.js
+backend/scripts/FOR_TESTING_ONLY_credentials.txt
+bugs.txt
 ALGO_TEST.md
 *.jpeg
 *.jpg

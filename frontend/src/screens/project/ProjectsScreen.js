@@ -1,34 +1,43 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, SafeAreaView, ActivityIndicator, Alert, Modal, FlatList, Image,
+  TextInput, SafeAreaView, ActivityIndicator, Alert,
+  Modal, FlatList, Image, StatusBar,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
-import { getMyProjects, createProject, updateProject, deleteProject, uploadDeck, uploadVideo, getPartners, addPartner, removePartner, setVisibility } from '../../services/project.service';
+import {
+  getMyProjects, createProject, updateProject, deleteProject,
+  uploadDeck, uploadVideo, getPartners, addPartner, removePartner,
+} from '../../services/project.service';
 import { getMatches } from '../../services/match.service';
-import { colors } from '../../theme';
-
-const stageLabel = {
-  idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
-};
+import { colors, radius, cardShadow } from '../../theme';
 
 const STAGES = ['idea', 'mvp', 'growth', 'scale'];
+const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
 
-function PartnerAvatar({ name, photoUrl, size = 32 }) {
+function PartnerAvatar({ name, photoUrl, size = 36 }) {
   if (photoUrl) {
-    return <Image source={{ uri: photoUrl }} style={{ width: size, height: size, borderRadius: size / 2 }} />;
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{ width: size, height: size, borderRadius: size / 2 }}
+      />
+    );
   }
   return (
-    <View style={[styles.partnerAvatarPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={{ fontSize: size * 0.4, color: '#fff', fontWeight: '700' }}>
+    <View style={[
+      styles.partnerAvatarPlaceholder,
+      { width: size, height: size, borderRadius: size / 2 },
+    ]}>
+      <Text style={{ fontSize: size * 0.38, color: '#fff', fontWeight: '700' }}>
         {name ? name[0].toUpperCase() : '?'}
       </Text>
     </View>
   );
 }
 
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onToggleVisibility }) {
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners }) {
   const [partners, setPartners] = useState([]);
 
   useFocusEffect(useCallback(() => {
@@ -57,44 +66,68 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           <Text style={styles.cardTitle}>{project.title}</Text>
           {project.stage ? (
             <View style={styles.stagePill}>
-              <Text style={styles.stagePillText}>{stageLabel[project.stage] || project.stage}</Text>
+              <Text style={styles.stagePillText}>
+                {STAGE_LABELS[project.stage] || project.stage}
+              </Text>
             </View>
           ) : null}
         </View>
         <View style={styles.cardActions}>
           <TouchableOpacity
-            onPress={() => onToggleVisibility(project.id, project.visibility === 'private' ? 'public' : 'private')}
-            style={[styles.actionBtn, project.visibility === 'private' && styles.privateBadge]}
+            onPress={() => onEdit(project)}
+            style={styles.cardActionBtn}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.actionBtnText, project.visibility === 'private' && styles.privateBadgeText]}>
-              {project.visibility === 'private' ? '🔒 Private' : '🌐 Public'}
-            </Text>
+            <Text style={styles.cardActionBtnText}>Edit</Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={() => onEdit(project)} style={styles.actionBtn}>
-            <Text style={styles.actionBtnText}>Edit</Text>
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => onDelete(project.id)} style={[styles.actionBtn, styles.deleteBtn]}>
-            <Text style={[styles.actionBtnText, styles.deleteBtnText]}>Delete</Text>
+          <TouchableOpacity
+            onPress={() => onDelete(project.id)}
+            style={[styles.cardActionBtn, styles.cardActionBtnDelete]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.cardActionBtnDeleteText}>Delete</Text>
           </TouchableOpacity>
         </View>
       </View>
+
       {project.description ? (
         <Text style={styles.cardDesc} numberOfLines={2}>{project.description}</Text>
       ) : null}
+
       <View style={styles.cardMeta}>
-        {project.industry ? <Text style={styles.metaChip}>{project.industry}</Text> : null}
-        {project.funding_needed ? (
-          <Text style={styles.metaChip}>Seeking ${Number(project.funding_needed).toLocaleString()}</Text>
+        {project.industry ? (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>{project.industry}</Text>
+          </View>
         ) : null}
-        {project.deck_url ? <Text style={styles.metaChip}>📄 Deck</Text> : null}
-        {project.video_url ? <Text style={styles.metaChip}>🎬 Video</Text> : null}
+        {project.funding_needed ? (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>
+              Seeking ${Number(project.funding_needed).toLocaleString()}
+            </Text>
+          </View>
+        ) : null}
+        {project.deck_url ? (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>📄 Deck</Text>
+          </View>
+        ) : null}
+        {project.video_url ? (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>🎬 Video</Text>
+          </View>
+        ) : null}
       </View>
 
-      {/* Partners section */}
+      {/* Team */}
       <View style={styles.partnersSection}>
         <View style={styles.partnersHeader}>
           <Text style={styles.partnersSectionLabel}>TEAM</Text>
-          <TouchableOpacity onPress={() => onManagePartners(project.id, setPartners)} style={styles.addPartnerBtn}>
+          <TouchableOpacity
+            onPress={() => onManagePartners(project.id, setPartners)}
+            style={styles.addPartnerBtn}
+            activeOpacity={0.8}
+          >
             <Text style={styles.addPartnerBtnText}>+ Add Partner</Text>
           </TouchableOpacity>
         </View>
@@ -108,20 +141,33 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
                 style={styles.partnerItem}
                 onLongPress={() => handleRemovePartner(p.userId)}
               >
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} />
-                <Text style={styles.partnerName}>{p.name}</Text>
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
               </TouchableOpacity>
             ))}
           </View>
         )}
       </View>
 
+      {/* Upload row */}
       <View style={styles.uploadRow}>
-        <TouchableOpacity style={styles.uploadBtn} onPress={() => onUploadDeck(project.id)}>
-          <Text style={styles.uploadBtnText}>📄 {project.deck_url ? 'Replace Deck' : 'Upload Deck'}</Text>
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={() => onUploadDeck(project.id)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.uploadBtnText}>
+            📄 {project.deck_url ? 'Replace Deck' : 'Upload Deck'}
+          </Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.uploadBtn} onPress={() => onUploadVideo(project.id)}>
-          <Text style={styles.uploadBtnText}>🎬 {project.video_url ? 'Replace Video' : 'Upload Video'}</Text>
+        <TouchableOpacity
+          style={styles.uploadBtn}
+          onPress={() => onUploadVideo(project.id)}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.uploadBtnText}>
+            🎬 {project.video_url ? 'Replace Video' : 'Upload Video'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -136,15 +182,21 @@ function AddPartnerModal({ visible, onClose, onAdd, matches }) {
           <Text style={styles.modalTitle}>Add Partner</Text>
           <Text style={styles.modalSub}>Pick from your matched connections</Text>
           {matches.length === 0 ? (
-            <Text style={styles.noPartnersText}>No matches yet — swipe to connect first!</Text>
+            <Text style={styles.noPartnersText}>
+              No matches yet — swipe to connect first!
+            </Text>
           ) : (
             <FlatList
               data={matches}
               keyExtractor={item => String(item.userId)}
               style={{ maxHeight: 320, width: '100%' }}
               renderItem={({ item }) => (
-                <TouchableOpacity style={styles.matchPickerItem} onPress={() => onAdd(item.userId)}>
-                  <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={40} />
+                <TouchableOpacity
+                  style={styles.matchPickerItem}
+                  onPress={() => onAdd(item.userId)}
+                  activeOpacity={0.7}
+                >
+                  <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.matchPickerName}>{item.name}</Text>
                     {item.roleType ? (
@@ -155,7 +207,11 @@ function AddPartnerModal({ visible, onClose, onAdd, matches }) {
               )}
             />
           )}
-          <TouchableOpacity style={styles.modalCloseBtn} onPress={onClose}>
+          <TouchableOpacity
+            style={styles.modalCloseBtn}
+            onPress={onClose}
+            activeOpacity={0.85}
+          >
             <Text style={styles.modalCloseBtnText}>Close</Text>
           </TouchableOpacity>
         </View>
@@ -177,7 +233,10 @@ function ProjectForm({ initial, onSave, onCancel }) {
   const [error, setError] = useState('');
 
   const handleSave = async () => {
-    if (!form.title.trim()) { setError('Title is required'); return; }
+    if (!form.title.trim()) {
+      setError('Title is required');
+      return;
+    }
     setError('');
     await onSave({
       ...form,
@@ -187,90 +246,104 @@ function ProjectForm({ initial, onSave, onCancel }) {
 
   return (
     <View style={styles.formPanel}>
-      <Text style={styles.formTitle}>{initial ? 'Edit Project' : 'New Project'}</Text>
+      <Text style={styles.formTitle}>
+        {initial ? 'Edit Project' : 'New Project'}
+      </Text>
 
-      <Text style={styles.fieldLabel}>Title *</Text>
+      <Text style={styles.fieldLabel}>TITLE *</Text>
       <TextInput
         style={styles.input}
         value={form.title}
         onChangeText={v => setForm(f => ({ ...f, title: v }))}
         placeholder="Project name"
-        placeholderTextColor={colors.onSurfaceVariant}
+        placeholderTextColor={colors.textHint}
       />
 
-      <Text style={styles.fieldLabel}>Description</Text>
+      <Text style={styles.fieldLabel}>DESCRIPTION</Text>
       <TextInput
-        style={[styles.input, { height: 80 }]}
+        style={[styles.input, styles.inputMultiline]}
         multiline
         value={form.description}
         onChangeText={v => setForm(f => ({ ...f, description: v }))}
         placeholder="What does your project do?"
-        placeholderTextColor={colors.onSurfaceVariant}
+        placeholderTextColor={colors.textHint}
       />
 
-      <Text style={styles.fieldLabel}>Industry</Text>
+      <Text style={styles.fieldLabel}>INDUSTRY</Text>
       <TextInput
         style={styles.input}
         value={form.industry}
         onChangeText={v => setForm(f => ({ ...f, industry: v }))}
         placeholder="e.g. FinTech, HealthTech, SaaS"
-        placeholderTextColor={colors.onSurfaceVariant}
+        placeholderTextColor={colors.textHint}
       />
 
-      <Text style={styles.fieldLabel}>Stage</Text>
-      <View style={styles.chipRow}>
+      <Text style={styles.fieldLabel}>STAGE</Text>
+      <View style={styles.stageRow}>
         {STAGES.map(s => (
           <TouchableOpacity
             key={s}
             style={[styles.stageChip, form.stage === s && styles.stageChipActive]}
             onPress={() => setForm(f => ({ ...f, stage: s }))}
+            activeOpacity={0.8}
           >
-            <Text style={[styles.stageChipText, form.stage === s && styles.stageChipTextActive]}>
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+            <Text style={[
+              styles.stageChipText,
+              form.stage === s && styles.stageChipTextActive,
+            ]}>
+              {STAGE_LABELS[s]}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      <Text style={styles.fieldLabel}>Funding Needed ($)</Text>
+      <Text style={styles.fieldLabel}>FUNDING NEEDED ($)</Text>
       <TextInput
         style={styles.input}
         value={form.funding_needed}
         onChangeText={v => setForm(f => ({ ...f, funding_needed: v }))}
         keyboardType="numeric"
         placeholder="e.g. 500000"
-        placeholderTextColor={colors.onSurfaceVariant}
+        placeholderTextColor={colors.textHint}
       />
 
-      <Text style={styles.fieldLabel}>Deck URL</Text>
+      <Text style={styles.fieldLabel}>DECK URL</Text>
       <TextInput
         style={styles.input}
         value={form.deck_url}
         onChangeText={v => setForm(f => ({ ...f, deck_url: v }))}
-        placeholder="Link to your pitch deck (Notion, Slides, etc.)"
-        placeholderTextColor={colors.onSurfaceVariant}
+        placeholder="Link to your pitch deck"
+        placeholderTextColor={colors.textHint}
         autoCapitalize="none"
         keyboardType="url"
       />
 
-      <Text style={styles.fieldLabel}>Video URL</Text>
+      <Text style={styles.fieldLabel}>VIDEO URL</Text>
       <TextInput
         style={styles.input}
         value={form.video_url}
         onChangeText={v => setForm(f => ({ ...f, video_url: v }))}
-        placeholder="Demo video link (YouTube, Loom, etc.)"
-        placeholderTextColor={colors.onSurfaceVariant}
+        placeholder="Demo video link"
+        placeholderTextColor={colors.textHint}
         autoCapitalize="none"
         keyboardType="url"
       />
 
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.formBtnRow}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel}>
+        <TouchableOpacity
+          style={styles.cancelBtn}
+          onPress={onCancel}
+          activeOpacity={0.8}
+        >
           <Text style={styles.cancelBtnText}>Cancel</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+        <TouchableOpacity
+          style={styles.saveBtn}
+          onPress={handleSave}
+          activeOpacity={0.85}
+        >
           <Text style={styles.saveBtnText}>Save Project</Text>
         </TouchableOpacity>
       </View>
@@ -283,7 +356,9 @@ export default function ProjectsScreen() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null, setPartners: null });
+  const [partnerModal, setPartnerModal] = useState({
+    visible: false, projectId: null, setPartners: null,
+  });
   const [matchedUsers, setMatchedUsers] = useState([]);
 
   const load = useCallback(async () => {
@@ -355,42 +430,32 @@ export default function ProjectsScreen() {
     }
   };
 
-  const handleToggleVisibility = async (projectId, newVisibility) => {
-    try {
-      await setVisibility(projectId, newVisibility);
-      setProjects(prev =>
-        prev.map(p => p.id === projectId ? { ...p, visibility: newVisibility } : p)
-      );
-    } catch {
-      Alert.alert('Error', 'Could not update project visibility.');
-    }
-  };
-
   const handleUploadDeck = async (projectId) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: ['application/pdf', 'application/vnd.ms-powerpoint',
-               'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+        type: [
+          'application/pdf',
+          'application/vnd.ms-powerpoint',
+          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+        ],
       });
       if (result.canceled || !result.assets?.[0]) return;
       const file = result.assets[0];
       await uploadDeck(projectId, file.uri, file.name);
       load();
-    } catch (e) {
+    } catch {
       Alert.alert('Upload Failed', 'Could not upload deck. Please try again.');
     }
   };
 
   const handleUploadVideo = async (projectId) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: ['video/*'],
-      });
+      const result = await DocumentPicker.getDocumentAsync({ type: ['video/*'] });
       if (result.canceled || !result.assets?.[0]) return;
       const file = result.assets[0];
       await uploadVideo(projectId, file.uri, file.name);
       load();
-    } catch (e) {
+    } catch {
       Alert.alert('Upload Failed', 'Could not upload video. Please try again.');
     }
   };
@@ -407,7 +472,10 @@ export default function ProjectsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="dark-content" />
       <ScrollView showsVerticalScrollIndicator={false}>
+
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.sectionLabel}>MY PROJECTS</Text>
@@ -416,11 +484,13 @@ export default function ProjectsScreen() {
           <TouchableOpacity
             style={styles.addBtn}
             onPress={() => { setEditingProject(null); setShowForm(true); }}
+            activeOpacity={0.85}
           >
             <Text style={styles.addBtnText}>+ New</Text>
           </TouchableOpacity>
         </View>
 
+        {/* Form */}
         {showForm && (
           <ProjectForm
             initial={editingProject}
@@ -429,10 +499,16 @@ export default function ProjectsScreen() {
           />
         )}
 
+        {/* Empty state */}
         {projects.length === 0 && !showForm ? (
-          <View style={styles.empty}>
+          <View style={styles.emptyState}>
+            <View style={styles.emptyIconCircle}>
+              <Text style={{ fontSize: 28 }}>📁</Text>
+            </View>
             <Text style={styles.emptyTitle}>No projects yet</Text>
-            <Text style={styles.emptySub}>Create a project so investors can discover and swipe on your ventures.</Text>
+            <Text style={styles.emptySub}>
+              Create a project so investors can discover and swipe on your ventures.
+            </Text>
           </View>
         ) : (
           projects.map(p => (
@@ -444,7 +520,6 @@ export default function ProjectsScreen() {
               onUploadDeck={handleUploadDeck}
               onUploadVideo={handleUploadVideo}
               onManagePartners={handleManagePartners}
-              onToggleVisibility={handleToggleVisibility}
             />
           ))
         )}
@@ -454,158 +529,355 @@ export default function ProjectsScreen() {
         visible={partnerModal.visible}
         matches={matchedUsers}
         onAdd={handleAddPartner}
-        onClose={() => setPartnerModal({ visible: false, projectId: null, setPartners: null })}
+        onClose={() => setPartnerModal({
+          visible: false, projectId: null, setPartners: null,
+        })}
       />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.backgroundSoft },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end',
-    paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+    paddingHorizontal: 24,
+    paddingTop: 16,
+    paddingBottom: 16,
   },
   sectionLabel: {
-    fontSize: 10, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 2,
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 2,
   },
-  pageTitle: { fontSize: 24, fontWeight: '800', color: colors.onSurface, letterSpacing: -0.4 },
+  pageTitle: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.4,
+  },
   addBtn: {
-    backgroundColor: colors.primary, borderRadius: 10,
-    paddingHorizontal: 16, paddingVertical: 8,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingHorizontal: 18,
+    paddingVertical: 9,
   },
   addBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
+  // Project card
   card: {
-    backgroundColor: colors.surfaceContainerLowest,
-    marginHorizontal: 24, marginBottom: 12,
-    borderRadius: 16, padding: 16,
-    shadowColor: '#131b2e', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.05, shadowRadius: 12, elevation: 3,
+    backgroundColor: colors.surface,
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: radius.lg,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...cardShadow,
+    shadowOpacity: 0.04,
   },
-  cardHeader: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 8 },
-  cardTitle: { fontSize: 16, fontWeight: '700', color: colors.onSurface, marginBottom: 6 },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 10,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    marginBottom: 6,
+  },
   stagePill: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  stagePillText: { fontSize: 11, fontWeight: '600', color: colors.onSurfaceVariant },
+  stagePillText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   cardActions: { flexDirection: 'row', gap: 8 },
-  actionBtn: {
-    paddingHorizontal: 12, paddingVertical: 6,
-    backgroundColor: colors.surfaceContainerLow, borderRadius: 8,
+  cardActionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  actionBtnText: { fontSize: 12, fontWeight: '600', color: colors.onSurfaceVariant },
-  deleteBtn: { backgroundColor: '#fff0f0' },
-  deleteBtnText: { color: colors.error },
-  privateBadge: { backgroundColor: '#f0f0ff' },
-  privateBadgeText: { color: colors.primary },
-  cardDesc: { fontSize: 13, color: colors.onSurfaceVariant, lineHeight: 18, marginBottom: 10 },
-  cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  cardActionBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  cardActionBtnDelete: { backgroundColor: '#FFF0F0', borderColor: '#FFD4D4' },
+  cardActionBtnDeleteText: { color: colors.error, fontSize: 12, fontWeight: '600' },
+
+  cardDesc: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    lineHeight: 18,
+    marginBottom: 10,
+  },
+  cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
   metaChip: {
-    fontSize: 12, color: colors.secondary, fontWeight: '600',
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  metaChipText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: colors.primary,
   },
 
-  formPanel: {
-    backgroundColor: colors.surfaceContainerLowest,
-    marginHorizontal: 24, marginBottom: 16, borderRadius: 16, padding: 20,
-    shadowColor: '#131b2e', shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06, shadowRadius: 16, elevation: 4,
+  // Partners
+  partnersSection: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: colors.backgroundSoft,
   },
-  formTitle: { fontSize: 18, fontWeight: '800', color: colors.onSurface, marginBottom: 16 },
+  partnersHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  partnersSectionLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+  },
+  addPartnerBtn: {
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  addPartnerBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+  partnerList: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  partnerItem: { alignItems: 'center', gap: 4 },
+  partnerName: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    maxWidth: 56,
+    textAlign: 'center',
+  },
+  partnerAvatarPlaceholder: {
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noPartnersText: {
+    fontSize: 12,
+    color: colors.textHint,
+    fontStyle: 'italic',
+  },
+
+  // Upload
+  uploadRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
+  uploadBtn: {
+    flex: 1,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.surfaceBorder,
+    borderStyle: 'dashed',
+  },
+  uploadBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // Form panel
+  formPanel: {
+    backgroundColor: colors.surface,
+    marginHorizontal: 16,
+    marginBottom: 16,
+    borderRadius: radius.lg,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...cardShadow,
+    shadowOpacity: 0.05,
+  },
+  formTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    marginBottom: 16,
+  },
   fieldLabel: {
-    fontSize: 11, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 6, marginTop: 12,
+    fontSize: 11,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+    marginBottom: 6,
+    marginTop: 14,
   },
   input: {
-    backgroundColor: colors.surfaceContainerLow, borderRadius: 10,
-    padding: 12, fontSize: 14, color: colors.onSurface,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.primaryDark,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
+  inputMultiline: { height: 80, textAlignVertical: 'top' },
+
+  stageRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   stageChip: {
-    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 7,
-    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.backgroundSoft,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceBorder,
   },
-  stageChipActive: { backgroundColor: colors.primary },
-  stageChipText: { fontSize: 13, fontWeight: '600', color: colors.onSurfaceVariant },
+  stageChipActive: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  stageChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
   stageChipTextActive: { color: '#fff' },
 
   formBtnRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
   cancelBtn: {
-    flex: 1, borderRadius: 12, paddingVertical: 14, alignItems: 'center',
-    borderWidth: 1.5, borderColor: colors.outlineVariant,
+    flex: 1,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.surfaceBorder,
   },
-  cancelBtnText: { color: colors.onSurfaceVariant, fontWeight: '600' },
+  cancelBtnText: { color: colors.textSecondary, fontWeight: '600' },
   saveBtn: {
-    flex: 2, backgroundColor: colors.primary, borderRadius: 12,
-    paddingVertical: 14, alignItems: 'center',
+    flex: 2,
+    backgroundColor: colors.primary,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
   },
   saveBtnText: { color: '#fff', fontWeight: '700' },
+  errorText: { color: colors.error, marginTop: 8, fontSize: 13 },
 
-  error: { color: colors.error, marginTop: 8, fontSize: 13 },
+  // Empty state
+  emptyState: {
+    alignItems: 'center',
+    padding: 48,
+  },
+  emptyIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: colors.surfaceElevated,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    marginBottom: 8,
+  },
+  emptySub: {
+    fontSize: 13,
+    color: colors.textHint,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
 
-  uploadRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  uploadBtn: {
-    flex: 1, backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 10, paddingVertical: 10, alignItems: 'center',
-    borderWidth: 1, borderColor: colors.outlineVariant,
-    borderStyle: 'dashed',
-  },
-  uploadBtnText: { fontSize: 12, fontWeight: '600', color: colors.secondary },
-
-  empty: { padding: 40, alignItems: 'center' },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: colors.onSurface, marginBottom: 8 },
-  emptySub: { fontSize: 13, color: colors.onSurfaceVariant, textAlign: 'center', lineHeight: 20 },
-
-  partnersSection: {
-    marginTop: 12, paddingTop: 12,
-    borderTopWidth: 1, borderTopColor: colors.outlineVariant,
-  },
-  partnersHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  partnersSectionLabel: {
-    fontSize: 10, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 1.2, textTransform: 'uppercase',
-  },
-  addPartnerBtn: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 8, paddingHorizontal: 10, paddingVertical: 4,
-  },
-  addPartnerBtnText: { fontSize: 12, fontWeight: '600', color: colors.secondary },
-  partnerList: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  partnerItem: { alignItems: 'center', gap: 4 },
-  partnerName: { fontSize: 11, color: colors.onSurfaceVariant, maxWidth: 56, textAlign: 'center' },
-  partnerAvatarPlaceholder: {
-    backgroundColor: colors.primary,
-    justifyContent: 'center', alignItems: 'center',
-  },
-  noPartnersText: { fontSize: 12, color: colors.onSurfaceVariant, fontStyle: 'italic' },
-
+  // Modal
   modalBackdrop: {
-    flex: 1, backgroundColor: 'rgba(7,0,73,0.5)',
+    flex: 1,
+    backgroundColor: 'rgba(2,36,102,0.5)',
     justifyContent: 'flex-end',
   },
   modalBox: {
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopLeftRadius: 24, borderTopRightRadius: 24,
-    padding: 24, paddingBottom: 40,
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: radius.xl,
+    borderTopRightRadius: radius.xl,
+    padding: 24,
+    paddingBottom: 40,
   },
-  modalTitle: { fontSize: 20, fontWeight: '800', color: colors.onSurface, marginBottom: 4 },
-  modalSub: { fontSize: 13, color: colors.onSurfaceVariant, marginBottom: 16 },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    marginBottom: 4,
+  },
+  modalSub: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    marginBottom: 16,
+  },
   matchPickerItem: {
-    flexDirection: 'row', alignItems: 'center',
-    paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: colors.outlineVariant,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.backgroundSoft,
   },
-  matchPickerName: { fontSize: 15, fontWeight: '600', color: colors.onSurface },
-  matchPickerRole: { fontSize: 12, color: colors.onSurfaceVariant, marginTop: 2, textTransform: 'capitalize' },
+  matchPickerName: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primaryDark,
+  },
+  matchPickerRole: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
   modalCloseBtn: {
-    marginTop: 16, backgroundColor: colors.surfaceContainerLow,
-    borderRadius: 12, paddingVertical: 14, alignItems: 'center',
+    marginTop: 16,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  modalCloseBtnText: { color: colors.onSurfaceVariant, fontWeight: '600', fontSize: 15 },
+  modalCloseBtnText: {
+    color: colors.textSecondary,
+    fontWeight: '600',
+    fontSize: 15,
+  },
 });

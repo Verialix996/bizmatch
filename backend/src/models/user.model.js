@@ -2,11 +2,11 @@ const { getDb } = require('../config/db');
 
 const UserModel = {
   findById(id) {
-    return getDb().prepare('SELECT * FROM users WHERE id = ?').get(id) || null;
+    return getDb().prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').get(id) || null;
   },
 
   findByEmail(email) {
-    return getDb().prepare('SELECT * FROM users WHERE email = ?').get(email) || null;
+    return getDb().prepare('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL').get(email) || null;
   },
 
   create({ email, passwordHash, role, name }) {
@@ -60,8 +60,12 @@ const UserModel = {
     ).get(token) || null;
   },
 
-  softDelete(id) {
-    getDb().prepare("UPDATE users SET deleted_at = datetime('now') WHERE id = ?").run(id);
+  updateName(id, name) {
+    getDb().prepare("UPDATE users SET name = ?, updated_at = datetime('now') WHERE id = ?").run(name, id);
+  },
+
+  hardDelete(id) {
+    getDb().prepare('DELETE FROM users WHERE id = ?').run(id);
   },
 
   setVerificationStatus(id, status) {

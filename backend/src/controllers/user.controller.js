@@ -1,10 +1,24 @@
 const UserModel = require('../models/user.model');
 const logger = require('../utils/logger');
 
+// PATCH /api/users/me
+async function updateMe(req, res, next) {
+  try {
+    const { name } = req.body;
+    if (!name || !name.trim()) {
+      return res.status(400).json({ error: 'Name cannot be empty.' });
+    }
+    UserModel.updateName(req.user.id, name.trim());
+    res.json({ name: name.trim() });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // DELETE /api/users/me
 async function deleteAccount(req, res, next) {
   try {
-    await UserModel.softDelete(req.user.id);
+    await UserModel.hardDelete(req.user.id);
     logger.info(`Account deleted: ${req.user.email}`);
     res.json({ message: 'Account deleted' });
   } catch (err) {
@@ -49,4 +63,4 @@ async function setRole(req, res, next) {
   }
 }
 
-module.exports = { deleteAccount, getUser, setVerificationStatus, setRole };
+module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole };

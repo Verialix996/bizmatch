@@ -28,12 +28,12 @@ const messages = (req, res, next) => {
 const send = (req, res, next) => {
   try {
     const matchId = Number(req.params.matchId);
-    const { body, message_type, metadata } = req.body;
+    const { body } = req.body;
 
     if (!matchId) return res.status(400).json({ error: 'Invalid matchId' });
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body required' });
 
-    const msg = sendMessage(matchId, req.user.id, body.trim(), message_type, metadata);
+    const msg = sendMessage(matchId, req.user.id, body.trim());
     if (!msg) return res.status(403).json({ error: 'Not part of this match' });
 
     res.status(201).json(msg);

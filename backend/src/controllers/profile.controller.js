@@ -1,5 +1,6 @@
 const ProfileModel = require('../models/profile.model');
 const UserModel = require('../models/user.model');
+const { getDb } = require('../config/db');
 const multer = require('multer');
 const path = require('path');
 
@@ -33,7 +34,10 @@ async function getMyProfile(req, res, next) {
 // POST /api/profile
 async function createProfile(req, res, next) {
   try {
-    const profile = await ProfileModel.create(req.user.id, req.body);
+    const profile = await ProfileModel.create(req.user.id, {
+      ...req.body,
+      role_type: req.user.role,
+    });
     res.status(201).json(profile);
   } catch (err) {
     next(err);
@@ -43,7 +47,14 @@ async function createProfile(req, res, next) {
 // PUT /api/profile
 async function updateProfile(req, res, next) {
   try {
-    await ProfileModel.update(req.user.id, req.body);
+    await ProfileModel.update(req.user.id, {
+      ...req.body,
+      role_type: req.user.role,
+    });
+    // Re-enter user into the match pool by clearing pass swipes targeting them
+    getDb()
+      .prepare("DELETE FROM swipes WHERE swiped_id = ? AND direction = 'pass'")
+      .run(req.user.id);
     res.json({ message: 'Profile updated' });
   } catch (err) {
     next(err);

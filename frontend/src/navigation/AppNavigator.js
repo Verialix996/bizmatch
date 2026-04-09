@@ -15,6 +15,7 @@ import ChatScreen           from '../screens/match/ChatScreen';
 import ProfileDetailScreen  from '../screens/match/ProfileDetailScreen';
 import ProfileScreen        from '../screens/profile/ProfileScreen';
 import EditProfileScreen    from '../screens/profile/EditProfileScreen';
+import AccountSettings      from '../screens/profile/AccountSettings';
 import ProjectsScreen       from '../screens/project/ProjectsScreen';
 
 const Stack = createNativeStackNavigator();
@@ -61,10 +62,11 @@ export default function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {token ? (
         <>
-          <Stack.Screen name="Main"          component={MainTabs} />
-          <Stack.Screen name="Chat"          component={ChatScreen} />
-          <Stack.Screen name="ProfileDetail" component={ProfileDetailScreen} />
-          <Stack.Screen name="EditProfile"   component={EditProfileScreen} />
+          <Stack.Screen name="Main"            component={MainTabs} />
+          <Stack.Screen name="Chat"            component={ChatScreen} />
+          <Stack.Screen name="ProfileDetail"   component={ProfileDetailScreen} />
+          <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
+          <Stack.Screen name="AccountSettings" component={AccountSettings} />
         </>
       ) : (
         <>

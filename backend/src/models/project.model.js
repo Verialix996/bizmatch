@@ -76,7 +76,6 @@ function getProjectFeed(investorId, limit = 20) {
        JOIN users u ON u.id = p.user_id
        LEFT JOIN profiles pr ON pr.user_id = p.user_id
        WHERE p.is_active = 1
-         AND p.visibility = 'public'
          AND u.role = 'entrepreneur'
          AND u.deleted_at IS NULL
          AND p.user_id != ?
@@ -230,80 +229,8 @@ function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
   return { ok: true };
 }
 
-// ── Visibility ────────────────────────────────────────────────────────────────
-
-function setProjectVisibility(id, userId, visibility) {
-  const db = getDb();
-  const project = db.prepare('SELECT id FROM projects WHERE id = ? AND user_id = ?').get(id, userId);
-  if (!project) return { error: 'Project not found or not yours' };
-  db.prepare("UPDATE projects SET visibility = ?, updated_at = datetime('now') WHERE id = ?")
-    .run(visibility, id);
-  return { ok: true };
-}
-
-// ── NDA ───────────────────────────────────────────────────────────────────────
-
-function getNdaStatus(projectId, userId) {
-  const row = getDb()
-    .prepare('SELECT id FROM project_ndas WHERE project_id = ? AND user_id = ?')
-    .get(projectId, userId);
-  return !!row;
-}
-
-function signNda(projectId, userId) {
-  getDb()
-    .prepare('INSERT OR IGNORE INTO project_ndas (project_id, user_id) VALUES (?, ?)')
-    .run(projectId, userId);
-  return { ok: true };
-}
-
-// ── Partner invitations ───────────────────────────────────────────────────────
-
-function createPartnerInvitation(projectId, matchId, inviterId, inviteeId) {
-  const db = getDb();
-  const project = db
-    .prepare('SELECT id, title FROM projects WHERE id = ? AND user_id = ? AND is_active = 1')
-    .get(projectId, inviterId);
-  if (!project) return { error: 'Project not found or not yours' };
-
-  try {
-    const result = db
-      .prepare(
-        'INSERT INTO partner_invitations (project_id, match_id, inviter_id, invitee_id) VALUES (?, ?, ?, ?)'
-      )
-      .run(projectId, matchId, inviterId, inviteeId);
-    return { ok: true, invitationId: result.lastInsertRowid, projectTitle: project.title };
-  } catch {
-    return { error: 'An invitation for this project has already been sent to this user' };
-  }
-}
-
-function getPartnerInvitation(id) {
-  return getDb().prepare('SELECT * FROM partner_invitations WHERE id = ?').get(id) || null;
-}
-
-function respondPartnerInvitation(invitationId, userId, status) {
-  const db = getDb();
-  const inv = db.prepare('SELECT * FROM partner_invitations WHERE id = ?').get(invitationId);
-  if (!inv) return { error: 'Invitation not found' };
-  if (inv.invitee_id !== userId) return { error: 'Not your invitation' };
-  if (inv.status !== 'pending') return { error: 'Invitation already responded to' };
-
-  db.prepare('UPDATE partner_invitations SET status = ? WHERE id = ?').run(status, invitationId);
-
-  if (status === 'accepted') {
-    db.prepare('INSERT OR IGNORE INTO project_partners (project_id, user_id) VALUES (?, ?)')
-      .run(inv.project_id, userId);
-  }
-
-  return { ok: true };
-}
-
 module.exports = {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
   getProjectPartners, addProjectPartner, removeProjectPartner,
-  setProjectVisibility,
-  getNdaStatus, signNda,
-  createPartnerInvitation, getPartnerInvitation, respondPartnerInvitation,
 };

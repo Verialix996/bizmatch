@@ -1,20 +1,34 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Image, SafeAreaView,
+  TouchableOpacity, Image, SafeAreaView, StatusBar,
 } from 'react-native';
-import { colors, cardShadow } from '../../theme';
+import { colors, radius, cardShadow } from '../../theme';
 
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
 };
 
-function Avatar({ photoUrl, name, size = 80 }) {
+function Avatar({ photoUrl, name, size = 88 }) {
   if (photoUrl) {
-    return <Image source={{ uri: photoUrl }} style={{ width: size, height: size, borderRadius: size / 2, resizeMode: 'cover' }} />;
+    return (
+      <Image
+        source={{ uri: photoUrl }}
+        style={{
+          width: size, height: size,
+          borderRadius: size / 2,
+          resizeMode: 'cover',
+          borderWidth: 3,
+          borderColor: '#fff',
+        }}
+      />
+    );
   }
   return (
-    <View style={[styles.avatarPlaceholder, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Text style={[styles.avatarInitial, { fontSize: size * 0.4 }]}>
+    <View style={[
+      styles.avatarPlaceholder,
+      { width: size, height: size, borderRadius: size / 2 },
+    ]}>
+      <Text style={{ fontSize: size * 0.38, fontWeight: '800', color: '#fff' }}>
         {name ? name[0].toUpperCase() : '?'}
       </Text>
     </View>
@@ -48,21 +62,32 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
   const roleLabel = profile.role === 'investor'
     ? `Investor · ${profile.investmentDomain || 'Multi-sector'}`
-    : `Entrepreneur · ${stageLabel[profile.ventureStage] || profile.ventureStage || 'Early Stage'}`;
+    : `Entrepreneur · ${stageLabel[profile.ventureStage] || 'Early Stage'}`;
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle="light-content" />
       <ScrollView showsVerticalScrollIndicator={false}>
-        {/* Header image area */}
+
+        {/* Hero */}
         <View style={styles.heroArea}>
           <View style={styles.heroBg} />
-          <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <TouchableOpacity
+            style={styles.backBtn}
+            onPress={() => navigation.goBack()}
+          >
             <Text style={styles.backIcon}>←</Text>
           </TouchableOpacity>
           <View style={styles.heroContent}>
-            <Avatar photoUrl={profile.photoUrl} name={profile.name} size={88} />
-            <View style={[styles.roleBadge]}>
-              <Text style={styles.roleBadgeText}>{roleLabel.toUpperCase()}</Text>
+            <Avatar
+              photoUrl={profile.photoUrl}
+              name={profile.name}
+              size={88}
+            />
+            <View style={styles.roleBadge}>
+              <Text style={styles.roleBadgeText}>
+                {roleLabel.toUpperCase()}
+              </Text>
             </View>
           </View>
         </View>
@@ -70,21 +95,19 @@ export default function ProfileDetailScreen({ route, navigation }) {
         <View style={styles.body}>
           <Text style={styles.name}>{profile.name}</Text>
 
-          {/* About */}
           {profile.bio ? (
             <Section title="ABOUT ME">
               <Text style={styles.bioText}>{profile.bio}</Text>
             </Section>
           ) : null}
 
-          {/* Expertise / skills */}
           {profile.skills?.length > 0 && (
             <Section title="CORE EXPERTISE">
               <ChipRow items={profile.skills} />
             </Section>
           )}
 
-          {/* Investor-specific */}
+          {/* Investor fields */}
           {profile.role === 'investor' && (
             <>
               {profile.investmentDomain ? (
@@ -94,28 +117,36 @@ export default function ProfileDetailScreen({ route, navigation }) {
               ) : null}
               {profile.preferredStage ? (
                 <Section title="TARGET STAGE">
-                  <Text style={styles.metaValue}>{stageLabel[profile.preferredStage] || profile.preferredStage}</Text>
+                  <Text style={styles.metaValue}>
+                    {stageLabel[profile.preferredStage] || profile.preferredStage}
+                  </Text>
                 </Section>
               ) : null}
               {profile.maxInvestment ? (
                 <Section title="MAX INVESTMENT">
-                  <Text style={styles.highlight}>${profile.maxInvestment.toLocaleString()}</Text>
+                  <Text style={styles.highlight}>
+                    ${profile.maxInvestment.toLocaleString()}
+                  </Text>
                 </Section>
               ) : null}
             </>
           )}
 
-          {/* Entrepreneur-specific */}
+          {/* Entrepreneur fields */}
           {profile.role === 'entrepreneur' && (
             <>
               {profile.ventureStage ? (
                 <Section title="VENTURE STAGE">
-                  <Text style={styles.metaValue}>{stageLabel[profile.ventureStage] || profile.ventureStage}</Text>
+                  <Text style={styles.metaValue}>
+                    {stageLabel[profile.ventureStage] || profile.ventureStage}
+                  </Text>
                 </Section>
               ) : null}
               {profile.fundingNeeds ? (
                 <Section title="SEEKING">
-                  <Text style={styles.highlight}>${profile.fundingNeeds.toLocaleString()}</Text>
+                  <Text style={styles.highlight}>
+                    ${profile.fundingNeeds.toLocaleString()}
+                  </Text>
                 </Section>
               ) : null}
             </>
@@ -131,16 +162,23 @@ export default function ProfileDetailScreen({ route, navigation }) {
         </View>
       </ScrollView>
 
-      {/* CTA bar */}
+      {/* CTA */}
       {matchId && (
         <View style={styles.ctaBar}>
           <TouchableOpacity
             style={styles.messageBtn}
+            activeOpacity={0.85}
             onPress={() => navigation.navigate('Chat', {
-              match: { matchId, name: profile.name, photoUrl: profile.photoUrl },
+              match: {
+                matchId,
+                name: profile.name,
+                photoUrl: profile.photoUrl,
+              },
             })}
           >
-            <Text style={styles.messageBtnText}>Message {profile.name?.split(' ')[0]}</Text>
+            <Text style={styles.messageBtnText}>
+              Message {profile.name?.split(' ')[0]}
+            </Text>
           </TouchableOpacity>
         </View>
       )}
@@ -149,71 +187,148 @@ export default function ProfileDetailScreen({ route, navigation }) {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.surface },
+  container: { flex: 1, backgroundColor: colors.backgroundSoft },
 
   heroArea: { height: 180, position: 'relative' },
   heroBg: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: colors.primaryContainer,
+    position: 'absolute',
+    top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: colors.primary,
   },
   backBtn: {
-    position: 'absolute', top: 16, left: 16,
-    width: 36, height: 36, borderRadius: 18,
+    position: 'absolute',
+    top: 16, left: 16,
+    width: 36, height: 36,
+    borderRadius: 18,
     backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center', alignItems: 'center',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   backIcon: { fontSize: 20, color: '#fff' },
   heroContent: {
-    position: 'absolute', bottom: -44, left: 24,
-    flexDirection: 'row', alignItems: 'flex-end', gap: 12,
+    position: 'absolute',
+    bottom: -44,
+    left: 24,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: 12,
   },
-
   avatarPlaceholder: {
-    backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center',
-    borderWidth: 3, borderColor: colors.surface,
+    backgroundColor: colors.primaryDark,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
   },
-  avatarInitial: { fontWeight: '800', color: '#fff' },
-
   roleBadge: {
-    backgroundColor: colors.primary, borderRadius: 8,
-    paddingHorizontal: 10, paddingVertical: 5, marginBottom: 4, alignSelf: 'flex-end',
+    backgroundColor: colors.primaryDark,
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 4,
+    alignSelf: 'flex-end',
   },
-  roleBadgeText: { fontSize: 10, fontWeight: '700', color: '#fff', letterSpacing: 0.6 },
+  roleBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.6,
+  },
 
-  body: { paddingHorizontal: 24, paddingTop: 60, paddingBottom: 40 },
-  name: { fontSize: 28, fontWeight: '800', color: colors.onSurface, letterSpacing: -0.5, marginBottom: 20 },
+  body: {
+    paddingHorizontal: 24,
+    paddingTop: 60,
+    paddingBottom: 40,
+  },
+  name: {
+    fontSize: 28,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.5,
+    marginBottom: 20,
+  },
 
   section: { marginBottom: 20 },
   sectionLabel: {
-    fontSize: 10, fontWeight: '700', color: colors.onSurfaceVariant,
-    letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 8,
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: 8,
   },
-  bioText: { fontSize: 14, color: colors.onSurfaceVariant, lineHeight: 22 },
-  metaValue: { fontSize: 15, color: colors.onSurface, fontWeight: '600' },
-  highlight: { fontSize: 22, fontWeight: '800', color: colors.primary, letterSpacing: -0.3 },
+  bioText: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 22,
+  },
+  metaValue: {
+    fontSize: 15,
+    color: colors.primaryDark,
+    fontWeight: '600',
+  },
+  highlight: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: -0.3,
+  },
 
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: 999, paddingHorizontal: 14, paddingVertical: 6,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
-  chipText: { fontSize: 13, fontWeight: '600', color: colors.onSurfaceVariant },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
 
   scoreRow: {
-    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    backgroundColor: colors.surfaceContainerLow, borderRadius: 12, padding: 16, marginTop: 8,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 16,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...cardShadow,
+    shadowOpacity: 0.04,
   },
-  scoreLabel: { fontSize: 13, color: colors.onSurfaceVariant, fontWeight: '600' },
-  scoreValue: { fontSize: 20, fontWeight: '800', color: colors.primary },
+  scoreLabel: {
+    fontSize: 13,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  scoreValue: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primary,
+  },
 
   ctaBar: {
-    paddingHorizontal: 24, paddingVertical: 16,
-    backgroundColor: colors.surfaceContainerLowest,
-    borderTopWidth: 1, borderTopColor: colors.surfaceContainerLow,
+    paddingHorizontal: 24,
+    paddingVertical: 16,
+    backgroundColor: colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: colors.surfaceBorder,
   },
   messageBtn: {
-    backgroundColor: colors.primary, borderRadius: 14,
-    paddingVertical: 16, alignItems: 'center',
+    backgroundColor: colors.primary,
+    borderRadius: radius.lg,
+    paddingVertical: 16,
+    alignItems: 'center',
   },
-  messageBtnText: { fontSize: 15, fontWeight: '700', color: '#fff' },
+  messageBtnText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#fff',
+  },
 });
