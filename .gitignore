@@ -3,6 +3,10 @@
 .env.*
 !.env.example
 railway-env-variables.txt
+railway variables.png
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+logs.*.log
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
