@@ -30,7 +30,8 @@ const UserModel = {
       'INSERT INTO users (email, name, photo_url, oauth_provider, oauth_provider_id, is_verified) VALUES (?, ?, ?, ?, ?, 1)',
       [email, name, photo, provider, providerId]
     );
-    return { id: result.insertId, email, name };
+    const newRows = await query('SELECT * FROM users WHERE id = ?', [result.insertId]);
+    return newRows[0];
   },
 
   async setVerified(id) {
