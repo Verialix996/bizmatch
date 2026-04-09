@@ -2,7 +2,7 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, StatusBar,
 } from 'react-native';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
@@ -15,6 +15,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function WelcomeScreen({ navigation }) {
   const setAuth = useAuthStore(s => s.setAuth);
+  const [googleError, setGoogleError] = useState('');
 
   const [, response, promptAsync] = Google.useAuthRequest({ clientId: GOOGLE_CLIENT_ID });
 
@@ -23,7 +24,7 @@ export default function WelcomeScreen({ navigation }) {
       const { accessToken } = response.authentication;
       googleSignIn(accessToken)
         .then(({ data }) => setAuth(data.token, data.user))
-        .catch(() => {});
+        .catch(e => setGoogleError(e.response?.data?.error || 'Google sign-in failed. Please try again.'));
     }
   }, [response]);
   return (
@@ -71,11 +72,12 @@ export default function WelcomeScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.btnGoogle}
-            onPress={() => promptAsync()}
+            onPress={() => { setGoogleError(''); promptAsync(); }}
             activeOpacity={0.85}
           >
             <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
           </TouchableOpacity>
+          {!!googleError && <Text style={styles.errorText}>{googleError}</Text>}
 
           <TouchableOpacity
             onPress={() => navigation.navigate('ForgotPassword')}
@@ -217,5 +219,11 @@ const styles = StyleSheet.create({
   troubleText: {
     fontSize: 13,
     color: 'rgba(255,255,255,0.65)',
+  },
+  errorText: {
+    fontSize: 13,
+    color: '#FFB3AE',
+    textAlign: 'center',
+    marginTop: 8,
   },
 });

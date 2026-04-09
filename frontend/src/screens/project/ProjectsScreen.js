@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, SafeAreaView, ActivityIndicator, Alert,
+  TextInput, SafeAreaView, ActivityIndicator, Alert, Platform,
   Modal, FlatList, Image, StatusBar,
 } from 'react-native';
 import { useState, useCallback } from 'react';
@@ -391,16 +391,15 @@ export default function ProjectsScreen() {
   };
 
   const handleDelete = (id) => {
-    Alert.alert('Delete Project', 'Remove this project from the feed?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete', style: 'destructive',
-        onPress: async () => {
-          await deleteProject(id);
-          load();
-        },
-      },
-    ]);
+    const doDelete = async () => { await deleteProject(id); load(); };
+    if (Platform.OS === 'web') {
+      if (window.confirm('Remove this project from the feed?')) doDelete();
+    } else {
+      Alert.alert('Delete Project', 'Remove this project from the feed?', [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Delete', style: 'destructive', onPress: doDelete },
+      ]);
+    }
   };
 
   const handleEdit = (project) => {

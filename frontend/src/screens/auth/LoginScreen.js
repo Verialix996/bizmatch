@@ -29,7 +29,7 @@ export default function LoginScreen({ navigation }) {
       const { accessToken } = googleResponse.authentication;
       googleSignIn(accessToken)
         .then(({ data }) => setAuth(data.token, data.user))
-        .catch(() => setError('Google sign-in failed. Please try again.'));
+        .catch(e => setError(e.response?.data?.error || 'Google sign-in failed. Please try again.'));
     }
   }, [googleResponse]);
 

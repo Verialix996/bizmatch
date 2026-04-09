@@ -145,7 +145,12 @@ async function swipeProject(investorId, projectId, direction) {
     : [project.user_id, investorId];
   await query('INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)', [u1, u2]);
 
-  return { matched: true, projectTitle: project.title, entrepreneurId: project.user_id };
+  const matchRows = await query(
+    'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
+    [u1, u2]
+  );
+
+  return { matched: true, matchId: matchRows[0]?.id ?? null, projectTitle: project.title, entrepreneurId: project.user_id };
 }
 
 // ── Matches ───────────────────────────────────────────────────────────────────
