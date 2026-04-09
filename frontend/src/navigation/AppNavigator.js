@@ -1,9 +1,11 @@
+import { useEffect } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../store/authStore';
 import { colors } from '../theme';
 import AppHeader from '../components/AppHeader';
+import { getConversations } from '../services/match.service';
 
 import WelcomeScreen        from '../screens/auth/WelcomeScreen';
 import LoginScreen          from '../screens/auth/LoginScreen';
@@ -40,7 +42,34 @@ const TAB_ICONS = {
 };
 
 function MainTabs() {
-  const newMatchCount = useAuthStore(s => s.newMatchCount);
+  const newMatchCount  = useAuthStore(s => s.newMatchCount);
+  const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
+  const currentUser    = useAuthStore(s => s.user);
+
+  useEffect(() => {
+    const pollBadge = async () => {
+      try {
+        const res = await getConversations();
+        const items = res.data || [];
+        const readTs = useAuthStore.getState().readTimestamps;
+        const noMsg   = items.filter(c => !c.lastMessage).length;
+        const unread  = items.filter(c => {
+          if (!c.lastMessage || c.lastMessageSenderId === currentUser?.id) return false;
+          const t = c.lastMessageAt
+            ? new Date(c.lastMessageAt.endsWith('Z') ? c.lastMessageAt : c.lastMessageAt + 'Z').getTime()
+            : 0;
+          return t > (readTs[c.matchId] || 0);
+        }).length;
+        setNewMatchCount(noMsg + unread);
+      } catch {
+        // silent — badge poll failure shouldn't surface
+      }
+    };
+
+    pollBadge();
+    const interval = setInterval(pollBadge, 15000);
+    return () => clearInterval(interval);
+  }, [setNewMatchCount, currentUser]);
 
   return (
     <Tab.Navigator
@@ -71,18 +100,11 @@ function MainTabs() {
 
 export default function AppNavigator() {
   const token = useAuthStore(s => s.token);
+  const user  = useAuthStore(s => s.user);
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
-      {token ? (
-        <>
-          <Stack.Screen name="Main"            component={MainTabs} />
-          <Stack.Screen name="Chat"            component={ChatScreen} />
-          <Stack.Screen name="ProfileDetail"   component={ProfileDetailScreen} />
-          <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
-          <Stack.Screen name="AccountSettings" component={AccountSettings} />
-        </>
-      ) : (
+      {!token ? (
         <>
           <Stack.Screen name="Welcome"        component={WelcomeScreen} />
           <Stack.Screen name="Login"          component={LoginScreen} />
@@ -90,6 +112,17 @@ export default function AppNavigator() {
           <Stack.Screen name="VerifyOtp"      component={VerifyOtpScreen} />
           <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
+        </>
+      ) : !user?.role ? (
+        // Logged in but no role yet (e.g. new Google OAuth user) → profile setup
+        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+      ) : (
+        <>
+          <Stack.Screen name="Main"            component={MainTabs} />
+          <Stack.Screen name="Chat"            component={ChatScreen} />
+          <Stack.Screen name="ProfileDetail"   component={ProfileDetailScreen} />
+          <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
+          <Stack.Screen name="AccountSettings" component={AccountSettings} />
         </>
       )}
     </Stack.Navigator>

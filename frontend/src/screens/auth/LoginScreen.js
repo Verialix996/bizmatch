@@ -36,7 +36,7 @@ export default function LoginScreen({ navigation }) {
         }));
         if (params.token) {
           setAuth(params.token, {
-            id:    params.userId,
+            id:    Number(params.userId),
             email: params.email,
             name:  params.name,
             role:  params.role,
