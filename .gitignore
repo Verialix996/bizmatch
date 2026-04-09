@@ -7,7 +7,10 @@ railway variables.png
 GOOGLE_SETUP.txt
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
-logs.*.log
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # ── Dependencies ──────────────────────────────────────────────────────────────
 node_modules/
@@ -50,8 +53,10 @@ ALGO_TEST.md
 *.zip
 stitch_match_messaging_chat/
 
-# ── Railway / misc logs ───────────────────────────────────────────────────────
-logs.*.log
+# ── Misc ─────────────────────────────────────────────────────────────────────
+coverage/
+*.tgz
+.pnp.cjs
 
 # ── Personal folders ─────────────────────────────────────────────────────────
 אקסלרטור א/

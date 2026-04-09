@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, SafeAreaView, ActivityIndicator, Alert, Platform,
+  TextInput, SafeAreaView, ActivityIndicator, Alert,
   Modal, FlatList, Image, StatusBar,
 } from 'react-native';
 import { useState, useCallback } from 'react';
@@ -364,6 +364,7 @@ export default function ProjectsScreen() {
     visible: false, projectId: null, setPartners: null,
   });
   const [matchedUsers, setMatchedUsers] = useState([]);
+  const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -391,15 +392,14 @@ export default function ProjectsScreen() {
   };
 
   const handleDelete = (id) => {
-    const doDelete = async () => { await deleteProject(id); load(); };
-    if (Platform.OS === 'web') {
-      if (window.confirm('Remove this project from the feed?')) doDelete();
-    } else {
-      Alert.alert('Delete Project', 'Remove this project from the feed?', [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Delete', style: 'destructive', onPress: doDelete },
-      ]);
-    }
+    setDeleteModal({ visible: true, projectId: id });
+  };
+
+  const handleDeleteConfirmed = async () => {
+    const id = deleteModal.projectId;
+    setDeleteModal({ visible: false, projectId: null });
+    await deleteProject(id);
+    load();
   };
 
   const handleEdit = (project) => {
@@ -532,6 +532,32 @@ export default function ProjectsScreen() {
           visible: false, projectId: null, setPartners: null,
         })}
       />
+
+      {/* Delete confirmation modal */}
+      <Modal visible={deleteModal.visible} transparent animationType="fade">
+        <View style={styles.deleteOverlay}>
+          <View style={styles.deleteModal}>
+            <Text style={styles.deleteModalTitle}>Delete Project</Text>
+            <Text style={styles.deleteModalBody}>
+              Are you sure you want to remove this project?{'\n\n'}It will disappear from the investor feed.
+            </Text>
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={styles.deleteBtnCancel}
+                onPress={() => setDeleteModal({ visible: false, projectId: null })}
+              >
+                <Text style={styles.deleteBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtnConfirm}
+                onPress={handleDeleteConfirmed}
+              >
+                <Text style={styles.deleteBtnConfirmText}>Delete</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -879,4 +905,53 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     fontSize: 15,
   },
+
+  // Delete confirmation modal
+  deleteOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2, 36, 102, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  deleteModal: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 28,
+    width: '100%',
+    maxWidth: 400,
+    ...cardShadow,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  deleteModalBody: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 22,
+  },
+  deleteModalActions: { flexDirection: 'row', gap: 12 },
+  deleteBtnCancel: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteBtnCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  deleteBtnConfirm: {
+    flex: 1,
+    backgroundColor: colors.error,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  deleteBtnConfirmText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });

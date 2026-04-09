@@ -1,67 +1,57 @@
 ========================================================
-  BIZMATCH — FEATURE TEST CHECKLIST
+  BIZMATCH — UPCOMING FEATURES
 ========================================================
 Backend: https://zooming-surprise-production.up.railway.app
 Test by running: npx expo start --web (or Expo Go)
 
-Legend:  [ ] = not tested   [x] = passed   [!] = failed
-
 --------------------------------------------------------
-1. AUTHENTICATION
+1. PROFILE
 --------------------------------------------------------
 
-[ ] 1.8a Google conflict — existing email/password account
-      - Register an account with email + password
-      - Log out → tap "Continue with Google" using the same email
-      - Expected: error "An account with this email already exists.
-        Please sign in with your email and password."
-      - Expected: no duplicate user created in MySQL
+[ ] 1.1 Upload profile photo
+      - Go to Edit Profile → tap photo area
+      - Select image from library
+      - Save
+      - Expected: photo appears on profile and in the swipe feed
+
+[ ] 1.2 Change role (entrepreneur ↔ investor)
+      - Profile → Account Settings → change role
+      - Expected: feed changes to show opposite role
 
 --------------------------------------------------------
-2. PROFILE
+2. FEED & DISCOVERY
 --------------------------------------------------------
 
-[ ] 2.3 Upload profile photo
-      NOT IMPLEMENTED YET
-
-[ ] 2.4 Change role (entrepreneur ↔ investor)
-      NOT IMPLEMENTED YET
-
---------------------------------------------------------
-3. SWIPE / MATCHING
---------------------------------------------------------
-
-[ ] 3.7 Scoring / feed order
-      - Profiles with matching stage + budget + domain should rank higher
-      NOT VERIFIED YET
+[ ] 2.1 Feed scoring / ranked order
+      - Profiles with matching stage + budget + domain should appear
+        near the top of the feed
+      - Expected: high-compatibility profiles ranked above low-compatibility ones
 
 --------------------------------------------------------
-4. MESSAGING
+3. MESSAGING
 --------------------------------------------------------
 
-[ ] 4.4 Date dividers
-      - Send messages across multiple days
-      - Expected: TODAY / YESTERDAY / date labels between groups
+[ ] 3.1 Date dividers in chat
+      - Expected: "TODAY" / "YESTERDAY" / full date label shown
+        between message groups when messages span multiple days
 
 --------------------------------------------------------
-5. PROJECTS
+4. DESIGN & UI
 --------------------------------------------------------
 
-[ ] 5.4 Investor swipes on project
-      - Log in as investor → Projects tab → swipe right on a project
-      - Expected: match celebration modal appears
-      - Tap "MESSAGE" → opens chat with the project owner
+[ ] 4.1 Custom navbar icons
+      - Replace default/emoji tab bar icons with custom branded symbols
+        consistent with the app's visual identity
 
-[ ] 5.5 Delete project
-      - Log in as entrepreneur → Projects tab
-      - Tap delete on a project → confirm
-      - Expected: project disappears from list and from investor feed
+[ ] 4.2 App logo in navbar / header
+      - Display the BizMatch logo in the navigation bar or relevant headers
+        instead of plain text
 
---------------------------------------------------------
-NOTES
---------------------------------------------------------
-- Run tests against the Railway backend (not local)
-- To inspect data: Railway dashboard → MySQL → Query
-- To see errors: Railway dashboard → backend service → Logs
-- Google OAuth only works on web (localhost:8081) until mobile
-  redirect URIs are configured for Expo Go / production builds
+[ ] 4.3 In-app notification bar
+      - Show a notification indicator (badge or banner) for new matches
+        and unread messages
+
+[ ] 4.4 Mobile responsiveness
+      - Test and fix layout on various screen sizes (iOS + Android)
+      - Ensure no clipped text, overflowing cards, or broken spacing
+        on smaller devices
