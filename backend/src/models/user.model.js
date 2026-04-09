@@ -44,7 +44,7 @@ const UserModel = {
   async setOtpCode(id, code, expiresAt) {
     await query(
       'UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ?',
-      [code, expiresAt ? expiresAt.toISOString() : null, id]
+      [code, expiresAt ?? null, id]
     );
   },
 
@@ -59,7 +59,7 @@ const UserModel = {
   async setResetToken(id, token, expiresAt) {
     await query(
       'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?',
-      [token, expiresAt ? expiresAt.toISOString() : null, id]
+      [token, expiresAt ?? null, id]
     );
   },
 
