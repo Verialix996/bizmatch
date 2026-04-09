@@ -65,11 +65,15 @@ export default function ChatScreen({ route, navigation }) {
   const [input, setInput] = useState('');
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
+  const lastIdRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
       const res = await getMessages(match.matchId);
       setMessages(res.data);
+      if (res.data.length > 0) {
+        lastIdRef.current = res.data[res.data.length - 1].id;
+      }
     } catch (e) {
       console.error('Failed to load messages', e);
     } finally {
@@ -77,7 +81,25 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [match.matchId]);
 
+  const poll = useCallback(async () => {
+    try {
+      const res = await getMessages(match.matchId, lastIdRef.current);
+      if (res.data.length > 0) {
+        lastIdRef.current = res.data[res.data.length - 1].id;
+        setMessages(prev => [...prev, ...res.data]);
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+      }
+    } catch (e) {
+      // silent — polling failure shouldn't surface to user
+    }
+  }, [match.matchId]);
+
   useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [poll]);
 
   const handleSend = async () => {
     const text = input.trim();
@@ -86,6 +108,7 @@ export default function ChatScreen({ route, navigation }) {
     setSending(true);
     try {
       const res = await sendMessage(match.matchId, text);
+      lastIdRef.current = res.data.id;
       setMessages(prev => [...prev, res.data]);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {

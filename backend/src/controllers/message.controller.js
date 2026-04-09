@@ -15,8 +15,9 @@ const messages = (req, res, next) => {
 
     const limit  = Math.min(Number(req.query.limit)  || 50, 100);
     const offset = Number(req.query.offset) || 0;
+    const after  = req.query.after != null ? Number(req.query.after) : null;
 
-    const rows = getMessages(matchId, req.user.id, limit, offset);
+    const rows = getMessages(matchId, req.user.id, limit, offset, after);
     if (rows === null) return res.status(403).json({ error: 'Not part of this match' });
 
     res.json(rows);

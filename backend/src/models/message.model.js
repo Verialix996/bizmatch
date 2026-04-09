@@ -23,9 +23,10 @@ function sendMessage(matchId, senderId, body) {
 }
 
 /**
- * Get paginated messages for a match (newest first).
+ * Get paginated messages for a match.
+ * If `after` is provided, only returns messages with id > after (for polling).
  */
-function getMessages(matchId, userId, limit = 50, offset = 0) {
+function getMessages(matchId, userId, limit = 50, offset = 0, after = null) {
   const db = getDb();
 
   // Auth check
@@ -34,6 +35,19 @@ function getMessages(matchId, userId, limit = 50, offset = 0) {
     .get(matchId, userId, userId);
 
   if (!match) return null;
+
+  if (after != null) {
+    return db
+      .prepare(
+        `SELECT m.id, m.match_id, m.sender_id, m.body, m.created_at,
+                u.name AS sender_name, u.photo_url AS sender_photo
+         FROM messages m
+         JOIN users u ON u.id = m.sender_id
+         WHERE m.match_id = ? AND m.id > ?
+         ORDER BY m.created_at ASC`
+      )
+      .all(matchId, after);
+  }
 
   return db
     .prepare(

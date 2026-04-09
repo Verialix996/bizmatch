@@ -4,6 +4,50 @@ A matchmaking platform for entrepreneurs and investors.
 
 ---
 
+## Features
+
+### Authentication
+- Email & password registration with OTP email verification
+- Login with JWT session management
+- Forgot password / reset password via email
+- Google and LinkedIn OAuth (optional)
+- Two-factor authentication (2FA) setup and verification
+
+### Profiles
+- Role selection: Entrepreneur or Investor
+- Entrepreneur profile: bio, skills (bubble tags), venture stage, funding needs
+- Investor profile: bio, skills (bubble tags), investment domain, preferred stage, max investment
+- Profile photo upload
+- Edit profile at any time
+
+### Swipe & Matching
+- Tinder-style swipe deck — swipe right to like, left to pass
+- Entrepreneurs can toggle between "Find Investors" and "Find Partners" modes
+- Investors see entrepreneur project cards
+- Scored feed: matches are ranked by stage alignment, budget fit, and domain overlap
+- Passed profiles recycle back to the bottom of the feed when all fresh profiles are exhausted
+- Match created on mutual like with a match celebration modal
+- Profile updates re-enter the user into the match pool
+
+### Projects
+- Entrepreneurs can create and manage projects
+- Project cards include title, description, industry, stage, funding needed
+- Optional pitch deck and demo video links
+- Investors swipe on project cards
+
+### Messaging
+- Chat screen for every mutual match
+- Real-time message updates via polling (no need to reopen the chat)
+- Date dividers and message timestamps
+- Auto-scrolls to latest message
+
+### Account
+- Change account details
+- Delete account
+- Privacy settings
+
+---
+
 ## Requirements
 
 - [Node.js](https://nodejs.org) v18 or higher

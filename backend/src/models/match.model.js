@@ -83,96 +83,72 @@ function getFeed(userId, userRole, mode = 'investors', limit = 20) {
   const db = getDb();
 
   // IDs the user already swiped on
-  const swiped = db
-    .prepare('SELECT swiped_id FROM swipes WHERE swiper_id = ?')
-    .all(userId)
-    .map(r => r.swiped_id);
+  const allSwiped = db
+    .prepare('SELECT swiped_id, direction FROM swipes WHERE swiper_id = ?')
+    .all(userId);
 
-  const excludeIds = [userId, ...swiped];
+  const swipedIds = allSwiped.map(r => r.swiped_id);
+  const passedIds = allSwiped.filter(r => r.direction === 'pass').map(r => r.swiped_id);
+
+  // Exclude liked users (already decided) — passed users may recycle back
+  const likedIds = allSwiped.filter(r => r.direction === 'like').map(r => r.swiped_id);
+  const excludeIds = [userId, ...likedIds];
   const placeholders = excludeIds.map(() => '?').join(',');
 
-  let candidates;
+  const targetRole = userRole === 'investor' || mode === 'partners' ? 'entrepreneur' : 'investor';
+  const roleFilter = (mode === 'partners' || userRole === 'investor') ? 'entrepreneur' : 'investor';
 
-  if (userRole === 'investor') {
-    // Investors always see entrepreneurs only
-    candidates = db
-      .prepare(
-        `SELECT u.id, u.name, u.photo_url, p.*
-         FROM users u
-         JOIN profiles p ON p.user_id = u.id
-         WHERE u.role = 'entrepreneur'
-           AND u.deleted_at IS NULL
-           AND u.id NOT IN (${placeholders})`
-      )
-      .all(...excludeIds);
-  } else if (mode === 'partners') {
-    // Entrepreneur partner mode: see other entrepreneurs only
-    candidates = db
-      .prepare(
-        `SELECT u.id, u.name, u.photo_url, p.*
-         FROM users u
-         JOIN profiles p ON p.user_id = u.id
-         WHERE u.role = 'entrepreneur'
-           AND u.deleted_at IS NULL
-           AND u.id NOT IN (${placeholders})`
-      )
-      .all(...excludeIds);
-  } else {
-    // Entrepreneur investor mode: see investors only
-    candidates = db
-      .prepare(
-        `SELECT u.id, u.name, u.photo_url, p.*
-         FROM users u
-         JOIN profiles p ON p.user_id = u.id
-         WHERE u.role = 'investor'
-           AND u.deleted_at IS NULL
-           AND u.id NOT IN (${placeholders})`
-      )
-      .all(...excludeIds);
-  }
+  const candidates = db
+    .prepare(
+      `SELECT u.id, u.name, u.photo_url, p.*
+       FROM users u
+       JOIN profiles p ON p.user_id = u.id
+       WHERE u.role = ?
+         AND u.deleted_at IS NULL
+         AND u.id NOT IN (${placeholders})`
+    )
+    .all(roleFilter, ...excludeIds);
 
   // Fetch current user's profile for scoring
   const myProfile = db
     .prepare('SELECT * FROM profiles WHERE user_id = ?')
     .get(userId);
 
-  // Score each candidate
-  const scored = candidates.map(c => {
-    let score = 0;
-
-    if (userRole === 'investor' && c.role_type === 'entrepreneur') {
-      score = myProfile
-        ? scoreInvestorEntrepreneur(myProfile, c)
-        : 0;
-    } else if (userRole === 'entrepreneur' && c.role_type === 'investor') {
-      score = myProfile
-        ? scoreInvestorEntrepreneur(c, myProfile)
-        : 0;
-    } else if (userRole === 'entrepreneur' && c.role_type === 'entrepreneur') {
-      score = myProfile
-        ? scoreEntrepreneurEntrepreneur(myProfile, c)
-        : 0;
-    }
-
-    return {
-      userId: c.user_id,
-      name: c.name,
-      photoUrl: c.photo_url,
-      role: c.role_type,
-      bio: c.bio,
-      skills: safeParseArray(c.skills),
-      hobbies: safeParseArray(c.hobbies),
-      ventureStage: c.venture_stage,
-      fundingNeeds: c.funding_needs,
-      investmentDomain: c.investment_domain,
-      preferredStage: c.preferred_stage,
-      maxInvestment: c.max_investment,
-      score,
-    };
+  const toCard = (c, score) => ({
+    userId: c.user_id,
+    name: c.name,
+    photoUrl: c.photo_url,
+    role: c.role_type,
+    bio: c.bio,
+    skills: safeParseArray(c.skills),
+    hobbies: safeParseArray(c.hobbies),
+    ventureStage: c.venture_stage,
+    fundingNeeds: c.funding_needs,
+    investmentDomain: c.investment_domain,
+    preferredStage: c.preferred_stage,
+    maxInvestment: c.max_investment,
+    score,
   });
 
-  scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, limit);
+  const calcScore = (c) => {
+    if (userRole === 'investor' && c.role_type === 'entrepreneur') {
+      return myProfile ? scoreInvestorEntrepreneur(myProfile, c) : 0;
+    } else if (userRole === 'entrepreneur' && c.role_type === 'investor') {
+      return myProfile ? scoreInvestorEntrepreneur(c, myProfile) : 0;
+    } else if (userRole === 'entrepreneur' && c.role_type === 'entrepreneur') {
+      return myProfile ? scoreEntrepreneurEntrepreneur(myProfile, c) : 0;
+    }
+    return 0;
+  };
+
+  // Fresh candidates (never swiped)
+  const fresh = candidates.filter(c => !passedIds.includes(c.user_id));
+  const passed = candidates.filter(c => passedIds.includes(c.user_id));
+
+  const scoreAndSort = arr => arr.map(c => toCard(c, calcScore(c))).sort((a, b) => b.score - a.score);
+
+  // Fresh profiles first, recycled passes appended at the end
+  return [...scoreAndSort(fresh), ...scoreAndSort(passed)].slice(0, limit);
 }
 
 // ---------------------------------------------------------------------------
