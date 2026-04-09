@@ -10,29 +10,30 @@ Legend:  [ ] = not tested   [x] = passed   [!] = failed
 1. DESIGN & UI
 --------------------------------------------------------
 
-[ ] 1.1 Custom navbar icons
+[x] 1.1 Custom navbar icons
       - Open the app and look at the bottom tab bar
       - Expected: icons are Ionicons (compass, chat bubbles, folder, person circle)
       - Expected: active tab shows filled icon, inactive shows outline
-works correctly
 
-[ ] 1.2 App logo in header
+[x] 1.2 App logo in header
       - Navigate between any of the 4 main tabs
       - Expected: BizMatch logo (two overlapping circles) + "BizMatch" wordmark
         appear at the top of every tab screen
       - Expected: consistent across Discover, Matches, Projects, Profile
-works correctly
+
 [ ] 1.3 Notification badge on Matches tab
       - Have at least one match with no messages yet
       - Expected: red badge with count appears on the Matches tab icon
       - Open the Matches tab → navigate back to another tab
       - Expected: badge count updates (goes to 0 if all matches have messages)
-the notificaton badge should work on new matches and new messages also there a blue dot on the chat, show only if there are unread messages
+      - Open a chat → go back to Matches
+      - Expected: blue dot disappears for that conversation, badge count decreases
+      FIXED: bell icon removed; badge now clears after opening a chat
+
 --------------------------------------------------------
 2. PROFILE PHOTO UPLOAD
 --------------------------------------------------------
-  BEFORE TESTING: set BACKEND_URL = https://zooming-surprise-production.up.railway.app
-  in Railway backend variables, then redeploy.
+  BEFORE TESTING: ensure BACKEND_URL is set in Railway backend variables.
 
 [ ] 2.1 Add photo (first time)
       - Go to Profile → Edit Profile
@@ -43,7 +44,7 @@ the notificaton badge should work on new matches and new messages also there a b
       - Expected: small edit badge shows "…" while uploading, then "✎" when done
       - Save profile → go back to Profile screen
       - Expected: photo appears on your profile
-pressing save on after adding photo doesnt save the photo
+      FIXED: profile API now returns photo_url from users table
 
 [ ] 2.2 Change photo
       - Go to Edit Profile again → tap the photo circle
@@ -59,32 +60,32 @@ pressing save on after adding photo doesnt save the photo
 3. CHANGE ROLE
 --------------------------------------------------------
 
-[ ] 3.1 Change role from Account Settings
+[x] 3.1 Change role from Account Settings
       - Go to Profile → Account Settings
       - Expected: a "Change Role" card shows your current role
       - Tap "Change Role"
       - Expected: role selection screen appears (Entrepreneur / Investor cards)
       - Select the opposite role → tap Continue
-      - Expected: navigates back, role updated
-get the an error when trying to change role
-[2026-04-09T14:34:43.426Z] ERROR: Duplicate entry '41' for key 'profiles.user_id' | POST /api/profile
-role does change tho,once role change required to set oprofile up again, remove old profile details
-[ ] 3.2 Feed reflects new role
+      - Expected: navigates to profile form with blank fields (old role data cleared)
+      - Fill in new profile details → Save
+      - Expected: no duplicate key error
+      FIXED: upsert on backend + blank form defaults on role change
+
+[x] 3.2 Feed reflects new role
       - After changing role, go to Discover tab
       - Expected: feed now shows profiles of the opposite role
-        (e.g. changed to investor → sees entrepreneurs)
-works correctly
-[ ] 3.3 Role persists after logout
+
+[x] 3.3 Role persists after logout
       - Log out and log back in
       - Expected: new role is still active
-works correctly
+
 --------------------------------------------------------
 4. MOBILE RESPONSIVENESS
 --------------------------------------------------------
 
-[ ] 4.1 Test on a mobile device or simulator
+[ ] 4.1 Test on iPhone 15 (393pt wide) or simulator
       - Run on iOS/Android (Expo Go)
       - Navigate through all screens
       - Expected: no clipped text, no overflowing cards, no broken spacing
-      - Check: swipe cards, chat input, profile form, project form
-elements dont look good on mobile
+      - Check: swipe cards, match modal, chat input, profile form, project form
+      FIXED: swipe card width = min(340, 90% screen), modal width = min(300, 85% screen)

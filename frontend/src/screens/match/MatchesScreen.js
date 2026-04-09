@@ -65,10 +65,14 @@ function NewMatchBubble({ item, onPress }) {
   );
 }
 
-function ConversationRow({ item, onPress, currentUserId }) {
+function ConversationRow({ item, onPress, currentUserId, readTimestamps }) {
   const roleLabel = item.roleType === 'investor' ? 'INVESTOR' : 'ENTREPRENEUR';
   const domain = item.investmentDomain || item.ventureStage || '';
-  const hasUnread = item.lastMessage && item.lastMessageSenderId !== currentUserId;
+  const lastMsgTime = item.lastMessageAt
+    ? new Date(item.lastMessageAt.endsWith('Z') ? item.lastMessageAt : item.lastMessageAt + 'Z').getTime()
+    : 0;
+  const readAt = readTimestamps?.[item.matchId] || 0;
+  const hasUnread = item.lastMessage && item.lastMessageSenderId !== currentUserId && lastMsgTime > readAt;
 
   return (
     <TouchableOpacity
@@ -113,6 +117,7 @@ export default function MatchesScreen({ navigation }) {
   const [loading, setLoading] = useState(true);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser = useAuthStore(s => s.user);
+  const readTimestamps = useAuthStore(s => s.readTimestamps);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -120,11 +125,15 @@ export default function MatchesScreen({ navigation }) {
       const res = await getConversations();
       setConversations(res.data);
       const items = res.data || [];
+      const readTs = useAuthStore.getState().readTimestamps;
       // Badge = new matches (no messages) + conversations with unread last message
       const newMatchCount = items.filter(c => !c.lastMessage).length;
-      const unreadCount = items.filter(
-        c => c.lastMessage && c.lastMessageSenderId !== currentUser?.id
-      ).length;
+      const unreadCount = items.filter(c => {
+        if (!c.lastMessage || c.lastMessageSenderId === currentUser?.id) return false;
+        const lastMsgTime = c.lastMessageAt ? new Date(c.lastMessageAt.endsWith('Z') ? c.lastMessageAt : c.lastMessageAt + 'Z').getTime() : 0;
+        const readAt = readTs[c.matchId] || 0;
+        return lastMsgTime > readAt;
+      }).length;
       setNewMatchCount(newMatchCount + unreadCount);
     } catch (e) {
       console.error('Failed to load conversations', e);
@@ -156,9 +165,6 @@ export default function MatchesScreen({ navigation }) {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.logo}>BizMatch</Text>
-          <View style={styles.notifBtn}>
-            <Text style={styles.notifIcon}>🔔</Text>
-          </View>
         </View>
 
         {/* Title */}
@@ -215,6 +221,7 @@ export default function MatchesScreen({ navigation }) {
                     key={String(item.matchId)}
                     item={item}
                     currentUserId={currentUser?.id}
+                    readTimestamps={readTimestamps}
                     onPress={() => navigation.navigate('Chat', { match: item })}
                   />
                 ))}
@@ -252,18 +259,6 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     letterSpacing: -0.4,
   },
-  notifBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notifIcon: { fontSize: 16 },
-
   titleBlock: {
     paddingHorizontal: 24,
     paddingBottom: 16,

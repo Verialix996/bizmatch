@@ -59,6 +59,7 @@ function Avatar({ photoUrl, name, size = 36 }) {
 export default function ChatScreen({ route, navigation }) {
   const { match } = route.params;
   const user = useAuthStore(s => s.user);
+  const markMatchRead = useAuthStore(s => s.markMatchRead);
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -98,6 +99,9 @@ export default function ChatScreen({ route, navigation }) {
   }, [match.matchId]);
 
   useEffect(() => { load(); }, [load]);
+
+  // Mark this conversation as read when screen opens
+  useEffect(() => { markMatchRead(match.matchId); }, [match.matchId, markMatchRead]);
 
   useEffect(() => {
     const interval = setInterval(poll, 3000);

@@ -31,13 +31,6 @@ function StageBadge({ stage }) {
   );
 }
 
-function NotifButton() {
-  return (
-    <View style={styles.notifBtn}>
-      <Text style={styles.notifIcon}>🔔</Text>
-    </View>
-  );
-}
 
 function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop }) {
   const animatedStyle = isTop ? {
@@ -339,7 +332,6 @@ export default function SwipeScreen() {
       {/* Header */}
       <View style={styles.header}>
         <Text style={styles.logo}>BizMatch</Text>
-        <NotifButton />
       </View>
 
       {/* Title */}
@@ -505,18 +497,6 @@ const styles = StyleSheet.create({
     color: colors.primaryDark,
     letterSpacing: -0.4,
   },
-  notifBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  notifIcon: { fontSize: 16 },
-
   titleBlock: {
     paddingHorizontal: 24,
     paddingBottom: 12,

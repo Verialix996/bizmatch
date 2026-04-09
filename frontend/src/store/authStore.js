@@ -4,6 +4,7 @@ const useAuthStore = create((set) => ({
   token: null,
   user: null,
   newMatchCount: 0,
+  readTimestamps: {}, // matchId → timestamp when last opened
 
   setAuth: (token, user) => {
     set({ token, user });
@@ -15,8 +16,12 @@ const useAuthStore = create((set) => ({
 
   setNewMatchCount: (count) => set({ newMatchCount: count }),
 
+  markMatchRead: (matchId) => set(state => ({
+    readTimestamps: { ...state.readTimestamps, [matchId]: Date.now() },
+  })),
+
   logout: () => {
-    set({ token: null, user: null, newMatchCount: 0 });
+    set({ token: null, user: null, newMatchCount: 0, readTimestamps: {} });
   },
 }));
 
