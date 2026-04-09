@@ -181,10 +181,18 @@ async function verify2FA(req, res, next) {
   }
 }
 
-// OAuth callback — issue JWT after OAuth success (web/browser flow)
+// OAuth callback — issue JWT after OAuth success, deep-link back to mobile app
 function oauthCallback(req, res) {
-  const token = generateToken(req.user);
-  res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
+  const user = req.user;
+  const token = generateToken(user);
+  const params = new URLSearchParams({
+    token,
+    userId: String(user.id),
+    email:  user.email  || '',
+    name:   user.name   || '',
+    role:   user.role   || '',
+  });
+  res.redirect(`bizmatch://auth?${params.toString()}`);
 }
 
 // POST /api/auth/google/mobile — accepts Google access token from React Native

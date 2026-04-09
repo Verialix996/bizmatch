@@ -2,14 +2,12 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, StatusBar,
 } from 'react-native';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
-import * as Google from 'expo-auth-session/providers/google';
 import { brandGradient, radius } from '../../theme';
-import { googleSignIn } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
-import { GOOGLE_CLIENT_ID } from '../../config/constants';
+import { API_BASE_URL } from '../../config/constants';
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -17,16 +15,32 @@ export default function WelcomeScreen({ navigation }) {
   const setAuth = useAuthStore(s => s.setAuth);
   const [googleError, setGoogleError] = useState('');
 
-  const [, response, promptAsync] = Google.useAuthRequest({ clientId: GOOGLE_CLIENT_ID });
-
-  useEffect(() => {
-    if (response?.type === 'success') {
-      const { accessToken } = response.authentication;
-      googleSignIn(accessToken)
-        .then(({ data }) => setAuth(data.token, data.user))
-        .catch(e => setGoogleError(e.response?.data?.error || 'Google sign-in failed. Please try again.'));
+  const handleGoogleSignIn = async () => {
+    setGoogleError('');
+    try {
+      const result = await WebBrowser.openAuthSessionAsync(
+        `${API_BASE_URL}/auth/google`,
+        'bizmatch://'
+      );
+      if (result.type === 'success' && result.url) {
+        const qs = result.url.split('?')[1] || '';
+        const params = Object.fromEntries(qs.split('&').map(p => {
+          const [k, v] = p.split('=');
+          return [k, decodeURIComponent(v || '')];
+        }));
+        if (params.token) {
+          setAuth(params.token, {
+            id:    params.userId,
+            email: params.email,
+            name:  params.name,
+            role:  params.role,
+          });
+        }
+      }
+    } catch {
+      setGoogleError('Google sign-in failed. Please try again.');
     }
-  }, [response]);
+  };
   return (
     <>
       <StatusBar barStyle="light-content" />
@@ -72,7 +86,7 @@ export default function WelcomeScreen({ navigation }) {
 
           <TouchableOpacity
             style={styles.btnGoogle}
-            onPress={() => { setGoogleError(''); promptAsync(); }}
+            onPress={handleGoogleSignIn}
             activeOpacity={0.85}
           >
             <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
