@@ -106,16 +106,22 @@ export default function AppNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!token ? (
         <>
-          <Stack.Screen name="Welcome"        component={WelcomeScreen} />
-          <Stack.Screen name="Login"          component={LoginScreen} />
-          <Stack.Screen name="Register"       component={RegisterScreen} />
-          <Stack.Screen name="VerifyOtp"      component={VerifyOtpScreen} />
-          <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
-          <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
+          <Stack.Screen name="Welcome"       component={WelcomeScreen} />
+          <Stack.Screen name="Login"         component={LoginScreen} />
+          <Stack.Screen name="Register"      component={RegisterScreen} />
+          <Stack.Screen name="VerifyOtp"     component={VerifyOtpScreen} />
+          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
         </>
       ) : !user?.role ? (
-        // Logged in but no role yet (e.g. new Google OAuth user) → profile setup
-        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+        // New user — EditProfile is first so it renders immediately, no flash
+        <>
+          <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
+          <Stack.Screen name="Main"            component={MainTabs} />
+          <Stack.Screen name="Chat"            component={ChatScreen} />
+          <Stack.Screen name="ProfileDetail"   component={ProfileDetailScreen} />
+          <Stack.Screen name="AccountSettings" component={AccountSettings} />
+        </>
       ) : (
         <>
           <Stack.Screen name="Main"            component={MainTabs} />

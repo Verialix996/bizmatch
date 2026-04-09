@@ -176,10 +176,11 @@ export default function EditProfileScreen({ route, navigation }) {
     try {
       if (isNew) {
         await api.post('/profile', payload);
+        navigation.navigate('Main');
       } else {
         await api.put('/profile', payload);
+        navigation.goBack();
       }
-      navigation.goBack();
     } catch (err) {
       setSaveError(err.response?.data?.error || 'Failed to save profile');
     }
