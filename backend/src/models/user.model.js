@@ -24,7 +24,13 @@ const UserModel = {
       'SELECT * FROM users WHERE oauth_provider = ? AND oauth_provider_id = ?',
       [provider, providerId]
     );
-    if (rows[0]) return rows[0];
+    if (rows[0]) {
+      if (!rows[0].is_verified) {
+        await query('UPDATE users SET is_verified = 1 WHERE id = ?', [rows[0].id]);
+        rows[0].is_verified = 1;
+      }
+      return rows[0];
+    }
 
     const result = await query(
       'INSERT INTO users (email, name, photo_url, oauth_provider, oauth_provider_id, is_verified) VALUES (?, ?, ?, ?, ?, 1)',
