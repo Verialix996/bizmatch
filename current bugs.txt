@@ -1,6 +1,0 @@
-current bugs:
--unable to upload pictures, will be fixed when moved to uni server
-- moderation will be added when ai api will be integrated
--when importing user details from google auth the name is concated with a +between name and surname
--need to add required fields and mark them red if not filled give an error that explain what fields are missing
--need to add an nda signing when adding new parthner to a project or when an investor ask to see the project details, the nda will be signed through chat also the invite to join the project will be sent through chat
