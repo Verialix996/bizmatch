@@ -2,9 +2,7 @@ import axios from 'axios';
 import useAuthStore from '../store/authStore';
 import Constants from 'expo-constants';
 
-// Automatically uses the same IP your Expo dev server is running on
-const host = Constants.expoConfig?.hostUri?.split(':')[0] ?? 'localhost';
-const API_URL = `http://${host}:3000/api`;
+const API_URL = 'https://zooming-surprise-production.up.railway.app/api';
 
 const api = axios.create({ baseURL: API_URL });
 
