@@ -3,12 +3,17 @@ import {
   StyleSheet, StatusBar, KeyboardAvoidingView,
   Platform, ScrollView,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
-import { login } from '../../services/auth.service';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
+import { login, googleSignIn } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { colors, brandGradient, radius } from '../../theme';
+import { GOOGLE_CLIENT_ID } from '../../config/constants';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const { control, handleSubmit } = useForm();
@@ -16,6 +21,17 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+
+  const [, googleResponse, promptGoogleAsync] = Google.useAuthRequest({ clientId: GOOGLE_CLIENT_ID });
+
+  useEffect(() => {
+    if (googleResponse?.type === 'success') {
+      const { accessToken } = googleResponse.authentication;
+      googleSignIn(accessToken)
+        .then(({ data }) => setAuth(data.token, data.user))
+        .catch(() => setError('Google sign-in failed. Please try again.'));
+    }
+  }, [googleResponse]);
 
   const onSubmit = async ({ email, password }) => {
     setError('');
@@ -123,6 +139,14 @@ export default function LoginScreen({ navigation }) {
               </TouchableOpacity>
 
               <TouchableOpacity
+                style={styles.btnGoogle}
+                onPress={() => promptGoogleAsync()}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
                 onPress={() => navigation.navigate('ForgotPassword')}
                 style={styles.linkBtn}
               >
@@ -218,6 +242,19 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 1.2,
   },
+  btnGoogle: {
+    backgroundColor: '#fff',
+    borderRadius: radius.pill,
+    paddingVertical: 17,
+    alignItems: 'center',
+  },
+  btnGoogleText: {
+    color: '#444',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+
   linkBtn: { alignItems: 'center' },
   linkText: {
     fontSize: 13,

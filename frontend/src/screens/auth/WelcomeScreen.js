@@ -2,10 +2,30 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, StatusBar,
 } from 'react-native';
+import { useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as WebBrowser from 'expo-web-browser';
+import * as Google from 'expo-auth-session/providers/google';
 import { brandGradient, radius } from '../../theme';
+import { googleSignIn } from '../../services/auth.service';
+import useAuthStore from '../../store/authStore';
+import { GOOGLE_CLIENT_ID } from '../../config/constants';
+
+WebBrowser.maybeCompleteAuthSession();
 
 export default function WelcomeScreen({ navigation }) {
+  const setAuth = useAuthStore(s => s.setAuth);
+
+  const [, response, promptAsync] = Google.useAuthRequest({ clientId: GOOGLE_CLIENT_ID });
+
+  useEffect(() => {
+    if (response?.type === 'success') {
+      const { accessToken } = response.authentication;
+      googleSignIn(accessToken)
+        .then(({ data }) => setAuth(data.token, data.user))
+        .catch(() => {});
+    }
+  }, [response]);
   return (
     <>
       <StatusBar barStyle="light-content" />
@@ -47,6 +67,14 @@ export default function WelcomeScreen({ navigation }) {
             activeOpacity={0.85}
           >
             <Text style={styles.btnOutlineText}>SIGN IN</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.btnGoogle}
+            onPress={() => promptAsync()}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -166,6 +194,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 1.2,
+  },
+
+  btnGoogle: {
+    backgroundColor: '#fff',
+    borderRadius: radius.pill,
+    paddingVertical: 17,
+    alignItems: 'center',
+    borderWidth: 0,
+  },
+  btnGoogleText: {
+    color: '#444',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 
   troubleBtn: {

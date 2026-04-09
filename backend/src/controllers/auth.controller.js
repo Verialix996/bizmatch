@@ -181,14 +181,42 @@ async function verify2FA(req, res, next) {
   }
 }
 
-// OAuth callback — issue JWT after OAuth success
+// OAuth callback — issue JWT after OAuth success (web/browser flow)
 function oauthCallback(req, res) {
   const token = generateToken(req.user);
   res.redirect(`${process.env.FRONTEND_URL}/auth/callback?token=${token}`);
 }
 
+// POST /api/auth/google/mobile — accepts Google access token from React Native
+async function googleMobile(req, res, next) {
+  try {
+    const { accessToken } = req.body;
+    if (!accessToken) return res.status(400).json({ error: 'accessToken required' });
+
+    // Fetch user info from Google
+    const response = await fetch(
+      `https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`
+    );
+    if (!response.ok) return res.status(401).json({ error: 'Invalid Google access token' });
+
+    const profile = await response.json();
+    const user = await UserModel.findOrCreateOAuth({
+      provider:   'google',
+      providerId: profile.sub,
+      email:      profile.email,
+      name:       profile.name,
+      photo:      profile.picture ?? null,
+    });
+
+    const token = generateToken(user);
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   register, login, verifyEmail, resendOtp,
   forgotPassword, resetPassword,
-  setup2FA, verify2FA, oauthCallback,
+  setup2FA, verify2FA, oauthCallback, googleMobile,
 };

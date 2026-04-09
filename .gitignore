@@ -4,6 +4,7 @@
 !.env.example
 railway-env-variables.txt
 railway variables.png
+GOOGLE_SETUP.txt
 
 # ── Logs ─────────────────────────────────────────────────────────────────────
 logs.*.log
@@ -45,8 +46,12 @@ bugs.txt
 ALGO_TEST.md
 *.jpeg
 *.jpg
+*.png
 *.zip
 stitch_match_messaging_chat/
+
+# ── Railway / misc logs ───────────────────────────────────────────────────────
+logs.*.log
 
 # ── Personal folders ─────────────────────────────────────────────────────────
 אקסלרטור א/

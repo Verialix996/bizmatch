@@ -14,3 +14,6 @@ export const forgotPassword = (email) =>
 
 export const resetPassword = (token, newPassword) =>
   api.post('/auth/reset-password', { token, newPassword });
+
+export const googleSignIn = (accessToken) =>
+  api.post('/auth/google/mobile', { accessToken });

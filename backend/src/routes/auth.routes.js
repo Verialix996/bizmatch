@@ -33,7 +33,7 @@ router.post('/reset-password',  authLimiter, ctrl.resetPassword);
 router.post('/2fa/setup',  authenticate, ctrl.setup2FA);
 router.post('/2fa/verify', authenticate, ctrl.verify2FA);
 
-// Google OAuth
+// Google OAuth (web/browser flow)
 router.get('/google',
   passport.authenticate('google', { scope: ['profile', 'email'], session: false })
 );
@@ -41,6 +41,9 @@ router.get('/google/callback',
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   ctrl.oauthCallback
 );
+
+// Google OAuth (React Native mobile flow)
+router.post('/google/mobile', authLimiter, ctrl.googleMobile);
 
 // LinkedIn OAuth
 router.get('/linkedin',
