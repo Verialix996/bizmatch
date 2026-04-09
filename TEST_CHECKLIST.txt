@@ -10,220 +10,129 @@ Legend:  [ ] = not tested   [x] = passed   [!] = failed
 1. AUTHENTICATION
 --------------------------------------------------------
 
-[ ] 1.1 Register — email/password
-      - Go to Welcome → Create Account
-      - Enter name, email, password
-      - Tap "CREATE ACCOUNT"
-      - App navigates to Verify OTP screen immediately
-      - OTP email arrives in inbox within ~30 seconds
-working properly
-
-[ ] 1.2 Email OTP verification
-      - Enter the 6-digit code from the email
-      - App logs in and navigates to main tabs
-      - Expected: user is now verified in Railway MySQL
-        (users.is_verified = 1)
-working properly
-
-[ ] 1.3 Resend OTP
-      - On Verify OTP screen, tap "Resend"
-      - New code arrives in email
-      - Old code no longer works
-working properly
-
-[ ] 1.4 Login — email/password
-      - Log out (Profile → Account Settings → Log out)
-      - Log back in with email + password
-      - Expected: navigates to main tabs
-working for email acc
-
-[ ] 1.5 Login — wrong password
-      - Enter correct email, wrong password
-      - Expected: "Invalid credentials" error shown
-working properly
-
-[ ] 1.6 Login — unverified account
-      - Register a new account but do NOT verify
-      - Try to log in
-      - Expected: "Email not verified" error
-working properly, need to add a way to verify the account
+[x] 1.1 Register — email/password
+[x] 1.2 Email OTP verification
+[x] 1.3 Resend OTP
+[x] 1.4 Login — email/password
+[x] 1.5 Login — wrong password
+[x] 1.6 Login — unverified account
 
 [ ] 1.7 Forgot password
-      - BEFORE TESTING: set FRONTEND_URL = http://localhost:8081 in Railway backend variables
+      BEFORE TESTING: set FRONTEND_URL = http://localhost:8081 in Railway backend variables
       - On Login screen → "Forgot password?"
-      - Enter your email
-      - Check inbox for reset link
-      - Click link → should open the app at the Reset Password screen
-      - Enter a new password and confirm it
-      - Tap RESET PASSWORD → success message shown, redirected to Login
-      - Log in with new password → should work
-      - Old password should no longer work
-      FIXED: app now has a Reset Password screen + deep link wired up
+      - Enter your email → check inbox for reset link
+      - Click link → should open the Reset Password screen in the app
+      - Enter new password + confirm → tap RESET PASSWORD
+      - Expected: success message, redirected to Login
+      - Log in with new password → should work; old password should fail
+get the email and all but the link leads to this
+Redirect Notice
+ The page you were on is trying to send you to an invalid URL (http://*/reset-password?token=a63bf472-a301-47ff-8b6e-020b93126806).
 
-[ ] 1.8 Continue with Google
+ If you do not want to visit that page, you can return to the previous page.
+
+
+[ ] 1.8 Continue with Google (new account)
       - On Welcome or Login screen, tap "Continue with Google"
-      - Browser opens Google sign-in
-      - Sign in with Google account
-      - Returns to app, logged in
-      - Expected: user row in MySQL has oauth_provider = 'google'
-
+      - Sign in with a Google account that has no existing BizMatch account
+      - Expected: logged in, user row in MySQL has oauth_provider = 'google'
+worked correctly
 [ ] 1.8a Google conflict — existing email/password account
-      - Register an account with email + password (e.g. test@example.com)
-      - Log out
-      - Tap "Continue with Google" using the same email
-      - Expected: error shown "An account with this email already exists.
+      - Register an account with email + password
+      - Log out → tap "Continue with Google" using the same email
+      - Expected: error "An account with this email already exists.
         Please sign in with your email and password."
       - Expected: no duplicate user created in MySQL
-      FIXED: backend now returns a clear 409 error instead of crashing
+no error msg for existing account register with email and password
 
-[ ] 1.9 Google login — existing account
-      - Log out
-      - Tap "Continue with Google" again with same account
-      - Expected: logs in to same account (no duplicate user created)
-working properly
+[x] 1.9 Google login — existing Google account (no duplicate created)
+
 --------------------------------------------------------
 2. PROFILE
 --------------------------------------------------------
 
-[ ] 2.1 Create profile (first time)
-      - After registration, go to Profile tab
-      - Fill in: bio, skills, role type, venture stage / investment prefs
-      - Tap Save
-      - Expected: profile saved, no errors
-working correctly
-
-[ ] 2.2 Edit profile
-      - Go to Profile → Edit
-      - Change bio or a field
-      - Save
-      - Expected: changes reflected immediately on profile screen
-working correcty
+[x] 2.1 Create profile (first time)
+[x] 2.2 Edit profile
 
 [ ] 2.3 Upload profile photo
-      - Go to Edit Profile → tap photo area
-      - Select image from library
-      - Save
-      - Expected: photo appears on profile and in the swipe feed
-changing/uploading pic isnt implemented currently
+      NOT IMPLEMENTED YET — skip
 
 [ ] 2.4 Change role (entrepreneur ↔ investor)
-      - Profile → Account Settings → change role
-      - Expected: feed changes to show opposite role
-no option to swap role after initaly chosen
+      need to implament
 
 --------------------------------------------------------
 3. SWIPE / MATCHING
 --------------------------------------------------------
-  Setup: you need TWO accounts (different roles) to test matching.
-  Account A = entrepreneur, Account B = investor
+  Setup: two accounts required — Account A (entrepreneur), Account B (investor)
 
-[ ] 3.1 Feed loads
-      - Log in as Account A
-      - Go to Discover tab
-      - Expected: cards appear (Account B should be visible if profile is filled)
-work correctly
+[x] 3.1 Feed loads
+[x] 3.2 Swipe right (like)
+[x] 3.3 Swipe left (pass)
 
-[ ] 3.2 Swipe right (like)
-      - Swipe a card to the right (or tap the like button)
-      - Expected: card disappears, next card shown
-work correctly
-
-[ ] 3.3 Swipe left (pass)
-      - Swipe a card to the left
-      - Expected: card disappears
-work correctly
-
-[ ] 3.4 Mutual match
-      - Account A likes Account B
-      - Log in as Account B, like Account A back
+[ ] 3.4 Mutual match + message button
+      - Account A likes Account B; log in as B and like A back
       - Expected: match celebration modal appears
-      - Expected: modal shows "MESSAGE [NAME]" button and "KEEP SWIPING" button
-      - Tap "MESSAGE [NAME]" → should navigate directly to the chat with that user
-      - Tap "KEEP SWIPING" → should dismiss modal and stay on Discover
-      FIXED: modal now has a direct "Message" button
-
-[ ] 3.5 Matches list
-      - Go to Matches tab
-      - Expected: the matched user appears in the list
+      - Expected: modal has "MESSAGE [NAME]" (primary) and "KEEP SWIPING" (secondary)
+      - Tap "MESSAGE [NAME]" → navigates directly to chat with that user
+      - Tap "KEEP SWIPING" → dismisses modal, stays on Discover
 work correctly
 
-[ ] 3.6 Feed recycling
-      - Swipe through all cards until feed is empty
-      - Expected: previously passed cards reappear
-work correctly
+[x] 3.5 Matches list
+[x] 3.6 Feed recycling
 
 [ ] 3.7 Scoring / feed order
-      - Profiles with matching stage + budget + domain
-        should appear near the top of the feed
-dont see the scoring
+      - Profiles with matching stage + budget + domain should rank higher
+      - NOT VERIFIED YET
 
 --------------------------------------------------------
 4. MESSAGING
 --------------------------------------------------------
   Requires an existing match from section 3.
 
-[ ] 4.1 Open chat
-      - Go to Matches tab → tap a match
-      - Expected: chat screen opens, no 500 error
-work correctly
-
-[ ] 4.2 Send a message
-      - Type a message and tap send (▶)
-      - Expected: message appears in the bubble on the right
-work correctly
-
-[ ] 4.3 Receive a message
-      - From Account B, send a message to Account A
-      - On Account A's chat screen (keep it open)
-      - Expected: message appears within ~3 seconds (polling)
-work correctly
+[x] 4.1 Open chat
+[x] 4.2 Send a message
+[x] 4.3 Receive a message (polling ~3 s)
 
 [ ] 4.4 Date dividers
-      - If messages span multiple days
-      - Expected: "TODAY" / "YESTERDAY" / date label shown between groups
-time appear correctly
-will check dates later(tommorow)
+      - Send messages across multiple days
+      - Expected: TODAY / YESTERDAY / date labels between groups
+      - Time display confirmed working; date labels not yet tested
 
 [ ] 4.5 Empty chat state
       - Open a fresh match with no messages
-      - Expected: "Say hello and start the conversation" empty state shown
+      - Expected: "Say hello and start the conversation" shown
+work correctly
 
-[ ] 4.6 Chat loads previous messages  [was broken]
+[ ] 4.6 Chat loads previous messages
       - Open a match that already has messages
-      - Expected: all previous messages appear immediately (no 500 error)
-      - Check Railway logs: no "Incorrect arguments to mysqld_stmt_execute" error
-      FIXED: LIMIT/OFFSET no longer passed as prepared statement params
+      - Expected: previous messages load immediately, no 500 error
+      - Check Railway logs: no "Incorrect arguments to mysqld_stmt_execute"
+
+work correctly, but when sending a msg with a new line with nothing, it appear in chat for the sender like he sent 2 msgs but onlyone msg is really sent, need to fix
+
 --------------------------------------------------------
 5. PROJECTS
 --------------------------------------------------------
   Requires an entrepreneur account to create, investor to swipe.
 
-[ ] 5.1 Create project (entrepreneur)
-      - Log in as an entrepreneur account
-      - Go to Projects tab
-      - Tap "New Project"
-      - Fill in title, description, stage, funding needed, industry
-      - Tap Save
-      - Expected: project appears in your list
-      - If save fails: an error message should now appear below the form
-        (previously it failed silently — that is now fixed)
-      FIXED: errors from the backend are now shown in the form
+[ ] 5.1 Create project
+      - Log in as entrepreneur → Projects tab → New Project
+      - Fill in title, description, stage, funding needed, industry → Save
+      - Expected: project appears in list
+      - If it fails: an error message should appear in the form (no longer silent)
+when trying to create new project get too many requests,please try again later error
 
 [ ] 5.2 Edit project
-      - Tap a project → Edit
-      - Change the title or description
-      - Save
-      - Expected: updated info shown
+      - Tap a project → Edit → change title or description → Save
+      - Expected: updated info shown immediately
 
 [ ] 5.3 Investor project feed
-      - Log in as investor
-      - Go to Projects tab
+      - Log in as investor → Projects tab
       - Expected: entrepreneur's project card appears
 
 [ ] 5.4 Investor swipes on project
       - Swipe right on a project
-      - Expected: project match created in Railway MySQL
-        (project_matches table)
+      - Expected: project match created in Railway MySQL (project_matches table)
 
 [ ] 5.5 Delete project
       - Entrepreneur deletes a project
@@ -233,22 +142,15 @@ will check dates later(tommorow)
 6. ACCOUNT SETTINGS
 --------------------------------------------------------
 
-[ ] 6.1 Log out
-      - Profile → Account Settings → Log out
-      - Expected: returns to Welcome screen, token cleared
-working correctly
-
-[ ] 6.2 Delete account
-      - Profile → Account Settings → Delete Account
-      - Expected: account soft-deleted (deleted_at set in MySQL)
-      - Try to log in again → should fail
-working correctly
+[x] 6.1 Log out
+[x] 6.2 Delete account
+works correctly
 
 --------------------------------------------------------
 NOTES
 --------------------------------------------------------
 - Run tests against the Railway backend (not local)
-- To inspect data directly: Railway dashboard → MySQL → Query
-- To see backend errors: Railway dashboard → backend service → Logs
+- To inspect data: Railway dashboard → MySQL → Query
+- To see errors: Railway dashboard → backend service → Logs
 - Google OAuth only works on web (localhost:8081) until mobile
   redirect URIs are configured for Expo Go / production builds

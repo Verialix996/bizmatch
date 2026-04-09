@@ -86,7 +86,10 @@ export default function ChatScreen({ route, navigation }) {
       const res = await getMessages(match.matchId, lastIdRef.current);
       if (res.data.length > 0) {
         lastIdRef.current = res.data[res.data.length - 1].id;
-        setMessages(prev => [...prev, ...res.data]);
+        setMessages(prev => {
+          const ids = new Set(prev.map(m => m.id));
+          return [...prev, ...res.data.filter(m => !ids.has(m.id))];
+        });
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
       }
     } catch (e) {
@@ -109,7 +112,10 @@ export default function ChatScreen({ route, navigation }) {
     try {
       const res = await sendMessage(match.matchId, text);
       lastIdRef.current = res.data.id;
-      setMessages(prev => [...prev, res.data]);
+      setMessages(prev => {
+        const ids = new Set(prev.map(m => m.id));
+        return ids.has(res.data.id) ? prev : [...prev, res.data];
+      });
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
       console.error('Send failed', e);
