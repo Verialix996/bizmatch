@@ -1,10 +1,12 @@
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity, Image,
   StyleSheet, ScrollView, SafeAreaView, StatusBar,
 } from 'react-native';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
+import { uploadPhoto } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { colors, radius, cardShadow } from '../../theme';
 
@@ -119,16 +121,43 @@ function SkillsInput({ value, onChange }) {
 
 export default function EditProfileScreen({ route, navigation }) {
   const existing = route.params?.profile;
+  const forceStep = route.params?.forceStep;
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
 
   const isNew = !existing?.bio;
   const hasRole = !!currentUser?.role;
 
-  const [step, setStep] = useState(isNew && !hasRole ? 'role' : 'profile');
+  const [step, setStep] = useState(forceStep === 'role' ? 'role' : (isNew && !hasRole ? 'role' : 'profile'));
   const [selectedRole, setSelectedRole] = useState(currentUser?.role || '');
   const [roleError, setRoleError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [photoUri, setPhotoUri] = useState(currentUser?.photo_url || null);
+  const [photoUploading, setPhotoUploading] = useState(false);
+
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setPhotoUri(asset.uri);
+    setPhotoUploading(true);
+    try {
+      const fileName = asset.uri.split('/').pop() || 'photo.jpg';
+      const { data } = await uploadPhoto(asset.uri, fileName);
+      updateUser({ photo_url: data.photo_url });
+    } catch {
+      // photo still previews locally even if upload fails
+    } finally {
+      setPhotoUploading(false);
+    }
+  };
 
   const { control, handleSubmit } = useForm({
     defaultValues: {
@@ -241,6 +270,21 @@ export default function EditProfileScreen({ route, navigation }) {
         <Text style={styles.formTitle}>
           {isNew ? 'Create Profile' : 'Edit Profile'}
         </Text>
+
+        {/* Photo */}
+        <TouchableOpacity style={styles.photoArea} onPress={handlePickPhoto} activeOpacity={0.8}>
+          {photoUri ? (
+            <Image source={{ uri: photoUri }} style={styles.photoImage} />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              <Text style={styles.photoPlaceholderText}>📷</Text>
+              <Text style={styles.photoPlaceholderLabel}>Add Photo</Text>
+            </View>
+          )}
+          <View style={styles.photoBadge}>
+            <Text style={styles.photoBadgeText}>{photoUploading ? '…' : '✎'}</Text>
+          </View>
+        </TouchableOpacity>
 
         {/* Bio */}
         <FieldLabel>BIO</FieldLabel>
@@ -601,4 +645,43 @@ const styles = StyleSheet.create({
     fontSize: 15,
     letterSpacing: 0.3,
   },
+
+  photoArea: {
+    alignSelf: 'center',
+    marginBottom: 28,
+    position: 'relative',
+  },
+  photoImage: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.surfaceBorder,
+  },
+  photoPlaceholder: {
+    width: 96,
+    height: 96,
+    borderRadius: 48,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 2,
+    borderColor: colors.surfaceBorder,
+    borderStyle: 'dashed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoPlaceholderText: { fontSize: 24 },
+  photoPlaceholderLabel: { fontSize: 11, color: colors.textHint, marginTop: 2 },
+  photoBadge: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  photoBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
 });

@@ -86,6 +86,10 @@ const UserModel = {
   async setRole(id, role) {
     await query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
   },
+
+  async updatePhoto(id, photoUrl) {
+    await query('UPDATE users SET photo_url = ? WHERE id = ?', [photoUrl, id]);
+  },
 };
 
 module.exports = UserModel;

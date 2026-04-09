@@ -1,8 +1,9 @@
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../store/authStore';
 import { colors } from '../theme';
+import AppHeader from '../components/AppHeader';
 
 import WelcomeScreen        from '../screens/auth/WelcomeScreen';
 import LoginScreen          from '../screens/auth/LoginScreen';
@@ -31,20 +32,20 @@ export const linking = {
   },
 };
 
-function TabIcon({ label, focused }) {
-  const icons = { Discover: '🔍', Matches: '💬', Projects: '📁', Profile: '👤' };
-  return (
-    <Text style={{ fontSize: focused ? 22 : 19, opacity: focused ? 1 : 0.5 }}>
-      {icons[label]}
-    </Text>
-  );
-}
+const TAB_ICONS = {
+  Discover: ['compass',       'compass-outline'],
+  Matches:  ['chatbubbles',   'chatbubbles-outline'],
+  Projects: ['folder',        'folder-outline'],
+  Profile:  ['person-circle', 'person-circle-outline'],
+};
 
 function MainTabs() {
+  const newMatchCount = useAuthStore(s => s.newMatchCount);
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        headerShown: false,
+        header: () => <AppHeader />,
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
           borderTopColor: '#DDE3F0',
@@ -54,11 +55,14 @@ function MainTabs() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textHint,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
-        tabBarIcon: ({ focused }) => <TabIcon label={route.name} focused={focused} />,
+        tabBarIcon: ({ focused, color }) => {
+          const [filled, outline] = TAB_ICONS[route.name];
+          return <Ionicons name={focused ? filled : outline} size={24} color={color} />;
+        },
       })}
     >
       <Tab.Screen name="Discover" component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
-      <Tab.Screen name="Matches"  component={MatchesScreen}  options={{ tabBarLabel: 'Matches' }} />
+      <Tab.Screen name="Matches"  component={MatchesScreen}  options={{ tabBarLabel: 'Matches', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
       <Tab.Screen name="Projects" component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
       <Tab.Screen name="Profile"  component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>

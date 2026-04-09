@@ -152,6 +152,21 @@ export default function AccountSettingsScreen({ navigation }) {
           </TouchableOpacity>
         </View>
 
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>ACCOUNT</Text>
+          <Text style={styles.dangerText}>
+            Current role: <Text style={{ fontWeight: '700', color: colors.primary }}>
+              {user?.role === 'entrepreneur' ? 'Entrepreneur' : user?.role === 'investor' ? 'Investor' : 'Not set'}
+            </Text>
+          </Text>
+          <TouchableOpacity
+            style={styles.btnPrimary}
+            onPress={() => navigation.navigate('EditProfile', { forceStep: 'role' })}
+          >
+            <Text style={styles.btnPrimaryText}>Change Role</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={[styles.card, styles.dangerZone]}>
           <Text style={[styles.sectionLabel, { color: colors.error }]}>DANGER ZONE</Text>
           <Text style={styles.dangerText}>

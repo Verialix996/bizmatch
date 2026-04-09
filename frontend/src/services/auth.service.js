@@ -17,3 +17,11 @@ export const resetPassword = (token, newPassword) =>
 
 export const googleSignIn = (accessToken) =>
   api.post('/auth/google/mobile', { accessToken });
+
+export const uploadPhoto = (uri, fileName) => {
+  const form = new FormData();
+  form.append('photo', { uri, name: fileName, type: 'image/jpeg' });
+  return api.post('/users/me/photo', form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};

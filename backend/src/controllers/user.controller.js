@@ -1,5 +1,19 @@
 const UserModel = require('../models/user.model');
 const logger = require('../utils/logger');
+const multer = require('multer');
+const path = require('path');
+
+const photoUpload = multer({
+  storage: multer.diskStorage({
+    destination: process.env.UPLOAD_DIR || 'uploads/',
+    filename: (_req, file, cb) => cb(null, `photo-${Date.now()}${path.extname(file.originalname)}`),
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const allowed = ['.jpg', '.jpeg', '.png'];
+    cb(null, allowed.includes(path.extname(file.originalname).toLowerCase()));
+  },
+}).single('photo');
 
 // PATCH /api/users/me
 async function updateMe(req, res, next) {
@@ -63,4 +77,20 @@ async function setRole(req, res, next) {
   }
 }
 
-module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole };
+// POST /api/users/me/photo
+function uploadPhoto(req, res, next) {
+  photoUpload(req, res, async (err) => {
+    if (err) return res.status(400).json({ error: err.message });
+    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+
+    const photoUrl = `${process.env.BACKEND_URL || ''}/uploads/${req.file.filename}`;
+    try {
+      await UserModel.updatePhoto(req.user.id, photoUrl);
+      res.json({ photo_url: photoUrl });
+    } catch (e) {
+      next(e);
+    }
+  });
+}
+
+module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto };

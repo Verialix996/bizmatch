@@ -9,49 +9,33 @@ Test by running: npx expo start --web (or Expo Go)
 --------------------------------------------------------
 
 [ ] 1.1 Upload profile photo
-      - Go to Edit Profile → tap photo area
+      BEFORE TESTING: set BACKEND_URL = https://zooming-surprise-production.up.railway.app
+      in Railway backend variables (needed to build the photo URL)
+      - Go to Edit Profile → tap the photo circle
       - Select image from library
-      - Save
+      - Expected: photo previews immediately, uploads in background
       - Expected: photo appears on profile and in the swipe feed
 
 [ ] 1.2 Change role (entrepreneur ↔ investor)
-      - Profile → Account Settings → change role
+      - Profile → Account Settings → tap "Change Role"
+      - Select new role → Continue
       - Expected: feed changes to show opposite role
 
 --------------------------------------------------------
-2. FEED & DISCOVERY
+2. DESIGN & UI
 --------------------------------------------------------
 
-[ ] 2.1 Feed scoring / ranked order
-      - Profiles with matching stage + budget + domain should appear
-        near the top of the feed
-      - Expected: high-compatibility profiles ranked above low-compatibility ones
+[ ] 2.1 Custom navbar icons
+      - Expected: tab bar shows Ionicons (compass, chat, folder, person)
+        instead of emoji
 
---------------------------------------------------------
-3. MESSAGING
---------------------------------------------------------
+[ ] 2.2 App logo in header
+      - Expected: BizMatch logo + wordmark visible at top of every main screen
 
-[ ] 3.1 Date dividers in chat
-      - Expected: "TODAY" / "YESTERDAY" / full date label shown
-        between message groups when messages span multiple days
+[ ] 2.3 Notification badge on Matches tab
+      - Expected: badge shows count of new matches (matches with no messages yet)
+      - Badge disappears once you open the Matches tab
 
---------------------------------------------------------
-4. DESIGN & UI
---------------------------------------------------------
-
-[ ] 4.1 Custom navbar icons
-      - Replace default/emoji tab bar icons with custom branded symbols
-        consistent with the app's visual identity
-
-[ ] 4.2 App logo in navbar / header
-      - Display the BizMatch logo in the navigation bar or relevant headers
-        instead of plain text
-
-[ ] 4.3 In-app notification bar
-      - Show a notification indicator (badge or banner) for new matches
-        and unread messages
-
-[ ] 4.4 Mobile responsiveness
-      - Test and fix layout on various screen sizes (iOS + Android)
-      - Ensure no clipped text, overflowing cards, or broken spacing
-        on smaller devices
+[ ] 2.4 Mobile responsiveness
+      - Test on iOS/Android device or simulator
+      - Expected: no clipped text, overflowing cards, or broken spacing

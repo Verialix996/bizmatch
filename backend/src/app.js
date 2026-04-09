@@ -30,6 +30,9 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
+// Serve uploaded files (profile photos, decks, etc.)
+app.use('/uploads', express.static(process.env.UPLOAD_DIR || 'uploads'));
+
 // Rate limiting on all /api routes
 app.use('/api', apiLimiter);
 

@@ -7,6 +7,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { getConversations } from '../../services/match.service';
 import { colors, cardShadow, radius } from '../../theme';
+import useAuthStore from '../../store/authStore';
 
 function timeAgo(dateStr) {
   if (!dateStr) return '';
@@ -110,18 +111,21 @@ function ConversationRow({ item, onPress }) {
 export default function MatchesScreen({ navigation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getConversations();
       setConversations(res.data);
+      const newCount = (res.data || []).filter(c => !c.lastMessage).length;
+      setNewMatchCount(newCount);
     } catch (e) {
       console.error('Failed to load conversations', e);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [setNewMatchCount]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
