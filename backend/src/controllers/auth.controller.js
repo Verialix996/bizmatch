@@ -30,10 +30,12 @@ async function register(req, res, next) {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 min
     await UserModel.setOtpCode(user.id, otp, expiresAt);
-    await sendOtp(email, otp);
 
     logger.info(`New registration: ${email}`);
     res.status(201).json({ message: 'Registered. Check your email for the verification code.' });
+
+    // Send email after responding so SMTP latency/failure doesn't block the client
+    sendOtp(email, otp).catch(err => logger.error(`OTP email failed for ${email}: ${err.message}`));
   } catch (err) {
     next(err);
   }
@@ -101,9 +103,9 @@ async function resendOtp(req, res, next) {
     const otp = generateOtp();
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
     await UserModel.setOtpCode(user.id, otp, expiresAt);
-    await sendOtp(email, otp);
-
     res.json({ message: 'Verification code resent' });
+
+    sendOtp(email, otp).catch(err => logger.error(`Resend OTP email failed for ${email}: ${err.message}`));
   } catch (err) {
     next(err);
   }
@@ -122,9 +124,9 @@ async function forgotPassword(req, res, next) {
     await UserModel.setResetToken(user.id, token, expiresAt);
 
     const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
-    await sendPasswordReset(email, resetUrl);
-
     res.json({ message: 'If that email exists, a reset link was sent.' });
+
+    sendPasswordReset(email, resetUrl).catch(err => logger.error(`Reset email failed for ${email}: ${err.message}`));
   } catch (err) {
     next(err);
   }
