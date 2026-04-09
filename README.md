@@ -12,24 +12,24 @@ A matchmaking platform for entrepreneurs and investors.
 ### Authentication
 - Email & password registration with OTP email verification
 - Login with JWT session management
-- Forgot password / reset password via email
-- Google and LinkedIn OAuth (optional)
+- Forgot password / reset password via email link
+- Google OAuth sign-in
 - Two-factor authentication (2FA) setup and verification
 
 ### Profiles
 - Role selection: Entrepreneur or Investor
 - Entrepreneur profile: bio, skills (bubble tags), venture stage, funding needs
 - Investor profile: bio, skills (bubble tags), investment domain, preferred stage, max investment
-- Profile photo upload
+- Change role at any time from Account Settings (profile resets to new role)
 - Edit profile at any time
 
 ### Swipe & Matching
 - Tinder-style swipe deck — swipe right to like, left to pass
 - Entrepreneurs can toggle between "Find Investors" and "Find Partners" modes
 - Investors see entrepreneur project cards
-- Scored feed: matches are ranked by stage alignment, budget fit, and domain overlap
-- Passed profiles recycle back to the bottom of the feed when all fresh profiles are exhausted
-- Match created on mutual like with a match celebration modal
+- Scored feed: matches ranked by stage alignment, budget fit, and domain overlap
+- Passed profiles recycle back when all fresh profiles are exhausted
+- Match celebration modal on mutual like with option to message immediately
 - Profile updates re-enter the user into the match pool
 
 ### Projects
@@ -40,14 +40,30 @@ A matchmaking platform for entrepreneurs and investors.
 
 ### Messaging
 - Chat screen for every mutual match
-- Real-time message updates via polling (no need to reopen the chat)
+- Real-time message updates via polling
 - Date dividers and message timestamps
 - Auto-scrolls to latest message
 
+### Design & Navigation
+- Custom Ionicons tab bar (compass, chat bubbles, folder, person circle)
+- Active/inactive icon states
+- BizMatch logo header consistent across all tabs
+- Notification badge on Matches tab showing new matches + unread messages
+- Unread blue dot per conversation, clears automatically after opening the chat
+- Responsive layout for iPhone 15 (393pt) and other screen sizes
+
 ### Account
+- Change role from Account Settings
 - Change account details
 - Delete account
 - Privacy settings
+
+---
+
+## Upcoming Features
+
+### Profile Photo Upload
+Cloud storage integration (S3 or Cloudinary) is needed before photos can be persisted — Railway's ephemeral filesystem loses uploaded files on every redeploy. The backend endpoint is already built; the frontend shows a "Coming Soon" placeholder.
 
 ---
 
@@ -191,13 +207,24 @@ bizmatch/
 | POST | `/api/auth/verify-email` | Verify OTP code |
 | POST | `/api/auth/resend-otp` | Resend OTP |
 | POST | `/api/auth/forgot-password` | Request password reset |
-| POST | `/api/auth/reset-password` | Reset password |
+| POST | `/api/auth/reset-password` | Reset password with token |
 | POST | `/api/auth/2fa/setup` | Setup 2FA |
 | POST | `/api/auth/2fa/verify` | Verify 2FA |
 | GET | `/api/profile` | Get my profile |
-| POST | `/api/profile` | Create profile |
+| POST | `/api/profile` | Create profile (upserts if exists) |
 | PUT | `/api/profile` | Update profile |
+| PATCH | `/api/users/me/role` | Change role |
+| POST | `/api/users/me/photo` | Upload profile photo (coming soon) |
 | DELETE | `/api/users/me` | Delete account |
+| GET | `/api/match/feed` | Get swipe feed |
+| POST | `/api/match/swipe` | Record a swipe |
+| GET | `/api/messages/conversations` | Get all match conversations |
+| GET | `/api/messages/:matchId` | Get messages for a match |
+| POST | `/api/messages/:matchId` | Send a message |
+| GET | `/api/projects` | Get my projects |
+| POST | `/api/projects` | Create a project |
+| PUT | `/api/projects/:id` | Update a project |
+| DELETE | `/api/projects/:id` | Delete a project |
 
 ---
 
@@ -212,5 +239,5 @@ The backend is deployed on [Railway](https://railway.app) and auto-deploys on ev
 ## Notes
 
 - Never commit your `.env` file
-- Google and LinkedIn OAuth credentials are optional — the app works without them
-- Uploaded files (photos, pitch decks) are stored locally per deployment instance and are not persisted across redeploys
+- Google OAuth credentials are optional — the app works without them
+- Uploaded files are not persisted across Railway redeploys (ephemeral filesystem)

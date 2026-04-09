@@ -4,9 +4,7 @@ import {
 } from 'react-native';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
-import { uploadPhoto } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { colors, radius, cardShadow } from '../../theme';
 
@@ -133,31 +131,9 @@ export default function EditProfileScreen({ route, navigation }) {
   const [selectedRole, setSelectedRole] = useState(currentUser?.role || '');
   const [roleError, setRoleError] = useState('');
   const [saveError, setSaveError] = useState('');
-  const [photoUri, setPhotoUri] = useState(currentUser?.photo_url || null);
-  const [photoUploading, setPhotoUploading] = useState(false);
 
-  const handlePickPhoto = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.7,
-    });
-    if (result.canceled) return;
-    const asset = result.assets[0];
-    setPhotoUri(asset.uri);
-    setPhotoUploading(true);
-    try {
-      const fileName = asset.uri.split('/').pop() || 'photo.jpg';
-      const { data } = await uploadPhoto(asset.uri, fileName);
-      updateUser({ photo_url: data.photo_url });
-    } catch {
-      // photo still previews locally even if upload fails
-    } finally {
-      setPhotoUploading(false);
-    }
+  const handlePickPhoto = () => {
+    // Photo upload coming soon — Railway ephemeral filesystem doesn't persist uploads
   };
 
   // When changing role, start with a blank form (old role-specific data is irrelevant)
@@ -274,20 +250,16 @@ export default function EditProfileScreen({ route, navigation }) {
           {isNew ? 'Create Profile' : 'Edit Profile'}
         </Text>
 
-        {/* Photo */}
-        <TouchableOpacity style={styles.photoArea} onPress={handlePickPhoto} activeOpacity={0.8}>
-          {photoUri ? (
-            <Image source={{ uri: photoUri }} style={styles.photoImage} />
-          ) : (
-            <View style={styles.photoPlaceholder}>
-              <Text style={styles.photoPlaceholderText}>📷</Text>
-              <Text style={styles.photoPlaceholderLabel}>Add Photo</Text>
-            </View>
-          )}
-          <View style={styles.photoBadge}>
-            <Text style={styles.photoBadgeText}>{photoUploading ? '…' : '✎'}</Text>
+        {/* Photo — coming soon */}
+        <View style={styles.photoArea}>
+          <View style={styles.photoPlaceholder}>
+            <Text style={styles.photoPlaceholderText}>📷</Text>
+            <Text style={styles.photoPlaceholderLabel}>Coming Soon</Text>
           </View>
-        </TouchableOpacity>
+          <View style={[styles.photoBadge, styles.photoBadgeSoon]}>
+            <Text style={styles.photoBadgeText}>✦</Text>
+          </View>
+        </View>
 
         {/* Bio */}
         <FieldLabel>BIO</FieldLabel>
@@ -687,4 +659,5 @@ const styles = StyleSheet.create({
     borderColor: '#fff',
   },
   photoBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  photoBadgeSoon: { backgroundColor: colors.textHint },
 });

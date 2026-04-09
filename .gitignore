@@ -47,6 +47,8 @@ backend/scripts/FOR_TESTING_ONLY.js
 backend/scripts/FOR_TESTING_ONLY_credentials.txt
 bugs.txt
 ALGO_TEST.md
+TEST_CHECKLIST.txt
+UPCOMING_FEATURES.txt
 *.jpeg
 *.jpg
 *.png
