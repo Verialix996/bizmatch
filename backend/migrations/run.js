@@ -1,24 +1,70 @@
 require('dotenv').config();
-const Database = require('better-sqlite3');
+const mysql = require('mysql2/promise');
 const fs = require('fs');
 const path = require('path');
 
-const DATA_DIR = path.join(__dirname, '../data');
-if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR);
+async function runMigrations() {
+  // Create the database if it doesn't exist yet
+  const urlObj = new URL(process.env.DATABASE_URL);
+  const dbName = urlObj.pathname.slice(1);
+  urlObj.pathname = '/';
 
-const DB_PATH = path.join(DATA_DIR, 'bizmatch.db');
-const db = new Database(DB_PATH);
-db.pragma('foreign_keys = ON');
+  const setupPool = mysql.createPool({
+    uri: urlObj.toString(),
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  });
+  await setupPool.execute(`CREATE DATABASE IF NOT EXISTS \`${dbName}\``);
+  await setupPool.end();
 
-const files = fs.readdirSync(__dirname)
-  .filter(f => f.endsWith('.sql'))
-  .sort();
+  // Now connect to the actual database
+  const pool = mysql.createPool({
+    uri: process.env.DATABASE_URL,
+    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    multipleStatements: true,
+  });
 
-for (const file of files) {
-  const sql = fs.readFileSync(path.join(__dirname, file), 'utf8');
-  console.log(`Running migration: ${file}`);
-  db.exec(sql);
+  await pool.execute(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      filename VARCHAR(255) PRIMARY KEY,
+      run_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  const files = fs.readdirSync(__dirname)
+    .filter(f => f.endsWith('.sql'))
+    .sort();
+
+  for (const file of files) {
+    const [rows] = await pool.execute(
+      'SELECT filename FROM schema_migrations WHERE filename = ?', [file]
+    );
+    if (rows.length > 0) {
+      console.log(`Skipping (already run): ${file}`);
+      continue;
+    }
+
+    const sql = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    const conn = await pool.getConnection();
+    try {
+      await conn.beginTransaction();
+      await conn.query(sql);
+      await conn.execute('INSERT INTO schema_migrations (filename) VALUES (?)', [file]);
+      await conn.commit();
+      console.log(`Migrated: ${file}`);
+    } catch (err) {
+      await conn.rollback();
+      throw new Error(`Migration failed for ${file}: ${err.message}`);
+    } finally {
+      conn.release();
+    }
+  }
+
+  await pool.end();
+  console.log('All migrations complete.');
 }
 
-console.log('All migrations completed. DB file:', DB_PATH);
-db.close();
+if (require.main === module) {
+  runMigrations().catch(err => { console.error(err); process.exit(1); });
+}
+
+module.exports = { runMigrations };

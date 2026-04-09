@@ -1,79 +1,90 @@
-const { getDb } = require('../config/db');
+const { query } = require('../config/db');
 
 const UserModel = {
-  findById(id) {
-    return getDb().prepare('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL').get(id) || null;
+  async findById(id) {
+    const rows = await query('SELECT * FROM users WHERE id = ? AND deleted_at IS NULL', [id]);
+    return rows[0] || null;
   },
 
-  findByEmail(email) {
-    return getDb().prepare('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL').get(email) || null;
+  async findByEmail(email) {
+    const rows = await query('SELECT * FROM users WHERE email = ? AND deleted_at IS NULL', [email]);
+    return rows[0] || null;
   },
 
-  create({ email, passwordHash, role, name }) {
-    const result = getDb().prepare(
-      'INSERT INTO users (email, password_hash, role, name, is_verified) VALUES (?, ?, ?, ?, 0)'
-    ).run(email, passwordHash, role, name);
-    return { id: result.lastInsertRowid, email, role, name };
+  async create({ email, passwordHash, role, name }) {
+    const result = await query(
+      'INSERT INTO users (email, password_hash, role, name, is_verified) VALUES (?, ?, ?, ?, 0)',
+      [email, passwordHash, role, name]
+    );
+    return { id: result.insertId, email, role, name };
   },
 
-  findOrCreateOAuth({ provider, providerId, email, name, photo }) {
-    const existing = getDb().prepare(
-      'SELECT * FROM users WHERE oauth_provider = ? AND oauth_provider_id = ?'
-    ).get(provider, providerId);
-    if (existing) return existing;
+  async findOrCreateOAuth({ provider, providerId, email, name, photo }) {
+    const rows = await query(
+      'SELECT * FROM users WHERE oauth_provider = ? AND oauth_provider_id = ?',
+      [provider, providerId]
+    );
+    if (rows[0]) return rows[0];
 
-    const result = getDb().prepare(
-      'INSERT INTO users (email, name, photo_url, oauth_provider, oauth_provider_id, is_verified) VALUES (?, ?, ?, ?, ?, 1)'
-    ).run(email, name, photo, provider, providerId);
-    return { id: result.lastInsertRowid, email, name };
+    const result = await query(
+      'INSERT INTO users (email, name, photo_url, oauth_provider, oauth_provider_id, is_verified) VALUES (?, ?, ?, ?, ?, 1)',
+      [email, name, photo, provider, providerId]
+    );
+    return { id: result.insertId, email, name };
   },
 
-  setVerified(id) {
-    getDb().prepare('UPDATE users SET is_verified = 1 WHERE id = ?').run(id);
+  async setVerified(id) {
+    await query('UPDATE users SET is_verified = 1 WHERE id = ?', [id]);
   },
 
-  updatePassword(id, passwordHash) {
-    getDb().prepare('UPDATE users SET password_hash = ? WHERE id = ?').run(passwordHash, id);
+  async updatePassword(id, passwordHash) {
+    await query('UPDATE users SET password_hash = ? WHERE id = ?', [passwordHash, id]);
   },
 
-  setOtpCode(id, code, expiresAt) {
-    getDb().prepare('UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ?')
-      .run(code, expiresAt ? expiresAt.toISOString() : null, id);
+  async setOtpCode(id, code, expiresAt) {
+    await query(
+      'UPDATE users SET otp_code = ?, otp_expires_at = ? WHERE id = ?',
+      [code, expiresAt ? expiresAt.toISOString() : null, id]
+    );
   },
 
-  setTwoFactorSecret(id, secret) {
-    getDb().prepare('UPDATE users SET two_factor_secret = ? WHERE id = ?').run(secret, id);
+  async setTwoFactorSecret(id, secret) {
+    await query('UPDATE users SET two_factor_secret = ? WHERE id = ?', [secret, id]);
   },
 
-  enableTwoFactor(id) {
-    getDb().prepare('UPDATE users SET two_factor_enabled = 1 WHERE id = ?').run(id);
+  async enableTwoFactor(id) {
+    await query('UPDATE users SET two_factor_enabled = 1 WHERE id = ?', [id]);
   },
 
-  setResetToken(id, token, expiresAt) {
-    getDb().prepare('UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?')
-      .run(token, expiresAt ? expiresAt.toISOString() : null, id);
+  async setResetToken(id, token, expiresAt) {
+    await query(
+      'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?',
+      [token, expiresAt ? expiresAt.toISOString() : null, id]
+    );
   },
 
-  findByResetToken(token) {
-    return getDb().prepare(
-      "SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > datetime('now')"
-    ).get(token) || null;
+  async findByResetToken(token) {
+    const rows = await query(
+      'SELECT * FROM users WHERE reset_token = ? AND reset_token_expires > NOW()',
+      [token]
+    );
+    return rows[0] || null;
   },
 
-  updateName(id, name) {
-    getDb().prepare("UPDATE users SET name = ?, updated_at = datetime('now') WHERE id = ?").run(name, id);
+  async updateName(id, name) {
+    await query('UPDATE users SET name = ?, updated_at = NOW() WHERE id = ?', [name, id]);
   },
 
-  hardDelete(id) {
-    getDb().prepare('DELETE FROM users WHERE id = ?').run(id);
+  async hardDelete(id) {
+    await query('DELETE FROM users WHERE id = ?', [id]);
   },
 
-  setVerificationStatus(id, status) {
-    getDb().prepare('UPDATE users SET verification_status = ? WHERE id = ?').run(status, id);
+  async setVerificationStatus(id, status) {
+    await query('UPDATE users SET verification_status = ? WHERE id = ?', [status, id]);
   },
 
-  setRole(id, role) {
-    getDb().prepare('UPDATE users SET role = ? WHERE id = ?').run(role, id);
+  async setRole(id, role) {
+    await query('UPDATE users SET role = ? WHERE id = ?', [role, id]);
   },
 };
 

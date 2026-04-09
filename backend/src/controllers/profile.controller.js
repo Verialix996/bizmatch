@@ -1,6 +1,6 @@
 const ProfileModel = require('../models/profile.model');
 const UserModel = require('../models/user.model');
-const { getDb } = require('../config/db');
+const { query } = require('../config/db');
 const multer = require('multer');
 const path = require('path');
 
@@ -52,9 +52,7 @@ async function updateProfile(req, res, next) {
       role_type: req.user.role,
     });
     // Re-enter user into the match pool by clearing pass swipes targeting them
-    getDb()
-      .prepare("DELETE FROM swipes WHERE swiped_id = ? AND direction = 'pass'")
-      .run(req.user.id);
+    await query("DELETE FROM swipes WHERE swiped_id = ? AND direction = 'pass'", [req.user.id]);
     res.json({ message: 'Profile updated' });
   } catch (err) {
     next(err);

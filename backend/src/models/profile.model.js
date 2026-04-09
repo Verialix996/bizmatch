@@ -1,36 +1,38 @@
-const { getDb } = require('../config/db');
+const { query } = require('../config/db');
 
 const ProfileModel = {
-  findByUserId(userId) {
-    return getDb().prepare('SELECT * FROM profiles WHERE user_id = ?').get(userId) || null;
+  async findByUserId(userId) {
+    const rows = await query('SELECT * FROM profiles WHERE user_id = ?', [userId]);
+    return rows[0] || null;
   },
 
-  create(userId, data) {
+  async create(userId, data) {
     const { bio, skills, hobbies, role_type, venture_stage, funding_needs,
             investment_domain, preferred_stage, max_investment } = data;
     const nullIfEmpty = v => (v === '' || v === undefined ? null : v);
-    const result = getDb().prepare(
+    const result = await query(
       `INSERT INTO profiles
         (user_id, bio, skills, hobbies, role_type,
          venture_stage, funding_needs,
          investment_domain, preferred_stage, max_investment)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
-    ).run(
-      userId,
-      nullIfEmpty(bio),
-      JSON.stringify(skills || []),
-      JSON.stringify(hobbies || []),
-      nullIfEmpty(role_type),
-      nullIfEmpty(venture_stage),
-      funding_needs || null,
-      nullIfEmpty(investment_domain),
-      nullIfEmpty(preferred_stage),
-      max_investment || null,
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        userId,
+        nullIfEmpty(bio),
+        JSON.stringify(skills || []),
+        JSON.stringify(hobbies || []),
+        nullIfEmpty(role_type),
+        nullIfEmpty(venture_stage),
+        funding_needs || null,
+        nullIfEmpty(investment_domain),
+        nullIfEmpty(preferred_stage),
+        max_investment || null,
+      ]
     );
-    return { id: result.lastInsertRowid, userId };
+    return { id: result.insertId, userId };
   },
 
-  update(userId, data) {
+  async update(userId, data) {
     const allowed = [
       'bio', 'skills', 'hobbies', 'role_type',
       'venture_stage', 'funding_needs',
@@ -51,7 +53,7 @@ const ProfileModel = {
     }
     if (!fields.length) return;
     values.push(userId);
-    getDb().prepare(`UPDATE profiles SET ${fields.join(', ')} WHERE user_id = ?`).run(...values);
+    await query(`UPDATE profiles SET ${fields.join(', ')} WHERE user_id = ?`, values);
   },
 };
 

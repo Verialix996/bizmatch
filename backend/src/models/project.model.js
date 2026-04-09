@@ -1,4 +1,4 @@
-const { getDb } = require('../config/db');
+const { query } = require('../config/db');
 
 function safeParseArray(value) {
   if (!value) return [];
@@ -7,100 +7,91 @@ function safeParseArray(value) {
 
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
-function createProject(userId, data) {
-  const db = getDb();
+async function createProject(userId, data) {
   const { title, description, stage, funding_needed, industry, deck_url, video_url } = data;
-  const result = db.prepare(
+  const result = await query(
     `INSERT INTO projects (user_id, title, description, stage, funding_needed, industry, deck_url, video_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  ).run(userId, title, description || null, stage || null, funding_needed || null,
-        industry || null, deck_url || null, video_url || null);
-  return db.prepare('SELECT * FROM projects WHERE id = ?').get(result.lastInsertRowid);
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    [userId, title, description || null, stage || null, funding_needed || null,
+     industry || null, deck_url || null, video_url || null]
+  );
+  const rows = await query('SELECT * FROM projects WHERE id = ?', [result.insertId]);
+  return rows[0];
 }
 
-function getProjectsByUser(userId) {
-  return getDb()
-    .prepare('SELECT * FROM projects WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC')
-    .all(userId);
+async function getProjectsByUser(userId) {
+  return await query(
+    'SELECT * FROM projects WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC',
+    [userId]
+  );
 }
 
-function getProjectById(id) {
-  return getDb().prepare('SELECT * FROM projects WHERE id = ?').get(id) || null;
+async function getProjectById(id) {
+  const rows = await query('SELECT * FROM projects WHERE id = ?', [id]);
+  return rows[0] || null;
 }
 
-function updateProject(id, userId, data) {
-  const db = getDb();
+async function updateProject(id, userId, data) {
   const { title, description, stage, funding_needed, industry, deck_url, video_url } = data;
-  db.prepare(
+  await query(
     `UPDATE projects
      SET title = ?, description = ?, stage = ?, funding_needed = ?,
-         industry = ?, deck_url = ?, video_url = ?, updated_at = datetime('now')
-     WHERE id = ? AND user_id = ?`
-  ).run(title, description || null, stage || null, funding_needed || null,
-        industry || null, deck_url || null, video_url || null, id, userId);
-  return db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+         industry = ?, deck_url = ?, video_url = ?, updated_at = NOW()
+     WHERE id = ? AND user_id = ?`,
+    [title, description || null, stage || null, funding_needed || null,
+     industry || null, deck_url || null, video_url || null, id, userId]
+  );
+  const rows = await query('SELECT * FROM projects WHERE id = ?', [id]);
+  return rows[0] || null;
 }
 
-function deleteProject(id, userId) {
-  getDb().prepare('UPDATE projects SET is_active = 0 WHERE id = ? AND user_id = ?').run(id, userId);
+async function deleteProject(id, userId) {
+  await query('UPDATE projects SET is_active = 0 WHERE id = ? AND user_id = ?', [id, userId]);
 }
 
 // ── Feed for investors ────────────────────────────────────────────────────────
 
-/**
- * Returns projects the investor has NOT yet swiped on,
- * scored by how well they match investor preferences.
- */
-function getProjectFeed(investorId, limit = 20) {
-  const db = getDb();
+async function getProjectFeed(investorId, limit = 20) {
+  const swipedRows = await query(
+    'SELECT project_id FROM project_swipes WHERE investor_id = ?',
+    [investorId]
+  );
+  const swiped = swipedRows.map(r => r.project_id);
 
-  const swiped = db
-    .prepare('SELECT project_id FROM project_swipes WHERE investor_id = ?')
-    .all(investorId)
-    .map(r => r.project_id);
+  const investorProfileRows = await query('SELECT * FROM profiles WHERE user_id = ?', [investorId]);
+  const investorProfile = investorProfileRows[0];
 
-  // Fetch investor profile for scoring
-  const investorProfile = db.prepare('SELECT * FROM profiles WHERE user_id = ?').get(investorId);
-
-  // Build the exclusion clause for swiped project IDs only when there are some
-  // (NOT IN (NULL) evaluates to false for every row in SQL — never use NULL as the list)
   const swipedClause = swiped.length > 0
     ? `AND p.id NOT IN (${swiped.map(() => '?').join(',')})`
     : '';
 
-  const projects = db
-    .prepare(
-      `SELECT p.*, u.name AS owner_name, u.photo_url AS owner_photo,
-              pr.bio AS owner_bio, pr.skills AS owner_skills
-       FROM projects p
-       JOIN users u ON u.id = p.user_id
-       LEFT JOIN profiles pr ON pr.user_id = p.user_id
-       WHERE p.is_active = 1
-         AND u.role = 'entrepreneur'
-         AND u.deleted_at IS NULL
-         AND p.user_id != ?
-         ${swipedClause}`
-    )
-    .all(investorId, ...swiped);
+  const projects = await query(
+    `SELECT p.*, u.name AS owner_name, u.photo_url AS owner_photo,
+            pr.bio AS owner_bio, pr.skills AS owner_skills
+     FROM projects p
+     JOIN users u ON u.id = p.user_id
+     LEFT JOIN profiles pr ON pr.user_id = p.user_id
+     WHERE p.is_active = 1
+       AND u.role = 'entrepreneur'
+       AND u.deleted_at IS NULL
+       AND p.user_id != ?
+       ${swipedClause}`,
+    [investorId, ...swiped]
+  );
 
   const scored = projects.map(p => {
     let score = 0;
     if (investorProfile) {
-      // Stage match
       if (investorProfile.preferred_stage && p.stage === investorProfile.preferred_stage) score += 40;
-      // Budget covers funding need
       if (investorProfile.max_investment && p.funding_needed &&
           investorProfile.max_investment >= p.funding_needed) score += 30;
-      // Domain matches industry
       if (investorProfile.investment_domain && p.industry) {
         if (p.industry.toLowerCase().includes(investorProfile.investment_domain.toLowerCase()) ||
             investorProfile.investment_domain.toLowerCase().includes(p.industry.toLowerCase())) {
           score += 30;
         }
       }
-      // Has a deck
-      if (p.deck_url) score += 10;
-      // Has a video
+      if (p.deck_url)  score += 10;
       if (p.video_url) score += 10;
     }
     return {
@@ -127,40 +118,41 @@ function getProjectFeed(investorId, limit = 20) {
 
 // ── Swipe on a project ────────────────────────────────────────────────────────
 
-function swipeProject(investorId, projectId, direction) {
-  const db = getDb();
-
-  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND is_active = 1').get(projectId);
+async function swipeProject(investorId, projectId, direction) {
+  const projectRows = await query(
+    'SELECT * FROM projects WHERE id = ? AND is_active = 1',
+    [projectId]
+  );
+  const project = projectRows[0];
   if (!project) return { error: 'Project not found' };
   if (project.user_id === investorId) return { error: 'Cannot swipe own project' };
 
-  db.prepare(
+  await query(
     `INSERT INTO project_swipes (investor_id, project_id, direction) VALUES (?, ?, ?)
-     ON CONFLICT(investor_id, project_id) DO UPDATE SET direction = excluded.direction`
-  ).run(investorId, projectId, direction);
+     ON DUPLICATE KEY UPDATE direction = VALUES(direction)`,
+    [investorId, projectId, direction]
+  );
 
   if (direction !== 'like') return { matched: false };
 
-  // Auto-match when investor likes a project
-  db.prepare(
-    `INSERT OR IGNORE INTO project_matches (investor_id, project_id, user_id) VALUES (?, ?, ?)`
-  ).run(investorId, projectId, project.user_id);
+  await query(
+    'INSERT IGNORE INTO project_matches (investor_id, project_id, user_id) VALUES (?, ?, ?)',
+    [investorId, projectId, project.user_id]
+  );
 
-  // Create a user-to-user match so the conversation appears in the Matches/chat screen
   const [u1, u2] = investorId < project.user_id
     ? [investorId, project.user_id]
     : [project.user_id, investorId];
-  db.prepare('INSERT OR IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)').run(u1, u2);
+  await query('INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)', [u1, u2]);
 
   return { matched: true, projectTitle: project.title, entrepreneurId: project.user_id };
 }
 
 // ── Matches ───────────────────────────────────────────────────────────────────
 
-function getProjectMatches(userId, role) {
-  const db = getDb();
+async function getProjectMatches(userId, role) {
   if (role === 'investor') {
-    return db.prepare(
+    return await query(
       `SELECT pm.*, p.title, p.description, p.stage, p.funding_needed, p.industry,
               p.deck_url, p.video_url,
               u.name AS owner_name, u.photo_url AS owner_photo
@@ -168,11 +160,11 @@ function getProjectMatches(userId, role) {
        JOIN projects p ON p.id = pm.project_id
        JOIN users u ON u.id = pm.user_id
        WHERE pm.investor_id = ?
-       ORDER BY pm.created_at DESC`
-    ).all(userId);
+       ORDER BY pm.created_at DESC`,
+      [userId]
+    );
   }
-  // Entrepreneur: see which investors liked their projects
-  return db.prepare(
+  return await query(
     `SELECT pm.*, p.title, p.description,
             u.name AS investor_name, u.photo_url AS investor_photo,
             pr.bio AS investor_bio, pr.investment_domain
@@ -181,51 +173,57 @@ function getProjectMatches(userId, role) {
      JOIN users u ON u.id = pm.investor_id
      LEFT JOIN profiles pr ON pr.user_id = pm.investor_id
      WHERE p.user_id = ?
-     ORDER BY pm.created_at DESC`
-  ).all(userId);
+     ORDER BY pm.created_at DESC`,
+    [userId]
+  );
 }
 
 // ── Partners ──────────────────────────────────────────────────────────────────
 
-function getProjectPartners(projectId) {
-  return getDb()
-    .prepare(
-      `SELECT pp.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills
-       FROM project_partners pp
-       JOIN users u ON u.id = pp.user_id
-       LEFT JOIN profiles pr ON pr.user_id = pp.user_id
-       WHERE pp.project_id = ?
-       ORDER BY pp.added_at ASC`
-    )
-    .all(projectId)
-    .map(r => ({
-      userId: r.user_id,
-      name: r.name,
-      photoUrl: r.photo_url,
-      bio: r.bio,
-      roleType: r.role_type,
-      skills: safeParseArray(r.skills),
-    }));
+async function getProjectPartners(projectId) {
+  const rows = await query(
+    `SELECT pp.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills
+     FROM project_partners pp
+     JOIN users u ON u.id = pp.user_id
+     LEFT JOIN profiles pr ON pr.user_id = pp.user_id
+     WHERE pp.project_id = ?
+     ORDER BY pp.added_at ASC`,
+    [projectId]
+  );
+  return rows.map(r => ({
+    userId: r.user_id,
+    name: r.name,
+    photoUrl: r.photo_url,
+    bio: r.bio,
+    roleType: r.role_type,
+    skills: safeParseArray(r.skills),
+  }));
 }
 
-function addProjectPartner(projectId, ownerUserId, partnerUserId) {
-  const db = getDb();
-  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(projectId, ownerUserId);
-  if (!project) return { error: 'Project not found or not yours' };
+async function addProjectPartner(projectId, ownerUserId, partnerUserId) {
+  const rows = await query(
+    'SELECT * FROM projects WHERE id = ? AND user_id = ?',
+    [projectId, ownerUserId]
+  );
+  if (!rows[0]) return { error: 'Project not found or not yours' };
   if (partnerUserId === ownerUserId) return { error: 'Cannot add yourself as partner' };
-
-  db.prepare(
-    `INSERT OR IGNORE INTO project_partners (project_id, user_id) VALUES (?, ?)`
-  ).run(projectId, partnerUserId);
-
+  await query(
+    'INSERT IGNORE INTO project_partners (project_id, user_id) VALUES (?, ?)',
+    [projectId, partnerUserId]
+  );
   return { ok: true };
 }
 
-function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
-  const db = getDb();
-  const project = db.prepare('SELECT * FROM projects WHERE id = ? AND user_id = ?').get(projectId, ownerUserId);
-  if (!project) return { error: 'Project not found or not yours' };
-  db.prepare('DELETE FROM project_partners WHERE project_id = ? AND user_id = ?').run(projectId, partnerUserId);
+async function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
+  const rows = await query(
+    'SELECT * FROM projects WHERE id = ? AND user_id = ?',
+    [projectId, ownerUserId]
+  );
+  if (!rows[0]) return { error: 'Project not found or not yours' };
+  await query(
+    'DELETE FROM project_partners WHERE project_id = ? AND user_id = ?',
+    [projectId, partnerUserId]
+  );
   return { ok: true };
 }
 

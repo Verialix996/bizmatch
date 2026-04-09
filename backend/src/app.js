@@ -24,7 +24,6 @@ app.use(cors({
   credentials: true,
 }));
 app.use(express.json());
-app.use('/uploads', express.static(require('path').join(__dirname, '../uploads')));
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 

@@ -1,22 +1,22 @@
 CREATE TABLE IF NOT EXISTS swipes (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  swiper_id  INTEGER NOT NULL,
-  swiped_id  INTEGER NOT NULL,
-  direction  TEXT NOT NULL CHECK(direction IN ('like', 'pass')),
-  created_at TEXT DEFAULT (datetime('now')),
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  swiper_id  INT NOT NULL,
+  swiped_id  INT NOT NULL,
+  direction  VARCHAR(10) NOT NULL CHECK(direction IN ('like', 'pass')),
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
   UNIQUE(swiper_id, swiped_id),
   FOREIGN KEY (swiper_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (swiped_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 CREATE TABLE IF NOT EXISTS matches (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  user1_id   INTEGER NOT NULL,
-  user2_id   INTEGER NOT NULL,
-  created_at TEXT DEFAULT (datetime('now')),
+  id         INT AUTO_INCREMENT PRIMARY KEY,
+  user1_id   INT NOT NULL,
+  user2_id   INT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
 
   UNIQUE(user1_id, user2_id),
   FOREIGN KEY (user1_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (user2_id) REFERENCES users(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

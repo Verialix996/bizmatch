@@ -8,7 +8,7 @@ async function updateMe(req, res, next) {
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name cannot be empty.' });
     }
-    UserModel.updateName(req.user.id, name.trim());
+    await UserModel.updateName(req.user.id, name.trim());
     res.json({ name: name.trim() });
   } catch (err) {
     next(err);
@@ -56,7 +56,7 @@ async function setRole(req, res, next) {
     if (!['entrepreneur', 'investor'].includes(role)) {
       return res.status(400).json({ error: 'role must be entrepreneur or investor' });
     }
-    UserModel.setRole(req.user.id, role);
+    await UserModel.setRole(req.user.id, role);
     res.json({ role });
   } catch (err) {
     next(err);

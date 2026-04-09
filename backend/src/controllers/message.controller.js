@@ -1,14 +1,14 @@
 const { sendMessage, getMessages, getConversations } = require('../models/message.model');
 
-const conversations = (req, res, next) => {
+const conversations = async (req, res, next) => {
   try {
-    res.json(getConversations(req.user.id));
+    res.json(await getConversations(req.user.id));
   } catch (err) {
     next(err);
   }
 };
 
-const messages = (req, res, next) => {
+const messages = async (req, res, next) => {
   try {
     const matchId = Number(req.params.matchId);
     if (!matchId) return res.status(400).json({ error: 'Invalid matchId' });
@@ -17,7 +17,7 @@ const messages = (req, res, next) => {
     const offset = Number(req.query.offset) || 0;
     const after  = req.query.after != null ? Number(req.query.after) : null;
 
-    const rows = getMessages(matchId, req.user.id, limit, offset, after);
+    const rows = await getMessages(matchId, req.user.id, limit, offset, after);
     if (rows === null) return res.status(403).json({ error: 'Not part of this match' });
 
     res.json(rows);
@@ -26,7 +26,7 @@ const messages = (req, res, next) => {
   }
 };
 
-const send = (req, res, next) => {
+const send = async (req, res, next) => {
   try {
     const matchId = Number(req.params.matchId);
     const { body } = req.body;
@@ -34,7 +34,7 @@ const send = (req, res, next) => {
     if (!matchId) return res.status(400).json({ error: 'Invalid matchId' });
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body required' });
 
-    const msg = sendMessage(matchId, req.user.id, body.trim());
+    const msg = await sendMessage(matchId, req.user.id, body.trim());
     if (!msg) return res.status(403).json({ error: 'Not part of this match' });
 
     res.status(201).json(msg);

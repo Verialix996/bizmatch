@@ -1,29 +1,26 @@
-const Database = require('better-sqlite3');
-const path = require('path');
+const mysql = require('mysql2/promise');
 const logger = require('../utils/logger');
 
-const DB_PATH = path.join(__dirname, '../../data/bizmatch.db');
+const pool = mysql.createPool({
+  uri: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  waitForConnections: true,
+  connectionLimit: 10,
+});
 
-let db;
-
-function getDb() {
-  if (!db) {
-    db = new Database(DB_PATH);
-    db.pragma('journal_mode = WAL');
-    db.pragma('foreign_keys = ON');
-    logger.info(`SQLite connected: ${DB_PATH}`);
-  }
-  return db;
+async function query(sql, params = []) {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
 }
 
-function testConnection() {
+async function testConnection() {
   try {
-    getDb();
-    logger.info('SQLite ready');
+    await pool.execute('SELECT 1');
+    logger.info('MySQL connected');
   } catch (err) {
-    logger.error('SQLite connection failed: ' + err.message);
+    logger.error('MySQL connection failed: ' + err.message);
     process.exit(1);
   }
 }
 
-module.exports = { getDb, testConnection };
+module.exports = { query, pool, testConnection };
