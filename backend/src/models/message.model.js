@@ -42,8 +42,8 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
      JOIN users u ON u.id = m.sender_id
      WHERE m.match_id = ?
      ORDER BY m.created_at ASC
-     LIMIT ? OFFSET ?`,
-    [matchId, limit, offset]
+     LIMIT ${limit} OFFSET ${offset}`,
+    [matchId]
   );
 }
 

@@ -4,6 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Modal, Image,
   SafeAreaView, StatusBar,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe } from '../../services/match.service';
 import { getProjectFeed, swipeProject } from '../../services/project.service';
 import { Linking } from 'react-native';
@@ -209,7 +210,7 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
   );
 }
 
-function MatchModal({ visible, matchedName, onClose }) {
+function MatchModal({ visible, matchedName, onClose, onMessage }) {
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
@@ -221,8 +222,11 @@ function MatchModal({ visible, matchedName, onClose }) {
           <Text style={styles.modalSub}>
             You and {matchedName} have connected.
           </Text>
-          <TouchableOpacity style={styles.modalBtn} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.modalBtnText}>KEEP SWIPING</Text>
+          <TouchableOpacity style={styles.modalBtn} onPress={onMessage} activeOpacity={0.85}>
+            <Text style={styles.modalBtnText}>MESSAGE {matchedName?.toUpperCase()}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.modalBtnSecondary} onPress={onClose} activeOpacity={0.85}>
+            <Text style={styles.modalBtnSecondaryText}>KEEP SWIPING</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -231,13 +235,14 @@ function MatchModal({ visible, matchedName, onClose }) {
 }
 
 export default function SwipeScreen() {
+  const navigation = useNavigation();
   const user = useAuthStore(s => s.user);
   const isEntrepreneur = user?.role === 'entrepreneur';
 
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
-  const [matchModal, setMatchModal] = useState({ visible: false, name: '' });
+  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null });
   const [mode, setMode] = useState('investors');
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -287,10 +292,10 @@ export default function SwipeScreen() {
       try {
         if (isEntrepreneur) {
           const res = await swipe(item.userId, direction);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.name });
+          if (res.data.matched) setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null });
         } else {
           const res = await swipeProject(item.projectId, direction);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.title });
+          if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null });
         }
       } catch (e) {
         console.error('Swipe failed', e);
@@ -464,7 +469,13 @@ export default function SwipeScreen() {
       <MatchModal
         visible={matchModal.visible}
         matchedName={matchModal.name}
-        onClose={() => setMatchModal({ visible: false, name: '' })}
+        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null })}
+        onMessage={() => {
+          setMatchModal({ visible: false, name: '', matchId: null, photo: null });
+          navigation.navigate('Chat', {
+            match: { matchId: matchModal.matchId, name: matchModal.name, photoUrl: matchModal.photo },
+          });
+        }}
       />
     </SafeAreaView>
   );
@@ -836,6 +847,20 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '800',
     fontSize: 14,
+    letterSpacing: 1,
+  },
+  modalBtnSecondary: {
+    marginTop: 10,
+    borderRadius: radius.md,
+    paddingHorizontal: 32,
+    paddingVertical: 12,
+    width: '100%',
+    alignItems: 'center',
+  },
+  modalBtnSecondaryText: {
+    color: colors.textHint,
+    fontWeight: '700',
+    fontSize: 13,
     letterSpacing: 1,
   },
 });

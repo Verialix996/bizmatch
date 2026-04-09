@@ -238,10 +238,14 @@ function ProjectForm({ initial, onSave, onCancel }) {
       return;
     }
     setError('');
-    await onSave({
-      ...form,
-      funding_needed: form.funding_needed ? Number(form.funding_needed) : null,
-    });
+    try {
+      await onSave({
+        ...form,
+        funding_needed: form.funding_needed ? Number(form.funding_needed) : null,
+      });
+    } catch (e) {
+      setError(e.response?.data?.error || 'Failed to save. Please try again.');
+    }
   };
 
   return (
@@ -376,18 +380,14 @@ export default function ProjectsScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   const handleSave = async (data) => {
-    try {
-      if (editingProject) {
-        await updateProject(editingProject.id, data);
-      } else {
-        await createProject(data);
-      }
-      setShowForm(false);
-      setEditingProject(null);
-      load();
-    } catch (e) {
-      console.error('Failed to save project', e);
+    if (editingProject) {
+      await updateProject(editingProject.id, data);
+    } else {
+      await createProject(data);
     }
+    setShowForm(false);
+    setEditingProject(null);
+    load();
   };
 
   const handleDelete = (id) => {

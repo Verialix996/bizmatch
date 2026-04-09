@@ -157,7 +157,12 @@ async function recordSwipe(swiperId, swipedId, direction) {
     [u1, u2]
   );
 
-  return { matched: true };
+  const matchRows = await query(
+    'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
+    [u1, u2]
+  );
+
+  return { matched: true, matchId: matchRows[0]?.id ?? null };
 }
 
 // ---------------------------------------------------------------------------

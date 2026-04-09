@@ -8,7 +8,8 @@ import WelcomeScreen        from '../screens/auth/WelcomeScreen';
 import LoginScreen          from '../screens/auth/LoginScreen';
 import RegisterScreen       from '../screens/auth/RegisterScreen';
 import VerifyOtpScreen      from '../screens/auth/VerifyOtpScreen';
-import ForgotPasswordScreen from '../screens/auth/ForgotPasswordScreen';
+import ForgotPasswordScreen  from '../screens/auth/ForgotPasswordScreen';
+import ResetPasswordScreen  from '../screens/auth/ResetPasswordScreen';
 import SwipeScreen          from '../screens/match/SwipeScreen';
 import MatchesScreen        from '../screens/match/MatchesScreen';
 import ChatScreen           from '../screens/match/ChatScreen';
@@ -20,6 +21,15 @@ import ProjectsScreen       from '../screens/project/ProjectsScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
+
+export const linking = {
+  prefixes: ['http://localhost:8081', 'https://localhost:8081', 'bizmatch://'],
+  config: {
+    screens: {
+      ResetPassword: 'reset-password',
+    },
+  },
+};
 
 function TabIcon({ label, focused }) {
   const icons = { Discover: '🔍', Matches: '💬', Projects: '📁', Profile: '👤' };
@@ -74,7 +84,8 @@ export default function AppNavigator() {
           <Stack.Screen name="Login"          component={LoginScreen} />
           <Stack.Screen name="Register"       component={RegisterScreen} />
           <Stack.Screen name="VerifyOtp"      component={VerifyOtpScreen} />
-          <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          <Stack.Screen name="ForgotPassword"  component={ForgotPasswordScreen} />
+          <Stack.Screen name="ResetPassword"   component={ResetPasswordScreen} />
         </>
       )}
     </Stack.Navigator>
