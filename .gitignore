@@ -55,7 +55,7 @@ upcoming.txt
 *.png
 *.zip
 stitch_match_messaging_chat/
-
+current bugs.txt
 # ── Misc ─────────────────────────────────────────────────────────────────────
 coverage/
 *.tgz
