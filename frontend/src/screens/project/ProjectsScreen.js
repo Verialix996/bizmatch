@@ -8,9 +8,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
-  uploadDeck, uploadVideo, getPartners, addPartner, removePartner,
+  uploadDeck, uploadVideo, getPartners, removePartner,
 } from '../../services/project.service';
-import { getMatches } from '../../services/match.service';
+import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import { colors, radius, cardShadow } from '../../theme';
 
 const STAGES = ['idea', 'mvp', 'growth', 'scale'];
@@ -174,7 +174,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   );
 }
 
-function AddPartnerModal({ visible, onClose, onAdd, matches }) {
+function AddPartnerModal({ visible, onClose, onAdd, matches, projectId }) {
   return (
     <Modal transparent visible={visible} animationType="slide">
       <View style={styles.modalBackdrop}>
@@ -193,7 +193,7 @@ function AddPartnerModal({ visible, onClose, onAdd, matches }) {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.matchPickerItem}
-                  onPress={() => onAdd(item.userId)}
+                  onPress={() => onAdd(item.matchId, projectId)}
                   activeOpacity={0.7}
                 >
                   <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} />
@@ -417,15 +417,13 @@ export default function ProjectsScreen() {
     setPartnerModal({ visible: true, projectId, setPartners: setPartnersFn });
   };
 
-  const handleAddPartner = async (partnerUserId) => {
-    const { projectId, setPartners } = partnerModal;
+  const handleAddPartner = async (matchId, projectId) => {
     try {
-      await addPartner(projectId, partnerUserId);
-      const res = await getPartners(projectId);
-      setPartners(res.data);
+      await sendPartnerInvite(matchId, projectId);
       setPartnerModal({ visible: false, projectId: null, setPartners: null });
-    } catch {
-      Alert.alert('Error', 'Could not add partner.');
+      Alert.alert('Invite Sent', 'A partner invite has been sent via chat. They must sign the NDA and accept to join the project.');
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not send partner invite.');
     }
   };
 
@@ -527,6 +525,7 @@ export default function ProjectsScreen() {
       <AddPartnerModal
         visible={partnerModal.visible}
         matches={matchedUsers}
+        projectId={partnerModal.projectId}
         onAdd={handleAddPartner}
         onClose={() => setPartnerModal({
           visible: false, projectId: null, setPartners: null,

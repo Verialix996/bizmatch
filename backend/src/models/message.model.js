@@ -1,18 +1,22 @@
 const { query } = require('../config/db');
 
-async function sendMessage(matchId, senderId, body) {
+async function sendMessage(matchId, senderId, body, type = 'text', metadata = null) {
   const matchRows = await query(
     'SELECT id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
     [matchId, senderId, senderId]
   );
   if (!matchRows[0]) return null;
 
+  const metaJson = metadata != null ? JSON.stringify(metadata) : null;
   const result = await query(
-    'INSERT INTO messages (match_id, sender_id, body) VALUES (?, ?, ?)',
-    [matchId, senderId, body]
+    'INSERT INTO messages (match_id, sender_id, body, message_type, metadata) VALUES (?, ?, ?, ?, ?)',
+    [matchId, senderId, body, type, metaJson]
   );
 
-  const rows = await query('SELECT * FROM messages WHERE id = ?', [result.insertId]);
+  const rows = await query(
+    'SELECT id, match_id, sender_id, body, message_type, metadata, created_at FROM messages WHERE id = ?',
+    [result.insertId]
+  );
   return rows[0];
 }
 
@@ -25,7 +29,7 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
 
   if (after != null) {
     return await query(
-      `SELECT m.id, m.match_id, m.sender_id, m.body, m.created_at,
+      `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at,
               u.name AS sender_name, u.photo_url AS sender_photo
        FROM messages m
        JOIN users u ON u.id = m.sender_id
@@ -36,7 +40,7 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
   }
 
   return await query(
-    `SELECT m.id, m.match_id, m.sender_id, m.body, m.created_at,
+    `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at,
             u.name AS sender_name, u.photo_url AS sender_photo
      FROM messages m
      JOIN users u ON u.id = m.sender_id

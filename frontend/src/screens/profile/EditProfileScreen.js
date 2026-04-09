@@ -138,7 +138,7 @@ export default function EditProfileScreen({ route, navigation }) {
 
   // When changing role, start with a blank form (old role-specific data is irrelevant)
   const profileDefaults = forceStep === 'role' ? null : existing;
-  const { control, handleSubmit } = useForm({
+  const { control, handleSubmit, formState: { errors } } = useForm({
     defaultValues: {
       bio: profileDefaults?.bio || '',
       skills: parseSkills(profileDefaults?.skills),
@@ -267,9 +267,10 @@ export default function EditProfileScreen({ route, navigation }) {
         <Controller
           control={control}
           name="bio"
+          rules={{ required: 'Bio is required' }}
           render={({ field: { onChange, value } }) => (
             <TextInput
-              style={[styles.input, styles.inputMultiline]}
+              style={[styles.input, styles.inputMultiline, errors.bio && styles.inputError]}
               multiline
               placeholder="Tell us about yourself..."
               placeholderTextColor={colors.textHint}
@@ -278,16 +279,19 @@ export default function EditProfileScreen({ route, navigation }) {
             />
           )}
         />
+        {errors.bio && <Text style={styles.fieldError}>{errors.bio.message}</Text>}
 
         {/* Skills */}
         <FieldLabel>SKILLS</FieldLabel>
         <Controller
           control={control}
           name="skills"
+          rules={{ validate: v => (!isInvestor && (!v || v.length === 0)) ? 'At least one skill is required' : true }}
           render={({ field: { onChange, value } }) => (
             <SkillsInput value={value} onChange={onChange} />
           )}
         />
+        {errors.skills && <Text style={styles.fieldError}>{errors.skills.message}</Text>}
 
         {/* Entrepreneur fields */}
         {!isInvestor && (
@@ -606,6 +610,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginTop: 12,
+  },
+  fieldError: {
+    color: colors.error,
+    fontSize: 12,
+    marginTop: 4,
+    marginBottom: 4,
+  },
+  inputError: {
+    borderColor: colors.error,
+    borderWidth: 1.5,
   },
 
   btnPrimary: {

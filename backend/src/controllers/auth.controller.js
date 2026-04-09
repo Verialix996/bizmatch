@@ -219,7 +219,7 @@ async function googleMobile(req, res, next) {
       provider:   'google',
       providerId: profile.sub,
       email:      profile.email,
-      name:       profile.name,
+      name:       (profile.name || '').replace(/\+/g, ' ').trim(),
       photo:      profile.picture ?? null,
     });
 

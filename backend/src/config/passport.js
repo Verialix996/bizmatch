@@ -34,7 +34,7 @@ if (process.env.GOOGLE_CLIENT_ID && !process.env.GOOGLE_CLIENT_ID.startsWith('du
           provider: 'google',
           providerId: profile.id,
           email: profile.emails[0].value,
-          name:  profile.displayName,
+          name:  (profile.displayName || '').replace(/\+/g, ' ').trim(),
           photo: profile.photos?.[0]?.value,
         });
         return done(null, user);

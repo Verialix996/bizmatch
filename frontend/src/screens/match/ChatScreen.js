@@ -2,9 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  SafeAreaView, ActivityIndicator, Image, StatusBar,
+  SafeAreaView, ActivityIndicator, Image, StatusBar, Alert,
 } from 'react-native';
-import { getMessages, sendMessage } from '../../services/match.service';
+import { getMessages, sendMessage, respondToInvite, signNda } from '../../services/match.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
 
@@ -54,6 +54,11 @@ function Avatar({ photoUrl, name, size = 36 }) {
       </Text>
     </View>
   );
+}
+
+function tryParseJson(str) {
+  if (!str) return null;
+  try { return JSON.parse(str); } catch { return null; }
 }
 
 export default function ChatScreen({ route, navigation }) {
@@ -128,6 +133,172 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
+  const handleSignNdaAndAccept = async (item) => {
+    const meta = tryParseJson(item.metadata);
+    if (!meta) return;
+    try {
+      // Sign the NDA first, then accept the partner invite
+      await signNda(match.matchId, meta.projectId);
+      const res = await respondToInvite(match.matchId, meta.invitationId, true);
+      lastIdRef.current = res.data.message?.id ?? lastIdRef.current;
+      setMessages(prev => {
+        // Replace invite card with the response + add new message
+        const updated = prev.map(m =>
+          m.id === item.id ? { ...m, _responded: true } : m
+        );
+        const newMsg = res.data.message;
+        if (newMsg) {
+          const ids = new Set(updated.map(m => m.id));
+          return ids.has(newMsg.id) ? updated : [...updated, newMsg];
+        }
+        return updated;
+      });
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
+    }
+  };
+
+  const handleDeclineInvite = async (item) => {
+    const meta = tryParseJson(item.metadata);
+    if (!meta) return;
+    try {
+      const res = await respondToInvite(match.matchId, meta.invitationId, false);
+      setMessages(prev => {
+        const updated = prev.map(m =>
+          m.id === item.id ? { ...m, _responded: true } : m
+        );
+        const newMsg = res.data.message;
+        if (newMsg) {
+          const ids = new Set(updated.map(m => m.id));
+          return ids.has(newMsg.id) ? updated : [...updated, newMsg];
+        }
+        return updated;
+      });
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not decline invite.');
+    }
+  };
+
+  const handleSignNda = async (item) => {
+    const meta = tryParseJson(item.metadata);
+    if (!meta) return;
+    try {
+      const res = await signNda(match.matchId, meta.projectId);
+      lastIdRef.current = res.data.id ?? lastIdRef.current;
+      setMessages(prev => {
+        const updated = prev.map(m =>
+          m.id === item.id ? { ...m, _signed: true } : m
+        );
+        const ids = new Set(updated.map(m => m.id));
+        return ids.has(res.data.id) ? updated : [...updated, res.data];
+      });
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not sign NDA.');
+    }
+  };
+
+  const renderSpecialMessage = (item, isOwn) => {
+    const meta = tryParseJson(item.metadata) || {};
+    const type = item.message_type;
+
+    if (type === 'partner_invite') {
+      const alreadyResponded = item._responded;
+      return (
+        <View style={styles.actionCard}>
+          <Text style={styles.actionCardTitle}>Partner Invite</Text>
+          <Text style={styles.actionCardBody}>
+            Invited to join{'\n'}
+            <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
+          </Text>
+          <Text style={styles.actionCardNote}>
+            Signing the NDA is required before accepting.
+          </Text>
+          {!isOwn && !alreadyResponded && (
+            <View style={styles.actionCardBtns}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnAccept]}
+                onPress={() => handleSignNdaAndAccept(item)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionBtnAcceptText}>Sign NDA & Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnDecline]}
+                onPress={() => handleDeclineInvite(item)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionBtnDeclineText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {(isOwn || alreadyResponded) && (
+            <Text style={styles.actionCardStatus}>
+              {alreadyResponded ? 'Responded' : 'Awaiting response'}
+            </Text>
+          )}
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'partner_invite_response') {
+      const accepted = meta.accepted;
+      return (
+        <View style={[styles.actionCard, styles.actionCardResponse]}>
+          <Text style={styles.actionCardTitle}>
+            {accepted ? 'Invite Accepted' : 'Invite Declined'}
+          </Text>
+          <Text style={styles.actionCardBody}>
+            {accepted
+              ? 'Partner has joined the project.'
+              : 'Partner declined the invitation.'}
+          </Text>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'nda_request') {
+      const alreadySigned = item._signed;
+      return (
+        <View style={styles.actionCard}>
+          <Text style={styles.actionCardTitle}>NDA Requested</Text>
+          <Text style={styles.actionCardBody}>
+            Access requested for{'\n'}
+            <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
+          </Text>
+          {!isOwn && !alreadySigned && (
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.actionBtnAccept, { marginTop: 10 }]}
+              onPress={() => handleSignNda(item)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.actionBtnAcceptText}>Sign NDA</Text>
+            </TouchableOpacity>
+          )}
+          {(isOwn || alreadySigned) && (
+            <Text style={styles.actionCardStatus}>
+              {alreadySigned ? 'NDA signed' : 'Awaiting signature'}
+            </Text>
+          )}
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'nda_signed') {
+      return (
+        <View style={[styles.actionCard, styles.actionCardResponse]}>
+          <Text style={styles.actionCardTitle}>NDA Signed</Text>
+          <Text style={styles.actionCardBody}>Full project details are now accessible.</Text>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    return null;
+  };
+
   const renderItem = ({ item, index }) => {
     const isOwn = item.sender_id === user?.id;
     const prevMsg = messages[index - 1];
@@ -135,6 +306,8 @@ export default function ChatScreen({ route, navigation }) {
       parseUTC(item.created_at).toDateString() !==
       parseUTC(prevMsg.created_at).toDateString()
     );
+
+    const isSpecial = item.message_type && item.message_type !== 'text';
 
     return (
       <>
@@ -147,35 +320,41 @@ export default function ChatScreen({ route, navigation }) {
             <View style={styles.dateDividerLine} />
           </View>
         )}
-        <View style={[
-          styles.msgRow,
-          isOwn ? styles.msgRowOwn : styles.msgRowTheir,
-        ]}>
-          {!isOwn && (
-            <Avatar
-              photoUrl={match.photoUrl}
-              name={match.name}
-              size={28}
-            />
-          )}
-          <View style={[
-            styles.bubble,
-            isOwn ? styles.bubbleOwn : styles.bubbleTheir,
-          ]}>
-            <Text style={[
-              styles.bubbleText,
-              isOwn ? styles.bubbleTextOwn : styles.bubbleTextTheir,
-            ]}>
-              {item.body}
-            </Text>
-            <Text style={[
-              styles.bubbleTime,
-              isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeTheir,
-            ]}>
-              {formatTime(item.created_at)}
-            </Text>
+        {isSpecial ? (
+          <View style={styles.actionCardWrapper}>
+            {renderSpecialMessage(item, isOwn)}
           </View>
-        </View>
+        ) : (
+          <View style={[
+            styles.msgRow,
+            isOwn ? styles.msgRowOwn : styles.msgRowTheir,
+          ]}>
+            {!isOwn && (
+              <Avatar
+                photoUrl={match.photoUrl}
+                name={match.name}
+                size={28}
+              />
+            )}
+            <View style={[
+              styles.bubble,
+              isOwn ? styles.bubbleOwn : styles.bubbleTheir,
+            ]}>
+              <Text style={[
+                styles.bubbleText,
+                isOwn ? styles.bubbleTextOwn : styles.bubbleTextTheir,
+              ]}>
+                {item.body}
+              </Text>
+              <Text style={[
+                styles.bubbleTime,
+                isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeTheir,
+              ]}>
+                {formatTime(item.created_at)}
+              </Text>
+            </View>
+          </View>
+        )}
       </>
     );
   };
@@ -482,5 +661,89 @@ const styles = StyleSheet.create({
   sendBtnText: {
     fontSize: 15,
     color: '#fff',
+  },
+
+  // Action cards (partner invite, NDA)
+  actionCardWrapper: {
+    alignItems: 'center',
+    marginVertical: 6,
+  },
+  actionCard: {
+    width: '85%',
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    padding: 16,
+    ...cardShadow,
+  },
+  actionCardResponse: {
+    borderColor: colors.success || '#38a169',
+  },
+  actionCardTitle: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: colors.primary,
+    letterSpacing: 0.5,
+    marginBottom: 6,
+    textTransform: 'uppercase',
+  },
+  actionCardBody: {
+    fontSize: 14,
+    color: colors.primaryDark,
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  actionCardProject: {
+    fontWeight: '700',
+    color: colors.primaryDark,
+  },
+  actionCardNote: {
+    fontSize: 12,
+    color: colors.textHint,
+    marginTop: 4,
+    marginBottom: 8,
+    fontStyle: 'italic',
+  },
+  actionCardStatus: {
+    fontSize: 12,
+    color: colors.textHint,
+    marginTop: 10,
+    fontStyle: 'italic',
+  },
+  actionCardTime: {
+    fontSize: 10,
+    color: colors.textHint,
+    marginTop: 8,
+    textAlign: 'right',
+  },
+  actionCardBtns: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 12,
+  },
+  actionBtn: {
+    flex: 1,
+    borderRadius: radius.pill,
+    paddingVertical: 10,
+    alignItems: 'center',
+  },
+  actionBtnAccept: {
+    backgroundColor: colors.primary,
+  },
+  actionBtnAcceptText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  actionBtnDecline: {
+    backgroundColor: colors.backgroundSoft,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  actionBtnDeclineText: {
+    color: colors.textSecondary,
+    fontWeight: '700',
+    fontSize: 13,
   },
 });
