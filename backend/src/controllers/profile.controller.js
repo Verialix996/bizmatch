@@ -25,7 +25,9 @@ const upload = multer({
 async function getMyProfile(req, res, next) {
   try {
     const profile = await ProfileModel.findByUserId(req.user.id);
-    res.json(profile || {});
+    const userRows = await query('SELECT photo_url FROM users WHERE id = ?', [req.user.id]);
+    const photoUrl = userRows[0]?.photo_url || null;
+    res.json(profile ? { ...profile, photo_url: photoUrl } : { photo_url: photoUrl });
   } catch (err) {
     next(err);
   }

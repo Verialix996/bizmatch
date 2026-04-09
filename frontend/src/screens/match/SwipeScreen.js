@@ -2,8 +2,12 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
-  SafeAreaView, StatusBar,
+  SafeAreaView, StatusBar, Dimensions,
 } from 'react-native';
+
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const CARD_WIDTH = Math.min(340, SCREEN_WIDTH * 0.9);
+const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe } from '../../services/match.service';
 import { getProjectFeed, swipeProject } from '../../services/project.service';
@@ -568,7 +572,7 @@ const styles = StyleSheet.create({
 
   card: {
     position: 'absolute',
-    width: 340,
+    width: CARD_WIDTH,
     borderRadius: 20,
     backgroundColor: colors.surface,
     overflow: 'hidden',
@@ -805,7 +809,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     padding: 32,
     alignItems: 'center',
-    width: 300,
+    width: MODAL_WIDTH,
     ...cardShadow,
   },
   modalIconCircle: {

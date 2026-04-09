@@ -125,7 +125,8 @@ export default function EditProfileScreen({ route, navigation }) {
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
 
-  const isNew = !existing?.bio;
+  // forceStep='role' means the user is changing role — treat as an update (profile already exists)
+  const isNew = forceStep === 'role' ? false : !existing?.bio;
   const hasRole = !!currentUser?.role;
 
   const [step, setStep] = useState(forceStep === 'role' ? 'role' : (isNew && !hasRole ? 'role' : 'profile'));
@@ -159,15 +160,17 @@ export default function EditProfileScreen({ route, navigation }) {
     }
   };
 
+  // When changing role, start with a blank form (old role-specific data is irrelevant)
+  const profileDefaults = forceStep === 'role' ? null : existing;
   const { control, handleSubmit } = useForm({
     defaultValues: {
-      bio: existing?.bio || '',
-      skills: parseSkills(existing?.skills),
-      venture_stage: existing?.venture_stage || '',
-      funding_needs: existing?.funding_needs ? String(existing.funding_needs) : '',
-      investment_domain: existing?.investment_domain || '',
-      preferred_stage: existing?.preferred_stage || '',
-      max_investment: existing?.max_investment ? String(existing.max_investment) : '',
+      bio: profileDefaults?.bio || '',
+      skills: parseSkills(profileDefaults?.skills),
+      venture_stage: profileDefaults?.venture_stage || '',
+      funding_needs: profileDefaults?.funding_needs ? String(profileDefaults.funding_needs) : '',
+      investment_domain: profileDefaults?.investment_domain || '',
+      preferred_stage: profileDefaults?.preferred_stage || '',
+      max_investment: profileDefaults?.max_investment ? String(profileDefaults.max_investment) : '',
     },
   });
 

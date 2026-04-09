@@ -64,7 +64,10 @@ async function getConversations(userId) {
         ORDER BY created_at DESC LIMIT 1) AS lastMessage,
        (SELECT created_at FROM messages
         WHERE match_id = m.id
-        ORDER BY created_at DESC LIMIT 1) AS lastMessageAt
+        ORDER BY created_at DESC LIMIT 1) AS lastMessageAt,
+       (SELECT sender_id FROM messages
+        WHERE match_id = m.id
+        ORDER BY created_at DESC LIMIT 1) AS lastMessageSenderId
      FROM matches m
      JOIN users u ON u.id = CASE WHEN m.user1_id = ? THEN m.user2_id ELSE m.user1_id END
      LEFT JOIN profiles p ON p.user_id = u.id

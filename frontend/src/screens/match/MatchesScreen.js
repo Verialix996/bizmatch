@@ -65,10 +65,10 @@ function NewMatchBubble({ item, onPress }) {
   );
 }
 
-function ConversationRow({ item, onPress }) {
+function ConversationRow({ item, onPress, currentUserId }) {
   const roleLabel = item.roleType === 'investor' ? 'INVESTOR' : 'ENTREPRENEUR';
   const domain = item.investmentDomain || item.ventureStage || '';
-  const hasUnread = item.lastMessage && !item.read;
+  const hasUnread = item.lastMessage && item.lastMessageSenderId !== currentUserId;
 
   return (
     <TouchableOpacity
@@ -112,20 +112,26 @@ export default function MatchesScreen({ navigation }) {
   const [conversations, setConversations] = useState([]);
   const [loading, setLoading] = useState(true);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
+  const currentUser = useAuthStore(s => s.user);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const res = await getConversations();
       setConversations(res.data);
-      const newCount = (res.data || []).filter(c => !c.lastMessage).length;
-      setNewMatchCount(newCount);
+      const items = res.data || [];
+      // Badge = new matches (no messages) + conversations with unread last message
+      const newMatchCount = items.filter(c => !c.lastMessage).length;
+      const unreadCount = items.filter(
+        c => c.lastMessage && c.lastMessageSenderId !== currentUser?.id
+      ).length;
+      setNewMatchCount(newMatchCount + unreadCount);
     } catch (e) {
       console.error('Failed to load conversations', e);
     } finally {
       setLoading(false);
     }
-  }, [setNewMatchCount]);
+  }, [setNewMatchCount, currentUser]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -204,10 +210,11 @@ export default function MatchesScreen({ navigation }) {
                 ALL CONVERSATIONS
               </Text>
               <View style={styles.convList}>
-                {conversations.map((item, index) => (
+                {conversations.map((item) => (
                   <ConversationRow
                     key={String(item.matchId)}
                     item={item}
+                    currentUserId={currentUser?.id}
                     onPress={() => navigation.navigate('Chat', { match: item })}
                   />
                 ))}
