@@ -58,12 +58,6 @@ A matchmaking platform for entrepreneurs and investors.
 - Delete account
 - Privacy settings
 
----
-
-## Upcoming Features
-
-### Profile Photo Upload
-Cloud storage integration (S3 or Cloudinary) is needed before photos can be persisted — Railway's ephemeral filesystem loses uploaded files on every redeploy. The backend endpoint is already built; the frontend shows a "Coming Soon" placeholder.
 
 ---
 
