@@ -2,6 +2,9 @@
 
 A matchmaking platform for entrepreneurs and investors.
 
+**Backend:** Live on Railway → `https://zooming-surprise-production.up.railway.app`
+**Frontend:** Expo (React Native) — run locally, connects to Railway from any network
+
 ---
 
 ## Features
@@ -48,186 +51,42 @@ A matchmaking platform for entrepreneurs and investors.
 
 ---
 
-## Requirements
+## Testing the App
 
+### What you need
 - [Node.js](https://nodejs.org) v18 or higher
-- [npm](https://www.npmjs.com)
-- [Expo Go](https://expo.dev/go) app installed on your phone (Android or iOS)
+- [Expo Go](https://expo.dev/go) installed on your phone (Android or iOS)
+- Any WiFi or mobile data — **no need to be on the same network as the backend**
 
----
+### Steps
 
-## Windows Setup
+1. **Clone the repo**
+   ```bash
+   git clone https://github.com/Verialix996/bizmatch.git
+   cd bizmatch
+   ```
 
-> **Recommended:** Use [Git Bash](https://gitforwindows.org/) (installed with Git for Windows) — it lets you follow the exact same commands as below without any changes.
->
-> If you prefer **PowerShell**, the only differences are noted inline.
+2. **Install frontend dependencies**
+   ```bash
+   cd frontend
+   npm install
+   ```
 
-### 1. Install prerequisites
+3. **Start the frontend**
+   ```bash
+   npx expo start --clear
+   ```
 
-- [Git for Windows](https://gitforwindows.org/) — includes Git Bash
-- [Node.js](https://nodejs.org) v18 or higher — **during installation, check the box that says "Automatically install the necessary tools"** (this installs the C++ build tools required by `better-sqlite3`)
+4. **Open in Expo Go**
+   - Scan the QR code shown in the terminal with the Expo Go app
+   - The app will load and connect to the live Railway backend automatically
 
-> If you already have Node.js installed without build tools, download and install [Visual Studio Build Tools](https://visualstudio.microsoft.com/visual-cpp-build-tools/) and select the **"Desktop development with C++"** workload.
+That's it — no backend setup needed for testing. The backend is already deployed.
 
-### 2. Clone the repository
-
-Open **Git Bash** (or PowerShell) and run:
-
-```bash
-git clone https://github.com/Verialix996/bizmatch.git
-cd bizmatch
-```
-
-### 3. Backend
-
-```bash
-cd backend
-npm install
-```
-
-Copy the example environment file:
-
-- **Git Bash:**
-  ```bash
-  cp .env.example .env
-  ```
-- **PowerShell / Command Prompt:**
-  ```powershell
-  copy .env.example .env
-  ```
-
-Open `.env` in Notepad or any text editor and fill in:
-
-| Variable | Description |
-|---|---|
-| `JWT_SECRET` | Any long random string |
-| `GMAIL_USER` | Your Gmail address |
-| `GMAIL_APP_PASSWORD` | Gmail app password (see below) |
-
-**Getting a Gmail App Password:**
-1. Go to [myaccount.google.com](https://myaccount.google.com) → Security
-2. Enable 2-Step Verification
-3. Search for "App Passwords" → create one → copy the 16-character code
-
-Run migrations:
-
-```powershell
-npm run migrate
-```
-
-Start the backend:
-
-```powershell
-npm run dev
-```
-
-The server will run on `http://localhost:3000`.
-
-### 4. Frontend
-
-Open a **second** Git Bash / PowerShell window:
+### Verify the backend is live
 
 ```bash
-cd frontend
-npm install
-npx expo start --clear
-```
-
-Scan the QR code with the Expo Go app. Your phone and PC must be on the **same WiFi network**.
-
-### 5. Verify (PowerShell)
-
-In PowerShell, `curl` is an alias for `Invoke-WebRequest` and uses different syntax. Use these commands instead:
-
-Test the API:
-
-```powershell
-Invoke-WebRequest http://localhost:3000/health | Select-Object -ExpandProperty Content
-```
-
-Expected response: `{"status":"ok"}`
-
-Test registration:
-
-```powershell
-Invoke-WebRequest -Uri http://localhost:3000/api/auth/register `
-  -Method POST `
-  -ContentType "application/json" `
-  -Body '{"email":"test@test.com","name":"Test","password":"12345678","role":"entrepreneur"}' | Select-Object -ExpandProperty Content
-```
-
-Expected response: `{"message":"Registered. Check your email for the verification code."}`
-
----
-
-## Setup (macOS / Linux)
-
-### 1. Clone the repository
-
-```bash
-git clone https://github.com/Verialix996/bizmatch.git
-cd bizmatch
-```
-
-### 2. Backend
-
-```bash
-cd backend
-npm install
-cp .env.example .env
-```
-
-Open `.env` and fill in the required values:
-
-| Variable | Description |
-|---|---|
-| `JWT_SECRET` | Any long random string |
-| `GMAIL_USER` | Your Gmail address |
-| `GMAIL_APP_PASSWORD` | Gmail app password (see below) |
-
-**Getting a Gmail App Password:**
-1. Go to [myaccount.google.com](https://myaccount.google.com) → Security
-2. Enable 2-Step Verification
-3. Search for "App Passwords" → create one → copy the 16-character code
-
-Run the database migrations (creates the local SQLite database):
-
-```bash
-npm run migrate
-```
-
-Start the backend:
-
-```bash
-npm run dev
-```
-
-The server will run on `http://localhost:3000`.
-
----
-
-### 3. Frontend
-
-Open a second terminal:
-
-```bash
-cd frontend
-npm install
-npx expo start --clear
-```
-
-Scan the QR code with the Expo Go app on your phone.
-
-> **Important:** Your phone and computer must be on the **same WiFi network**. The app automatically detects the correct IP — no manual configuration needed.
-
----
-
-## Verify Everything is Working
-
-With the backend running, test the API:
-
-```bash
-curl http://localhost:3000/health
+curl https://zooming-surprise-production.up.railway.app/health
 ```
 
 Expected response:
@@ -235,11 +94,12 @@ Expected response:
 {"status":"ok"}
 ```
 
-Test registration:
+### Test registration via API
+
 ```bash
-curl -X POST http://localhost:3000/api/auth/register \
+curl -X POST https://zooming-surprise-production.up.railway.app/api/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","name":"Test","password":"12345678","role":"entrepreneur"}'
+  -d '{"email":"test@example.com","name":"Test User","password":"12345678"}'
 ```
 
 Expected response:
@@ -249,12 +109,58 @@ Expected response:
 
 ---
 
+## Running the Backend Locally (optional)
+
+Only needed if you want to develop or test backend changes locally.
+
+### Prerequisites
+- [MySQL](https://dev.mysql.com/downloads/installer/) installed and running locally
+- A MySQL database named `bizmatch` (the migration runner creates it automatically)
+
+### Setup
+
+```bash
+cd backend
+npm install
+cp .env.example .env
+```
+
+Edit `.env` and fill in:
+
+| Variable | Description |
+|---|---|
+| `DATABASE_URL` | `mysql://root:<password>@localhost:3306/bizmatch` |
+| `JWT_SECRET` | Any long random string |
+| `GMAIL_USER` | Your Gmail address |
+| `GMAIL_APP_PASSWORD` | Gmail app password (see below) |
+
+**Getting a Gmail App Password:**
+1. Go to [myaccount.google.com](https://myaccount.google.com) → Security
+2. Enable 2-Step Verification
+3. Search for "App Passwords" → create one → copy the 16-character code
+
+Start the backend (migrations run automatically on startup):
+
+```bash
+npm run dev
+```
+
+The server will run on `http://localhost:3000`.
+
+To point the frontend at your local backend instead of Railway, edit `frontend/src/services/api.js`:
+```js
+const API_URL = 'http://localhost:3000/api'; // or your local IP
+```
+
+---
+
 ## Project Structure
 
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # Database setup scripts
+│   ├── migrations/        # MySQL schema files (run automatically on startup)
+│   ├── scripts/           # One-time utility scripts
 │   ├── src/
 │   │   ├── config/        # Database and OAuth configuration
 │   │   ├── controllers/   # Route logic
@@ -295,8 +201,16 @@ bizmatch/
 
 ---
 
+## Deployment
+
+The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `master`.
+
+- **Database:** MySQL on Railway
+- **Node.js service:** root directory `backend/`, start command `node server.js`
+- **Schema migrations** run automatically on every startup (idempotent)
+
 ## Notes
 
-- The database is a local SQLite file stored at `backend/data/bizmatch.db` — it is not committed to the repository
 - Never commit your `.env` file
-- Google and LinkedIn OAuth credentials are optional for local development
+- Google and LinkedIn OAuth credentials are optional — the app works without them
+- Uploaded files (photos, pitch decks) are stored locally per deployment instance and are not persisted across redeploys
