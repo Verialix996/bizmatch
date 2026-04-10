@@ -186,6 +186,7 @@ async function verify2FA(req, res, next) {
 }
 
 // OAuth callback — issue JWT after OAuth success, deep-link back to mobile app
+// On web (popup), uses postMessage instead of bizmatch:// deep link
 function oauthCallback(req, res) {
   const user = req.user;
   const token = generateToken(user);
@@ -196,7 +197,24 @@ function oauthCallback(req, res) {
     name:   user.name   || '',
     role:   user.role   || '',
   });
-  res.redirect(`bizmatch://auth?${params.toString()}`);
+  const paramsStr = params.toString();
+  const deepLink = `bizmatch://auth?${paramsStr}`;
+
+  // Return an HTML page that handles both environments:
+  // - Web popup (window.opener is set): postMessage to parent then close
+  // - Mobile in-app browser (no opener): navigate to bizmatch:// deep link
+  res.send(`<!DOCTYPE html><html><head><title>Signing in...</title></head><body>
+<script>
+  var p = ${JSON.stringify(paramsStr)};
+  if (window.opener) {
+    window.opener.postMessage({ type: 'bizmatch-auth', params: p }, '*');
+    window.close();
+  } else {
+    window.location.href = ${JSON.stringify(deepLink)};
+  }
+</script>
+<p style="font-family:sans-serif;text-align:center;margin-top:60px;color:#555">Signing you in&hellip;</p>
+</body></html>`);
 }
 
 // POST /api/auth/google/mobile — accepts Google access token from React Native

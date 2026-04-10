@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, StatusBar,
+  StyleSheet, StatusBar, Platform,
 } from 'react-native';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,23 +18,40 @@ export default function WelcomeScreen({ navigation }) {
   const handleGoogleSignIn = async () => {
     setGoogleError('');
     try {
-      const result = await WebBrowser.openAuthSessionAsync(
-        `${API_BASE_URL}/auth/google`,
-        'bizmatch://'
-      );
-      if (result.type === 'success' && result.url) {
-        const qs = result.url.split('?')[1] || '';
-        const params = Object.fromEntries(qs.split('&').map(p => {
-          const [k, v] = p.split('=');
-          return [k, decodeURIComponent(v || '')];
-        }));
-        if (params.token) {
-          setAuth(params.token, {
-            id:    Number(params.userId),
-            email: params.email,
-            name:  params.name,
-            role:  params.role,
-          });
+      if (Platform.OS === 'web') {
+        const popup = window.open(`${API_BASE_URL}/auth/google`, 'google-auth', 'width=500,height=600,left=200,top=100');
+        if (!popup) { setGoogleError('Allow popups for this site and try again.'); return; }
+        await new Promise((resolve) => {
+          const handler = (event) => {
+            if (event.data?.type !== 'bizmatch-auth') return;
+            window.removeEventListener('message', handler);
+            clearInterval(closedPoll);
+            const qs = event.data.params;
+            const params = Object.fromEntries(qs.split('&').map(p => {
+              const [k, v] = p.split('=');
+              return [k, decodeURIComponent(v || '')];
+            }));
+            if (params.token) {
+              setAuth(params.token, { id: Number(params.userId), email: params.email, name: params.name, role: params.role });
+            }
+            resolve();
+          };
+          window.addEventListener('message', handler);
+          const closedPoll = setInterval(() => {
+            if (popup.closed) { clearInterval(closedPoll); window.removeEventListener('message', handler); resolve(); }
+          }, 500);
+        });
+      } else {
+        const result = await WebBrowser.openAuthSessionAsync(`${API_BASE_URL}/auth/google`, 'bizmatch://');
+        if (result.type === 'success' && result.url) {
+          const qs = result.url.split('?')[1] || '';
+          const params = Object.fromEntries(qs.split('&').map(p => {
+            const [k, v] = p.split('=');
+            return [k, decodeURIComponent(v || '')];
+          }));
+          if (params.token) {
+            setAuth(params.token, { id: Number(params.userId), email: params.email, name: params.name, role: params.role });
+          }
         }
       }
     } catch {
