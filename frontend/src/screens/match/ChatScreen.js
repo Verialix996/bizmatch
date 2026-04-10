@@ -151,6 +151,19 @@ export default function ChatScreen({ route, navigation }) {
     });
   };
 
+  const handleAcceptInvite = async (item) => {
+    const meta = tryParseJson(item.metadata);
+    if (!meta) return;
+    try {
+      const res = await respondToInvite(match.matchId, meta.invitationId, true);
+      const responseMsg = res.data.message;
+      if (responseMsg) lastIdRef.current = responseMsg.id;
+      appendMessages(responseMsg);
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
+    }
+  };
+
   const handleSignNdaAndAccept = async (item) => {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
@@ -247,11 +260,16 @@ export default function ChatScreen({ route, navigation }) {
     const type = item.message_type;
 
     if (type === 'partner_invite') {
-      // Derive state from messages: responded if a response card exists for this invitationId
+      // Derive state from messages
       const alreadyResponded = messages.some(m => {
         if (m.message_type !== 'partner_invite_response') return false;
         const mm = tryParseJson(m.metadata) || {};
         return mm.invitationId === meta.invitationId;
+      });
+      const hasSignedNda = messages.some(m => {
+        if (m.message_type !== 'nda_signed') return false;
+        const mm = tryParseJson(m.metadata) || {};
+        return mm.projectId === meta.projectId;
       });
       return (
         <View style={styles.actionCard}>
@@ -260,17 +278,21 @@ export default function ChatScreen({ route, navigation }) {
             Invited to join{'\n'}
             <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
           </Text>
-          <Text style={styles.actionCardNote}>
-            Signing the NDA is required before accepting.
-          </Text>
+          {!hasSignedNda && (
+            <Text style={styles.actionCardNote}>
+              Signing the NDA is required before accepting.
+            </Text>
+          )}
           {!isOwn && !alreadyResponded && (
             <View style={styles.actionCardBtns}>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnAccept]}
-                onPress={() => handleSignNdaAndAccept(item)}
+                onPress={() => hasSignedNda ? handleAcceptInvite(item) : handleSignNdaAndAccept(item)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.actionBtnAcceptText}>Sign NDA & Accept</Text>
+                <Text style={styles.actionBtnAcceptText}>
+                  {hasSignedNda ? 'Accept' : 'Sign NDA & Accept'}
+                </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnDecline]}
