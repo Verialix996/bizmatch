@@ -185,36 +185,57 @@ async function verify2FA(req, res, next) {
   }
 }
 
-// OAuth callback — issue JWT after OAuth success, deep-link back to mobile app
-// On web (popup), uses postMessage instead of bizmatch:// deep link
+// In-memory store for pending web OAuth results { oid -> { token, userId, ... , createdAt } }
+const pendingAuths = new Map();
+setInterval(() => {
+  const cutoff = Date.now() - 5 * 60 * 1000;
+  for (const [id, entry] of pendingAuths) {
+    if (entry.createdAt < cutoff) pendingAuths.delete(id);
+  }
+}, 60_000);
+
+// OAuth callback — handles both mobile (bizmatch:// deep link) and web popup (polling)
 function oauthCallback(req, res) {
   const user = req.user;
   const token = generateToken(user);
+  const oid = res.locals.oauthState;  // set by middleware in auth.routes.js
+
+  if (oid) {
+    // Web popup flow: store result, close the popup, frontend polls /api/auth/poll/:oid
+    pendingAuths.set(oid, {
+      token,
+      userId: String(user.id),
+      email:  user.email || '',
+      name:   user.name  || '',
+      role:   user.role  || '',
+      createdAt: Date.now(),
+    });
+    return res.send('<!DOCTYPE html><html><body><script>window.close();</script><p>Signed in! You may close this window.</p></body></html>');
+  }
+
+  // Mobile flow: redirect to bizmatch:// deep link (intercepted by WebBrowser.openAuthSessionAsync)
   const params = new URLSearchParams({
     token,
     userId: String(user.id),
-    email:  user.email  || '',
-    name:   user.name   || '',
-    role:   user.role   || '',
+    email:  user.email || '',
+    name:   user.name  || '',
+    role:   user.role  || '',
   });
-  const paramsStr = params.toString();
-  const deepLink = `bizmatch://auth?${paramsStr}`;
-
-  // Return an HTML page that handles both environments:
-  // - Web popup (window.opener is set): postMessage to parent then close
-  // - Mobile in-app browser (no opener): navigate to bizmatch:// deep link
+  const deepLink = `bizmatch://auth?${params.toString()}`;
   res.send(`<!DOCTYPE html><html><head><title>Signing in...</title></head><body>
-<script>
-  var p = ${JSON.stringify(paramsStr)};
-  if (window.opener) {
-    window.opener.postMessage({ type: 'bizmatch-auth', params: p }, '*');
-    window.close();
-  } else {
-    window.location.href = ${JSON.stringify(deepLink)};
-  }
-</script>
+<script>window.location.href=${JSON.stringify(deepLink)};</script>
 <p style="font-family:sans-serif;text-align:center;margin-top:60px;color:#555">Signing you in&hellip;</p>
 </body></html>`);
+}
+
+// GET /api/auth/poll/:oid — frontend polls this after opening the OAuth popup
+function pollPending(req, res) {
+  const oid = req.params.oid.replace(/[^a-z0-9]/gi, '');
+  const entry = pendingAuths.get(oid);
+  if (!entry) return res.status(202).json({ pending: true });
+  pendingAuths.delete(oid);
+  const { createdAt: _c, ...data } = entry;
+  res.json(data);
 }
 
 // POST /api/auth/google/mobile — accepts Google access token from React Native
@@ -255,5 +276,5 @@ async function googleMobile(req, res, next) {
 module.exports = {
   register, login, verifyEmail, resendOtp,
   forgotPassword, resetPassword,
-  setup2FA, verify2FA, oauthCallback, googleMobile,
+  setup2FA, verify2FA, oauthCallback, pollPending, googleMobile,
 };

@@ -25,27 +25,26 @@ export default function LoginScreen({ navigation }) {
     setError('');
     try {
       if (Platform.OS === 'web') {
-        const popup = window.open(`${API_BASE_URL}/auth/google`, 'google-auth', 'width=500,height=600,left=200,top=100');
+        const oid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        const popup = window.open(`${API_BASE_URL}/auth/google?oid=${oid}`, 'google-auth', 'width=500,height=600,left=200,top=100');
         if (!popup) { setError('Allow popups for this site and try again.'); return; }
         await new Promise((resolve) => {
-          const handler = (event) => {
-            if (event.data?.type !== 'bizmatch-auth') return;
-            window.removeEventListener('message', handler);
-            clearInterval(closedPoll);
-            const qs = event.data.params;
-            const params = Object.fromEntries(qs.split('&').map(p => {
-              const [k, v] = p.split('=');
-              return [k, decodeURIComponent(v || '')];
-            }));
-            if (params.token) {
-              setAuth(params.token, { id: Number(params.userId), email: params.email, name: params.name, role: params.role });
-            }
-            resolve();
-          };
-          window.addEventListener('message', handler);
-          const closedPoll = setInterval(() => {
-            if (popup.closed) { clearInterval(closedPoll); window.removeEventListener('message', handler); resolve(); }
-          }, 500);
+          let attempts = 0;
+          const interval = setInterval(async () => {
+            attempts++;
+            if (attempts > 150 || popup.closed) { clearInterval(interval); return resolve(); }
+            try {
+              const resp = await fetch(`${API_BASE_URL}/auth/poll/${oid}`);
+              if (resp.status === 200) {
+                const data = await resp.json();
+                clearInterval(interval);
+                if (data.token) {
+                  setAuth(data.token, { id: Number(data.userId), email: data.email, name: data.name, role: data.role });
+                }
+                resolve();
+              }
+            } catch { /* keep polling */ }
+          }, 1000);
         });
       } else {
         const result = await WebBrowser.openAuthSessionAsync(`${API_BASE_URL}/auth/google`, 'bizmatch://');

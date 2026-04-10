@@ -34,13 +34,27 @@ router.post('/2fa/setup',  authenticate, ctrl.setup2FA);
 router.post('/2fa/verify', authenticate, ctrl.verify2FA);
 
 // Google OAuth (web/browser flow)
-router.get('/google',
-  passport.authenticate('google', { scope: ['profile', 'email'], session: false })
-);
+// ?oid=<id> is passed by the web popup flow so the frontend can poll for the result
+router.get('/google', (req, res, next) => {
+  const oid = (req.query.oid || '').replace(/[^a-z0-9]/gi, '');
+  passport.authenticate('google', {
+    scope: ['profile', 'email'],
+    session: false,
+    ...(oid ? { state: oid } : {}),
+  })(req, res, next);
+});
 router.get('/google/callback',
+  (req, res, next) => {
+    // Capture state before Passport processes it so oauthCallback can read it
+    res.locals.oauthState = (req.query.state || '').replace(/[^a-z0-9]/gi, '');
+    next();
+  },
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
   ctrl.oauthCallback
 );
+
+// Web popup polling endpoint — returns auth result once OAuth completes
+router.get('/poll/:oid', ctrl.pollPending);
 
 // Google OAuth (React Native mobile flow)
 router.post('/google/mobile', authLimiter, ctrl.googleMobile);
