@@ -8,7 +8,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
-  uploadDeck, uploadVideo, getPartners, removePartner,
+  uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import { colors, radius, cardShadow } from '../../theme';
@@ -183,7 +183,7 @@ function AddPartnerModal({ visible, onClose, onAdd, matches, projectId }) {
           <Text style={styles.modalSub}>Pick from your matched connections</Text>
           {matches.length === 0 ? (
             <Text style={styles.noPartnersText}>
-              No matches yet — swipe to connect first!
+              No available matches — either you have no connections yet or they're already on this project.
             </Text>
           ) : (
             <FlatList
@@ -217,6 +217,63 @@ function AddPartnerModal({ visible, onClose, onAdd, matches, projectId }) {
         </View>
       </View>
     </Modal>
+  );
+}
+
+function JoinedProjectCard({ project }) {
+  const [partners, setPartners] = useState([]);
+  useFocusEffect(useCallback(() => {
+    getPartners(project.id).then(res => setPartners(res.data)).catch(() => {});
+  }, [project.id]));
+
+  return (
+    <View style={[styles.card, styles.joinedCard]}>
+      <View style={styles.cardHeader}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.cardTitle}>{project.title}</Text>
+          {project.stage ? (
+            <View style={styles.stagePill}>
+              <Text style={styles.stagePillText}>{STAGE_LABELS[project.stage] || project.stage}</Text>
+            </View>
+          ) : null}
+        </View>
+        <View style={styles.joinedOwnerTag}>
+          <Text style={styles.joinedOwnerText}>by {project.owner_name}</Text>
+        </View>
+      </View>
+
+      {project.description ? (
+        <Text style={styles.cardDesc} numberOfLines={2}>{project.description}</Text>
+      ) : null}
+
+      <View style={styles.cardMeta}>
+        {project.industry ? (
+          <View style={styles.metaChip}>
+            <Text style={styles.metaChipText}>{project.industry}</Text>
+          </View>
+        ) : null}
+        {project.deck_url ? (
+          <View style={styles.metaChip}><Text style={styles.metaChipText}>📄 Deck</Text></View>
+        ) : null}
+        {project.video_url ? (
+          <View style={styles.metaChip}><Text style={styles.metaChipText}>🎬 Video</Text></View>
+        ) : null}
+      </View>
+
+      <View style={styles.partnersSection}>
+        <Text style={styles.partnersSectionLabel}>TEAM</Text>
+        {partners.length > 0 && (
+          <View style={[styles.partnerList, { marginTop: 8 }]}>
+            {partners.map(p => (
+              <View key={p.userId} style={styles.partnerItem}>
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
+              </View>
+            ))}
+          </View>
+        )}
+      </View>
+    </View>
   );
 }
 
@@ -357,6 +414,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
 
 export default function ProjectsScreen() {
   const [projects, setProjects] = useState([]);
+  const [joinedProjects, setJoinedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -369,8 +427,12 @@ export default function ProjectsScreen() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await getMyProjects();
-      setProjects(res.data);
+      const [ownRes, joinedRes] = await Promise.all([
+        getMyProjects(),
+        getJoinedProjects(),
+      ]);
+      setProjects(ownRes.data);
+      setJoinedProjects(joinedRes.data);
     } catch (e) {
       console.error('Failed to load projects', e);
     } finally {
@@ -409,8 +471,13 @@ export default function ProjectsScreen() {
 
   const handleManagePartners = async (projectId, setPartnersFn) => {
     try {
-      const res = await getMatches();
-      setMatchedUsers(res.data || []);
+      const [matchRes, partnerRes] = await Promise.all([
+        getMatches(),
+        getPartners(projectId),
+      ]);
+      const existingIds = new Set((partnerRes.data || []).map(p => p.userId));
+      const available = (matchRes.data || []).filter(m => !existingIds.has(m.userId));
+      setMatchedUsers(available);
     } catch {
       setMatchedUsers([]);
     }
@@ -496,7 +563,7 @@ export default function ProjectsScreen() {
           />
         )}
 
-        {/* Empty state */}
+        {/* My Projects */}
         {projects.length === 0 && !showForm ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>
@@ -519,6 +586,18 @@ export default function ProjectsScreen() {
               onManagePartners={handleManagePartners}
             />
           ))
+        )}
+
+        {/* Projects I've Joined */}
+        {joinedProjects.length > 0 && (
+          <>
+            <View style={styles.sectionDivider}>
+              <Text style={styles.sectionDividerLabel}>PROJECTS I'VE JOINED</Text>
+            </View>
+            {joinedProjects.map(p => (
+              <JoinedProjectCard key={p.id} project={p} />
+            ))}
+          </>
         )}
       </ScrollView>
 
@@ -903,6 +982,39 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '600',
     fontSize: 15,
+  },
+
+  // Joined projects
+  joinedCard: {
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  joinedOwnerTag: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  joinedOwnerText: {
+    fontSize: 11,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+
+  // Section divider
+  sectionDivider: {
+    paddingHorizontal: 24,
+    paddingTop: 20,
+    paddingBottom: 8,
+  },
+  sectionDividerLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
   },
 
   // Delete confirmation modal

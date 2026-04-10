@@ -2,11 +2,13 @@ const router = require('express').Router();
 const { authenticate, requireVerified } = require('../middleware/auth.middleware');
 const ctrl = require('../controllers/project.controller');
 
-router.get('/feed',                       authenticate, requireVerified, ctrl.feed);
-router.get('/matches',                    authenticate, requireVerified, ctrl.matches);
-router.post('/swipe',                     authenticate, requireVerified, ctrl.swipe);
-router.get('/mine',                       authenticate, requireVerified, ctrl.mine);
-router.get('/:id',                        authenticate, ctrl.getOne);
+router.get('/feed',           authenticate, requireVerified, ctrl.feed);
+router.get('/matches',        authenticate, requireVerified, ctrl.matches);
+router.post('/swipe',         authenticate, requireVerified, ctrl.swipe);
+router.get('/mine',           authenticate, requireVerified, ctrl.mine);
+router.get('/joined',         authenticate, requireVerified, ctrl.joined);
+router.get('/owner/:userId',  authenticate, ctrl.byOwner);
+router.get('/:id',            authenticate, ctrl.getOne);
 router.post('/',                          authenticate, requireVerified, ctrl.create);
 router.put('/:id',                        authenticate, requireVerified, ctrl.update);
 router.delete('/:id',                     authenticate, requireVerified, ctrl.remove);

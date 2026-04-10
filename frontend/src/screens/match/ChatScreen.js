@@ -4,7 +4,8 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform,
   SafeAreaView, ActivityIndicator, Image, StatusBar, Alert,
 } from 'react-native';
-import { getMessages, sendMessage, respondToInvite, signNda } from '../../services/match.service';
+import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda } from '../../services/match.service';
+import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
 
@@ -72,6 +73,12 @@ export default function ChatScreen({ route, navigation }) {
   const [sending, setSending] = useState(false);
   const listRef = useRef(null);
   const lastIdRef = useRef(null);
+
+  // "+" action sheet state
+  const [actionSheet, setActionSheet] = useState(null); // null | 'menu' | 'pick-project'
+  const [actionType, setActionType] = useState(null);   // 'invite' | 'share' | 'nda'
+  const [actionProjects, setActionProjects] = useState([]);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const load = useCallback(async () => {
     try {
@@ -194,6 +201,64 @@ export default function ChatScreen({ route, navigation }) {
       });
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not sign NDA.');
+    }
+  };
+
+  const openActionMenu = () => setActionSheet('menu');
+  const closeActionSheet = () => { setActionSheet(null); setActionType(null); setActionProjects([]); };
+
+  const pickProjectFor = async (type) => {
+    setActionType(type);
+    setActionLoading(true);
+    setActionSheet('pick-project');
+    try {
+      let projects;
+      if (type === 'nda') {
+        // Investor requests NDA → pick from match's (entrepreneur's) projects
+        const res = await getProjectsByOwner(match.userId);
+        projects = res.data;
+      } else {
+        // Entrepreneur: invite or share → pick from own projects
+        const res = await getMyProjects();
+        projects = res.data;
+      }
+      setActionProjects(projects);
+    } catch {
+      Alert.alert('Error', 'Could not load projects.');
+      closeActionSheet();
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleActionPickProject = async (project) => {
+    closeActionSheet();
+    try {
+      if (actionType === 'invite') {
+        await sendPartnerInvite(match.matchId, project.id);
+        Alert.alert('Invite Sent', `Partner invite sent for "${project.title}". They must sign the NDA and accept to join.`);
+        await load(); // refresh messages
+      } else if (actionType === 'share') {
+        const parts = [`📁 *${project.title}*`];
+        if (project.description) parts.push(project.description);
+        if (project.industry)    parts.push(`Industry: ${project.industry}`);
+        if (project.deck_url)    parts.push(`📄 Deck: ${project.deck_url}`);
+        if (project.video_url)   parts.push(`🎬 Video: ${project.video_url}`);
+        const text = parts.join('\n');
+        const res = await sendMessage(match.matchId, text);
+        lastIdRef.current = res.data.id;
+        setMessages(prev => {
+          const ids = new Set(prev.map(m => m.id));
+          return ids.has(res.data.id) ? prev : [...prev, res.data];
+        });
+        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+      } else if (actionType === 'nda') {
+        await requestNda(match.matchId, project.id);
+        Alert.alert('NDA Requested', `NDA request sent for "${project.title}".`);
+        await load();
+      }
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Action failed.');
     }
   };
 
@@ -422,6 +487,9 @@ export default function ChatScreen({ route, navigation }) {
 
         {/* Input bar */}
         <View style={styles.inputBar}>
+          <TouchableOpacity style={styles.plusBtn} onPress={openActionMenu} activeOpacity={0.75}>
+            <Text style={styles.plusBtnText}>+</Text>
+          </TouchableOpacity>
           <TextInput
             style={styles.input}
             value={input}
@@ -434,10 +502,7 @@ export default function ChatScreen({ route, navigation }) {
             onSubmitEditing={handleSend}
           />
           <TouchableOpacity
-            style={[
-              styles.sendBtn,
-              (!input.trim() || sending) && styles.sendBtnDisabled,
-            ]}
+            style={[styles.sendBtn, (!input.trim() || sending) && styles.sendBtnDisabled]}
             onPress={handleSend}
             disabled={!input.trim() || sending}
             activeOpacity={0.85}
@@ -445,6 +510,80 @@ export default function ChatScreen({ route, navigation }) {
             <Text style={styles.sendBtnText}>▶</Text>
           </TouchableOpacity>
         </View>
+
+        {/* Action sheet modal */}
+        <Modal visible={!!actionSheet} transparent animationType="slide" onRequestClose={closeActionSheet}>
+          <TouchableOpacity style={styles.sheetBackdrop} activeOpacity={1} onPress={closeActionSheet} />
+          <View style={styles.sheetBox}>
+            {actionSheet === 'menu' && (
+              <>
+                <Text style={styles.sheetTitle}>Chat Actions</Text>
+                {user?.role === 'entrepreneur' && (
+                  <>
+                    <TouchableOpacity style={styles.sheetItem} onPress={() => pickProjectFor('invite')} activeOpacity={0.8}>
+                      <Text style={styles.sheetItemIcon}>🤝</Text>
+                      <View>
+                        <Text style={styles.sheetItemLabel}>Invite as Partner</Text>
+                        <Text style={styles.sheetItemSub}>Send a partner invite for one of your projects</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.sheetItem} onPress={() => pickProjectFor('share')} activeOpacity={0.8}>
+                      <Text style={styles.sheetItemIcon}>📁</Text>
+                      <View>
+                        <Text style={styles.sheetItemLabel}>Share Project Info</Text>
+                        <Text style={styles.sheetItemSub}>Send your project details, deck or video link</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+                {match.role === 'entrepreneur' && (
+                  <TouchableOpacity style={styles.sheetItem} onPress={() => pickProjectFor('nda')} activeOpacity={0.8}>
+                    <Text style={styles.sheetItemIcon}>📄</Text>
+                    <View>
+                      <Text style={styles.sheetItemLabel}>Request NDA</Text>
+                      <Text style={styles.sheetItemSub}>Request access to their project details</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.sheetCancel} onPress={closeActionSheet} activeOpacity={0.8}>
+                  <Text style={styles.sheetCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {actionSheet === 'pick-project' && (
+              <>
+                <Text style={styles.sheetTitle}>
+                  {actionType === 'invite' ? 'Pick a Project to Invite For' :
+                   actionType === 'share'  ? 'Pick a Project to Share' :
+                                             'Pick a Project'}
+                </Text>
+                {actionLoading ? (
+                  <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
+                ) : actionProjects.length === 0 ? (
+                  <Text style={styles.sheetEmpty}>No projects found.</Text>
+                ) : (
+                  <FlatList
+                    data={actionProjects}
+                    keyExtractor={item => String(item.id)}
+                    style={{ maxHeight: 300 }}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity style={styles.sheetItem} onPress={() => handleActionPickProject(item)} activeOpacity={0.8}>
+                        <Text style={styles.sheetItemIcon}>📁</Text>
+                        <View style={{ flex: 1 }}>
+                          <Text style={styles.sheetItemLabel}>{item.title}</Text>
+                          {item.industry ? <Text style={styles.sheetItemSub}>{item.industry}</Text> : null}
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  />
+                )}
+                <TouchableOpacity style={styles.sheetCancel} onPress={closeActionSheet} activeOpacity={0.8}>
+                  <Text style={styles.sheetCancelText}>Cancel</Text>
+                </TouchableOpacity>
+              </>
+            )}
+          </View>
+        </Modal>
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -661,6 +800,79 @@ const styles = StyleSheet.create({
   sendBtnText: {
     fontSize: 15,
     color: '#fff',
+  },
+
+  // "+" button
+  plusBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: colors.backgroundSoft,
+    borderWidth: 1.5,
+    borderColor: colors.surfaceBorder,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  plusBtnText: {
+    fontSize: 22,
+    color: colors.primary,
+    lineHeight: 26,
+    fontWeight: '400',
+  },
+
+  // Action sheet
+  sheetBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2,36,102,0.4)',
+  },
+  sheetBox: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    paddingBottom: 36,
+  },
+  sheetTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    marginBottom: 16,
+  },
+  sheetItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.backgroundSoft,
+  },
+  sheetItemIcon: { fontSize: 22 },
+  sheetItemLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: colors.primaryDark,
+  },
+  sheetItemSub: {
+    fontSize: 12,
+    color: colors.textHint,
+    marginTop: 2,
+  },
+  sheetCancel: {
+    marginTop: 14,
+    paddingVertical: 14,
+    alignItems: 'center',
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  sheetCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  sheetEmpty: {
+    fontSize: 13,
+    color: colors.textHint,
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginVertical: 24,
   },
 
   // Action cards (partner invite, NDA)

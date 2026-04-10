@@ -24,6 +24,8 @@ export const uploadVideo = (projectId, fileUri, fileName) => {
   });
 };
 
-export const getPartners    = (projectId)              => api.get(`/projects/${projectId}/partners`);
-export const addPartner     = (projectId, partnerUserId) => api.post(`/projects/${projectId}/partners`, { partnerUserId });
-export const removePartner  = (projectId, partnerUserId) => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
+export const getPartners       = (projectId)              => api.get(`/projects/${projectId}/partners`);
+export const addPartner        = (projectId, partnerUserId) => api.post(`/projects/${projectId}/partners`, { partnerUserId });
+export const removePartner     = (projectId, partnerUserId) => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
+export const getJoinedProjects = ()                         => api.get('/projects/joined');
+export const getProjectsByOwner = (userId)                  => api.get(`/projects/owner/${userId}`);

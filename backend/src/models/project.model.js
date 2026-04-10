@@ -232,8 +232,31 @@ async function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
   return { ok: true };
 }
 
+// Projects where the user is a partner (not the owner)
+async function getJoinedProjects(userId) {
+  return await query(
+    `SELECT p.*, u.name AS owner_name, u.photo_url AS owner_photo
+     FROM project_partners pp
+     JOIN projects p ON p.id = pp.project_id
+     JOIN users u ON u.id = p.user_id
+     WHERE pp.user_id = ? AND p.is_active = 1
+     ORDER BY pp.added_at DESC`,
+    [userId]
+  );
+}
+
+// Public read of another user's projects (for NDA request / partner flows)
+async function getProjectsByOwner(ownerId) {
+  return await query(
+    `SELECT id, title, description, stage, industry, deck_url, video_url
+     FROM projects WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC`,
+    [ownerId]
+  );
+}
+
 module.exports = {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
   getProjectPartners, addProjectPartner, removeProjectPartner,
+  getJoinedProjects, getProjectsByOwner,
 };

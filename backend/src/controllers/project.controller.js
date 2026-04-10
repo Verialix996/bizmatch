@@ -4,6 +4,7 @@ const {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
   getProjectPartners, addProjectPartner, removeProjectPartner,
+  getJoinedProjects, getProjectsByOwner,
 } = require('../models/project.model');
 const { query } = require('../config/db');
 
@@ -159,4 +160,18 @@ const removePartner = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { feed, matches, swipe, mine, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner };
+// GET /api/projects/joined — projects the current user is a partner on
+const joined = async (req, res, next) => {
+  try {
+    res.json(await getJoinedProjects(req.user.id));
+  } catch (err) { next(err); }
+};
+
+// GET /api/projects/owner/:userId — public project list for a user (for NDA/invite flows)
+const byOwner = async (req, res, next) => {
+  try {
+    res.json(await getProjectsByOwner(Number(req.params.userId)));
+  } catch (err) { next(err); }
+};
+
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner };

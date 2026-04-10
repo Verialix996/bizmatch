@@ -26,7 +26,6 @@ export default function WelcomeScreen({ navigation }) {
           let attempts = 0;
           const interval = setInterval(async () => {
             attempts++;
-            if (attempts > 150 || popup.closed) { clearInterval(interval); return resolve(); }
             try {
               const resp = await fetch(`${API_BASE_URL}/auth/poll/${oid}`);
               if (resp.status === 200) {
@@ -35,9 +34,11 @@ export default function WelcomeScreen({ navigation }) {
                 if (data.token) {
                   setAuth(data.token, { id: Number(data.userId), email: data.email, name: data.name, role: data.role });
                 }
-                resolve();
+                return resolve();
               }
             } catch { /* keep polling */ }
+            // Only stop after attempting the fetch, so we don't miss the token
+            if (popup.closed || attempts > 150) { clearInterval(interval); resolve(); }
           }, 1000);
         });
       } else {
