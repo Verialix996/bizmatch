@@ -10,7 +10,7 @@ import { register } from '../../services/auth.service';
 import { colors, brandGradient, radius } from '../../theme';
 
 export default function RegisterScreen({ navigation }) {
-  const { control, handleSubmit } = useForm();
+  const { control, handleSubmit, formState: { errors } } = useForm();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
@@ -48,10 +48,11 @@ export default function RegisterScreen({ navigation }) {
     {
       name: 'password',
       label: 'PASSWORD',
-      placeholder: 'Create a password',
+      placeholder: 'At least 6 characters',
       secure: true,
       capitalize: 'none',
       keyboard: 'default',
+      rules: { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } },
     },
   ];
 
@@ -91,12 +92,13 @@ export default function RegisterScreen({ navigation }) {
                   <Controller
                     control={control}
                     name={f.name}
-                    rules={{ required: true }}
+                    rules={f.rules ?? { required: true }}
                     render={({ field: { onChange, value } }) => (
                       <TextInput
                         style={[
                           styles.input,
                           focusedField === f.name && styles.inputFocused,
+                          errors[f.name] && styles.inputError,
                         ]}
                         placeholder={f.placeholder}
                         placeholderTextColor="rgba(255,255,255,0.4)"
@@ -110,6 +112,9 @@ export default function RegisterScreen({ navigation }) {
                       />
                     )}
                   />
+                  {errors[f.name] && (
+                    <Text style={styles.fieldError}>{errors[f.name].message || 'This field is required'}</Text>
+                  )}
                 </View>
               ))}
 
@@ -201,6 +206,15 @@ const styles = StyleSheet.create({
   inputFocused: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderColor: 'rgba(255,255,255,0.7)',
+  },
+  inputError: {
+    borderColor: '#FFB3AE',
+  },
+  fieldError: {
+    fontSize: 12,
+    color: '#FFB3AE',
+    marginTop: -14,
+    marginBottom: 14,
   },
   errorText: {
     fontSize: 13,

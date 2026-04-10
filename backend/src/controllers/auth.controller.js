@@ -21,6 +21,10 @@ async function register(req, res, next) {
   try {
     const { email, password, name, role } = req.body;
 
+    if (!password || password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
     const existing = await UserModel.findByEmail(email);
     if (existing) return res.status(409).json({ error: 'Email already registered' });
 
