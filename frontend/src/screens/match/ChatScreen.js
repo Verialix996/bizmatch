@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  SafeAreaView, ActivityIndicator, Image, StatusBar, Alert,
+  SafeAreaView, ActivityIndicator, Image, StatusBar, Alert, Modal, Linking,
 } from 'react-native';
 import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda } from '../../services/match.service';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
@@ -80,6 +80,9 @@ export default function ChatScreen({ route, navigation }) {
   const [actionProjects, setActionProjects] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
 
+  // Project detail popup
+  const [detailProject, setDetailProject] = useState(null);
+
   const load = useCallback(async () => {
     try {
       const res = await getMessages(match.matchId);
@@ -140,26 +143,26 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
+  const appendMessages = (...newMsgs) => {
+    setMessages(prev => {
+      const ids = new Set(prev.map(m => m.id));
+      const toAdd = newMsgs.filter(m => m && !ids.has(m.id));
+      return toAdd.length ? [...prev, ...toAdd] : prev;
+    });
+  };
+
   const handleSignNdaAndAccept = async (item) => {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
     try {
-      // Sign the NDA first, then accept the partner invite
-      await signNda(match.matchId, meta.projectId);
-      const res = await respondToInvite(match.matchId, meta.invitationId, true);
-      lastIdRef.current = res.data.message?.id ?? lastIdRef.current;
-      setMessages(prev => {
-        // Replace invite card with the response + add new message
-        const updated = prev.map(m =>
-          m.id === item.id ? { ...m, _responded: true } : m
-        );
-        const newMsg = res.data.message;
-        if (newMsg) {
-          const ids = new Set(updated.map(m => m.id));
-          return ids.has(newMsg.id) ? updated : [...updated, newMsg];
-        }
-        return updated;
-      });
+      // Sign the NDA first (creates nda_signed + project_shared messages on backend)
+      const ndaRes = await signNda(match.matchId, meta.projectId);
+      // Then accept the invite (creates partner_invite_response message)
+      const acceptRes = await respondToInvite(match.matchId, meta.invitationId, true);
+      const responseMsg = acceptRes.data.message;
+      if (responseMsg) lastIdRef.current = responseMsg.id;
+      // Add nda_signed + response messages; project_shared arrives via next poll
+      appendMessages(ndaRes.data, responseMsg);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
     }
@@ -170,17 +173,9 @@ export default function ChatScreen({ route, navigation }) {
     if (!meta) return;
     try {
       const res = await respondToInvite(match.matchId, meta.invitationId, false);
-      setMessages(prev => {
-        const updated = prev.map(m =>
-          m.id === item.id ? { ...m, _responded: true } : m
-        );
-        const newMsg = res.data.message;
-        if (newMsg) {
-          const ids = new Set(updated.map(m => m.id));
-          return ids.has(newMsg.id) ? updated : [...updated, newMsg];
-        }
-        return updated;
-      });
+      const responseMsg = res.data.message;
+      if (responseMsg) lastIdRef.current = responseMsg.id;
+      appendMessages(responseMsg);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not decline invite.');
     }
@@ -191,14 +186,8 @@ export default function ChatScreen({ route, navigation }) {
     if (!meta) return;
     try {
       const res = await signNda(match.matchId, meta.projectId);
-      lastIdRef.current = res.data.id ?? lastIdRef.current;
-      setMessages(prev => {
-        const updated = prev.map(m =>
-          m.id === item.id ? { ...m, _signed: true } : m
-        );
-        const ids = new Set(updated.map(m => m.id));
-        return ids.has(res.data.id) ? updated : [...updated, res.data];
-      });
+      if (res.data?.id) lastIdRef.current = res.data.id;
+      appendMessages(res.data);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not sign NDA.');
     }
@@ -239,19 +228,10 @@ export default function ChatScreen({ route, navigation }) {
         Alert.alert('Invite Sent', `Partner invite sent for "${project.title}". They must sign the NDA and accept to join.`);
         await load(); // refresh messages
       } else if (actionType === 'share') {
-        const parts = [`📁 *${project.title}*`];
-        if (project.description) parts.push(project.description);
-        if (project.industry)    parts.push(`Industry: ${project.industry}`);
-        if (project.deck_url)    parts.push(`📄 Deck: ${project.deck_url}`);
-        if (project.video_url)   parts.push(`🎬 Video: ${project.video_url}`);
-        const text = parts.join('\n');
-        const res = await sendMessage(match.matchId, text);
-        lastIdRef.current = res.data.id;
-        setMessages(prev => {
-          const ids = new Set(prev.map(m => m.id));
-          return ids.has(res.data.id) ? prev : [...prev, res.data];
-        });
-        setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+        // Send NDA request first — project details are auto-shared after the other party signs
+        await requestNda(match.matchId, project.id);
+        Alert.alert('NDA Request Sent', `The other party must sign the NDA for "${project.title}" before the details are shared.`);
+        await load();
       } else if (actionType === 'nda') {
         await requestNda(match.matchId, project.id);
         Alert.alert('NDA Requested', `NDA request sent for "${project.title}".`);
@@ -267,7 +247,12 @@ export default function ChatScreen({ route, navigation }) {
     const type = item.message_type;
 
     if (type === 'partner_invite') {
-      const alreadyResponded = item._responded;
+      // Derive state from messages: responded if a response card exists for this invitationId
+      const alreadyResponded = messages.some(m => {
+        if (m.message_type !== 'partner_invite_response') return false;
+        const mm = tryParseJson(m.metadata) || {};
+        return mm.invitationId === meta.invitationId;
+      });
       return (
         <View style={styles.actionCard}>
           <Text style={styles.actionCardTitle}>Partner Invite</Text>
@@ -324,7 +309,12 @@ export default function ChatScreen({ route, navigation }) {
     }
 
     if (type === 'nda_request') {
-      const alreadySigned = item._signed;
+      // Derive state from messages: signed if an nda_signed card exists for this projectId
+      const alreadySigned = messages.some(m => {
+        if (m.message_type !== 'nda_signed') return false;
+        const mm = tryParseJson(m.metadata) || {};
+        return mm.projectId === meta.projectId;
+      });
       return (
         <View style={styles.actionCard}>
           <Text style={styles.actionCardTitle}>NDA Requested</Text>
@@ -356,6 +346,28 @@ export default function ChatScreen({ route, navigation }) {
         <View style={[styles.actionCard, styles.actionCardResponse]}>
           <Text style={styles.actionCardTitle}>NDA Signed</Text>
           <Text style={styles.actionCardBody}>Full project details are now accessible.</Text>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'project_shared') {
+      return (
+        <View style={[styles.actionCard, styles.projectSharedCard]}>
+          <Text style={styles.actionCardTitle}>📁 Project Shared</Text>
+          <Text style={styles.projectSharedTitle}>{meta.title || 'Untitled Project'}</Text>
+          {meta.industry || meta.stage ? (
+            <Text style={styles.projectSharedMeta}>
+              {[meta.stage, meta.industry].filter(Boolean).join(' · ')}
+            </Text>
+          ) : null}
+          <TouchableOpacity
+            style={styles.viewDetailsBtn}
+            onPress={() => setDetailProject(meta)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.viewDetailsBtnText}>View Full Details</Text>
+          </TouchableOpacity>
           <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
         </View>
       );
@@ -464,6 +476,7 @@ export default function ChatScreen({ route, navigation }) {
           <FlatList
             ref={listRef}
             data={messages}
+            extraData={messages}
             keyExtractor={item => String(item.id)}
             renderItem={renderItem}
             contentContainerStyle={styles.msgList}
@@ -531,12 +544,12 @@ export default function ChatScreen({ route, navigation }) {
                       <Text style={styles.sheetItemIcon}>📁</Text>
                       <View>
                         <Text style={styles.sheetItemLabel}>Share Project Info</Text>
-                        <Text style={styles.sheetItemSub}>Send your project details, deck or video link</Text>
+                        <Text style={styles.sheetItemSub}>Requests NDA — details shared automatically once signed</Text>
                       </View>
                     </TouchableOpacity>
                   </>
                 )}
-                {match.role === 'entrepreneur' && (
+                {match.roleType === 'entrepreneur' && (
                   <TouchableOpacity style={styles.sheetItem} onPress={() => pickProjectFor('nda')} activeOpacity={0.8}>
                     <Text style={styles.sheetItemIcon}>📄</Text>
                     <View>
@@ -585,6 +598,62 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         </Modal>
       </KeyboardAvoidingView>
+
+      {/* Project detail popup */}
+      <Modal visible={!!detailProject} transparent animationType="fade" onRequestClose={() => setDetailProject(null)}>
+        <View style={styles.detailBackdrop}>
+          <View style={styles.detailBox}>
+            <Text style={styles.detailTitle}>{detailProject?.title}</Text>
+
+            {(detailProject?.stage || detailProject?.industry) ? (
+              <Text style={styles.detailMeta}>
+                {[detailProject?.stage, detailProject?.industry].filter(Boolean).join(' · ')}
+              </Text>
+            ) : null}
+
+            {detailProject?.description ? (
+              <Text style={styles.detailDesc}>{detailProject.description}</Text>
+            ) : null}
+
+            {detailProject?.fundingNeeded ? (
+              <Text style={styles.detailFunding}>
+                💰 Seeking ${Number(detailProject.fundingNeeded).toLocaleString()}
+              </Text>
+            ) : null}
+
+            {(detailProject?.deckUrl || detailProject?.videoUrl) ? (
+              <View style={styles.detailLinks}>
+                {detailProject?.deckUrl ? (
+                  <TouchableOpacity
+                    style={styles.detailLinkBtn}
+                    onPress={() => Linking.openURL(detailProject.deckUrl)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.detailLinkBtnText}>📄 View Pitch Deck</Text>
+                  </TouchableOpacity>
+                ) : null}
+                {detailProject?.videoUrl ? (
+                  <TouchableOpacity
+                    style={styles.detailLinkBtn}
+                    onPress={() => Linking.openURL(detailProject.videoUrl)}
+                    activeOpacity={0.85}
+                  >
+                    <Text style={styles.detailLinkBtnText}>🎬 Watch Demo Video</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : null}
+
+            <TouchableOpacity
+              style={styles.detailCloseBtn}
+              onPress={() => setDetailProject(null)}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.detailCloseBtnText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -873,6 +942,105 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
     textAlign: 'center',
     marginVertical: 24,
+  },
+
+  // project_shared card
+  projectSharedCard: {
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  projectSharedTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    marginBottom: 2,
+  },
+  projectSharedMeta: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    textTransform: 'capitalize',
+    marginBottom: 10,
+  },
+  viewDetailsBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingVertical: 10,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  viewDetailsBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+
+  // Project detail popup
+  detailBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(2,36,102,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  detailBox: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 24,
+    width: '100%',
+    maxWidth: 420,
+  },
+  detailTitle: {
+    fontSize: 20,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    marginBottom: 4,
+  },
+  detailMeta: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.textSecondary,
+    textTransform: 'capitalize',
+    marginBottom: 12,
+  },
+  detailDesc: {
+    fontSize: 14,
+    color: colors.textSecondary,
+    lineHeight: 20,
+    marginBottom: 12,
+  },
+  detailFunding: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.primaryDark,
+    marginBottom: 16,
+  },
+  detailLinks: {
+    gap: 10,
+    marginBottom: 20,
+  },
+  detailLinkBtn: {
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    paddingVertical: 13,
+    alignItems: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+  },
+  detailLinkBtnText: {
+    color: colors.primary,
+    fontWeight: '700',
+    fontSize: 14,
+  },
+  detailCloseBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  detailCloseBtnText: {
+    color: '#fff',
+    fontWeight: '700',
+    fontSize: 15,
   },
 
   // Action cards (partner invite, NDA)

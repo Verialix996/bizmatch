@@ -72,21 +72,30 @@ const sendInvite = async (req, res, next) => {
     const match    = matchRows[0];
     const inviteeId = match.user1_id === senderId ? match.user2_id : match.user1_id;
 
-    // Prevent duplicate pending invites
+    // Check for an existing invite for this project+invitee
     const existing = await query(
-      `SELECT id FROM partner_invitations
-       WHERE project_id = ? AND invitee_id = ? AND status = 'pending'`,
+      `SELECT id, status FROM partner_invitations WHERE project_id = ? AND invitee_id = ?`,
       [projectId, inviteeId]
     );
-    if (existing[0]) return res.status(409).json({ error: 'Invite already pending' });
 
-    // Create invitation record
-    const invResult = await query(
-      `INSERT INTO partner_invitations (project_id, match_id, inviter_id, invitee_id, status)
-       VALUES (?, ?, ?, ?, 'pending')`,
-      [projectId, matchId, senderId, inviteeId]
-    );
-    const invitationId = invResult.insertId;
+    let invitationId;
+    if (existing[0]) {
+      if (existing[0].status === 'pending') return res.status(409).json({ error: 'Invite already pending' });
+      if (existing[0].status === 'accepted') return res.status(409).json({ error: 'User is already a partner' });
+      // Previously rejected — reset to pending so they can be re-invited
+      await query(
+        `UPDATE partner_invitations SET status = 'pending', inviter_id = ?, match_id = ?, created_at = NOW() WHERE id = ?`,
+        [senderId, matchId, existing[0].id]
+      );
+      invitationId = existing[0].id;
+    } else {
+      const invResult = await query(
+        `INSERT INTO partner_invitations (project_id, match_id, inviter_id, invitee_id, status)
+         VALUES (?, ?, ?, ?, 'pending')`,
+        [projectId, matchId, senderId, inviteeId]
+      );
+      invitationId = invResult.insertId;
+    }
 
     // Send the invite as a chat message
     const msg = await sendMessage(
@@ -192,7 +201,8 @@ const requestNda = async (req, res, next) => {
 };
 
 // POST /api/messages/:matchId/nda-sign  { projectId }
-// Project owner signs (approves) the NDA — records it and notifies via chat
+// Signs the NDA — records it, notifies via chat, and auto-shares project details
+// if the signer is not the project owner (i.e. owner shared → other party signs)
 const signNda = async (req, res, next) => {
   try {
     const matchId   = Number(req.params.matchId);
@@ -219,6 +229,27 @@ const signNda = async (req, res, next) => {
       'nda_signed',
       { projectId }
     );
+
+    // If the signer is NOT the project owner, the owner wanted to share — auto-send project details
+    const projectRows = await query('SELECT * FROM projects WHERE id = ? AND is_active = 1', [projectId]);
+    const project = projectRows[0];
+    if (project && project.user_id !== userId) {
+      await sendMessage(
+        matchId, project.user_id,
+        `Project details shared: "${project.title}"`,
+        'project_shared',
+        {
+          projectId:     project.id,
+          title:         project.title,
+          description:   project.description   || null,
+          industry:      project.industry      || null,
+          stage:         project.stage         || null,
+          fundingNeeded: project.funding_needed || null,
+          deckUrl:       project.deck_url      || null,
+          videoUrl:      project.video_url     || null,
+        }
+      );
+    }
 
     res.status(201).json(msg);
   } catch (err) {
