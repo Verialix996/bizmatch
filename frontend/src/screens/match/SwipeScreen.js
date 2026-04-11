@@ -5,8 +5,10 @@ import {
   SafeAreaView, StatusBar, Dimensions,
 } from 'react-native';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(340, SCREEN_WIDTH * 0.9);
+const CARD_HEIGHT = Math.min(420, Math.max(300, SCREEN_HEIGHT * 0.52));
+const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.5);
 const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe } from '../../services/match.service';
@@ -396,7 +398,7 @@ export default function SwipeScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <>
+          <View style={styles.cardStack}>
             {visibleCards[1] ? (
               isEntrepreneur ? (
                 <ProfileCard
@@ -444,7 +446,7 @@ export default function SwipeScreen() {
                 cardRotation={cardRotation}
               />
             )}
-          </>
+          </View>
         )}
       </View>
 
@@ -563,7 +565,13 @@ const styles = StyleSheet.create({
   deckArea: {
     flex: 1,
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 8,
+  },
+
+  cardStack: {
+    width: CARD_WIDTH,
+    height: CARD_HEIGHT,
     position: 'relative',
   },
 
@@ -583,7 +591,7 @@ const styles = StyleSheet.create({
 
   cardPhoto: {
     width: '100%',
-    height: 210,
+    height: PHOTO_HEIGHT,
     position: 'relative',
   },
   photoImg: {
