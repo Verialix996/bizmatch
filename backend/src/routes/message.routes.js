@@ -3,7 +3,7 @@ const { authenticate, requireVerified } = require('../middleware/auth.middleware
 const {
   conversations, messages, send,
   sendInvite, respondToInvite,
-  requestNda, signNda,
+  requestNda, signNda, shareProject,
 } = require('../controllers/message.controller');
 
 router.get('/',                                              authenticate, requireVerified, conversations);
@@ -13,5 +13,6 @@ router.post('/:matchId/invite',                              authenticate, requi
 router.post('/:matchId/invite/:invitationId/respond',        authenticate, requireVerified, respondToInvite);
 router.post('/:matchId/nda-request',                         authenticate, requireVerified, requestNda);
 router.post('/:matchId/nda-sign',                            authenticate, requireVerified, signNda);
+router.post('/:matchId/share-project',                       authenticate, requireVerified, shareProject);
 
 module.exports = router;

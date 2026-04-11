@@ -257,4 +257,57 @@ const signNda = async (req, res, next) => {
   }
 };
 
-module.exports = { conversations, messages, send, sendInvite, respondToInvite, requestNda, signNda };
+// POST /api/messages/:matchId/share-project  { projectId }
+// Project owner directly shares project details when NDA is already signed by the other party
+const shareProject = async (req, res, next) => {
+  try {
+    const matchId   = Number(req.params.matchId);
+    const projectId = Number(req.body.projectId);
+    const userId    = req.user.id;
+
+    if (!matchId || !projectId) return res.status(400).json({ error: 'matchId and projectId required' });
+
+    // Verify caller is in this match
+    const matchRows = await query(
+      'SELECT id, user1_id, user2_id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
+      [matchId, userId, userId]
+    );
+    if (!matchRows[0]) return res.status(403).json({ error: 'Not part of this match' });
+
+    // Verify caller owns the project
+    const projectRows = await query('SELECT * FROM projects WHERE id = ? AND user_id = ? AND is_active = 1', [projectId, userId]);
+    if (!projectRows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
+    const project = projectRows[0];
+
+    // Verify the other party has signed the NDA
+    const match = matchRows[0];
+    const otherUserId = match.user1_id === userId ? match.user2_id : match.user1_id;
+    const ndaRows = await query(
+      'SELECT id FROM project_ndas WHERE project_id = ? AND user_id = ?',
+      [projectId, otherUserId]
+    );
+    if (!ndaRows[0]) return res.status(409).json({ error: 'NDA not yet signed by the other party' });
+
+    const msg = await sendMessage(
+      matchId, userId,
+      `Project details shared: "${project.title}"`,
+      'project_shared',
+      {
+        projectId:     project.id,
+        title:         project.title,
+        description:   project.description   || null,
+        industry:      project.industry      || null,
+        stage:         project.stage         || null,
+        fundingNeeded: project.funding_needed || null,
+        deckUrl:       project.deck_url      || null,
+        videoUrl:      project.video_url     || null,
+      }
+    );
+
+    res.status(201).json(msg);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { conversations, messages, send, sendInvite, respondToInvite, requestNda, signNda, shareProject };

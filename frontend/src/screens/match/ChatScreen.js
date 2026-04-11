@@ -4,7 +4,7 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform,
   SafeAreaView, ActivityIndicator, Image, StatusBar, Alert, Modal, Linking,
 } from 'react-native';
-import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda } from '../../services/match.service';
+import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject } from '../../services/match.service';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
@@ -241,9 +241,17 @@ export default function ChatScreen({ route, navigation }) {
         Alert.alert('Invite Sent', `Partner invite sent for "${project.title}". They must sign the NDA and accept to join.`);
         await load(); // refresh messages
       } else if (actionType === 'share') {
-        // Send NDA request first — project details are auto-shared after the other party signs
-        await requestNda(match.matchId, project.id);
-        Alert.alert('NDA Request Sent', `The other party must sign the NDA for "${project.title}" before the details are shared.`);
+        const alreadySigned = messages.some(m => {
+          if (m.message_type !== 'nda_signed') return false;
+          return (tryParseJson(m.metadata) || {}).projectId === project.id;
+        });
+        if (alreadySigned) {
+          await shareProject(match.matchId, project.id);
+          Alert.alert('Project Shared', `"${project.title}" details have been shared.`);
+        } else {
+          await requestNda(match.matchId, project.id);
+          Alert.alert('NDA Request Sent', `The other party must sign the NDA for "${project.title}" before the details are shared.`);
+        }
         await load();
       } else if (actionType === 'nda') {
         await requestNda(match.matchId, project.id);
@@ -264,7 +272,9 @@ export default function ChatScreen({ route, navigation }) {
       const alreadyResponded = messages.some(m => {
         if (m.message_type !== 'partner_invite_response') return false;
         const mm = tryParseJson(m.metadata) || {};
-        return mm.invitationId === meta.invitationId;
+        if (mm.invitationId !== meta.invitationId) return false;
+        // Only count responses that came after this invite message (ignores old rejections on re-invites)
+        return new Date(m.created_at) >= new Date(item.created_at);
       });
       const hasSignedNda = messages.some(m => {
         if (m.message_type !== 'nda_signed') return false;

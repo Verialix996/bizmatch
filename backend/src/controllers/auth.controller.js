@@ -213,7 +213,7 @@ function oauthCallback(req, res) {
     return res.send('<!DOCTYPE html><html><body><script>window.close();</script><p>Signed in! You may close this window.</p></body></html>');
   }
 
-  // Mobile flow: redirect to bizmatch:// deep link (intercepted by WebBrowser.openAuthSessionAsync)
+  // Mobile flow: HTTP 302 redirect to bizmatch:// deep link (intercepted by WebBrowser.openAuthSessionAsync)
   const params = new URLSearchParams({
     token,
     userId: String(user.id),
@@ -221,11 +221,7 @@ function oauthCallback(req, res) {
     name:   user.name  || '',
     role:   user.role  || '',
   });
-  const deepLink = `bizmatch://auth?${params.toString()}`;
-  res.send(`<!DOCTYPE html><html><head><title>Signing in...</title></head><body>
-<script>window.location.href=${JSON.stringify(deepLink)};</script>
-<p style="font-family:sans-serif;text-align:center;margin-top:60px;color:#555">Signing you in&hellip;</p>
-</body></html>`);
+  return res.redirect(`bizmatch://auth?${params.toString()}`);
 }
 
 // GET /api/auth/poll/:oid — frontend polls this after opening the OAuth popup

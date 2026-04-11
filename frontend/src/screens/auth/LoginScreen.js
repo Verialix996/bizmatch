@@ -76,6 +76,10 @@ export default function LoginScreen({ navigation }) {
         await setAuth(data.token, data.user);
       }
     } catch (err) {
+      if (err.response?.data?.needsVerification) {
+        navigation.navigate('VerifyOtp', { email });
+        return;
+      }
       setError(err.response?.data?.error || 'Login failed. Please try again.');
     } finally {
       setLoading(false);

@@ -305,11 +305,24 @@ export default function SwipeScreen() {
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
 
+  const onTapRef = useRef(() => {});
+  useEffect(() => {
+    onTapRef.current = () => {
+      const item = feed[currentIndex];
+      if (!item) return;
+      navigation.navigate('ProfileDetail', { profile: item, matchId: null });
+    };
+  }, [feed, currentIndex, navigation]);
+
   const panResponder = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
       onPanResponderMove: (_, g) => position.setValue({ x: g.dx, y: g.dy }),
       onPanResponderRelease: (_, g) => {
+        if (Math.abs(g.dx) < 6 && Math.abs(g.dy) < 6) {
+          onTapRef.current();
+          return;
+        }
         if (g.dx > SWIPE_THRESHOLD) {
           sendSwipeRef.current('like');
         } else if (g.dx < -SWIPE_THRESHOLD) {

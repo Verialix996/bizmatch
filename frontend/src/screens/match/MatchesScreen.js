@@ -142,7 +142,25 @@ export default function MatchesScreen({ navigation }) {
     }
   }, [setNewMatchCount, currentUser]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    load();
+    const interval = setInterval(async () => {
+      try {
+        const res = await getConversations();
+        setConversations(res.data);
+        const items = res.data || [];
+        const readTs = useAuthStore.getState().readTimestamps;
+        const newMatchCount = items.filter(c => !c.lastMessage).length;
+        const unreadCount = items.filter(c => {
+          if (!c.lastMessage || c.lastMessageSenderId === currentUser?.id) return false;
+          const t = c.lastMessageAt ? new Date(c.lastMessageAt.endsWith('Z') ? c.lastMessageAt : c.lastMessageAt + 'Z').getTime() : 0;
+          return t > (readTs[c.matchId] || 0);
+        }).length;
+        setNewMatchCount(newMatchCount + unreadCount);
+      } catch { /* silent */ }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [load, setNewMatchCount, currentUser]));
 
   const newMatches = conversations.filter(c => !c.lastMessage);
   const withMessages = conversations.filter(c => c.lastMessage);
