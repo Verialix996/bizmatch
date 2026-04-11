@@ -3,7 +3,7 @@ import {
   TextInput, SafeAreaView, ActivityIndicator, Alert,
   Modal, FlatList, Image, StatusBar,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import {
@@ -39,6 +39,8 @@ function PartnerAvatar({ name, photoUrl, size = 36 }) {
 
 function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners }) {
   const [partners, setPartners] = useState([]);
+  const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
+  const [removing, setRemoving] = useState(false);
 
   useFocusEffect(useCallback(() => {
     getPartners(project.id)
@@ -46,17 +48,15 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
       .catch(() => {});
   }, [project.id]));
 
-  const handleRemovePartner = (userId) => {
-    Alert.alert('Remove Partner', 'Remove this person from the project?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Remove', style: 'destructive',
-        onPress: async () => {
-          await removePartner(project.id, userId);
-          setPartners(prev => prev.filter(p => p.userId !== userId));
-        },
-      },
-    ]);
+  const confirmRemove = async () => {
+    if (!removeConfirm || removing) return;
+    setRemoving(true);
+    try {
+      await removePartner(project.id, removeConfirm.userId);
+      setPartners(prev => prev.filter(p => p.userId !== removeConfirm.userId));
+    } catch { /* silent */ }
+    setRemoving(false);
+    setRemoveConfirm(null);
   };
 
   return (
@@ -124,7 +124,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
         <View style={styles.partnersHeader}>
           <Text style={styles.partnersSectionLabel}>TEAM</Text>
           <TouchableOpacity
-            onPress={() => onManagePartners(project.id, setPartners)}
+            onPress={() => onManagePartners(project.id)}
             style={styles.addPartnerBtn}
             activeOpacity={0.8}
           >
@@ -136,14 +136,18 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
         ) : (
           <View style={styles.partnerList}>
             {partners.map(p => (
-              <TouchableOpacity
-                key={p.userId}
-                style={styles.partnerItem}
-                onLongPress={() => handleRemovePartner(p.userId)}
-              >
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+              <View key={p.userId} style={styles.partnerItem}>
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={30} />
                 <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-              </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => setRemoveConfirm({ userId: p.userId, name: p.name })}
+                  style={styles.removePartnerBtn}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  activeOpacity={0.6}
+                >
+                  <Text style={styles.removePartnerBtnText}>×</Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
         )}
@@ -170,18 +174,74 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Remove partner confirmation modal */}
+      <Modal visible={!!removeConfirm} transparent animationType="fade">
+        <View style={styles.deleteOverlay}>
+          <View style={styles.deleteModal}>
+            <Text style={styles.deleteModalTitle}>Remove Partner</Text>
+            <Text style={styles.deleteModalBody}>
+              Are you sure you want to remove {removeConfirm?.name} from the project?
+            </Text>
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={styles.deleteBtnCancel}
+                onPress={() => setRemoveConfirm(null)}
+              >
+                <Text style={styles.deleteBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.deleteBtnConfirm}
+                onPress={confirmRemove}
+                disabled={removing}
+              >
+                <Text style={styles.deleteBtnConfirmText}>
+                  {removing ? 'Removing...' : 'Remove'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-function AddPartnerModal({ visible, onClose, onAdd, matches, projectId }) {
+function AddPartnerModal({ visible, onClose, onAdd, projectId }) {
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!visible || !projectId) return;
+    setLoading(true);
+    Promise.all([getMatches(), getPartners(projectId)])
+      .then(([matchRes, partnerRes]) => {
+        const existingIds = new Set((partnerRes.data || []).map(p => p.userId));
+        setMatches((matchRes.data || []).filter(m => !existingIds.has(m.userId)));
+      })
+      .catch(() => setMatches([]))
+      .finally(() => setLoading(false));
+  }, [visible, projectId]);
+
+  const handleAdd = async (matchId) => {
+    setSending(true);
+    try {
+      await onAdd(matchId, projectId);
+    } finally {
+      setSending(false);
+    }
+  };
+
   return (
-    <Modal transparent visible={visible} animationType="slide">
+    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.modalBackdrop}>
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Add Partner</Text>
           <Text style={styles.modalSub}>Pick from your matched connections</Text>
-          {matches.length === 0 ? (
+          {loading ? (
+            <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
+          ) : matches.length === 0 ? (
             <Text style={styles.noPartnersText}>
               No available matches — either you have no connections yet or they're already on this project.
             </Text>
@@ -193,8 +253,9 @@ function AddPartnerModal({ visible, onClose, onAdd, matches, projectId }) {
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={styles.matchPickerItem}
-                  onPress={() => onAdd(item.matchId, projectId)}
+                  onPress={() => handleAdd(item.matchId)}
                   activeOpacity={0.7}
+                  disabled={sending}
                 >
                   <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -418,10 +479,7 @@ export default function ProjectsScreen() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [partnerModal, setPartnerModal] = useState({
-    visible: false, projectId: null, setPartners: null,
-  });
-  const [matchedUsers, setMatchedUsers] = useState([]);
+  const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null });
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
 
   const load = useCallback(async () => {
@@ -469,29 +527,13 @@ export default function ProjectsScreen() {
     setShowForm(true);
   };
 
-  const handleManagePartners = async (projectId, setPartnersFn) => {
-    try {
-      const [matchRes, partnerRes] = await Promise.all([
-        getMatches(),
-        getPartners(projectId),
-      ]);
-      const existingIds = new Set((partnerRes.data || []).map(p => p.userId));
-      const available = (matchRes.data || []).filter(m => !existingIds.has(m.userId));
-      setMatchedUsers(available);
-    } catch {
-      setMatchedUsers([]);
-    }
-    setPartnerModal({ visible: true, projectId, setPartners: setPartnersFn });
+  const handleManagePartners = (projectId) => {
+    setPartnerModal({ visible: true, projectId });
   };
 
   const handleAddPartner = async (matchId, projectId) => {
-    try {
-      await sendPartnerInvite(matchId, projectId);
-      setPartnerModal({ visible: false, projectId: null, setPartners: null });
-      Alert.alert('Invite Sent', 'A partner invite has been sent via chat. They must sign the NDA and accept to join the project.');
-    } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not send partner invite.');
-    }
+    await sendPartnerInvite(matchId, projectId);
+    setPartnerModal({ visible: false, projectId: null });
   };
 
   const handleUploadDeck = async (projectId) => {
@@ -603,12 +645,9 @@ export default function ProjectsScreen() {
 
       <AddPartnerModal
         visible={partnerModal.visible}
-        matches={matchedUsers}
         projectId={partnerModal.projectId}
         onAdd={handleAddPartner}
-        onClose={() => setPartnerModal({
-          visible: false, projectId: null, setPartners: null,
-        })}
+        onClose={() => setPartnerModal({ visible: false, projectId: null })}
       />
 
       {/* Delete confirmation modal */}
@@ -782,13 +821,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.primary,
   },
-  partnerList: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
-  partnerItem: { alignItems: 'center', gap: 4 },
+  partnerList: { flexDirection: 'column', gap: 8, marginTop: 4 },
+  partnerItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  removePartnerBtn: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: colors.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  removePartnerBtnText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    lineHeight: 16,
+  },
   partnerName: {
-    fontSize: 11,
+    flex: 1,
+    fontSize: 13,
     color: colors.textSecondary,
-    maxWidth: 56,
-    textAlign: 'center',
   },
   partnerAvatarPlaceholder: {
     backgroundColor: colors.primary,

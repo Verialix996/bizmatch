@@ -8,6 +8,9 @@ import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, 
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
+import { BACKEND_BASE_URL } from '../../config/constants';
+
+const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
 
 function parseUTC(dateStr) {
   if (!dateStr) return new Date(NaN);
@@ -658,7 +661,7 @@ export default function ChatScreen({ route, navigation }) {
                 {detailProject?.deckUrl ? (
                   <TouchableOpacity
                     style={styles.detailLinkBtn}
-                    onPress={() => Linking.openURL(detailProject.deckUrl)}
+                    onPress={() => Linking.openURL(toAbsoluteUrl(detailProject.deckUrl))}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.detailLinkBtnText}>📄 View Pitch Deck</Text>
@@ -667,7 +670,7 @@ export default function ChatScreen({ route, navigation }) {
                 {detailProject?.videoUrl ? (
                   <TouchableOpacity
                     style={styles.detailLinkBtn}
-                    onPress={() => Linking.openURL(detailProject.videoUrl)}
+                    onPress={() => Linking.openURL(toAbsoluteUrl(detailProject.videoUrl))}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.detailLinkBtnText}>🎬 Watch Demo Video</Text>

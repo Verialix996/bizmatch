@@ -14,6 +14,9 @@ import { getProjectFeed, swipeProject } from '../../services/project.service';
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
+import { BACKEND_BASE_URL } from '../../config/constants';
+
+const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
 
 const SWIPE_THRESHOLD = 120;
 const ROTATION_FACTOR = 12;
@@ -188,7 +191,7 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
           {project.deckUrl ? (
             <TouchableOpacity
               style={styles.linkBtn}
-              onPress={() => Linking.openURL(project.deckUrl)}
+              onPress={() => Linking.openURL(toAbsoluteUrl(project.deckUrl))}
             >
               <Text style={styles.linkBtnText}>📄 View Deck</Text>
             </TouchableOpacity>
@@ -196,7 +199,7 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
           {project.videoUrl ? (
             <TouchableOpacity
               style={styles.linkBtn}
-              onPress={() => Linking.openURL(project.videoUrl)}
+              onPress={() => Linking.openURL(toAbsoluteUrl(project.videoUrl))}
             >
               <Text style={styles.linkBtnText}>🎬 Watch Demo</Text>
             </TouchableOpacity>
@@ -561,6 +564,7 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
 
   card: {
