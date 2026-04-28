@@ -1,0 +1,1432 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BizMatch | High-Intent Business Connections</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    },
+                    colors: {
+                        brand: {
+                            dark: '#0a0a0a',
+                            card: '#141414',
+                            border: '#2a2a2a',
+                            accent: '#3b82f6',
+                            accentHover: '#2563eb',
+                            success: '#10b981',
+                            gold: '#f59e0b'
+                        }
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'shake': 'shake 0.5s cubic-bezier(.36,.07,.19,.97) both',
+                        'pop-in': 'popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards',
+                        'fade-in': 'fadeIn 0.3s ease forwards',
+                        'slide-up': 'slideUp 0.4s ease forwards'
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        shake: {
+                            '10%, 90%': { transform: 'translate3d(-1px, 0, 0)' },
+                            '20%, 80%': { transform: 'translate3d(2px, 0, 0)' },
+                            '30%, 50%, 70%': { transform: 'translate3d(-4px, 0, 0)' },
+                            '40%, 60%': { transform: 'translate3d(4px, 0, 0)' }
+                        },
+                        popIn: {
+                            '0%': { opacity: '0', transform: 'scale(0.8)' },
+                            '100%': { opacity: '1', transform: 'scale(1)' }
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' }
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' }
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #0a0a0a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .glass {
+            background: rgba(20, 20, 20, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        
+        .glass-card {
+            background: linear-gradient(145deg, rgba(30,30,30,0.8) 0%, rgba(20,20,20,0.9) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: transform 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .glass-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(59, 130, 246, 0.5);
+            box-shadow: 0 10px 30px -10px rgba(59, 130, 246, 0.3);
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.5, 0, 0, 1);
+        }
+
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        .delay-100 { transition-delay: 100ms; }
+        .delay-200 { transition-delay: 200ms; }
+        .delay-300 { transition-delay: 300ms; }
+        .delay-400 { transition-delay: 400ms; }
+
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #3b82f6; }
+
+        .text-glow {
+            text-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+        }
+
+        .roadmap-line {
+            position: absolute;
+            left: 24px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #2a2a2a;
+            z-index: 0;
+        }
+        @media (min-width: 768px) {
+            .roadmap-line { left: 50%; transform: translateX(-50%); }
+        }
+
+        .node-completed { border-color: #10b981; box-shadow: 0 0 15px rgba(16, 185, 129, 0.3); }
+        .node-active { border-color: #3b82f6; box-shadow: 0 0 20px rgba(59, 130, 246, 0.6); }
+        .node-pending { border-color: #2a2a2a; }
+
+        /* Demo Flow */
+        .demo-flow-wrap {
+            position: relative;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            padding-top: 5rem;
+            padding-bottom: 1rem;
+        }
+
+        .demo-anchor {
+            position: relative;
+            width: 340px;
+            height: 700px;
+            max-width: 100%;
+        }
+
+        .instruction-banner {
+            position: absolute;
+            top: -60px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 100%;
+            text-align: center;
+            transition: opacity 0.3s ease;
+            z-index: 100;
+            pointer-events: none;
+        }
+        
+        .instruction-text {
+            background: rgba(59, 130, 246, 0.15);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            color: #60a5fa;
+            padding: 10px 24px;
+            border-radius: 9999px;
+            font-weight: 600;
+            font-size: 15px;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.2);
+            max-width: 90vw;
+        }
+
+        .phone-frame {
+            width: 340px;
+            height: 700px;
+            border: 8px solid #1f1f1f;
+            border-radius: 40px;
+            position: absolute;
+            inset: 0;
+            background: #0a0a0a;
+            box-shadow: 0 25px 50px -12px rgba(59, 130, 246, 0.25), inset 0 0 0 2px #333;
+            overflow: hidden;
+            z-index: 10;
+            transition: transform 0.7s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.7s ease;
+        }
+
+        .phone-notch {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120px;
+            height: 25px;
+            background: #1f1f1f;
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            z-index: 50;
+        }
+
+        .screen-content {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+        }
+
+        .screen-content.active {
+            display: flex;
+            animation: fadeIn 0.3s ease forwards;
+        }
+
+        #deck-container {
+            position: relative;
+            flex: 1;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        .swipe-card {
+            position: absolute;
+            width: 90%;
+            height: 65%;
+            top: 15%;
+            left: 5%;
+            border-radius: 24px;
+            background-size: cover;
+            background-position: center;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            transition: transform 0.3s ease, opacity 0.3s ease;
+            transform-origin: 50% 100%;
+            overflow: hidden;
+        }
+
+        .card-overlay {
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            padding: 24px;
+        }
+
+        .swipe-stamp {
+            position: absolute;
+            top: 40px;
+            padding: 8px 16px;
+            border: 4px solid;
+            border-radius: 12px;
+            font-size: 32px;
+            font-weight: 800;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 20;
+        }
+
+        .stamp-like {
+            right: 20px;
+            color: #10b981;
+            border-color: #10b981;
+            transform: rotate(15deg);
+        }
+
+        .stamp-pass {
+            left: 20px;
+            color: #ef4444;
+            border-color: #ef4444;
+            transform: rotate(-15deg);
+        }
+
+        .chat-bubble-left {
+            background: #1f2937;
+            border-radius: 20px 20px 20px 4px;
+            padding: 12px 16px;
+            max-width: 85%;
+            margin-bottom: 12px;
+            align-self: flex-start;
+        }
+        .chat-bubble-right {
+            background: #3b82f6;
+            border-radius: 20px 20px 4px 20px;
+            padding: 12px 16px;
+            max-width: 85%;
+            margin-bottom: 12px;
+            align-self: flex-end;
+        }
+
+        .demo-interactive {
+            position: relative;
+        }
+        .demo-interactive::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border-radius: inherit;
+            border: 2px solid #3b82f6;
+            animation: pulse 2s infinite;
+            pointer-events: none;
+        }
+
+        @media (max-width: 480px) {
+            .demo-anchor {
+                transform: scale(0.9);
+                transform-origin: top center;
+                height: 640px;
+            }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-brand-accent selection:text-white relative">
+
+    <div class="fixed top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
+        <div class="absolute top-[-10%] left-[-10%] w-96 h-96 bg-brand-accent/20 rounded-full mix-blend-screen filter blur-[100px] animate-blob"></div>
+        <div class="absolute top-[20%] right-[-10%] w-96 h-96 bg-brand-success/10 rounded-full mix-blend-screen filter blur-[100px] animate-blob animation-delay-2000"></div>
+        <div class="absolute bottom-[-20%] left-[20%] w-[500px] h-[500px] bg-purple-500/10 rounded-full mix-blend-screen filter blur-[120px] animate-blob animation-delay-4000"></div>
+    </div>
+
+    <nav class="fixed w-full z-50 glass border-b border-white/5 transition-all duration-300" id="navbar">
+        <div class="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <img src="logo.png" alt="BizMatch Logo" class="h-9 w-auto object-contain filter brightness-0 invert drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]" onerror="this.style.display='none'; document.getElementById('fallback-logo').style.display='flex';">
+                <div id="fallback-logo" class="hidden w-8 h-8 rounded bg-gradient-to-br from-brand-accent to-blue-700 items-center justify-center font-bold text-lg text-white shadow-[0_0_10px_rgba(59,130,246,0.5)]">B</div>
+                <span class="text-xl font-bold tracking-tight">BizMatch</span>
+            </div>
+
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-gray-400">
+                <a href="#vision" class="hover:text-white transition-colors">The Vision</a>
+                <a href="#ecosystem" class="hover:text-white transition-colors">Ecosystem</a>
+                <a href="#status" class="hover:text-brand-accent transition-colors">Live Status</a>
+                <a href="#demo" class="hover:text-white transition-colors">Demo</a>
+                <a href="#team" class="hover:text-white transition-colors">Team</a>
+            </div>
+        </div>
+    </nav>
+
+    <header class="relative pt-40 pb-20 md:pt-52 md:pb-32 overflow-hidden px-6">
+        <div class="max-w-5xl mx-auto text-center reveal">
+            <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-brand-accent/30 bg-brand-accent/10 text-brand-accent text-xs font-semibold mb-6">
+                <span class="w-2 h-2 rounded-full bg-brand-accent animate-pulse"></span>
+                Platform in Active Development
+            </div>
+            <h1 class="text-5xl md:text-7xl font-extrabold tracking-tight mb-6 leading-tight">
+                Beyond the Match. <br/>
+                <span class="text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-cyan-400 text-glow">Structured Business Connections.</span>
+            </h1>
+            <p class="text-lg md:text-xl text-gray-400 max-w-3xl mx-auto mb-10 leading-relaxed">
+                BizMatch is a multi-sided professional platform designed to create high-intent connections between Investors, Founders, and Projects. From discovery to legally protected collaboration.
+            </p>
+            <div class="flex flex-col sm:flex-row items-center justify-center gap-4">
+                <a href="#status" class="w-full sm:w-auto px-8 py-4 rounded-full bg-brand-accent hover:bg-brand-accentHover text-white font-semibold transition-all transform hover:scale-105 flex items-center justify-center gap-2">
+                    View Project Roadmap <i class="fa-solid fa-arrow-right"></i>
+                </a>
+                <a href="#demo" class="w-full sm:w-auto px-8 py-4 rounded-full glass hover:bg-white/5 border border-white/10 text-white font-semibold transition-all flex items-center justify-center gap-2">
+                    Try Our Demo <i class="fa-regular fa-circle-play"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <section id="vision" class="py-24 px-6 border-t border-white/5 bg-brand-card/30">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gray-600 bg-gray-800/50 text-gray-300 text-xs font-semibold mb-4">
+                    Proprietary Technology
+                </div>
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">Four Pillars of the BizMatch Engine</h2>
+                <p class="text-gray-400 max-w-2xl mx-auto text-lg">Replacing intuition with data. Our ecosystem is driven by advanced algorithms, NLP, and structured legal frameworks to ensure high-intent, synergistic connections.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="glass-card rounded-2xl p-8 md:p-10 reveal delay-100 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-blue-500/10 blur-2xl rounded-full group-hover:bg-blue-500/20 transition-colors"></div>
+                    <div class="w-14 h-14 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-brand-accent text-2xl mb-6 relative z-10">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3 relative z-10">Smart Matching: Co-Founder Finder</h3>
+                    <p class="text-gray-400 leading-relaxed relative z-10 text-lg">
+                        A multi-layered algorithm analyzing not just interests, but complementary skills and personality profiles. We scan databases to identify synergistic connections between tech and business founders—building the ultimate 'Dream Team' before the first line of code is written.
+                    </p>
+                </div>
+                
+                <div class="glass-card rounded-2xl p-8 md:p-10 reveal delay-200 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 blur-2xl rounded-full group-hover:bg-emerald-500/20 transition-colors"></div>
+                    <div class="w-14 h-14 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-brand-success text-2xl mb-6 relative z-10">
+                        <i class="fa-solid fa-handshake-angle"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3 relative z-10">Data-Driven Investor Fit</h3>
+                    <p class="text-gray-400 leading-relaxed relative z-10 text-lg">
+                        A two-sided matching engine crossing the startup's DNA with the investor's core strategy (stage, sector, round). Features our proprietary <strong>In-App NDA</strong> layer, exposing sensitive data only upon mutual consent—making fundraising fast, secure, and fully discreet.
+                    </p>
+                </div>
+                
+                <div class="glass-card rounded-2xl p-8 md:p-10 reveal delay-300 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-purple-500/10 blur-2xl rounded-full group-hover:bg-purple-500/20 transition-colors"></div>
+                    <div class="w-14 h-14 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 text-2xl mb-6 relative z-10">
+                        <i class="fa-solid fa-microchip"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3 relative z-10">AI Due Diligence</h3>
+                    <p class="text-gray-400 leading-relaxed relative z-10 text-lg">
+                        One-click automated NLP (Natural Language Processing) scanning of company documents, IP, and business plans. The system generates objective risk/reward reports, identifies data gaps, and cross-references external sources which drastically reduces the investor's Time-to-Check.
+                    </p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-8 md:p-10 reveal delay-400 relative overflow-hidden group">
+                    <div class="absolute top-0 right-0 w-32 h-32 bg-brand-gold/10 blur-2xl rounded-full group-hover:bg-brand-gold/20 transition-colors"></div>
+                    <div class="w-14 h-14 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-brand-gold text-2xl mb-6 relative z-10">
+                        <i class="fa-solid fa-person-chalkboard"></i>
+                    </div>
+                    <h3 class="text-2xl font-bold mb-3 relative z-10">Smart Pitch Prep Mentor</h3>
+                    <p class="text-gray-400 leading-relaxed relative z-10 text-lg">
+                        Our AI analyzes your Pitch Deck to identify narrative or data weaknesses, generates questions investors are highly likely to ask, and suggests real-time content improvements. This is so that the planner can arrive at the meeting ready for any scenario.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="ecosystem" class="py-24 px-6 relative">
+        <div class="max-w-7xl mx-auto">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-16 reveal">
+                <div class="max-w-2xl">
+                    <h2 class="text-3xl md:text-4xl font-bold mb-4">Three Paths of Interaction</h2>
+                    <p class="text-gray-400 text-lg">A dynamic, multi-sided marketplace architecture.</p>
+                </div>
+            </div>
+
+            <div class="space-y-6">
+                <div class="glass-card rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-8 reveal">
+                    <div class="flex-shrink-0 w-full md:w-48 flex justify-center items-center gap-4 text-2xl font-bold text-gray-300">
+    <span>Investor</span>
+    <i class="fa-solid fa-arrow-right text-brand-accent"></i>
+    <span>Startup</span>
+</div>
+                    <div class="flex-grow">
+                        <h4 class="text-lg font-bold mb-2">Fundraising & Deal Flow</h4>
+                        <p class="text-gray-400 text-sm md:text-base">Investors define their thesis, preferred stages, and investment range. They browse high-quality startup cards. Mutual match unlocks a direct line to founders and access to pitch decks.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 md:p-8 flex flex-col md:flex-row items-center gap-8 reveal delay-100">
+                    <div class="flex-shrink-0 w-full md:w-48 flex justify-center items-center gap-4 text-2xl font-bold text-gray-300">
+    <span>Founder</span>
+    <i class="fa-solid fa-arrow-right text-brand-accent"></i>
+    <span>Investor</span>
+</div>
+                    <div class="flex-grow">
+                        <h4 class="text-lg font-bold mb-2">Targeted Exposure</h4>
+                        <p class="text-gray-400 text-sm md:text-base">Entrepreneurs filter investors by strategic relevance. Instead of cold emails, they swipe. A match means genuine interest, leading straight to the project management presentation layer.</p>
+                    </div>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 md:p-8 border-l-4 border-l-brand-gold flex flex-col md:flex-row items-center gap-8 reveal delay-200">
+                    <div class="flex-shrink-0 w-full md:w-48 flex justify-center items-center gap-4 text-2xl font-bold text-brand-gold">
+                        <span>Founder</span>
+                        <i class="fa-solid fa-arrow-right-arrow-left text-brand-gold"></i>
+                        <span>Founder</span>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h4 class="text-lg font-bold text-white">The Core Differentiator</h4>
+                            <span class="bg-brand-gold/20 text-brand-gold text-[10px] uppercase font-bold px-2 py-0.5 rounded">Proprietary</span>
+                        </div>
+                        <p class="text-gray-400 text-sm md:text-base">Finding a co-founder or strategic partner. This path triggers our advanced collaboration engine. Founders can safely share existing projects through structured, NDA-gated proposals without exposing IP prematurely.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="status" class="py-24 px-6 bg-brand-card/40 border-y border-white/5 relative overflow-hidden">
+        <div class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-brand-accent/5 rounded-full blur-[100px] pointer-events-none"></div>
+        
+        <div class="max-w-4xl mx-auto relative z-10">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">Project Roadmap & Status</h2>
+                <p class="text-gray-400 text-lg max-w-2xl mx-auto">Transparent view of our development lifecycle. See exactly where the engineering team is holding right now.</p>
+            </div>
+
+            <div class="relative py-10" id="roadmap-container">
+                <div class="roadmap-line"></div>
+
+                <div class="relative flex md:justify-between items-center w-full mb-12 group reveal">
+                    <div class="hidden md:block w-5/12 text-right pr-8">
+                        <h3 class="text-xl font-bold text-white mb-1">Architecture & UX</h3>
+                        <p class="text-sm text-gray-500">System design, state planning, and wireframes.</p>
+                    </div>
+                    <div class="absolute left-[24px] md:left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-brand-dark border-2 node-completed flex items-center justify-center z-10">
+                        <i class="fa-solid fa-check text-brand-success text-xs"></i>
+                    </div>
+                    <div class="w-full pl-16 md:pl-0 md:w-5/12 md:text-left md:pl-8">
+                        <span class="inline-block px-3 py-1 bg-brand-success/10 text-brand-success border border-brand-success/20 text-xs font-bold rounded mb-2">COMPLETED • PHASE 1</span>
+                        <div class="md:hidden">
+                            <h3 class="text-xl font-bold text-white mb-1">Architecture & UX</h3>
+                            <p class="text-sm text-gray-500">System design, state planning (Zustand), and wireframes.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative flex md:justify-between items-center w-full mb-12 group reveal delay-100">
+                    <div class="hidden md:block w-5/12 text-right pr-8">
+                        <span class="inline-block px-3 py-1 bg-brand-success/10 text-brand-success border border-brand-success/20 text-xs font-bold rounded mb-2">COMPLETED • PHASE 2</span>
+                    </div>
+                    <div class="absolute left-[24px] md:left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-brand-dark border-2 node-completed flex items-center justify-center z-10">
+                        <i class="fa-solid fa-check text-brand-success text-xs"></i>
+                    </div>
+                    <div class="w-full pl-16 md:pl-0 md:w-5/12 md:text-left md:pl-8">
+                        <span class="md:hidden inline-block px-3 py-1 bg-brand-success/10 text-brand-success border border-brand-success/20 text-xs font-bold rounded mb-2">COMPLETED • PHASE 2</span>
+                        <h3 class="text-xl font-bold text-white mb-1">Auth & Identity Layer</h3>
+                        <p class="text-sm text-gray-500">OTP verification, Role selection (Investor/Founder), Profile data structures.</p>
+                    </div>
+                </div>
+
+                <div class="relative flex md:justify-between items-center w-full mb-12 group reveal delay-200">
+                    <div class="hidden md:block w-5/12 text-right pr-8">
+                        <h3 class="text-xl font-bold text-white mb-1">Discovery Engine</h3>
+                        <p class="text-sm text-gray-500">PanResponder swipe logic, Match creation algorithms, Inbox UI.</p>
+                    </div>
+                    <div class="absolute left-[24px] md:left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-brand-dark border-2 node-completed flex items-center justify-center z-10">
+                        <i class="fa-solid fa-check text-brand-success text-xs"></i>
+                    </div>
+                    <div class="w-full pl-16 md:pl-0 md:w-5/12 md:text-left md:pl-8">
+                        <span class="inline-block px-3 py-1 bg-brand-success/10 text-brand-success border border-brand-success/20 text-xs font-bold rounded mb-2">COMPLETED • PHASE 3</span>
+                        <div class="md:hidden">
+                            <h3 class="text-xl font-bold text-white mb-1">Discovery Engine</h3>
+                            <p class="text-sm text-gray-500">PanResponder swipe logic, Match creation algorithms, Inbox UI.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative flex md:justify-between items-center w-full mb-12 group reveal delay-300">
+                    <div class="hidden md:block w-5/12 text-right pr-8">
+                        <span class="inline-block px-3 py-1 bg-brand-success/10 text-brand-success border border-brand-success/20 text-xs font-bold rounded mb-2">COMPLETED • PHASE 4</span>
+                    </div>
+                    <div class="absolute left-[24px] md:left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-brand-dark border-2 node-completed flex items-center justify-center z-10">
+                        <i class="fa-solid fa-check text-brand-success text-xs"></i>
+                    </div>
+                    <div class="w-full pl-16 md:pl-0 md:w-5/12 md:text-left md:pl-8">
+                        <span class="md:hidden inline-block px-3 py-1 bg-brand-success/10 text-brand-success border border-brand-success/20 text-xs font-bold rounded mb-2">COMPLETED • PHASE 4</span>
+                        <h3 class="text-xl font-bold text-white mb-1">Real-time Chat & Comms</h3>
+                        <p class="text-sm text-gray-500">Sockets integration, Day-grouped messages, Support for special actions in chat.</p>
+                    </div>
+                </div>
+
+                <div class="relative flex md:justify-between items-start w-full mb-12 group reveal">
+                    <div class="hidden md:block w-5/12 text-right pr-8 pt-1">
+                        <h3 class="text-2xl font-bold text-brand-accent text-glow mb-1">Collaboration Workflow</h3>
+                        <p class="text-sm text-gray-400">The core differentiator. Turning casual matches into structured, legally protected partnerships.</p>
+                    </div>
+                    
+                    <div class="absolute left-[24px] md:left-1/2 transform -translate-x-1/2 w-10 h-10 rounded-full bg-brand-dark border-2 node-active flex items-center justify-center z-10 shadow-[0_0_20px_rgba(59,130,246,0.6)]">
+                        <div class="w-3 h-3 bg-brand-accent rounded-full animate-pulse"></div>
+                    </div>
+
+                    <div class="w-full pl-16 md:pl-0 md:w-5/12 md:text-left md:pl-8">
+                        <span class="inline-flex items-center gap-2 px-3 py-1 bg-brand-accent/20 text-brand-accent border border-brand-accent/40 text-xs font-bold rounded mb-4 shadow-[0_0_10px_rgba(59,130,246,0.2)]">
+                            <i class="fa-solid fa-spinner fa-spin"></i> CURRENT DEVELOPMENT PHASE
+                        </span>
+                        
+                        <div class="md:hidden mb-4">
+                            <h3 class="text-2xl font-bold text-brand-accent mb-1">Collaboration Workflow</h3>
+                            <p class="text-sm text-gray-400">The core differentiator. Turning matches into legally protected partnerships.</p>
+                        </div>
+
+                        <div class="glass-card rounded-xl border border-white/10 overflow-hidden mt-2">
+                            <div class="p-4 border-b border-white/5 flex items-center gap-3">
+                                <i class="fa-solid fa-check-circle text-brand-success"></i>
+                                <span class="text-sm text-gray-300"><strong class="text-white">5.1</strong> Project Management Module</span>
+                            </div>
+                            <div class="p-4 border-b border-white/5 flex items-center gap-3">
+                                <i class="fa-solid fa-check-circle text-brand-success"></i>
+                                <span class="text-sm text-gray-300"><strong class="text-white">5.2</strong> Proposal System Logic</span>
+                            </div>
+                            <div class="p-4 border-b border-white/5 flex items-center gap-3">
+                                <i class="fa-solid fa-check-circle text-brand-success"></i>
+                                <span class="text-sm text-gray-300"><strong class="text-white">5.3</strong> NDA Gate Implementation</span>
+                            </div>
+                            
+                            <div class="p-5 relative overflow-hidden bg-gradient-to-r from-brand-accent/20 to-transparent border-l-4 border-brand-accent">
+                                <div class="flex items-start gap-3">
+                                    <div class="mt-1 w-4 h-4 flex-shrink-0 relative">
+                                        <div class="absolute inset-0 border-2 border-brand-accent border-t-transparent rounded-full animate-spin"></div>
+                                    </div>
+                                    <div>
+                                        <h4 class="text-base font-bold text-white mb-1"><span class="text-brand-accent mr-1">5.4</span> Entrepreneur-to-Entrepreneur Flow Integration</h4>
+                                        <p class="text-xs text-gray-400 leading-relaxed">
+                                            Currently connecting the UI components to state. Implementing the flow where Founder A sends a Project Brief, Founder B encounters the NDA gate, signs it, views the brief, and accepts/declines the partnership inside the chat scope.
+                                        </p>
+                                        <div class="mt-3 h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
+                                            <div class="h-full bg-brand-accent w-[65%] shadow-[0_0_10px_#3b82f6] relative">
+                                                <div class="absolute inset-0 bg-white/20 animate-pulse"></div>
+                                            </div>
+                                        </div>
+                                        <span class="text-[10px] text-brand-accent mt-1 block text-right font-mono">65% SYNCHRONIZING STATE</span>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="p-4 flex items-center gap-3 opacity-50">
+                                <i class="fa-regular fa-circle text-gray-500"></i>
+                                <span class="text-sm text-gray-400"><strong>5.5</strong> Dashboard & Partner Assignment</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="relative flex md:justify-between items-center w-full group reveal">
+                    <div class="hidden md:block w-5/12 text-right pr-8">
+                        <span class="inline-block px-3 py-1 bg-gray-800 text-gray-400 border border-gray-700 text-xs font-bold rounded mb-2">UPCOMING • PHASE 6</span>
+                    </div>
+                    <div class="absolute left-[24px] md:left-1/2 transform -translate-x-1/2 w-8 h-8 rounded-full bg-brand-dark border-2 node-pending flex items-center justify-center z-10">
+                        <i class="fa-solid fa-lock text-gray-600 text-xs"></i>
+                    </div>
+                    <div class="w-full pl-16 md:pl-0 md:w-5/12 md:text-left md:pl-8 opacity-60">
+                        <span class="md:hidden inline-block px-3 py-1 bg-gray-800 text-gray-400 border border-gray-700 text-xs font-bold rounded mb-2">UPCOMING • PHASE 6</span>
+                        <h3 class="text-xl font-bold text-gray-400 mb-1">Beta Launch & Polish</h3>
+                        <p class="text-sm text-gray-500">QA testing, performance optimization, app store submission prep.</p>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <section id="demo" class="py-24 px-6 relative">
+        <div class="max-w-6xl mx-auto">
+            <div class="text-center mb-16 reveal">
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">Interactive Demo Flow</h2>
+                    <p class="text-gray-400 text-lg max-w-3xl mx-auto">
+                    A full end-to-end walkthrough of 
+                    <span class="inline-flex items-center gap-2 font-bold text-brand-gold">
+                        <span>Founder</span>
+                        <i class="fa-solid fa-arrow-right-arrow-left text-brand-gold text-base"></i>
+                        <span>Founder</span>
+                    </span>
+                    app flow.
+                    </p>
+            </div>
+            
+            <div class="glass-card rounded-3xl p-4 md:p-8 reveal delay-100 shadow-[0_0_30px_rgba(59,130,246,0.12)] border border-brand-accent/20 overflow-hidden">
+                <div class="demo-flow-wrap">
+                    <div class="demo-anchor">
+                        <div class="instruction-banner" id="instruction-container">
+                            <div class="instruction-text" id="instruction-text">
+                                <i class="fa-solid fa-hand-pointer"></i> <span>Tap Get Started</span>
+                            </div>
+                        </div>
+
+                        <div class="phone-frame" id="main-phone" style="transform: translateX(0) scale(1); opacity: 1;">
+                            <div class="phone-notch"></div>
+
+                            <div id="screen-0" class="screen-content active bg-gradient-to-b from-brand-dark to-gray-900 justify-center items-center px-6 text-center">
+                                <div class="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-accent to-blue-700 flex items-center justify-center font-bold text-4xl mb-6 shadow-[0_0_30px_rgba(59,130,246,0.5)] animate-pop-in">B</div>
+                                <h1 class="text-3xl font-bold tracking-tight mb-2">BizMatch</h1>
+                                <p class="text-gray-400 text-sm mb-12">Beyond the Match.<br>Structured Business Connections.</p>
+                                <button onclick="nextStep(1)" class="demo-interactive w-full py-4 rounded-full bg-brand-accent text-white font-bold transform transition active:scale-95 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+                                    Get Started
+                                </button>
+                            </div>
+
+                            <div id="screen-1" class="screen-content bg-[#141414]">
+                                <div class="flex justify-between items-center px-6 pt-12 pb-4 border-b border-white/5">
+                                    <div class="w-8 h-8 rounded bg-gradient-to-br from-brand-accent to-blue-700 flex items-center justify-center font-bold text-sm">B</div>
+                                    <div class="flex gap-4 text-gray-400">
+                                        <i class="fa-solid fa-filter"></i>
+                                        <i class="fa-solid fa-bell"></i>
+                                    </div>
+                                </div>
+
+                                <div id="deck-container">
+                                    <div id="card-2" class="swipe-card z-20" style="background-image: url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=800');">
+                                        <div class="stamp-like swipe-stamp" id="stamp-like-2">LIKE</div>
+                                        <div class="stamp-pass swipe-stamp" id="stamp-pass-2">PASS</div>
+                                        <div class="card-overlay">
+                                            <span class="inline-block px-2 py-1 bg-brand-gold/20 text-brand-gold text-[10px] font-bold rounded mb-2 border border-brand-gold/30 w-max"><i class="fa-solid fa-handshake"></i> Seeking Partner for Existing Project</span>
+                                            <h2 class="text-2xl font-bold text-white mb-1">Sarah Jenkins, 31</h2>
+                                            <p class="text-sm text-gray-300 font-medium mb-3">Technical Founder & Architect</p>
+                                            <p class="text-xs text-gray-400 mb-3 line-clamp-2">Building an AI-driven compliance engine. Looking for a strong business/GTM co-founder to lead growth.</p>
+                                            <div class="flex flex-wrap gap-2">
+                                                <span class="text-xs px-2 py-1 bg-white/10 rounded-md backdrop-blur">SaaS</span>
+                                                <span class="text-xs px-2 py-1 bg-white/10 rounded-md backdrop-blur">MVP Ready</span>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div id="card-1" class="swipe-card z-30" style="background-image: url('https://images.unsplash.com/photo-1519085360753-af0119f7cbe7?auto=format&fit=crop&q=80&w=800');">
+                                        <div class="stamp-like swipe-stamp" id="stamp-like-1">LIKE</div>
+                                        <div class="stamp-pass swipe-stamp" id="stamp-pass-1">PASS</div>
+                                        <div class="card-overlay">
+                                            <span class="inline-block px-2 py-1 bg-gray-600/30 text-gray-300 text-[10px] font-bold rounded mb-2 border border-gray-500/30 w-max">SEEKING PROJECT</span>
+                                            <h2 class="text-2xl font-bold text-white mb-1">Marcus Doe, 28</h2>
+                                            <p class="text-sm text-gray-300 font-medium mb-3">Digital Marketing Specialist</p>
+                                            <div class="flex flex-wrap gap-2">
+                                                <span class="text-xs px-2 py-1 bg-white/10 rounded-md backdrop-blur">Marketing</span>
+                                                <span class="text-xs px-2 py-1 bg-white/10 rounded-md backdrop-blur">B2C</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="h-16 border-t border-white/5 flex justify-around items-center px-4 bg-[#0a0a0a]">
+                                    <i class="fa-solid fa-layer-group text-brand-accent"></i>
+                                    <i class="fa-solid fa-comment text-gray-600"></i>
+                                    <i class="fa-solid fa-user text-gray-600"></i>
+                                </div>
+
+                                <div id="match-modal" class="absolute inset-0 bg-brand-dark/95 backdrop-blur-md z-50 flex-col items-center justify-center p-6 hidden">
+                                    <div class="w-20 h-20 bg-brand-accent/20 rounded-full flex items-center justify-center mb-6 border border-brand-accent/50 animate-pulse-slow">
+                                        <i class="fa-solid fa-handshake text-4xl text-brand-accent"></i>
+                                    </div>
+                                    <h2 class="text-3xl font-black text-white mb-2 italic tracking-wider animate-slide-up">IT'S A MATCH!</h2>
+                                    <p class="text-gray-400 text-center text-sm mb-8 animate-slide-up" style="animation-delay: 0.1s;">You and Sarah Jenkins have mutually liked each other.</p>
+                                    
+                                    <div class="flex gap-4 items-center justify-center mb-10 animate-slide-up" style="animation-delay: 0.2s;">
+                                        <div class="w-16 h-16 rounded-full border-2 border-brand-accent bg-[url('https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center"></div>
+                                        <div class="w-8 h-8 rounded-full bg-brand-dark border border-white/20 flex items-center justify-center z-10 -mx-6">
+                                            <i class="fa-solid fa-bolt text-brand-gold text-xs"></i>
+                                        </div>
+                                        <div class="w-16 h-16 rounded-full border-2 border-brand-gold bg-[url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center"></div>
+                                    </div>
+
+                                    <button onclick="nextStep(5)" class="demo-interactive w-full py-3.5 rounded-xl bg-brand-accent text-white font-bold shadow-[0_0_15px_rgba(59,130,246,0.4)] animate-slide-up" style="animation-delay: 0.3s;">
+                                        Go To Inbox
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="screen-2" class="screen-content bg-[#0a0a0a]">
+                                <div class="px-6 pt-12 pb-4 border-b border-white/5 bg-[#141414]">
+                                    <h2 class="text-xl font-bold">Messages</h2>
+                                </div>
+                                
+                                <div class="p-6">
+                                    <h3 class="text-xs font-bold text-brand-accent mb-4 uppercase tracking-wider">New Matches</h3>
+                                    <div class="flex gap-4 mb-8 overflow-x-auto pb-2">
+                                        <div onclick="nextStep(6)" class="demo-interactive flex flex-col items-center gap-2 cursor-pointer flex-shrink-0">
+                                            <div class="w-16 h-16 rounded-full border-2 border-brand-accent bg-[url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center relative p-1">
+                                                <div class="absolute top-0 right-0 w-4 h-4 bg-brand-accent border-2 border-brand-dark rounded-full"></div>
+                                            </div>
+                                            <span class="text-xs font-medium">Sarah</span>
+                                        </div>
+                                    </div>
+
+                                    <h3 class="text-xs font-bold text-gray-500 mb-4 uppercase tracking-wider">Conversations</h3>
+                                    <div class="flex items-center gap-4 opacity-50 pb-4 border-b border-white/5">
+                                        <div class="w-12 h-12 rounded-full bg-gray-800"></div>
+                                        <div class="flex-1">
+                                            <div class="flex justify-between">
+                                                <h4 class="font-bold text-sm">Alex T.</h4>
+                                                <span class="text-xs text-gray-500">Yesterday</span>
+                                            </div>
+                                            <p class="text-xs text-gray-400 truncate">Let me know when you're available for a call.</p>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="h-16 border-t border-white/5 flex justify-around items-center px-4 mt-auto">
+                                    <i class="fa-solid fa-layer-group text-gray-600"></i>
+                                    <i class="fa-solid fa-comment text-brand-accent relative">
+                                        <span class="absolute -top-1 -right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-[#0a0a0a]"></span>
+                                    </i>
+                                    <i class="fa-solid fa-user text-gray-600"></i>
+                                </div>
+                            </div>
+
+                            <div id="screen-3" class="screen-content bg-[#0a0a0a]">
+                                <div class="px-4 pt-12 pb-3 border-b border-white/5 bg-[#141414] flex items-center gap-3">
+                                    <i class="fa-solid fa-chevron-left text-gray-400"></i>
+                                    <div class="w-8 h-8 rounded-full bg-[url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center"></div>
+                                    <div>
+                                        <h2 class="text-sm font-bold">Sarah Jenkins</h2>
+                                        <p class="text-[10px] text-gray-400">Technical Founder</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex-1 p-4 overflow-y-auto flex flex-col text-sm">
+                                    <div class="text-center text-[10px] text-gray-500 mb-4">You matched today</div>
+
+                                    <div class="chat-bubble-left animate-slide-up">
+                                        Hi! Thanks for connecting. I saw your profile and I'm really impressed by your GTM background.
+                                    </div>
+                                    <div class="chat-bubble-right animate-slide-up" style="animation-delay: 0.1s;">
+                                        Thanks Sarah! Your compliance engine idea sounds exactly like the space I want to build in. Do you have a deck or a brief I can review?
+                                    </div>
+                                    <div class="chat-bubble-left animate-slide-up" style="animation-delay: 0.2s;">
+                                        Yes, I have a full project brief ready. It contains sensitive IP, so I'll send it via the structured proposal flow.
+                                    </div>
+                                </div>
+
+                                <div class="p-4 bg-[#141414] border-t border-white/5 pb-8">
+                                    <div class="text-[10px] text-gray-500 mb-2 text-center uppercase tracking-wider font-bold">Demo Action</div>
+                                    <button onclick="nextStep(7)" class="demo-interactive w-full py-3 rounded-xl bg-brand-dark border border-brand-gold/50 text-brand-gold font-bold flex items-center justify-center gap-2 hover:bg-brand-gold/10 transition shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                                        <i class="fa-solid fa-mobile-screen"></i> Switch to Sarah's Device
+                                    </button>
+                                    <div class="mt-3 flex gap-2">
+                                        <div class="h-10 flex-1 bg-[#1f1f1f] rounded-full px-4 flex items-center text-gray-500 text-xs">Type a message...</div>
+                                        <div class="w-10 h-10 rounded-full bg-brand-accent flex items-center justify-center">
+                                            <i class="fa-solid fa-paper-plane text-xs text-white"></i>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="screen-5" class="screen-content bg-[#0a0a0a]">
+                                <div class="px-4 pt-12 pb-3 border-b border-white/5 bg-[#141414] flex items-center gap-3">
+                                    <i class="fa-solid fa-chevron-left text-gray-400"></i>
+                                    <div class="w-8 h-8 rounded-full bg-[url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center"></div>
+                                    <div>
+                                        <h2 class="text-sm font-bold">Sarah Jenkins</h2>
+                                        <p class="text-[10px] text-gray-400">Sent a Proposal</p>
+                                    </div>
+                                </div>
+
+                                <div class="flex-1 p-4 overflow-y-auto flex flex-col text-sm">
+                                    <div class="chat-bubble-left">
+                                        Here is the brief. Looking forward to your thoughts!
+                                    </div>
+
+                                    <div onclick="nextStep(9)" class="demo-interactive w-full max-w-[85%] bg-[#141414] border border-white/10 rounded-xl overflow-hidden mt-2 cursor-pointer relative group">
+                                        <div class="absolute inset-0 bg-brand-dark/60 backdrop-blur-[2px] z-10 flex flex-col items-center justify-center transition-all group-hover:bg-brand-dark/40">
+                                            <div class="w-12 h-12 rounded-full bg-brand-accent/20 flex items-center justify-center mb-2 border border-brand-accent/50">
+                                                <i class="fa-solid fa-lock text-brand-accent"></i>
+                                            </div>
+                                            <span class="text-xs font-bold text-white uppercase tracking-wider">NDA Required</span>
+                                            <span class="text-[10px] text-gray-400 mt-1">Tap to unlock</span>
+                                        </div>
+
+                                        <div class="p-4 filter blur-[3px]">
+                                            <h4 class="font-bold text-sm mb-1">Project Brief</h4>
+                                            <div class="h-2 w-3/4 bg-gray-700 rounded mb-2"></div>
+                                            <div class="h-2 w-full bg-gray-700 rounded mb-2"></div>
+                                            <div class="h-2 w-1/2 bg-gray-700 rounded"></div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="screen-6" class="screen-content bg-brand-dark justify-center p-6 relative z-50">
+                                <div class="absolute top-0 left-0 w-full h-full bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5 pointer-events-none"></div>
+
+                                <div class="text-center mb-6 animate-slide-up">
+                                    <div class="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4 border border-white/10">
+                                        <i class="fa-solid fa-file-signature text-2xl text-white"></i>
+                                    </div>
+                                    <h2 class="text-2xl font-bold mb-2">Non-Disclosure Agreement</h2>
+                                    <p class="text-gray-400 text-xs px-4 leading-relaxed">
+                                        To protect sensitive business information and IP, the founder requires an electronic NDA signature before revealing the full project scope and deck.
+                                    </p>
+                                </div>
+
+                                <div class="bg-[#141414] border border-white/10 rounded-xl p-4 mb-8 text-[10px] text-gray-500 overflow-y-auto h-32 animate-slide-up" style="animation-delay: 0.1s;">
+                                    <p class="mb-2 uppercase font-bold text-gray-400">1. Confidential Information</p>
+                                    <p class="mb-2">The Receiving Party acknowledges that the Disclosing Party may share proprietary data, business plans, algorithms, and financial projections ("Confidential Information").</p>
+                                    <p class="mb-2 uppercase font-bold text-gray-400">2. Non-Use and Non-Disclosure</p>
+                                    <p>The Receiving Party agrees not to use any Confidential Information for any purpose except to evaluate a potential business partnership.</p>
+                                    <p class="mt-2 text-brand-accent/80 italic">Scroll to read full agreement...</p>
+                                </div>
+
+                                <div class="space-y-3 animate-slide-up" style="animation-delay: 0.2s;">
+                                    <div class="flex items-center gap-3 bg-white/5 p-3 rounded-lg border border-white/5">
+                                        <div class="w-5 h-5 rounded border border-brand-accent bg-brand-accent flex items-center justify-center">
+                                            <i class="fa-solid fa-check text-white text-xs"></i>
+                                        </div>
+                                        <span class="text-xs text-gray-300">I agree to the terms of the NDA</span>
+                                    </div>
+
+                                    <button onclick="nextStep(10)" class="demo-interactive w-full py-4 rounded-xl bg-white text-black font-bold flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:bg-gray-200 transition">
+                                        <i class="fa-solid fa-pen-nib"></i> Sign & Unlock Project
+                                    </button>
+                                    <button class="w-full py-3 rounded-xl text-gray-500 font-medium text-sm">Cancel</button>
+                                </div>
+                            </div>
+
+                            <div id="screen-7" class="screen-content bg-[#0a0a0a]">
+                                <div class="px-4 pt-12 pb-3 border-b border-brand-success/30 bg-brand-success/5 flex items-center justify-between">
+                                    <div class="flex items-center gap-2 text-brand-success text-xs font-bold">
+                                        <i class="fa-solid fa-unlock"></i> NDA Signed & Verified
+                                    </div>
+                                    <i class="fa-solid fa-xmark text-gray-400"></i>
+                                </div>
+
+                                <div class="flex-1 overflow-y-auto p-5 pb-24">
+                                    <div class="mb-6 animate-slide-up">
+                                        <h2 class="text-2xl font-bold text-white mb-2">AI Compliance Engine</h2>
+                                        <span class="inline-block px-2 py-1 bg-brand-accent/20 text-brand-accent text-[10px] font-bold rounded">B2B SaaS</span>
+                                        <span class="inline-block px-2 py-1 bg-white/10 text-white text-[10px] font-bold rounded ml-1">MVP Stage</span>
+                                    </div>
+
+                                    <div class="space-y-6 animate-slide-up" style="animation-delay: 0.1s;">
+                                        <div>
+                                            <h3 class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">The Opportunity</h3>
+                                            <p class="text-sm text-gray-300 leading-relaxed">
+                                                We are automating SOC2 and GDPR compliance for mid-market SaaS. We have a working MVP and 3 pilot customers. We need a partner to build the GTM motion and lead seed fundraising.
+                                            </p>
+                                        </div>
+
+                                        <div>
+                                            <h3 class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Role Offered</h3>
+                                            <div class="bg-[#141414] border border-white/5 rounded-xl p-4">
+                                                <p class="text-sm font-bold text-white mb-1">Business Co-Founder (CEO/CRO)</p>
+                                                <p class="text-xs text-gray-400">Equity negotiation open. Focus on Sales, Marketing, and Operations.</p>
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <h3 class="text-xs text-gray-500 uppercase tracking-wider font-bold mb-2">Attachments</h3>
+                                            <div class="flex items-center gap-3 bg-[#141414] border border-white/5 rounded-xl p-3">
+                                                <div class="w-10 h-10 bg-red-500/20 rounded flex items-center justify-center text-red-500">
+                                                    <i class="fa-solid fa-file-pdf"></i>
+                                                </div>
+                                                <div class="flex-1">
+                                                    <p class="text-xs font-bold">Pitch_Deck_v2.pdf</p>
+                                                    <p class="text-[10px] text-gray-500">2.4 MB</p>
+                                                </div>
+                                                <i class="fa-solid fa-download text-gray-600"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="absolute bottom-0 left-0 w-full p-4 bg-gradient-to-t from-brand-dark via-brand-dark to-transparent pt-12 animate-slide-up" style="animation-delay: 0.2s;">
+                                    <div class="flex gap-3">
+                                        <button class="flex-1 py-4 rounded-xl border border-white/10 text-white font-bold bg-[#141414]">Decline</button>
+                                        <button onclick="nextStep(11)" class="demo-interactive flex-[2] py-4 rounded-xl bg-brand-success text-white font-bold shadow-[0_0_20px_rgba(16,185,129,0.3)]">
+                                            Accept Proposal
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div id="screen-8" class="screen-content bg-gradient-to-b from-[#0a0a0a] to-[#042f1f] justify-center items-center p-6 text-center z-50">
+                                <div class="w-24 h-24 bg-brand-success rounded-full flex items-center justify-center mb-6 shadow-[0_0_50px_rgba(16,185,129,0.6)] animate-pop-in">
+                                    <i class="fa-solid fa-check text-4xl text-white"></i>
+                                </div>
+
+                                <h2 class="text-3xl font-black text-white mb-4 animate-slide-up">Partnership Confirmed</h2>
+
+                                <div class="flex gap-2 items-center justify-center mb-8 animate-slide-up" style="animation-delay: 0.1s;">
+                                    <div class="w-12 h-12 rounded-full border-2 border-brand-success bg-[url('https://images.unsplash.com/photo-1568602471122-7832951cc4c5?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center"></div>
+                                    <div class="w-4 h-1 bg-brand-success rounded"></div>
+                                    <div class="w-12 h-12 rounded-full border-2 border-brand-success bg-[url('https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&q=80&w=200')] bg-cover bg-center"></div>
+                                </div>
+
+                                <div class="bg-black/40 border border-brand-success/30 rounded-xl p-4 w-full mb-8 backdrop-blur animate-slide-up" style="animation-delay: 0.2s;">
+                                    <p class="text-sm text-gray-300 font-medium">You and Sarah are now official partners on <span class="text-white font-bold">AI Compliance Engine</span>.</p>
+                                </div>
+
+                                <button onclick="restartDemo()" class="demo-interactive mt-4 px-6 py-3 rounded-xl border border-brand-accent text-brand-accent font-bold hover:bg-brand-accent hover:text-white transition shadow-[0_0_15px_rgba(59,130,246,0.3)] animate-slide-up" style="animation-delay: 0.3s;">
+                                    <i class="fa-solid fa-rotate-right mr-2"></i> Start Again
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="phone-frame absolute top-0 left-0 transition-all duration-700 ease-in-out border-4 border-brand-gold/40 bg-[#0a0a0a]" id="sarah-phone" style="transform: translateX(0) translateY(100px) scale(0.9); opacity: 0; pointer-events: none; z-index: 20; box-shadow: 0 0 50px rgba(245,158,11,0.15);">
+                            <div class="phone-notch"></div>
+
+                            <div class="absolute top-8 left-0 w-full flex justify-center z-50 pointer-events-none">
+                                <div class="bg-brand-gold/90 text-black text-xs font-bold px-3 py-1 rounded-full shadow-lg flex items-center gap-2">
+                                    <i class="fa-solid fa-mobile-screen"></i> Sarah's Device
+                                </div>
+                            </div>
+
+                            <div id="screen-4" class="screen-content active bg-black/90 p-4 justify-end pb-8">
+                                <div class="bg-[#141414] rounded-2xl border border-white/10 w-full overflow-hidden animate-slide-up shadow-[0_0_30px_rgba(0,0,0,0.8)]">
+                                    <div class="p-4 border-b border-white/5 flex justify-between items-center bg-gray-900/50">
+                                        <h3 class="font-bold text-sm">Send Project Brief</h3>
+                                        <i class="fa-solid fa-xmark text-gray-400"></i>
+                                    </div>
+                                    <div class="p-5">
+                                        <div class="flex items-start gap-3 mb-4 p-3 bg-brand-dark rounded-lg border border-white/5">
+                                            <div class="w-10 h-10 rounded bg-brand-accent/20 flex items-center justify-center text-brand-accent mt-1 shrink-0">
+                                                <i class="fa-solid fa-rocket"></i>
+                                            </div>
+                                            <div>
+                                                <h4 class="text-sm font-bold text-white mb-1">Project: AI Compliance Engine</h4>
+                                                <p class="text-xs text-gray-400 line-clamp-2">An automated system for GDPR/SOC2 compliance auditing for B2B SaaS platforms.</p>
+                                            </div>
+                                        </div>
+
+                                        <div class="mb-4">
+                                            <p class="text-xs text-gray-400 mb-1">Role Offered:</p>
+                                            <span class="inline-block px-2 py-1 bg-white/5 rounded text-xs font-medium">Business Co-Founder / GTM Lead</span>
+                                        </div>
+
+                                        <div class="flex items-center gap-2 mb-6 p-2 bg-brand-gold/10 border border-brand-gold/20 rounded text-brand-gold text-[10px] font-bold">
+                                            <i class="fa-solid fa-shield-halved"></i>
+                                            <span>This brief will be protected by NDA before viewing.</span>
+                                        </div>
+
+                                        <button onclick="nextStep(8)" class="demo-interactive w-full py-3.5 rounded-xl bg-brand-accent text-white font-bold shadow-[0_0_15px_rgba(59,130,246,0.3)]">
+                                            Confirm & Send Brief
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="team" class="py-24 px-6 bg-brand-card/30 border-t border-white/5 relative overflow-hidden">
+        <div class="max-w-7xl mx-auto relative z-10">
+            <div class="text-center mb-16 reveal">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-gray-600 bg-gray-800/50 text-gray-300 text-xs font-semibold mb-4">
+                    Who We Are
+                </div>
+                <h2 class="text-3xl md:text-5xl font-bold mb-4">The Founding Team</h2>
+                <p class="text-gray-400 text-lg max-w-2xl mx-auto">A multidisciplinary team bringing deep expertise in production engineering, system architecture, and real-time operations.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 md:gap-8">
+                <div class="glass-card rounded-2xl p-6 flex flex-col items-center text-center reveal delay-100 hover:border-brand-accent/50 transition-colors">
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br from-brand-accent to-blue-700 flex items-center justify-center text-3xl font-black text-white mb-5 shadow-[0_0_20px_rgba(59,130,246,0.4)]">
+                        IK
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">Ido Koperly</h3>
+                    <p class="text-brand-accent text-sm font-bold tracking-wide uppercase mb-4">CEO & Co-Founder</p>
+                    <p class="text-gray-400 text-sm leading-relaxed">Entrepreneur and former Network Engineer & Lecturer. Experience as NOC at Rapyd, specializing in real-time system analysis and leading data-driven solutions.</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 flex flex-col items-center text-center reveal delay-200 hover:border-brand-success/50 transition-colors">
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br from-brand-success to-emerald-700 flex items-center justify-center text-3xl font-black text-white mb-5 shadow-[0_0_20px_rgba(16,185,129,0.4)]">
+                        NN
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">Noa Nahum</h3>
+                    <p class="text-brand-success text-sm font-bold tracking-wide uppercase mb-4">CFO & Co-Founder</p>
+                    <p class="text-gray-400 text-sm leading-relaxed">Cloud Monitoring Engineer at Flexera. Deep expertise in multi-cloud monitoring (AWS, Azure, GCP) and analyzing logs and metrics in high-scale Production environments.</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 flex flex-col items-center text-center reveal delay-300 hover:border-brand-gold/50 transition-colors">
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br from-brand-gold to-orange-600 flex items-center justify-center text-3xl font-black text-white mb-5 shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                        AS
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">Alon Shir</h3>
+                    <p class="text-brand-gold text-sm font-bold tracking-wide uppercase mb-4">CTO & Co-Founder</p>
+                    <p class="text-gray-400 text-sm leading-relaxed">Web Developer experienced in React and Firebase (CRUD). Combines strong analytical logic with Google Analytics certification to drive user-centric development.</p>
+                </div>
+
+                <div class="glass-card rounded-2xl p-6 flex flex-col items-center text-center reveal delay-400 hover:border-purple-500/50 transition-colors">
+                    <div class="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500 to-purple-800 flex items-center justify-center text-3xl font-black text-white mb-5 shadow-[0_0_20px_rgba(168,85,247,0.4)]">
+                        SZ
+                    </div>
+                    <h3 class="text-xl font-bold text-white mb-1">Shani Ziflinger</h3>
+                    <p class="text-purple-400 text-sm font-bold tracking-wide uppercase mb-4">COO & Co-Founder</p>
+                    <p class="text-gray-400 text-sm leading-relaxed">NOC Tier 2 at Matrix. Extensive experience in Production systems monitoring, Kubernetes, OpenShift, log analysis, and real-time incident management.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <footer class="py-16 border-t border-white/5 relative overflow-hidden">
+        <div class="max-w-4xl mx-auto text-center px-6 reveal relative z-10">
+            <h2 class="text-3xl md:text-4xl font-bold mb-6">Ready to see the future of business matchmaking?</h2>
+            <p class="text-gray-400 mb-8 max-w-xl mx-auto">BizMatch isn't just an idea; it's a rapidly executing technical architecture. We are currently finalizing the core collaboration loop.</p>
+            <button id="contactBtn" class="px-8 py-4 rounded-full bg-white text-black font-bold hover:bg-gray-200 transition-all transform hover:scale-105 shadow-[0_0_20px_rgba(255,255,255,0.2)]">
+                Contact Project Lead
+            </button>
+        </div>
+    </footer>
+
+    <div id="contactModal" class="fixed inset-0 z-[100] hidden items-center justify-center">
+        <div id="modalBackdrop" class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity opacity-0"></div>
+        <div class="relative glass-card border border-brand-accent/50 rounded-2xl p-8 max-w-md w-full mx-4 shadow-[0_0_50px_rgba(59,130,246,0.3)] transform transition-all scale-95 opacity-0 z-10" id="modalPanel">
+            <button id="closeModalBtn" class="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors">
+                <i class="fa-solid fa-xmark text-2xl"></i>
+            </button>
+
+            <div class="text-center mb-6 mt-2">
+                <div class="w-20 h-20 bg-brand-accent/20 rounded-full flex items-center justify-center mx-auto mb-4 border border-brand-accent/50 animate-pulse-slow">
+                    <i class="fa-solid fa-handshake text-3xl text-brand-accent"></i>
+                </div>
+                <h3 class="text-3xl font-black text-white mb-3 tracking-tight">IT'S A MATCH!</h3>
+                <p class="text-gray-300 font-semibold mb-2">THANKS FOR YOUR INTEREST!</p>
+                <p class="text-brand-accent/90 text-sm font-medium leading-relaxed">WRITE YOUR EMAIL TO ENLIST FOR THE FREE BETA TRIAL BEFORE EVERYONE!</p>
+            </div>
+
+            <form id="betaForm" class="flex flex-col gap-4" onsubmit="event.preventDefault(); this.innerHTML = '<div class=&quot;text-center text-brand-success font-bold py-4&quot;>Thank you! You are on the list.</div>';">
+                <input type="email" placeholder="Enter your email address" required class="w-full bg-brand-dark/80 border border-white/10 rounded-xl px-4 py-3.5 text-white focus:outline-none focus:border-brand-accent focus:ring-1 focus:ring-brand-accent transition-all placeholder-gray-500">
+                <button type="submit" class="w-full bg-brand-accent hover:bg-brand-accentHover text-white font-bold py-3.5 rounded-xl transition-all shadow-[0_0_15px_rgba(59,130,246,0.4)] hover:shadow-[0_0_25px_rgba(59,130,246,0.6)]">
+                    SUBMIT
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        window.addEventListener('scroll', () => {
+            const nav = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                nav.classList.add('shadow-lg');
+                nav.style.backgroundColor = 'rgba(10, 10, 10, 0.85)';
+            } else {
+                nav.classList.remove('shadow-lg');
+                nav.style.backgroundColor = 'rgba(20, 20, 20, 0.6)';
+            }
+        });
+
+        const observerOptions = {
+            root: null,
+            rootMargin: '0px',
+            threshold: 0.15
+        };
+
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('active');
+                } else {
+                    entry.target.classList.remove('active');
+                }
+            });
+        }, observerOptions);
+
+        document.querySelectorAll('.reveal').forEach(el => {
+            observer.observe(el);
+        });
+
+        const progressBar = document.querySelector('.h-full.bg-brand-accent');
+        if (progressBar) {
+            setInterval(() => {
+                const currentWidth = parseInt(progressBar.style.width || '65');
+                const newWidth = currentWidth === 65 ? 67 : 65;
+                progressBar.style.width = newWidth + '%';
+            }, 2000);
+        }
+
+        const contactBtn = document.getElementById('contactBtn');
+        const contactModal = document.getElementById('contactModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalBackdrop = document.getElementById('modalBackdrop');
+        const modalPanel = document.getElementById('modalPanel');
+
+        function openModal() {
+            contactModal.classList.remove('hidden');
+            contactModal.classList.add('flex');
+
+            setTimeout(() => {
+                modalBackdrop.classList.remove('opacity-0');
+                modalBackdrop.classList.add('opacity-100');
+                modalPanel.classList.remove('scale-95', 'opacity-0');
+                modalPanel.classList.add('scale-100', 'opacity-100');
+            }, 10);
+        }
+
+        function closeModal() {
+            modalBackdrop.classList.remove('opacity-100');
+            modalBackdrop.classList.add('opacity-0');
+            modalPanel.classList.remove('scale-100', 'opacity-100');
+            modalPanel.classList.add('scale-95', 'opacity-0');
+
+            setTimeout(() => {
+                contactModal.classList.add('hidden');
+                contactModal.classList.remove('flex');
+            }, 300);
+        }
+
+        if (contactBtn) contactBtn.addEventListener('click', openModal);
+        if (closeModalBtn) closeModalBtn.addEventListener('click', closeModal);
+        if (modalBackdrop) modalBackdrop.addEventListener('click', closeModal);
+
+        let currentStep = 0;
+
+        const instructions = {
+            0: "Tap Get Started",
+            1: "Swipe left to pass this profile",
+            2: "Swipe right to like this founder",
+            3: "Awesome! Tap to continue",
+            5: "Open your new match",
+            6: "Tap to switch to Sarah's device",
+            7: "Sarah's turn: Send the project brief",
+            8: "The receiver opens the Brief",
+            9: "Sign the NDA to continue",
+            10: "Review and Accept the partnership",
+            11: "From match to protected partnership — inside BizMatch."
+        };
+
+        const instructionText = document.getElementById('instruction-text');
+        const mainPhone = document.getElementById('main-phone');
+        const sarahPhone = document.getElementById('sarah-phone');
+
+        function updateInstruction(step) {
+            const container = document.getElementById('instruction-container');
+            if (!container || !instructionText) return;
+
+            container.style.opacity = '0';
+            setTimeout(() => {
+                let icon = '';
+                if (step === 1) icon = '<i class="fa-solid fa-arrow-left"></i>';
+                else if (step === 2) icon = '<i class="fa-solid fa-arrow-right"></i>';
+                else if (step === 11) icon = '<i class="fa-solid fa-star text-brand-gold"></i>';
+                else icon = '<i class="fa-solid fa-hand-pointer"></i>';
+
+                if (instructions[step]) {
+                    instructionText.innerHTML = `${icon} <span>${instructions[step]}</span>`;
+                }
+
+                container.style.opacity = '1';
+
+                if (step === 11) {
+                    instructionText.style.background = 'rgba(16, 185, 129, 0.15)';
+                    instructionText.style.borderColor = 'rgba(16, 185, 129, 0.3)';
+                    instructionText.style.color = '#34d399';
+                } else {
+                    instructionText.style.background = 'rgba(59, 130, 246, 0.15)';
+                    instructionText.style.borderColor = 'rgba(59, 130, 246, 0.3)';
+                    instructionText.style.color = '#60a5fa';
+                }
+            }, 300);
+        }
+
+        function switchScreen(screenId) {
+            mainPhone.querySelectorAll('.screen-content').forEach(el => el.classList.remove('active'));
+            if (screenId) {
+                document.getElementById(screenId).classList.add('active');
+            }
+        }
+
+        function shakePhone() {
+            mainPhone.classList.remove('animate-shake');
+            void mainPhone.offsetWidth;
+            mainPhone.classList.add('animate-shake');
+        }
+
+        function nextStep(targetStep) {
+            currentStep = targetStep;
+            updateInstruction(currentStep);
+
+            if (currentStep === 7) {
+                mainPhone.style.transform = 'translateX(-170px) scale(0.9)';
+                mainPhone.style.opacity = '0.5';
+                mainPhone.style.pointerEvents = 'none';
+
+                sarahPhone.style.transform = 'translateX(170px) translateY(0) scale(1)';
+                sarahPhone.style.opacity = '1';
+                sarahPhone.style.pointerEvents = 'auto';
+            } else {
+                mainPhone.style.transform = 'translateX(0) scale(1)';
+                mainPhone.style.opacity = '1';
+                mainPhone.style.pointerEvents = 'auto';
+
+                sarahPhone.style.transform = 'translateX(0) translateY(100px) scale(0.9)';
+                sarahPhone.style.opacity = '0';
+                sarahPhone.style.pointerEvents = 'none';
+            }
+
+            switch (currentStep) {
+                case 0:
+                    switchScreen('screen-0');
+                    break;
+                case 1:
+                    switchScreen('screen-1');
+                    break;
+                case 2:
+                    break;
+                case 3:
+                    document.getElementById('match-modal').classList.remove('hidden');
+                    document.getElementById('match-modal').classList.add('flex');
+                    break;
+                case 5:
+                    document.getElementById('match-modal').classList.add('hidden');
+                    document.getElementById('match-modal').classList.remove('flex');
+                    switchScreen('screen-2');
+                    break;
+                case 6:
+                    switchScreen('screen-3');
+                    break;
+                case 7:
+                    break;
+                case 8:
+                    switchScreen('screen-5');
+                    break;
+                case 9:
+                    switchScreen('screen-6');
+                    break;
+                case 10:
+                    switchScreen('screen-7');
+                    break;
+                case 11:
+                    switchScreen('screen-8');
+                    break;
+            }
+        }
+
+        function setupSwipe(cardElement, allowedDirection, nextStepId) {
+            if (!cardElement) return;
+
+            let startX = 0;
+            let currentX = 0;
+            let isDragging = false;
+
+            const stampLike = cardElement.querySelector('.stamp-like');
+            const stampPass = cardElement.querySelector('.stamp-pass');
+
+            const startDrag = (e) => {
+                isDragging = true;
+                startX = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+                cardElement.style.transition = 'none';
+            };
+
+            const drag = (e) => {
+                if (!isDragging) return;
+                e.preventDefault();
+
+                const x = e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+                currentX = x - startX;
+
+                const rotate = currentX * 0.05;
+                cardElement.style.transform = `translateX(${currentX}px) rotate(${rotate}deg)`;
+
+                if (currentX > 20) {
+                    if (stampLike) stampLike.style.opacity = Math.min(currentX / 100, 1);
+                    if (stampPass) stampPass.style.opacity = 0;
+                } else if (currentX < -20) {
+                    if (stampPass) stampPass.style.opacity = Math.min(Math.abs(currentX) / 100, 1);
+                    if (stampLike) stampLike.style.opacity = 0;
+                } else {
+                    if (stampLike) stampLike.style.opacity = 0;
+                    if (stampPass) stampPass.style.opacity = 0;
+                }
+            };
+
+            const endDrag = () => {
+                if (!isDragging) return;
+                isDragging = false;
+
+                cardElement.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+
+                const threshold = 80;
+                let direction = '';
+
+                if (currentX > threshold) direction = 'right';
+                else if (currentX < -threshold) direction = 'left';
+
+                if (direction === allowedDirection) {
+                    const flyX = direction === 'right' ? window.innerWidth : -window.innerWidth;
+                    cardElement.style.transform = `translateX(${flyX}px) rotate(${direction === 'right' ? 30 : -30}deg)`;
+                    cardElement.style.opacity = '0';
+
+                    setTimeout(() => {
+                        cardElement.style.display = 'none';
+                        nextStep(nextStepId);
+                    }, 400);
+                } else {
+                    cardElement.style.transform = 'translateX(0px) rotate(0deg)';
+                    if (stampLike) stampLike.style.opacity = 0;
+                    if (stampPass) stampPass.style.opacity = 0;
+
+                    if (direction !== '' && direction !== allowedDirection) {
+                        shakePhone();
+                    }
+                }
+
+                currentX = 0;
+            };
+
+            cardElement.addEventListener('mousedown', startDrag);
+            cardElement.addEventListener('mousemove', drag);
+            cardElement.addEventListener('mouseup', endDrag);
+            cardElement.addEventListener('mouseleave', endDrag);
+
+            cardElement.addEventListener('touchstart', startDrag, { passive: false });
+            cardElement.addEventListener('touchmove', drag, { passive: false });
+            cardElement.addEventListener('touchend', endDrag);
+        }
+
+        const c1 = document.getElementById('card-1');
+        const c2 = document.getElementById('card-2');
+
+        if (c1) setupSwipe(c1, 'left', 2);
+        if (c2) setupSwipe(c2, 'right', 3);
+
+        function restartDemo() {
+            currentStep = 0;
+
+            if (c1) {
+                c1.style.transition = 'none';
+                c1.style.transform = 'translateX(0px) rotate(0deg)';
+                c1.style.opacity = '1';
+                c1.style.display = 'block';
+                const like1 = c1.querySelector('.stamp-like');
+                const pass1 = c1.querySelector('.stamp-pass');
+                if (like1) like1.style.opacity = '0';
+                if (pass1) pass1.style.opacity = '0';
+            }
+
+            if (c2) {
+                c2.style.transition = 'none';
+                c2.style.transform = 'translateX(0px) rotate(0deg)';
+                c2.style.opacity = '1';
+                c2.style.display = 'block';
+                const like2 = c2.querySelector('.stamp-like');
+                const pass2 = c2.querySelector('.stamp-pass');
+                if (like2) like2.style.opacity = '0';
+                if (pass2) pass2.style.opacity = '0';
+            }
+
+            if (c1) void c1.offsetWidth;
+            if (c2) void c2.offsetWidth;
+
+            if (c1) c1.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+            if (c2) c2.style.transition = 'transform 0.4s ease, opacity 0.4s ease';
+
+            mainPhone.style.transform = 'translateX(0) scale(1)';
+            mainPhone.style.opacity = '1';
+            mainPhone.style.pointerEvents = 'auto';
+
+            sarahPhone.style.transform = 'translateX(0) translateY(100px) scale(0.9)';
+            sarahPhone.style.opacity = '0';
+            sarahPhone.style.pointerEvents = 'none';
+
+            document.getElementById('match-modal').classList.add('hidden');
+            document.getElementById('match-modal').classList.remove('flex');
+
+            nextStep(0);
+        }
+
+        restartDemo();
+    </script>
+</body>
+</html>
