@@ -91,7 +91,7 @@ async function verifyEmail(req, res, next) {
     await UserModel.setOtpCode(user.id, null, null);
 
     const token = generateToken(user);
-    res.json({ message: 'Email verified', token });
+    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
   } catch (err) {
     next(err);
   }

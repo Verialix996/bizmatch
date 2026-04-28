@@ -26,7 +26,7 @@ export default function VerifyOtpScreen({ route, navigation }) {
     setLoading(true);
     try {
       const { data } = await verifyEmail(email, code);
-      await setAuth(data.token, null);
+      await setAuth(data.token, data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid code. Please try again.');
     } finally {
