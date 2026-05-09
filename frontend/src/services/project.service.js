@@ -43,4 +43,3 @@ export const removePartner     = (projectId, partnerUserId) => api.delete(`/proj
 export const getJoinedProjects = ()                         => api.get('/projects/joined');
 export const getProjectsByOwner = (userId)                  => api.get(`/projects/owner/${userId}`);
 export const reviewDeck         = (projectId)               => api.post(`/projects/${projectId}/deck-review`);
-export const getDeckUrl         = (projectId)               => api.get(`/projects/${projectId}/deck-url`);

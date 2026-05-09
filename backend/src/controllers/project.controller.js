@@ -10,12 +10,12 @@ const Anthropic = require('@anthropic-ai/sdk');
 const { moderateText } = require('../services/moderation.service');
 const { cloudinary } = require('../config/cloudinary');
 
-// Cloudinary free tier blocks unsigned raw URLs — generate a time-limited signed URL
-function signDeckUrl(deckUrl) {
-  if (!deckUrl) return deckUrl;
+// Cloudinary free tier blocks CDN raw URLs — use the admin API download URL instead
+function getPrivateDownloadUrl(deckUrl) {
+  if (!deckUrl) return null;
   const match = deckUrl.match(/\/raw\/upload\/(?:v\d+\/)?(.+)$/);
-  if (!match) return deckUrl;
-  return cloudinary.url(match[1], { resource_type: 'raw', type: 'upload', sign_url: true });
+  if (!match) return null;
+  return cloudinary.utils.private_download_url(match[1], '', { resource_type: 'raw' });
 }
 
 // POST /api/projects/:id/upload-deck
@@ -191,7 +191,9 @@ const reviewDeck = async (req, res, next) => {
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
-    const fetchRes = await fetch(signDeckUrl(rows[0].deck_url));
+    const downloadUrl = getPrivateDownloadUrl(rows[0].deck_url);
+    if (!downloadUrl) return res.status(500).json({ error: 'Invalid deck URL format' });
+    const fetchRes = await fetch(downloadUrl);
     if (!fetchRes.ok) return res.status(502).json({ error: 'Could not read deck file from storage' });
     const buffer = await fetchRes.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
@@ -236,14 +238,30 @@ Respond ONLY with valid JSON, no markdown:
   }
 };
 
-// GET /api/projects/:id/deck-url — returns a signed URL for viewing the pitch deck
-const getDeckUrl = async (req, res, next) => {
+// GET /api/projects/:id/deck — proxy the PDF through the backend (bypasses Cloudinary free-tier block)
+const jwt = require('jsonwebtoken');
+const serveDeck = async (req, res, next) => {
   try {
+    // Accept JWT from Authorization header or ?token= query param (for browser navigation)
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    try { jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
     const project = await getProjectById(Number(req.params.id));
     if (!project) return res.status(404).json({ error: 'Project not found' });
     if (!project.deck_url) return res.status(404).json({ error: 'No pitch deck uploaded' });
-    res.json({ url: signDeckUrl(project.deck_url) });
+
+    const downloadUrl = getPrivateDownloadUrl(project.deck_url);
+    if (!downloadUrl) return res.status(500).json({ error: 'Invalid deck URL format' });
+
+    const fetchRes = await fetch(downloadUrl);
+    if (!fetchRes.ok) return res.status(502).json({ error: 'Could not fetch deck from storage' });
+
+    const buffer = await fetchRes.arrayBuffer();
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="pitch-deck.pdf"');
+    res.send(Buffer.from(buffer));
   } catch (err) { next(err); }
 };
 
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck, getDeckUrl };
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck, serveDeck };
