@@ -10,7 +10,11 @@ const useAuthStore = create((set, get) => ({
   isRestoring: true,
 
   setAuth: async (token, user) => {
-    set({ token, user });
+    // Users with no profile haven't seen onboarding yet — don't inherit a previous account's flag
+    const hasSeenOnboarding = user.has_profile
+      ? (await SecureStore.getItemAsync('has_seen_onboarding')) === 'true'
+      : false;
+    set({ token, user, hasSeenOnboarding });
     try {
       await SecureStore.setItemAsync('auth_token', token);
       await SecureStore.setItemAsync('auth_user', JSON.stringify(user));
@@ -31,7 +35,8 @@ const useAuthStore = create((set, get) => ({
       const userStr = await SecureStore.getItemAsync('auth_user');
       const seenStr = await SecureStore.getItemAsync('has_seen_onboarding');
       const user = userStr ? JSON.parse(userStr) : null;
-      const hasSeenOnboarding = seenStr === 'true';
+      // Don't restore the onboarding flag for users with no profile — they need to see it
+      const hasSeenOnboarding = user?.has_profile ? seenStr === 'true' : false;
       if (token && user) set({ token, user, hasSeenOnboarding, isRestoring: false });
       else set({ hasSeenOnboarding, isRestoring: false });
     } catch { set({ isRestoring: false }); }

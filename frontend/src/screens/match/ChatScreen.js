@@ -141,8 +141,17 @@ export default function ChatScreen({ route, navigation }) {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
       setInput(text);
-      const msg = e?.response?.data?.error || 'Message could not be sent. Please try again.';
-      Alert.alert('Message Not Sent', msg);
+      const reason = e?.response?.data?.error || 'Message could not be sent. Please try again.';
+      const blockedMsg = {
+        id: `blocked_${Date.now()}`,
+        sender_id: user?.id,
+        body: text,
+        message_type: 'moderation_blocked',
+        reason,
+        created_at: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, blockedMsg]);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } finally {
       setSending(false);
     }
@@ -472,6 +481,21 @@ export default function ChatScreen({ route, navigation }) {
     );
 
     const isSpecial = item.message_type && item.message_type !== 'text';
+
+    if (item.message_type === 'moderation_blocked') {
+      return (
+        <View style={[styles.msgRow, styles.msgRowOwn]}>
+          <View style={[styles.bubble, styles.bubbleBlocked]}>
+            <Text style={styles.bubbleBlockedHeader}>⚠ Message not sent</Text>
+            <Text style={styles.bubbleBlockedBody}>{item.body}</Text>
+            <Text style={styles.bubbleBlockedReason}>{item.reason}</Text>
+            <Text style={[styles.bubbleTime, { color: 'rgba(153,27,27,0.55)', textAlign: 'right' }]}>
+              {formatTime(item.created_at)}
+            </Text>
+          </View>
+        </View>
+      );
+    }
 
     return (
       <>
@@ -1134,6 +1158,34 @@ const styles = StyleSheet.create({
   },
 
   // Action cards (partner invite, NDA)
+  bubbleBlocked: {
+    backgroundColor: '#FEE2E2',
+    borderWidth: 1.5,
+    borderColor: '#FECACA',
+    borderBottomRightRadius: 4,
+    maxWidth: '82%',
+  },
+  bubbleBlockedHeader: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#991B1B',
+    marginBottom: 4,
+    letterSpacing: 0.3,
+  },
+  bubbleBlockedBody: {
+    fontSize: 14,
+    color: '#7F1D1D',
+    lineHeight: 20,
+    marginBottom: 4,
+  },
+  bubbleBlockedReason: {
+    fontSize: 11,
+    color: '#991B1B',
+    fontStyle: 'italic',
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+
   actionCardWrapper: {
     alignItems: 'center',
     marginVertical: 6,

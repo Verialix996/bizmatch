@@ -201,7 +201,12 @@ const reviewDeck = async (req, res, next) => {
     });
 
     const raw = response.content[0]?.text?.trim() || '{}';
-    res.json(JSON.parse(raw));
+    const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
+    try {
+      res.json(JSON.parse(cleaned));
+    } catch {
+      res.status(500).json({ error: 'AI returned an unexpected format. Please try again.' });
+    }
   } catch (err) {
     next(err);
   }

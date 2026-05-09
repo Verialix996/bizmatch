@@ -29,7 +29,7 @@
 6. **Expected:** "Check your email for the verification code" message appears
 7. Repeat with an inappropriate / offensive name → submit
 8. **Expected:** Error — "Name flagged by moderation: \<reason\>"
-
+works correctly
 ### 1.3 Onboarding Tutorial
 
 1. Register a fresh account and verify email
@@ -37,7 +37,7 @@
 3. **Expected:** App immediately navigates to the 4-slide onboarding (without requiring a restart)
 4. Tap "Next" → advances slides. Tap "Skip" → jumps to main app. Final slide shows "Get Started"
 5. Close and reopen app → **Expected:** Onboarding does NOT appear again; goes directly to main tabs
-
+doesn't work still have the bug after creating new profile where pressing create profile leads nowhere
 ### 1.6 Project Management
 
 #### Deck Download
@@ -48,11 +48,28 @@
 
 #### AI Deck Review
 
-1. Open a project that has a deck uploaded
-2. Tap "✦ Get AI Deck Feedback" → enter a description (problem, solution, market, team, ask) → submit
-3. **Expected:** Modal shows Overall Score (1–10), Strengths, Weaknesses, Suggestions
+in railway https logs i get this:{
+  "requestId": "IyC1ESvJRauijG_h63j4Ww",
+  "timestamp": "2026-05-09T17:51:55.983190372Z",
+  "method": "POST",
+  "path": "/api/projects/5/deck-review",
+  "host": "zooming-surprise-production.up.railway.app",
+  "httpStatus": 500,
+  "upstreamProto": "HTTP/1.1",
+  "downstreamProto": "HTTP/2.0",
+  "responseDetails": "",
+  "totalDuration": 4763,
+  "upstreamAddress": "http://[fd12:e2b9:284f:1:5000:df:c5:e589]:8080",
+  "clientUa": "Expo/1017756 CFNetwork/3860.400.51 Darwin/25.3.0",
+  "upstreamRqDuration": 4763,
+  "txBytes": 33,
+  "rxBytes": 596,
+  "srcIp": "213.57.115.198",
+  "edgeRegion": "europe-west4-drams3a",
+  "upstreamErrors": ""
+}
 
-> Note: AI reviews a text summary you provide — it does not read the PDF file directly. Future improvement needed.
+when trying to send a pdf to ai review
 
 ### 1.7 AI Content Moderation
 
@@ -65,7 +82,7 @@
 
 1. In any chat, type a clearly inappropriate message → send
 2. **Expected:** Message is rejected, NOT added to chat, and an alert titled "Message Not Sent" appears with the moderation reason
-
+needs to show in the chat log a red bubble with warning about content moderation and an explanation that the message wasn't sent and the reason
 ---
 
 ## Section 2 — Two Accounts Testing
