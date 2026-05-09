@@ -243,6 +243,16 @@ export default function ProfileScreen({ navigation }) {
               </Text>
             </TouchableOpacity>
 
+            {!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date()) && (
+              <TouchableOpacity
+                style={styles.btnPremium}
+                onPress={() => navigation.navigate('Premium')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.btnPremiumText}>✦ Go Premium</Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               style={styles.btnSecondary}
               onPress={() => navigation.navigate('AccountSettings')}
@@ -420,6 +430,18 @@ const styles = StyleSheet.create({
   },
 
   actionsContainer: { marginTop: 16, gap: 12 },
+  btnPremium: {
+    backgroundColor: '#F5A623',
+    borderRadius: radius.pill,
+    paddingVertical: 16,
+    alignItems: 'center',
+  },
+  btnPremiumText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
   btnPrimary: {
     backgroundColor: colors.buttonPrimary,
     borderRadius: radius.pill,

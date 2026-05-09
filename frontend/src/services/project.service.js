@@ -1,4 +1,6 @@
 import api from './api';
+import useAuthStore from '../store/authStore';
+import { API_BASE_URL } from '../config/constants';
 
 export const getProjectFeed    = ()                     => api.get('/projects/feed');
 export const swipeProject      = (projectId, direction) => api.post('/projects/swipe', { projectId, direction });
@@ -16,13 +18,24 @@ export const uploadDeck = (projectId, fileUri, fileName) => {
   });
 };
 
-export const uploadVideo = (projectId, fileUri, fileName) => {
-  const formData = new FormData();
-  formData.append('video', { uri: fileUri, name: fileName, type: 'video/mp4' });
-  return api.post(`/projects/${projectId}/upload-video`, formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
+export const uploadVideo = (projectId, fileUri) =>
+  new Promise((resolve, reject) => {
+    const token = useAuthStore.getState().token;
+    const formData = new FormData();
+    formData.append('video', { uri: fileUri, type: 'video/mp4', name: 'video.mp4' });
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_BASE_URL}/projects/${projectId}/upload-video`);
+    if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState !== 4) return;
+      try {
+        const data = JSON.parse(xhr.responseText);
+        xhr.status < 300 ? resolve(data) : reject(new Error(data.error || `HTTP ${xhr.status}`));
+      } catch { reject(new Error(`HTTP ${xhr.status}`)); }
+    };
+    xhr.onerror = () => reject(new Error('Network error'));
+    xhr.send(formData);
   });
-};
 
 export const getPartners       = (projectId)              => api.get(`/projects/${projectId}/partners`);
 export const addPartner        = (projectId, partnerUserId) => api.post(`/projects/${projectId}/partners`, { partnerUserId });

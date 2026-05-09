@@ -140,7 +140,9 @@ export default function ChatScreen({ route, navigation }) {
       });
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
-      console.error('Send failed', e);
+      setInput(text);
+      const msg = e?.response?.data?.error || 'Message could not be sent. Please try again.';
+      Alert.alert('Message Not Sent', msg);
     } finally {
       setSending(false);
     }

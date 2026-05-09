@@ -94,6 +94,8 @@ const create = async (req, res, next) => {
     }
     const { title, description } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
+    const titleMod = await moderateText(title);
+    if (!titleMod.ok) return res.status(400).json({ error: `Title flagged by moderation: ${titleMod.reason}` });
     if (description) {
       const mod = await moderateText(description);
       if (!mod.ok) return res.status(400).json({ error: `Description flagged by moderation: ${mod.reason}` });
@@ -108,6 +110,8 @@ const update = async (req, res, next) => {
   try {
     const { title, description } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
+    const titleMod = await moderateText(title);
+    if (!titleMod.ok) return res.status(400).json({ error: `Title flagged by moderation: ${titleMod.reason}` });
     if (description) {
       const mod = await moderateText(description);
       if (!mod.ok) return res.status(400).json({ error: `Description flagged by moderation: ${mod.reason}` });

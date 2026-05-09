@@ -48,11 +48,15 @@ export default function RegisterScreen({ navigation }) {
     {
       name: 'password',
       label: 'PASSWORD',
-      placeholder: 'At least 6 characters',
+      placeholder: '8+ chars, include a number',
       secure: true,
       capitalize: 'none',
       keyboard: 'default',
-      rules: { required: 'Password is required', minLength: { value: 6, message: 'Password must be at least 6 characters' } },
+      rules: {
+        required: 'Password is required',
+        minLength: { value: 8, message: 'Password must be at least 8 characters' },
+        pattern: { value: /(?=.*[A-Za-z])(?=.*\d)/, message: 'Password must contain a letter and a number' },
+      },
     },
   ];
 

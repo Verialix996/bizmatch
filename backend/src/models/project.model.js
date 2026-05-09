@@ -40,12 +40,12 @@ function jaccardScore(textA, textB, maxPts) {
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 async function createProject(userId, data) {
-  const { title, description, stage, funding_needed, industry, deck_url, video_url } = data;
+  const { title, description, stage, funding_needed, industry, visibility, deck_url, video_url } = data;
   const result = await query(
-    `INSERT INTO projects (user_id, title, description, stage, funding_needed, industry, deck_url, video_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO projects (user_id, title, description, stage, funding_needed, industry, visibility, deck_url, video_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [userId, title, description || null, stage || null, funding_needed || null,
-     industry || null, deck_url || null, video_url || null]
+     industry || null, visibility || 'public', deck_url || null, video_url || null]
   );
   const rows = await query('SELECT * FROM projects WHERE id = ?', [result.insertId]);
   return rows[0];
@@ -64,14 +64,14 @@ async function getProjectById(id) {
 }
 
 async function updateProject(id, userId, data) {
-  const { title, description, stage, funding_needed, industry, deck_url, video_url } = data;
+  const { title, description, stage, funding_needed, industry, visibility, deck_url, video_url } = data;
   await query(
     `UPDATE projects
      SET title = ?, description = ?, stage = ?, funding_needed = ?,
-         industry = ?, deck_url = ?, video_url = ?, updated_at = NOW()
+         industry = ?, visibility = ?, deck_url = ?, video_url = ?, updated_at = NOW()
      WHERE id = ? AND user_id = ?`,
     [title, description || null, stage || null, funding_needed || null,
-     industry || null, deck_url || null, video_url || null, id, userId]
+     industry || null, visibility || 'public', deck_url || null, video_url || null, id, userId]
   );
   const rows = await query('SELECT * FROM projects WHERE id = ?', [id]);
   return rows[0] || null;

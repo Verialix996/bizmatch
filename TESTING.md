@@ -19,19 +19,14 @@
 
 ## Section 1 — New Account (Single User Flow)
 
-> Register a brand new account and follow the user journey from start to finish.
-
 ### 1.1 Registration
 
 1. Open app → tap "Get Started" → tap "Register"
-2. Enter name, email, password (6+ chars) → submit
-3. **Expected:** "Check your email for the verification code" message appears
-
-### 1.2 Email Verification (OTP)
-
-1. Check email inbox for 6-digit code
-2. Enter code on the verify screen
-3. **Expected:** Verified and redirected to role selection / profile creation
+2. Enter name, email → try a weak password (e.g. `abc123`) → submit
+3. **Expected:** Error — "Password must be at least 8 characters"
+4. Try `abc1234` (7 chars) → **Expected:** same error
+5. Enter a valid password (8+ chars, letter + number, e.g. `Pass1234`) → submit
+6. **Expected:** "Check your email for the verification code" message appears
 
 ### 1.3 Onboarding Tutorial
 
@@ -45,92 +40,74 @@
 1. Select role (Entrepreneur or Investor)
 2. Fill in: bio (50+ chars), skills (2+), role-specific fields (stage + funding needs / domain + preferred stage)
 3. Tap the photo circle → **Expected:** device photo library opens
-4. Select a photo → **Expected:** photo uploads and appears in the circle immediately
+4. Select a photo → **Expected:** photo uploads and appears in the circle immediately (no "request entity too large" error)
 5. Tap "Save Profile"
 6. **Expected:** Profile saved, redirected to main tabs
 
 > **Completeness score:** each of the 5 fields (photo, bio, skills, stage, funding/domain) = 20 pts each → 100% when all filled.
 
-### 1.5 Discover Tab (Feed)
-
-1. Open Discover tab
-2. **Expected:** Cards appear sorted by compatibility score
-3. Swipe right (like) or left (pass)
-4. **Expected:** Passed users don't reappear at top; liked users disappear from feed
-5. (Entrepreneur only) Toggle between "Find Investors" and "Find Partners"
-6. **Expected:** Toggle changes the type of profiles shown
-
 ### 1.6 Project Management
 
-#### Create
+#### Create + Video Upload
+
 1. Go to Projects tab → tap "+"
-2. Fill in title, description, industry, stage, funding needed → set visibility to "Public" → save
-3. **Expected:** Project appears in the list
-
-#### Edit
-1. Tap the project → tap Edit → change title or description → save
-2. **Expected:** Updated details show immediately
-
-#### Delete
-1. Tap the project → tap Delete → confirm
-2. **Expected:** Project disappears from the list
+2. Fill in title, description, industry, stage, funding needed
+3. Set **Visibility** toggle to "Public" → save
+4. **Expected:** Project appears in the list
+5. Tap "Upload Video" on the project card
+6. **Expected:** Device photo/video library opens (not a file picker)
+7. Select a video → **Expected:** uploads successfully, "🎬 Video" chip appears on card
 
 #### Project Visibility
-1. Create a project → set visibility to "Private"
+
+1. Create a project → set **Visibility** toggle to "Private" → save
 2. Log in as Account A (investor) on another device
 3. **Expected:** Private project does NOT appear in investor's feed
+4. Edit the project → switch to "Public" → save
+5. **Expected:** Project now appears in investor's feed
 
 #### AI Deck Review
+
 1. Open a project that has a deck uploaded
 2. Tap "✦ Get AI Deck Feedback" → enter a description (problem, solution, market, team, ask) → submit
 3. **Expected:** Modal shows Overall Score (1–10), Strengths, Weaknesses, Suggestions
 
+> Note: AI reviews a text summary you provide — it does not read the PDF file directly.
+
 ### 1.7 AI Content Moderation
 
-#### Bio flagged
+#### Inappropriate name rejected
+
+1. Account Settings → edit name → set it to clearly hateful/offensive text → save
+2. **Expected:** Save fails with "Name flagged by moderation: \<reason\>"
+
+#### Inappropriate bio rejected
+
 1. Edit Profile → set bio to clearly inappropriate content (hate speech / threats) → save
 2. **Expected:** Save fails with "Bio flagged by moderation: \<reason\>"
 
-#### Clean bio accepted
-1. Set bio to normal professional text → save
-2. **Expected:** Saves successfully, no error
+#### Inappropriate project title rejected
 
-#### Project description flagged
-1. Create or edit a project with an inappropriate description → save
-2. **Expected:** Save fails with moderation error
+1. Create or edit a project → set the title to clearly inappropriate text → save
+2. **Expected:** Save fails with "Title flagged by moderation: \<reason\>"
+
+#### Inappropriate project description rejected
+
+1. Create or edit a project → set description to inappropriate text → save
+2. **Expected:** Save fails with "Description flagged by moderation: \<reason\>"
 
 #### Chat message flagged
+
 1. In any chat, type a clearly inappropriate message → send
-2. **Expected:** Message rejected with error, does not appear in chat
-
-### 1.8 Account Settings
-
-#### Verify Account
-1. Profile tab → Account Settings → tap "Verify Account"
-2. **Expected:** Status changes to "Verified ✓" instantly (demo bypass)
-
-#### 2FA Setup
-1. Account Settings → Two-Factor Authentication → tap "Set Up 2FA"
-2. **Expected:** Secret key appears. Copy it into an authenticator app (Google Authenticator / Authy)
-3. Enter the 6-digit code from the app → tap Verify
-4. **Expected:** "2FA enabled" confirmation
-5. Log out → log back in → **Expected:** 2FA code prompt appears after password
-
-#### Auth Persistence
-1. Log in → close app fully → reopen
-2. **Expected:** Still logged in, main tabs appear immediately (no login screen)
+2. **Expected:** Message is rejected, NOT added to chat, and an alert appears with the moderation reason
 
 ### 1.9 Premium — Activate Trial
 
-1. Profile tab → "Go Premium" → tap "Activate Free Trial (30 days)"
-2. **Expected:** Success alert. "Who Liked Me" section appears in Matches tab
-
-### 1.10 Account Deletion
-
-1. Account Settings → Delete Account → confirm
-2. **Expected:** Account deleted, redirected to Welcome screen
-3. Try logging in with the deleted credentials
-4. **Expected:** "Invalid credentials" error
+1. Profile tab → tap "✦ Go Premium" button (visible below Edit Profile for non-premium accounts)
+2. **Expected:** PremiumScreen opens with benefits list and "Activate Free Trial (30 days)" button
+3. Tap "Activate Free Trial (30 days)"
+4. **Expected:** Success alert. "Who Liked Me" section appears in Matches tab
+5. Return to Profile tab → **Expected:** "✦ Go Premium" button is no longer visible
 
 ---
 

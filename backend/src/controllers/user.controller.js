@@ -2,6 +2,7 @@ const UserModel = require('../models/user.model');
 const logger = require('../utils/logger');
 const { cloudinary } = require('../config/cloudinary');
 const { query } = require('../config/db');
+const { moderateText } = require('../services/moderation.service');
 
 // PATCH /api/users/me
 async function updateMe(req, res, next) {
@@ -10,6 +11,8 @@ async function updateMe(req, res, next) {
     if (!name || !name.trim()) {
       return res.status(400).json({ error: 'Name cannot be empty.' });
     }
+    const mod = await moderateText(name.trim());
+    if (!mod.ok) return res.status(400).json({ error: `Name flagged by moderation: ${mod.reason}` });
     await UserModel.updateName(req.user.id, name.trim());
     res.json({ name: name.trim() });
   } catch (err) {

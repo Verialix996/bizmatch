@@ -6,6 +6,7 @@ import {
 import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
+import * as ImagePicker from 'expo-image-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
   uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
@@ -415,6 +416,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
     stage: initial?.stage || '',
     funding_needed: initial?.funding_needed ? String(initial.funding_needed) : '',
     industry: initial?.industry || '',
+    visibility: initial?.visibility || 'public',
     deck_url: initial?.deck_url || '',
     video_url: initial?.video_url || '',
   });
@@ -498,6 +500,22 @@ function ProjectForm({ initial, onSave, onCancel }) {
         placeholder="e.g. 500000"
         placeholderTextColor={colors.textHint}
       />
+
+      <Text style={styles.fieldLabel}>VISIBILITY</Text>
+      <View style={styles.stageRow}>
+        {['public', 'private'].map(v => (
+          <TouchableOpacity
+            key={v}
+            style={[styles.stageChip, form.visibility === v && styles.stageChipActive]}
+            onPress={() => setForm(f => ({ ...f, visibility: v }))}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.stageChipText, form.visibility === v && styles.stageChipTextActive]}>
+              {v === 'public' ? 'Public' : 'Private'}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
 
       <Text style={styles.fieldLabel}>DECK URL</Text>
       <TextInput
@@ -626,10 +644,18 @@ export default function ProjectsScreen() {
 
   const handleUploadVideo = async (projectId) => {
     try {
-      const result = await DocumentPicker.getDocumentAsync({ type: ['video/*'] });
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Required', 'Photo library access is needed to upload a video.');
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaType?.Videos ?? ImagePicker.MediaTypeOptions?.Videos,
+        allowsEditing: false,
+        quality: 1,
+      });
       if (result.canceled || !result.assets?.[0]) return;
-      const file = result.assets[0];
-      await uploadVideo(projectId, file.uri, file.name);
+      await uploadVideo(projectId, result.assets[0].uri);
       load();
     } catch {
       Alert.alert('Upload Failed', 'Could not upload video. Please try again.');
