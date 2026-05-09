@@ -152,6 +152,12 @@ async function wipeDatabase(conn) {
 
 async function runMigrations(conn) {
   console.log('\nRunning migrations...');
+  await conn.query(`
+    CREATE TABLE IF NOT EXISTS schema_migrations (
+      filename VARCHAR(255) PRIMARY KEY,
+      run_at   DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
   const files = fs.readdirSync(MIGRATIONS_DIR)
     .filter(f => f.endsWith('.sql'))
     .sort();
@@ -161,6 +167,7 @@ async function runMigrations(conn) {
     for (const stmt of statements) {
       await conn.query(stmt);
     }
+    await conn.query('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);
     console.log(`  ✓ ${file}`);
   }
 }
