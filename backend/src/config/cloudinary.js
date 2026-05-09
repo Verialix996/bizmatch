@@ -18,7 +18,6 @@ const docStorage = new CloudinaryStorage({
     folder: 'bizmatch/docs',
     allowed_formats: ['pdf'],
     resource_type: 'raw',
-    // Include .pdf in the public_id so the Cloudinary URL always ends with .pdf
     public_id: `deck_${Date.now()}.pdf`,
   }),
 });

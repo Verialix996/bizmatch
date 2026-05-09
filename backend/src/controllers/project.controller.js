@@ -8,6 +8,15 @@ const { query } = require('../config/db');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 const Anthropic = require('@anthropic-ai/sdk');
 const { moderateText } = require('../services/moderation.service');
+const { cloudinary } = require('../config/cloudinary');
+
+// Cloudinary free tier blocks unsigned raw URLs — generate a time-limited signed URL
+function signDeckUrl(deckUrl) {
+  if (!deckUrl) return deckUrl;
+  const match = deckUrl.match(/\/raw\/upload\/(?:v\d+\/)?(.+)$/);
+  if (!match) return deckUrl;
+  return cloudinary.url(match[1], { resource_type: 'raw', type: 'upload', sign_url: true });
+}
 
 // POST /api/projects/:id/upload-deck
 const uploadDeck = [
@@ -182,7 +191,7 @@ const reviewDeck = async (req, res, next) => {
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
-    const fetchRes = await fetch(rows[0].deck_url);
+    const fetchRes = await fetch(signDeckUrl(rows[0].deck_url));
     if (!fetchRes.ok) return res.status(502).json({ error: 'Could not read deck file from storage' });
     const buffer = await fetchRes.arrayBuffer();
     const base64 = Buffer.from(buffer).toString('base64');
@@ -227,4 +236,14 @@ Respond ONLY with valid JSON, no markdown:
   }
 };
 
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck };
+// GET /api/projects/:id/deck-url — returns a signed URL for viewing the pitch deck
+const getDeckUrl = async (req, res, next) => {
+  try {
+    const project = await getProjectById(Number(req.params.id));
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+    if (!project.deck_url) return res.status(404).json({ error: 'No pitch deck uploaded' });
+    res.json({ url: signDeckUrl(project.deck_url) });
+  } catch (err) { next(err); }
+};
+
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck, getDeckUrl };

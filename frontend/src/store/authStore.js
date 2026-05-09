@@ -11,9 +11,12 @@ const useAuthStore = create((set, get) => ({
 
   setAuth: async (token, user) => {
     // Users with no profile haven't seen onboarding yet — don't inherit a previous account's flag
-    const hasSeenOnboarding = user.has_profile
-      ? (await SecureStore.getItemAsync('has_seen_onboarding')) === 'true'
-      : false;
+    let hasSeenOnboarding = false;
+    if (user.has_profile) {
+      try {
+        hasSeenOnboarding = (await SecureStore.getItemAsync('has_seen_onboarding')) === 'true';
+      } catch { /* SecureStore unavailable on web */ }
+    }
     set({ token, user, hasSeenOnboarding });
     try {
       await SecureStore.setItemAsync('auth_token', token);

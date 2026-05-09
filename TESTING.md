@@ -25,14 +25,14 @@
 1. Tap "Replace PDF" on an existing project → upload a fresh PDF
 2. Share that project in a chat (action menu → "Share Project") → tap "View Full Details" → tap "📄 View Pitch Deck"
 3. **Expected:** Browser opens the file with a `.pdf` extension in the URL — file is openable
-
+cant read the pdf file now
 #### AI deck review
 1. Open a project with a PDF deck uploaded → tap "✦ Get AI Deck Feedback"
 2. Tap "Analyse"
 3. **Expected:** Results show Overall Score (1–10), Strengths, Weaknesses, Suggestions rated against standard pitch deck criteria (problem, solution, market, team, business model, funding ask)
 4. Upload a non-pitch document (e.g. a plain text or math page as PDF) → tap "Analyse"
 5. **Expected:** Score is 1 and weaknesses clearly state the document is not a business pitch deck
-
+when trying to watch a pdf file of a project it says fails to read pdf file, needs to understand why
 ---
 
 ## Section 2 — Two Accounts Testing

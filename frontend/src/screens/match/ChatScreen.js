@@ -5,7 +5,7 @@ import {
   SafeAreaView, ActivityIndicator, Image, StatusBar, Alert, Modal, Linking,
 } from 'react-native';
 import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject } from '../../services/match.service';
-import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
+import { getMyProjects, getProjectsByOwner, getDeckUrl } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
@@ -740,7 +740,14 @@ export default function ChatScreen({ route, navigation }) {
                 {detailProject?.deckUrl ? (
                   <TouchableOpacity
                     style={styles.detailLinkBtn}
-                    onPress={() => Linking.openURL(toAbsoluteUrl(detailProject.deckUrl))}
+                    onPress={async () => {
+                      try {
+                        const res = await getDeckUrl(detailProject.projectId);
+                        Linking.openURL(res.data.url);
+                      } catch {
+                        Alert.alert('Error', 'Could not load pitch deck. Please try again.');
+                      }
+                    }}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.detailLinkBtnText}>📄 View Pitch Deck</Text>

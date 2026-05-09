@@ -12,7 +12,7 @@ const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.5);
 const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe } from '../../services/match.service';
-import { getProjectFeed, swipeProject } from '../../services/project.service';
+import { getProjectFeed, swipeProject, getDeckUrl } from '../../services/project.service';
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
@@ -193,7 +193,14 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
           {project.deckUrl ? (
             <TouchableOpacity
               style={styles.linkBtn}
-              onPress={() => Linking.openURL(toAbsoluteUrl(project.deckUrl))}
+              onPress={async () => {
+                try {
+                  const res = await getDeckUrl(project.projectId);
+                  Linking.openURL(res.data.url);
+                } catch {
+                  Alert.alert('Error', 'Could not load pitch deck. Please try again.');
+                }
+              }}
             >
               <Text style={styles.linkBtnText}>📄 View Deck</Text>
             </TouchableOpacity>
