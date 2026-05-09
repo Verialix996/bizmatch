@@ -46,35 +46,37 @@ function completenessBonus(profile) {
   return bonus;
 }
 
-// aiScore is 0-100 from Claude; when present it replaces the semantic portion
+// When aiScore is present it dominates (60 pts); stage+budget become secondary signals.
+// Without aiScore, falls back to Jaccard-based math scoring.
 function scoreInvestorEntrepreneur(investorProfile, entrepreneurProfile, aiScore = null) {
   let score = 0;
 
-  score += stageScore(investorProfile.preferred_stage, entrepreneurProfile.venture_stage);
-  score += budgetScore(investorProfile.max_investment, entrepreneurProfile.funding_needs);
-
   if (aiScore != null) {
-    score += Math.round(aiScore / 100 * 30);
+    score += Math.round(aiScore / 100 * 60); // AI: 0-60 pts (primary)
+    score += Math.round(stageScore(investorProfile.preferred_stage, entrepreneurProfile.venture_stage) / 40 * 20); // stage: 0-20
+    score += Math.round(budgetScore(investorProfile.max_investment, entrepreneurProfile.funding_needs) / 30 * 10); // budget: 0-10
   } else {
+    score += stageScore(investorProfile.preferred_stage, entrepreneurProfile.venture_stage); // 0-40
+    score += budgetScore(investorProfile.max_investment, entrepreneurProfile.funding_needs); // 0-30
     const domainText = investorProfile.investment_domain || '';
     const entText = [
       ...(safeParseArray(entrepreneurProfile.skills)),
       entrepreneurProfile.bio || '',
     ].join(' ');
-    score += jaccardScore(domainText, entText, 30);
+    score += jaccardScore(domainText, entText, 30); // 0-30
   }
 
-  score += completenessBonus(entrepreneurProfile);
+  score += completenessBonus(entrepreneurProfile); // 0-10
 
   return score;
 }
 
-// aiScore replaces the hobby/skill compatibility math when present
+// When aiScore is present it dominates (60 pts); falls back to hobby/skill math.
 function scoreEntrepreneurEntrepreneur(profileA, profileB, aiScore = null) {
   let score = 0;
 
   if (aiScore != null) {
-    score += Math.round(aiScore / 100 * 30);
+    score += Math.round(aiScore / 100 * 60); // AI: 0-60 pts (primary)
   } else {
     const hobbiesA = safeParseArray(profileA.hobbies).map(h => h.toLowerCase());
     const hobbiesB = safeParseArray(profileB.hobbies).map(h => h.toLowerCase());
@@ -87,7 +89,7 @@ function scoreEntrepreneurEntrepreneur(profileA, profileB, aiScore = null) {
     score += complementary.length * 10;
   }
 
-  score += completenessBonus(profileB);
+  score += completenessBonus(profileB); // 0-10
 
   return score;
 }

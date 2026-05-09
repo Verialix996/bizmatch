@@ -97,6 +97,13 @@ const UserModel = {
   async updatePhoto(id, photoUrl) {
     await query('UPDATE users SET photo_url = ? WHERE id = ?', [photoUrl, id]);
   },
+
+  async updateLoginAttempts(id, attempts, lockedUntil) {
+    await query(
+      'UPDATE users SET login_attempts = ?, locked_until = ? WHERE id = ?',
+      [attempts, lockedUntil ?? null, id]
+    );
+  },
 };
 
 module.exports = UserModel;

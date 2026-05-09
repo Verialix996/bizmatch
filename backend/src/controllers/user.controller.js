@@ -125,4 +125,15 @@ async function whoLikedMe(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, whoLikedMe };
+// POST /api/users/me/verify-self  — skip ID review, mark as verified instantly (demo)
+async function verifySelf(req, res, next) {
+  try {
+    await query(
+      "UPDATE users SET verification_status = 'verified' WHERE id = ?",
+      [req.user.id]
+    );
+    res.json({ ok: true, verification_status: 'verified' });
+  } catch (err) { next(err); }
+}
+
+module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, whoLikedMe, verifySelf };

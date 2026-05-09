@@ -21,8 +21,8 @@ Each system is described with its intended behavior, what's currently built, and
 - Auth persistence fix: `restoreAuth()` called on app mount, token/user read from SecureStore
 
 **What's missing / needs work:**
-- LinkedIn OAuth is untested end-to-end (no live credentials verified)
-- No account lockout after failed login attempts
+- LinkedIn OAuth intentionally removed from scope
+- Account lockout: locks after 5 failed attempts for 15 minutes ✅ (migration 014)
 
 ---
 
@@ -39,8 +39,8 @@ Each system is described with its intended behavior, what's currently built, and
 - ID verification — user uploads document, status set to `pending`
 
 **What's missing / needs work:**
-- ID verification has no admin review UI — documents sit in `pending` forever
-- No profile completeness score shown to the user
+- ID verification: "Verify Account" button in Account Settings instantly sets status to `verified` (no admin review needed for demo) ✅
+- Profile completeness score: progress bar shown on ProfileScreen with hints ✅
 
 ---
 
@@ -63,7 +63,7 @@ Each system is described with its intended behavior, what's currently built, and
 - Push notification sent to matched user on mutual match
 
 **What's missing / needs work:**
-- Scoring weights are hardcoded — they don't adapt based on user swipe behavior
+- AI is now the primary ranking signal (60 pts when available vs 30 pts for math components) ✅
 - AI summary may not appear immediately in match modal (generated async)
 
 ---

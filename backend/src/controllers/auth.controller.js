@@ -56,11 +56,28 @@ async function login(req, res, next) {
       return res.status(401).json({ error: 'Invalid credentials' });
     }
 
+    // Account lockout check
+    if (user.locked_until && new Date(user.locked_until) > new Date()) {
+      const minutesLeft = Math.ceil((new Date(user.locked_until) - new Date()) / 60000);
+      return res.status(429).json({ error: `Account locked. Try again in ${minutesLeft} minute${minutesLeft > 1 ? 's' : ''}.` });
+    }
+
     const match = await bcrypt.compare(password, user.password_hash);
     if (!match) {
-      logger.warn(`Failed login attempt: ${email}`);
-      return res.status(401).json({ error: 'Invalid credentials' });
+      const attempts = (user.login_attempts || 0) + 1;
+      const lock = attempts >= 5
+        ? { login_attempts: 0, locked_until: new Date(Date.now() + 15 * 60 * 1000) }
+        : { login_attempts: attempts, locked_until: null };
+      await UserModel.updateLoginAttempts(user.id, lock.login_attempts, lock.locked_until);
+      logger.warn(`Failed login attempt ${attempts}/5: ${email}`);
+      const msg = attempts >= 5
+        ? 'Too many failed attempts. Account locked for 15 minutes.'
+        : `Invalid credentials (${attempts}/5 attempts)`;
+      return res.status(401).json({ error: msg });
     }
+
+    // Successful login — reset lockout
+    await UserModel.updateLoginAttempts(user.id, 0, null);
 
     if (!user.is_verified) {
       return res.status(403).json({ error: 'Email not verified', needsVerification: true });

@@ -3,6 +3,7 @@ const { authenticate, requireVerified } = require('../middleware/auth.middleware
 const ctrl = require('../controllers/user.controller');
 
 router.patch('/me',                     authenticate, requireVerified, ctrl.updateMe);
+router.post('/me/verify-self',          authenticate, ctrl.verifySelf);
 router.delete('/me',                    authenticate, ctrl.deleteAccount);
 router.patch('/me/role',                authenticate, ctrl.setRole);
 router.post('/me/photo',                authenticate, ctrl.uploadPhoto);

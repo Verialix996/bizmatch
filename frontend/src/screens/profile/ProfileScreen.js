@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, SafeAreaView, Image,
+  TouchableOpacity, ActivityIndicator, SafeAreaView, Image, Animated,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -96,6 +96,21 @@ export default function ProfileScreen({ navigation }) {
     try { return JSON.parse(profile?.skills || '[]'); } catch { return []; }
   })();
 
+  const completeness = (() => {
+    let pts = 0;
+    if (profile?.photo_url) pts += 20;
+    if ((profile?.bio || '').length > 50) pts += 20;
+    if (skills.length >= 2) pts += 20;
+    if (isInvestor) {
+      if (profile?.investment_domain) pts += 20;
+      if (profile?.preferred_stage) pts += 20;
+    } else {
+      if (profile?.venture_stage) pts += 20;
+      if (profile?.funding_needs) pts += 20;
+    }
+    return pts;
+  })();
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView
@@ -108,6 +123,37 @@ export default function ProfileScreen({ navigation }) {
           <Text style={styles.heroName}>{user?.name}</Text>
           <Text style={styles.heroRole}>{roleTitle}</Text>
         </View>
+
+        {/* Profile completeness bar */}
+        {profile && (
+          <View style={styles.completenessCard}>
+            <View style={styles.completenessHeader}>
+              <Text style={styles.completenessLabel}>Profile Strength</Text>
+              <Text style={[
+                styles.completenessPct,
+                { color: completeness === 100 ? colors.success : completeness >= 60 ? colors.primary : colors.warning },
+              ]}>
+                {completeness}%
+              </Text>
+            </View>
+            <View style={styles.completenessTrack}>
+              <View style={[
+                styles.completenessBar,
+                {
+                  width: `${completeness}%`,
+                  backgroundColor: completeness === 100 ? colors.success : completeness >= 60 ? colors.primary : colors.warning,
+                },
+              ]} />
+            </View>
+            {completeness < 100 && (
+              <Text style={styles.completenessHint}>
+                {!profile.photo_url ? 'Add a profile photo · ' : ''}
+                {(profile.bio || '').length <= 50 ? 'Write a bio · ' : ''}
+                {skills.length < 2 ? 'Add skills' : ''}
+              </Text>
+            )}
+          </View>
+        )}
 
         {/* Incomplete profile banner */}
         {!profile?.bio && (
@@ -255,6 +301,47 @@ const styles = StyleSheet.create({
   },
 
   body: { paddingHorizontal: 20 },
+
+  completenessCard: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 16,
+    ...cardShadow,
+  },
+  completenessHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  completenessLabel: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  completenessPct: {
+    fontSize: 14,
+    fontWeight: '800',
+  },
+  completenessTrack: {
+    height: 6,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: 3,
+    overflow: 'hidden',
+  },
+  completenessBar: {
+    height: 6,
+    borderRadius: 3,
+  },
+  completenessHint: {
+    fontSize: 11,
+    color: colors.textHint,
+    marginTop: 8,
+  },
 
   emptyBanner: {
     backgroundColor: colors.warningLight,
