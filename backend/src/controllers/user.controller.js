@@ -1,6 +1,6 @@
 const UserModel = require('../models/user.model');
 const logger = require('../utils/logger');
-const { uploadPhoto: photoUpload } = require('../middleware/upload');
+const { cloudinary } = require('../config/cloudinary');
 const { query } = require('../config/db');
 
 // PATCH /api/users/me
@@ -65,20 +65,23 @@ async function setRole(req, res, next) {
   }
 }
 
-// POST /api/users/me/photo
-function uploadPhoto(req, res, next) {
-  photoUpload(req, res, async (err) => {
-    if (err) return res.status(400).json({ error: err.message });
-    if (!req.file) return res.status(400).json({ error: 'No image provided' });
+// POST /api/users/me/photo  — accepts base64 data URI, uploads to Cloudinary
+async function uploadPhoto(req, res, next) {
+  try {
+    const { photo } = req.body;
+    if (!photo) return res.status(400).json({ error: 'No image provided' });
 
-    const photoUrl = req.file.path;
-    try {
-      await UserModel.updatePhoto(req.user.id, photoUrl);
-      res.json({ photo_url: photoUrl });
-    } catch (e) {
-      next(e);
-    }
-  });
+    const result = await cloudinary.uploader.upload(photo, {
+      folder: 'bizmatch/photos',
+      resource_type: 'image',
+      allowed_formats: ['jpg', 'jpeg', 'png'],
+    });
+
+    await UserModel.updatePhoto(req.user.id, result.secure_url);
+    res.json({ photo_url: result.secure_url });
+  } catch (err) {
+    next(err);
+  }
 }
 
 // PATCH /api/users/me/push-token

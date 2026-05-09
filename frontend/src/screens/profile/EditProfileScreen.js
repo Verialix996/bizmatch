@@ -142,22 +142,24 @@ export default function EditProfileScreen({ route, navigation }) {
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ImagePicker.MediaType?.Images ?? ImagePicker.MediaTypeOptions?.Images,
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: true,
     });
     if (result.canceled) return;
     const asset = result.assets[0];
     setPhotoUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('photo', { uri: asset.uri, type: 'image/jpeg', name: 'photo.jpg' });
-      const { data } = await api.post('/users/me/photo', formData);
+      const mimeType = asset.mimeType || 'image/jpeg';
+      const dataUri = `data:${mimeType};base64,${asset.base64}`;
+      const { data } = await api.post('/users/me/photo', { photo: dataUri });
       setPhotoUrl(data.photo_url);
       updateUser({ photo_url: data.photo_url });
-    } catch {
-      setSaveError('Photo upload failed. Please try again.');
+    } catch (err) {
+      console.error('Photo upload error:', err?.response?.data || err?.message);
+      setSaveError(`Photo upload failed: ${err?.response?.data?.error || err?.message}`);
     } finally {
       setPhotoUploading(false);
     }
