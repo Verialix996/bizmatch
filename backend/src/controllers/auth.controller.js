@@ -285,9 +285,9 @@ async function googleMobile(req, res, next) {
       photo:      profile.picture ?? null,
     });
 
-    const profile = await ProfileModel.findByUserId(user.id);
+    const userProfile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!userProfile } });
   } catch (err) {
     next(err);
   }
