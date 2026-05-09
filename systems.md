@@ -5,7 +5,7 @@
 - **Backend:** Node.js + Express — `backend/`
 - **Database:** MySQL (hosted on Railway)
 - **File Storage:** Cloudinary (photos, decks, videos, NDA PDFs)
-- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match summaries, meeting briefings, feed scoring, deck review
+- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match summaries, meeting briefings, feed scoring, deck review, content moderation
 
 ---
 
@@ -193,6 +193,25 @@ Enables either party in a match to schedule or reschedule a meeting:
 - **Who Liked Me:** `GET /api/users/me/who-liked-me` — returns users who swiped like; 403 if not premium
 - **UI:** Benefits list (Unlimited Swipes, Super Like, Who Liked You) + "Activate Free Trial (30 days)" button
 - **MatchesScreen:** "WHO LIKED YOU ★ PREMIUM" section shows bubbles with ★ badge for Super Likes
+
+---
+
+## AI Moderation System
+**File:** `backend/src/services/moderation.service.js`
+
+Screens user-generated text content with Claude Haiku before it is saved to the database.
+
+**What is moderated:**
+| Content | Endpoint |
+|---------|---------|
+| Profile bio | `POST /api/profile` and `PUT /api/profile` |
+| Chat messages | `POST /api/messages/:matchId` |
+| Project description | `POST /api/projects` and `PUT /api/projects/:id` |
+
+**Behaviour:**
+- Sends the text to Claude Haiku with a business-context prompt — only clearly inappropriate content (hate speech, threats, sexual content, obvious spam) is rejected; normal business language always passes
+- Returns HTTP 400 with a user-facing error message if flagged: `"Bio flagged by moderation: <reason>"`
+- **Fails open** — if `ANTHROPIC_API_KEY` is missing or Claude returns an error, content is allowed through; moderation never blocks users due to an AI outage
 
 ---
 

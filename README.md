@@ -82,6 +82,11 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - New match and new message alerts when app is backgrounded
 - Real physical device required (not simulators)
 
+### AI Content Moderation
+- Profile bios, chat messages, and project descriptions screened by Claude Haiku before saving
+- Inappropriate content (hate speech, threats, sexual content) rejected with a user-facing reason
+- Fails open — content always allowed through if `ANTHROPIC_API_KEY` is missing
+
 ### File Storage
 - All uploads stored on Cloudinary — survives Railway redeploys
 - Profile photos, ID docs, pitch decks, demo videos, NDA PDFs
@@ -187,7 +192,7 @@ bizmatch/
 │   │   ├── middleware/     # auth, upload (Cloudinary multer)
 │   │   ├── models/        # match, message, meeting, project
 │   │   ├── routes/        # API route definitions
-│   │   └── services/      # email (Gmail API), notification (Expo push)
+│   │   └── services/      # email (Gmail API), notification (Expo push), moderation (AI)
 │   └── server.js
 ├── frontend/
 │   ├── src/
