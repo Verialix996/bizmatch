@@ -102,6 +102,10 @@ function ConversationRow({ item, onPress, currentUserId, readTimestamps }) {
           <Text style={styles.convPreview} numberOfLines={1}>
             {item.lastMessage}
           </Text>
+        ) : item.aiSummary ? (
+          <Text style={styles.convPreviewAi} numberOfLines={2}>
+            {item.aiSummary}
+          </Text>
         ) : (
           <Text style={styles.convPreviewNew}>New match — say hello!</Text>
         )}
@@ -422,6 +426,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontStyle: 'italic',
     lineHeight: 18,
+  },
+  convPreviewAi: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontStyle: 'italic',
+    lineHeight: 17,
   },
   unreadDot: {
     width: 9,

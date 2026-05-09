@@ -56,6 +56,7 @@ async function getConversations(userId) {
     `SELECT
        m.id AS matchId,
        m.created_at AS matchedAt,
+       m.ai_summary AS aiSummary,
        u.id AS userId,
        u.name,
        u.photo_url AS photoUrl,

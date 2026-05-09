@@ -186,3 +186,36 @@ Located in `backend/migrations/` — run in order (001 → 010):
 | 008 | matches.ai_summary column |
 | 009 | project_ndas.document_url column |
 | 010 | meetings table |
+
+---
+
+## Not Yet Implemented
+
+Cross-referenced against the official project resource table (טבלת משאבים.xlsx).
+
+### Missing Features
+
+| Feature | Notes |
+|---------|-------|
+| **Premium system** | Unlimited swipes, "who liked you", Super Like, priority feed placement, trial offer — listed in Excel section 3, never started |
+| **Push notifications** | New match / new message alerts via FCM (Android) or APNs (iOS). Only an in-app badge counter exists today |
+| **Interactive onboarding tutorial** | First-time user walkthrough explaining how swipes, matches, and chat work |
+| **Auto-open chat on match** | ~~Implemented~~ — tapping "Message" in the match modal navigates directly to ChatScreen |
+| **Moderation system** | Admin tools to flag, review, suspend, or ban users. Listed in Excel section 2 |
+| **Meeting rescheduling** | Receiver can counter-propose a new time when declining. Only confirm/decline is implemented |
+| **AI cost & usage control** | No rate limiting on Anthropic API calls. A user could spam the briefing endpoint and run up API costs |
+| **Pitch deck AI simulation** | AI reviews an uploaded pitch deck and returns improvement suggestions. Listed in Excel section 7 |
+| **Adaptive matching weights** | Likes/dislikes are saved but the scoring weights (stage: 40pts, budget: 30pts, domain: 30pts) are hardcoded and never adapt based on user behaviour |
+| **Custom domain** | Only the Railway-assigned URL is in use. Project spec listed domain setup as a requirement |
+| **Data backup** | No automated MySQL backup configured on Railway |
+| **Test suite** | No tests of any kind — functional, integration, security, UI/UX, or performance |
+
+### Partially Implemented
+
+| Feature | What's Done | What's Missing |
+|---------|------------|----------------|
+| **Real-time chat** | Messages delivered via 15s polling | True real-time (WebSocket / Server-Sent Events) |
+| **LinkedIn OAuth** | Routes and passport strategy defined | Credentials not verified; untested end-to-end |
+| **Meeting location** | Free-text address field saved to DB | Google Places autocomplete in the app UI |
+| **AI data sanitization** | Sends profile data to Claude for briefings | Does not scrub sensitive fields (e.g. internal IDs) before sending |
+| **NDA "View Document" button** | `document_url` stored in DB and sent in chat message metadata; "View NDA Document →" button now renders in `nda_signed` chat card | — Complete |
