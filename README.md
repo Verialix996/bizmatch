@@ -1,63 +1,74 @@
 # BizMatch
 
-A matchmaking platform for entrepreneurs and investors.
+A Tinder-style matchmaking platform for entrepreneurs and investors.
 
-**Backend:** Live on Railway → `https://zooming-surprise-production.up.railway.app`
-**Frontend:** Expo (React Native) — run locally, connects to Railway from any network
+**Backend:** Live on Railway → `https://zooming-surprise-production.up.railway.app`  
+**Frontend:** Expo (React Native) — run locally, connects to Railway from any network  
+**Deploy branch:** `main-Ai_integrated` (Railway auto-deploys from this branch)
 
 ---
 
 ## Features
 
 ### Authentication
-- Email & password registration with OTP email verification
-- Login with JWT session management
-- Forgot password / reset password via email link
+- Email & password registration with OTP email verification (Gmail API)
+- Login with JWT session management (7-day tokens)
+- Forgot password / reset password via email link (1-hour expiry)
 - Google OAuth sign-in
-- Two-factor authentication (2FA) setup and verification
+- Two-factor authentication (TOTP) — QR code setup + verification screen
 
 ### Profiles
 - Role selection: Entrepreneur or Investor
-- Entrepreneur profile: bio, skills (bubble tags), venture stage, funding needs
-- Investor profile: bio, skills (bubble tags), investment domain, preferred stage, max investment
-- Change role at any time from Account Settings (profile resets to new role)
-- Edit profile at any time
+- Entrepreneur profile: bio, skills (bubble tags), hobbies, venture stage, funding needs
+- Investor profile: bio, investment domain, preferred stage, max investment
+- Profile photo upload (stored on Cloudinary CDN)
+- ID document upload for verification
+- Change role at any time from Account Settings
 
 ### Swipe & Matching
 - Tinder-style swipe deck — swipe right to like, left to pass
 - Entrepreneurs can toggle between "Find Investors" and "Find Partners" modes
 - Investors see entrepreneur project cards
-- Scored feed: matches ranked by stage alignment, budget fit, and domain overlap
+- Scored feed — matches ranked by graduated stage alignment (40 pts), budget fit (30 pts), domain overlap via Jaccard similarity (30 pts), and profile completeness (10 pts)
 - Passed profiles recycle back when all fresh profiles are exhausted
-- Match celebration modal on mutual like with option to message immediately
-- Profile updates re-enter the user into the match pool
+- Mutual match detection → match celebration modal with direct navigate to chat
+- AI match summary — Claude Haiku generates a 1-sentence "why you match" explanation shown in the Matches tab
 
 ### Projects
-- Entrepreneurs can create and manage projects
-- Project cards include title, description, industry, stage, funding needed
-- Optional pitch deck and demo video links
-- Investors swipe on project cards
+- Entrepreneurs create and manage project cards
+- Public / private visibility toggle (private projects hidden from investor feed)
+- Pitch deck upload (PDF/PPTX) and demo video upload (MP4/MOV) via Cloudinary
+- Investors swipe on project cards (separate from person-to-person matching)
+- Partner system: invite other entrepreneurs to join a project
 
 ### Messaging
 - Chat screen for every mutual match
-- Real-time message updates via polling
-- Date dividers and message timestamps
+- Message updates via 15-second polling
+- Structured message cards: partner invites, NDA requests, project sharing, meeting proposals
+- Date dividers, timestamps, unread blue dot per conversation
 - Auto-scrolls to latest message
 
-### Design & Navigation
-- Custom Ionicons tab bar (compass, chat bubbles, folder, person circle)
-- Active/inactive icon states
-- BizMatch logo header consistent across all tabs
-- Notification badge on Matches tab showing new matches + unread messages
-- Unread blue dot per conversation, clears automatically after opening the chat
-- Responsive layout for iPhone 15 (393pt) and other screen sizes
+### NDA System
+- Entrepreneur requests NDA via chat
+- Investor signs NDA → backend generates a real PDF (pdfkit) with names, project title, standard clauses, and date
+- PDF uploaded to Cloudinary; "View NDA Document →" link appears in chat
+- After signing, full project details are automatically shared in chat
+
+### Meeting System
+- Either party can propose a meeting from any chat (📅 button)
+- Meeting types: Virtual (video link) or In-Person (address)
+- Proposal appears as a card in chat; receiver can confirm or decline
+- Meetings tab shows all upcoming meetings with status badges
+- AI Due Diligence Briefing — Claude Haiku generates a 5-section prep report (person summary, match rationale, talking points, questions to ask, watch out for); cached per meeting
+
+### File Storage
+- All uploads stored on Cloudinary — survives Railway redeploys
+- Profile photos, ID docs, pitch decks, demo videos, NDA PDFs
 
 ### Account
 - Change role from Account Settings
-- Change account details
-- Delete account
-- Privacy settings
-
+- Edit profile details
+- Delete account (hard delete)
 
 ---
 
@@ -74,6 +85,7 @@ A matchmaking platform for entrepreneurs and investors.
    ```bash
    git clone https://github.com/Verialix996/bizmatch.git
    cd bizmatch
+   git checkout main-Ai_integrated
    ```
 
 2. **Install frontend dependencies**
@@ -89,9 +101,9 @@ A matchmaking platform for entrepreneurs and investors.
 
 4. **Open in Expo Go**
    - Scan the QR code shown in the terminal with the Expo Go app
-   - The app will load and connect to the live Railway backend automatically
+   - The app connects to the live Railway backend automatically
 
-That's it — no backend setup needed for testing. The backend is already deployed.
+That's it — no backend setup needed for testing.
 
 ### Verify the backend is live
 
@@ -99,33 +111,15 @@ That's it — no backend setup needed for testing. The backend is already deploy
 curl https://zooming-surprise-production.up.railway.app/health
 ```
 
-Expected response:
-```json
-{"status":"ok"}
-```
-
-### Test registration via API
-
-```bash
-curl -X POST https://zooming-surprise-production.up.railway.app/api/auth/register \
-  -H "Content-Type: application/json" \
-  -d '{"email":"test@example.com","name":"Test User","password":"12345678"}'
-```
-
-Expected response:
-```json
-{"message":"Registered. Check your email for the verification code."}
-```
+Expected: `{"status":"ok"}`
 
 ---
 
 ## Running the Backend Locally (optional)
 
-Only needed if you want to develop or test backend changes locally.
-
 ### Prerequisites
-- [MySQL](https://dev.mysql.com/downloads/installer/) installed and running locally
-- A MySQL database named `bizmatch` (the migration runner creates it automatically)
+- MySQL installed and running locally
+- A database named `bizmatch`
 
 ### Setup
 
@@ -135,31 +129,32 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env` and fill in:
+Fill in `.env`:
 
 | Variable | Description |
 |---|---|
 | `DATABASE_URL` | `mysql://root:<password>@localhost:3306/bizmatch` |
 | `JWT_SECRET` | Any long random string |
 | `GMAIL_USER` | Your Gmail address |
-| `GMAIL_APP_PASSWORD` | Gmail app password (see below) |
+| `GOOGLE_CLIENT_ID` | OAuth client ID (Gmail API) |
+| `GOOGLE_CLIENT_SECRET` | OAuth client secret |
+| `GMAIL_REFRESH_TOKEN` | OAuth refresh token |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
+| `ANTHROPIC_API_KEY` | Anthropic API key (AI features) |
 
-**Getting a Gmail App Password:**
-1. Go to [myaccount.google.com](https://myaccount.google.com) → Security
-2. Enable 2-Step Verification
-3. Search for "App Passwords" → create one → copy the 16-character code
-
-Start the backend (migrations run automatically on startup):
+See `docs/` for setup guides (Cloudinary, Gmail API, Railway).
 
 ```bash
 npm run dev
 ```
 
-The server will run on `http://localhost:3000`.
+Server runs on `http://localhost:3000`. Run migrations manually:
 
-To point the frontend at your local backend instead of Railway, edit `frontend/src/services/api.js`:
-```js
-const API_URL = 'http://localhost:3000/api'; // or your local IP
+```bash
+mysql -u root -p bizmatch < migrations/001_users.sql
+# ... repeat for 002 through 010
 ```
 
 ---
@@ -169,25 +164,32 @@ const API_URL = 'http://localhost:3000/api'; // or your local IP
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # MySQL schema files (run automatically on startup)
-│   ├── scripts/           # One-time utility scripts
+│   ├── migrations/        # MySQL schema files (001–010)
+│   ├── scripts/           # Manual utility scripts (gitignored)
 │   ├── src/
-│   │   ├── config/        # Database and OAuth configuration
-│   │   ├── controllers/   # Route logic
-│   │   ├── middleware/     # Auth, rate limiting, error handling
-│   │   ├── models/        # Database queries
-│   │   ├── routes/        # API endpoints
-│   │   ├── services/      # Email service
-│   │   └── utils/         # Logger
-│   ├── .env.example       # Environment variable template
-│   └── server.js          # Entry point
-└── frontend/
-    ├── src/
-    │   ├── navigation/    # App navigation
-    │   ├── screens/       # App screens
-    │   ├── services/      # API calls
-    │   └── store/         # State management
-    └── App.js             # Entry point
+│   │   ├── config/        # DB, Cloudinary, Passport OAuth
+│   │   ├── controllers/   # auth, user, profile, match, message, meeting, project
+│   │   ├── middleware/     # auth, upload (Cloudinary multer)
+│   │   ├── models/        # match, message, meeting, project
+│   │   ├── routes/        # API route definitions
+│   │   └── services/      # email (Gmail API)
+│   └── server.js
+├── frontend/
+│   ├── src/
+│   │   ├── navigation/    # AppNavigator (tabs + stacks)
+│   │   ├── screens/
+│   │   │   ├── auth/      # Login, Register, Verify2FA, ForgotPassword
+│   │   │   ├── match/     # SwipeScreen, MatchesScreen, ChatScreen
+│   │   │   ├── meeting/   # MeetingScreen, MeetingDetailScreen, ProposeMeetingScreen
+│   │   │   ├── profile/   # ProfileScreen, EditProfile
+│   │   │   └── project/   # ProjectsScreen, CreateProject, EditProject
+│   │   ├── services/      # API calls (axios)
+│   │   └── store/         # Zustand (auth, readTimestamps)
+│   └── App.js
+├── docs/                  # Setup guides + academic files (gitignored)
+├── CLAUDE.md              # Claude Code context file
+├── FEATURE_STATUS.md      # Status of every feature (complete/partial/missing)
+└── systems.md             # Full technical system documentation
 ```
 
 ---
@@ -201,37 +203,53 @@ bizmatch/
 | POST | `/api/auth/verify-email` | Verify OTP code |
 | POST | `/api/auth/resend-otp` | Resend OTP |
 | POST | `/api/auth/forgot-password` | Request password reset |
-| POST | `/api/auth/reset-password` | Reset password with token |
-| POST | `/api/auth/2fa/setup` | Setup 2FA |
-| POST | `/api/auth/2fa/verify` | Verify 2FA |
+| POST | `/api/auth/reset-password` | Reset with token |
+| POST | `/api/auth/2fa/setup` | Setup 2FA (returns QR URI) |
+| POST | `/api/auth/2fa/verify` | Verify TOTP code |
 | GET | `/api/profile` | Get my profile |
-| POST | `/api/profile` | Create profile (upserts if exists) |
+| POST | `/api/profile` | Create/update profile |
 | PUT | `/api/profile` | Update profile |
-| PATCH | `/api/users/me/role` | Change role |
-| POST | `/api/users/me/photo` | Upload profile photo (coming soon) |
+| POST | `/api/profile/upload-id` | Upload ID document |
+| GET | `/api/users/me` | Get current user |
+| PATCH | `/api/users/me/role` | Switch role |
+| POST | `/api/users/me/photo` | Upload profile photo |
 | DELETE | `/api/users/me` | Delete account |
-| GET | `/api/match/feed` | Get swipe feed |
-| POST | `/api/match/swipe` | Record a swipe |
-| GET | `/api/messages/conversations` | Get all match conversations |
+| GET | `/api/match/feed` | Get scored swipe feed |
+| POST | `/api/match/swipe` | Record a swipe (returns match if mutual) |
+| GET | `/api/match/matches` | Get all matches |
+| GET | `/api/messages` | Get all conversations |
 | GET | `/api/messages/:matchId` | Get messages for a match |
 | POST | `/api/messages/:matchId` | Send a message |
+| POST | `/api/messages/:matchId/invite` | Send partner invite |
+| POST | `/api/messages/:matchId/invite/:id/respond` | Accept or decline invite |
+| POST | `/api/messages/:matchId/nda-request` | Request NDA signing |
+| POST | `/api/messages/:matchId/nda-sign` | Sign NDA (generates PDF) |
+| POST | `/api/messages/:matchId/share-project` | Share project details |
 | GET | `/api/projects` | Get my projects |
 | POST | `/api/projects` | Create a project |
 | PUT | `/api/projects/:id` | Update a project |
 | DELETE | `/api/projects/:id` | Delete a project |
+| GET | `/api/projects/feed` | Get project feed (investors) |
+| POST | `/api/projects/:id/swipe` | Swipe on a project |
+| POST | `/api/meetings` | Propose a meeting |
+| GET | `/api/meetings` | List my meetings |
+| PUT | `/api/meetings/:id` | Confirm / decline meeting |
+| GET | `/api/meetings/:id/briefing` | Get AI due diligence briefing |
 
 ---
 
 ## Deployment
 
-The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `master`.
+The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
 
 - **Database:** MySQL on Railway
+- **File storage:** Cloudinary (photos, docs, videos, NDA PDFs)
+- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`)
 - **Node.js service:** root directory `backend/`, start command `node server.js`
-- **Schema migrations** run automatically on every startup (idempotent)
 
 ## Notes
 
-- Never commit your `.env` file
-- Google OAuth credentials are optional — the app works without them
-- Uploaded files are not persisted across Railway redeploys (ephemeral filesystem)
+- Never commit `.env` files
+- All migrations must be run manually on Railway after deploy (see `backend/migrations/`)
+- AI features fail silently when `ANTHROPIC_API_KEY` is missing
+- See `FEATURE_STATUS.md` for what's built, partial, and not yet implemented
