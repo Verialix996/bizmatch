@@ -37,6 +37,8 @@ async function updateProfile(req, res, next) {
     });
     // Re-enter user into the match pool by clearing pass swipes targeting them
     await query("DELETE FROM swipes WHERE swiped_id = ? AND direction = 'pass'", [req.user.id]);
+    // Invalidate cached AI scores so fresh ones are computed on next feed load
+    query('DELETE FROM ai_match_scores WHERE user_id = ? OR candidate_id = ?', [req.user.id, req.user.id]).catch(() => {});
     res.json({ message: 'Profile updated' });
   } catch (err) {
     next(err);

@@ -46,36 +46,46 @@ function completenessBonus(profile) {
   return bonus;
 }
 
-function scoreInvestorEntrepreneur(investorProfile, entrepreneurProfile) {
+// aiScore is 0-100 from Claude; when present it replaces the semantic portion
+function scoreInvestorEntrepreneur(investorProfile, entrepreneurProfile, aiScore = null) {
   let score = 0;
 
   score += stageScore(investorProfile.preferred_stage, entrepreneurProfile.venture_stage);
   score += budgetScore(investorProfile.max_investment, entrepreneurProfile.funding_needs);
 
-  const domainText = investorProfile.investment_domain || '';
-  const entText = [
-    ...(safeParseArray(entrepreneurProfile.skills)),
-    entrepreneurProfile.bio || '',
-  ].join(' ');
-  score += jaccardScore(domainText, entText, 30);
+  if (aiScore != null) {
+    score += Math.round(aiScore / 100 * 30);
+  } else {
+    const domainText = investorProfile.investment_domain || '';
+    const entText = [
+      ...(safeParseArray(entrepreneurProfile.skills)),
+      entrepreneurProfile.bio || '',
+    ].join(' ');
+    score += jaccardScore(domainText, entText, 30);
+  }
 
   score += completenessBonus(entrepreneurProfile);
 
   return score;
 }
 
-function scoreEntrepreneurEntrepreneur(profileA, profileB) {
+// aiScore replaces the hobby/skill compatibility math when present
+function scoreEntrepreneurEntrepreneur(profileA, profileB, aiScore = null) {
   let score = 0;
 
-  const hobbiesA = safeParseArray(profileA.hobbies).map(h => h.toLowerCase());
-  const hobbiesB = safeParseArray(profileB.hobbies).map(h => h.toLowerCase());
-  const sharedHobbies = hobbiesA.filter(h => hobbiesB.includes(h));
-  score += sharedHobbies.length * 20;
+  if (aiScore != null) {
+    score += Math.round(aiScore / 100 * 30);
+  } else {
+    const hobbiesA = safeParseArray(profileA.hobbies).map(h => h.toLowerCase());
+    const hobbiesB = safeParseArray(profileB.hobbies).map(h => h.toLowerCase());
+    const sharedHobbies = hobbiesA.filter(h => hobbiesB.includes(h));
+    score += sharedHobbies.length * 20;
 
-  const skillsA = safeParseArray(profileA.skills).map(s => s.toLowerCase());
-  const skillsB = safeParseArray(profileB.skills).map(s => s.toLowerCase());
-  const complementary = skillsB.filter(s => !skillsA.includes(s));
-  score += complementary.length * 10;
+    const skillsA = safeParseArray(profileA.skills).map(s => s.toLowerCase());
+    const skillsB = safeParseArray(profileB.skills).map(s => s.toLowerCase());
+    const complementary = skillsB.filter(s => !skillsA.includes(s));
+    score += complementary.length * 10;
+  }
 
   score += completenessBonus(profileB);
 
@@ -89,6 +99,67 @@ function safeParseArray(value) {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// AI background scoring
+// ---------------------------------------------------------------------------
+
+async function computeAiScores(userId, userRole, myProfile, candidates) {
+  if (!process.env.ANTHROPIC_API_KEY || !myProfile || candidates.length === 0) return;
+
+  try {
+    // Find which pairs are already cached
+    const candidateIds = candidates.map(c => c.user_id);
+    const placeholders = candidateIds.map(() => '?').join(',');
+    const cached = await query(
+      `SELECT candidate_id FROM ai_match_scores WHERE user_id = ? AND candidate_id IN (${placeholders})`,
+      [userId, ...candidateIds]
+    );
+    const cachedSet = new Set(cached.map(r => r.candidate_id));
+    const uncached = candidates.filter(c => !cachedSet.has(c.user_id));
+
+    if (uncached.length === 0) return;
+
+    const client = new Anthropic();
+
+    const buildPrompt = (candidate) => {
+      if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
+        return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
+Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myProfile.preferred_stage || 'N/A'}, max invest=$${myProfile.max_investment || 0}.
+Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
+      }
+      if (userRole === 'entrepreneur' && candidate.role_type === 'investor') {
+        return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
+Investor: domain=${candidate.investment_domain || 'N/A'}, preferred stage=${candidate.preferred_stage || 'N/A'}, max invest=$${candidate.max_investment || 0}.
+Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${myProfile.venture_stage || 'N/A'}, needs=$${myProfile.funding_needs || 0}.`;
+      }
+      // entrepreneur-entrepreneur
+      return `Rate collaboration potential 0-100. Reply with ONLY a number.
+Person A: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(myProfile.hobbies).join(', ') || 'N/A'}.
+Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(candidate.hobbies).join(', ') || 'N/A'}.`;
+    };
+
+    await Promise.allSettled(
+      uncached.map(async (candidate) => {
+        const response = await client.messages.create({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 5,
+          messages: [{ role: 'user', content: buildPrompt(candidate) }],
+        });
+        const raw = response.content[0]?.text?.trim();
+        const score = parseInt(raw, 10);
+        if (isNaN(score)) return;
+        const clamped = Math.max(0, Math.min(100, score));
+        await query(
+          'INSERT IGNORE INTO ai_match_scores (user_id, candidate_id, score) VALUES (?, ?, ?)',
+          [userId, candidate.user_id, clamped]
+        );
+      })
+    );
+  } catch {
+    // non-critical — never affects feed response
   }
 }
 
@@ -122,6 +193,18 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
   const myProfileRows = await query('SELECT * FROM profiles WHERE user_id = ?', [userId]);
   const myProfile = myProfileRows[0];
 
+  // Load cached AI scores for all candidates in one query
+  const aiScoreMap = new Map();
+  if (candidates.length > 0) {
+    const cIds = candidates.map(c => c.user_id);
+    const cPlaceholders = cIds.map(() => '?').join(',');
+    const aiRows = await query(
+      `SELECT candidate_id, score FROM ai_match_scores WHERE user_id = ? AND candidate_id IN (${cPlaceholders})`,
+      [userId, ...cIds]
+    );
+    aiRows.forEach(r => aiScoreMap.set(r.candidate_id, r.score));
+  }
+
   const toCard = (c, score) => ({
     userId: c.user_id,
     name: c.name,
@@ -139,12 +222,13 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
   });
 
   const calcScore = (c) => {
+    const aiScore = aiScoreMap.has(c.user_id) ? aiScoreMap.get(c.user_id) : null;
     if (userRole === 'investor' && c.role_type === 'entrepreneur') {
-      return myProfile ? scoreInvestorEntrepreneur(myProfile, c) : 0;
+      return myProfile ? scoreInvestorEntrepreneur(myProfile, c, aiScore) : 0;
     } else if (userRole === 'entrepreneur' && c.role_type === 'investor') {
-      return myProfile ? scoreInvestorEntrepreneur(c, myProfile) : 0;
+      return myProfile ? scoreInvestorEntrepreneur(c, myProfile, aiScore) : 0;
     } else if (userRole === 'entrepreneur' && c.role_type === 'entrepreneur') {
-      return myProfile ? scoreEntrepreneurEntrepreneur(myProfile, c) : 0;
+      return myProfile ? scoreEntrepreneurEntrepreneur(myProfile, c, aiScore) : 0;
     }
     return 0;
   };
@@ -154,7 +238,12 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
 
   const scoreAndSort = arr => arr.map(c => toCard(c, calcScore(c))).sort((a, b) => b.score - a.score);
 
-  return [...scoreAndSort(fresh), ...scoreAndSort(passed)].slice(0, limit);
+  const result = [...scoreAndSort(fresh), ...scoreAndSort(passed)].slice(0, limit);
+
+  // Trigger background AI scoring for uncached candidates (non-blocking)
+  computeAiScores(userId, userRole, myProfile, candidates).catch(() => {});
+
+  return result;
 }
 
 // ---------------------------------------------------------------------------
