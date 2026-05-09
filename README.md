@@ -41,10 +41,11 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 ### Projects
 - Entrepreneurs create and manage project cards
 - Public / private visibility toggle (private projects hidden from investor feed)
-- Pitch deck upload (PDF/PPTX) and demo video upload (MP4/MOV) via Cloudinary
+- Pitch deck upload (PDF) — stored as a binary blob in MySQL; served via a backend proxy endpoint that accepts a JWT token in the query string for direct browser navigation
+- Demo video upload (MP4/MOV) via Cloudinary
 - Investors swipe on project cards (separate from person-to-person matching)
 - Partner system: invite other entrepreneurs to join a project
-- **AI Deck Review** — submit a deck description, get back an overall score (1–10), strengths, weaknesses, and suggestions from Claude
+- **AI Deck Review** — upload a PDF, get back an overall score (1–10), strengths, weaknesses, and suggestions; Claude reads the actual PDF content, not just a description; non-pitch documents receive a score of 1
 
 ### Messaging
 - Chat screen for every mutual match
@@ -88,8 +89,8 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Fails open — content always allowed through if `ANTHROPIC_API_KEY` is missing
 
 ### File Storage
-- All uploads stored on Cloudinary — survives Railway redeploys
-- Profile photos, ID docs, pitch decks, demo videos, NDA PDFs
+- Profile photos, ID docs, demo videos, and NDA PDFs stored on Cloudinary — survives Railway redeploys
+- **Pitch decks (PDF)** stored as `LONGBLOB` in MySQL — Cloudinary free tier blocks raw file CDN delivery; backend proxy serves PDF bytes inline to the browser
 
 ---
 
@@ -192,7 +193,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # MySQL schema files (001–014), auto-run on startup
+│   ├── migrations/        # MySQL schema files (001–015), auto-run on startup
 │   ├── scripts/           # seed.js (50 accounts) + demo.js (4 test accounts, wipes DB)
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
@@ -267,7 +268,9 @@ bizmatch/
 | DELETE | `/api/projects/:id` | Delete a project |
 | GET | `/api/projects/feed` | Get project feed (investors) |
 | POST | `/api/projects/:id/swipe` | Swipe on a project |
-| POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck |
+| POST | `/api/projects/:id/upload-deck` | Upload pitch deck PDF (stored in MySQL BLOB) |
+| GET | `/api/projects/:id/deck` | Serve pitch deck PDF inline (`?token=JWT`) |
+| POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck (reads from MySQL BLOB) |
 | POST | `/api/meetings` | Propose a meeting |
 | GET | `/api/meetings` | List my meetings |
 | PUT | `/api/meetings/:id` | Confirm / decline meeting |
@@ -280,8 +283,8 @@ bizmatch/
 
 The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
 
-- **Database:** MySQL on Railway — migrations run automatically on startup
-- **File storage:** Cloudinary (photos, docs, videos, NDA PDFs)
+- **Database:** MySQL on Railway — migrations run automatically on startup (001–015)
+- **File storage:** Cloudinary (photos, docs, videos, NDA PDFs); pitch deck PDFs stored as MySQL BLOB
 - **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`)
 - **Node.js service:** root directory `backend/`, start command `node server.js`
 

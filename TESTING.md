@@ -17,22 +17,26 @@
 
 ---
 
-## Section 1 — New Account (Single User Flow)
+## Section 1 — New Account (Single User Flow) ✅ COMPLETE
 
-### 1.7 Project Management (Entrepreneur only)
+All Section 1 tests passed on 2026-05-09. Bugs found and fixed during testing:
 
-#### View pitch deck
-1. Tap "Replace PDF" on an existing project → upload a fresh PDF
-2. Share that project in a chat (action menu → "Share Project") → tap "View Full Details" → tap "📄 View Pitch Deck"
-3. **Expected:** Browser opens the file with a `.pdf` extension in the URL — file is openable
-cant read the pdf file now
-#### AI deck review
-1. Open a project with a PDF deck uploaded → tap "✦ Get AI Deck Feedback"
-2. Tap "Analyse"
-3. **Expected:** Results show Overall Score (1–10), Strengths, Weaknesses, Suggestions rated against standard pitch deck criteria (problem, solution, market, team, business model, funding ask)
-4. Upload a non-pitch document (e.g. a plain text or math page as PDF) → tap "Analyse"
-5. **Expected:** Score is 1 and weaknesses clearly state the document is not a business pitch deck
-when trying to watch a pdf file of a project it says fails to read pdf file, needs to understand why
+| Bug | Fix |
+|-----|-----|
+| Photo upload "request entity too large" | Increased Express body limit to 10 MB; reduced image quality to 0.5 |
+| Save button unresponsive after photo error | Clear `saveError` at start of `onSubmit` |
+| Can't add a video file | Switched to `ImagePicker` + XHR for video upload |
+| No visibility toggle in project form | Added Public/Private toggle to `ProjectForm` |
+| Inappropriate project titles not moderated | Added `moderateText` call for title in create/update |
+| Chat moderation rejection shows no error | Shows inline red bubble instead of silent failure |
+| No "Go Premium" access from Profile tab | Added "Go Premium ✦" button to ProfileScreen |
+| Weak passwords allowed (min 6 chars) | Raised to 8 chars, requires letter + number |
+| Pitch deck URL missing .pdf extension | Added `.pdf` to Cloudinary `public_id` |
+| PDF unreadable (Cloudinary free-tier block) | PDFs now stored as LONGBLOB in MySQL; served via backend proxy |
+| Browser login failed with correct credentials | Wrapped `SecureStore.getItemAsync` in try-catch (throws on web) |
+| Deleted account stuck in app | Added 401 interceptor → auto-logout |
+| Onboarding not shown after profile creation on same device | Reset `hasSeenOnboarding` flag when `has_profile = false` |
+
 ---
 
 ## Section 2 — Two Accounts Testing
@@ -200,6 +204,24 @@ ON DUPLICATE KEY UPDATE briefing_count = 49;
 2. Request one briefing → **Expected:** succeeds (count = 50)
 3. Request another → **Expected:** 429 "Daily AI briefing limit reached. Try again tomorrow."
 
+### 2.18 View Pitch Deck
+
+> B has TeamSync project with a PDF deck uploaded
+
+1. Log in as A (investor) → Discover tab → find TeamSync card → tap "📄 View Deck"
+2. **Expected:** PDF opens in device browser, rendered inline (no download prompt, no Cloudinary error)
+3. Log in as B → Projects tab → tap TeamSync → "View Full Details" in chat → tap "📄 View Pitch Deck"
+4. **Expected:** Same — PDF opens cleanly
+
+### 2.19 AI Deck Review
+
+> B must have a PDF uploaded to TeamSync (use "Upload PDF" / "Replace PDF" button first)
+
+1. Log in as B → Projects tab → open TeamSync → tap "✦ Get AI Deck Feedback" → tap "Analyse"
+2. **Expected:** Results show Overall Score (1–10), Strengths, Weaknesses, Suggestions rated against standard pitch deck criteria
+3. Upload a non-pitch document (e.g. a plain text page as PDF) → tap "Analyse"
+4. **Expected:** Score is 1 and weaknesses clearly state the document is not a business pitch deck
+
 ---
 
 ## Quick Smoke Test Checklist
@@ -217,6 +239,8 @@ Run before every demo:
 - [ ] Meeting proposed, confirmed, visible in Meetings tab
 - [ ] AI Briefing loads for a confirmed meeting
 - [ ] Projects tab shows public projects
+- [ ] Pitch deck PDF opens in browser (proxy endpoint)
+- [ ] AI deck review returns structured feedback
 - [ ] Premium trial activates, Who Liked Me section appears
 - [ ] Auth persists after closing and reopening app
 - [ ] Account deletion removes account and logs out

@@ -4,7 +4,7 @@
 - **Frontend:** React Native (Expo) — `frontend/`
 - **Backend:** Node.js + Express — `backend/`
 - **Database:** MySQL (hosted on Railway)
-- **File Storage:** Cloudinary (photos, decks, videos, NDA PDFs)
+- **File Storage:** Cloudinary (photos, videos, NDA PDFs); pitch deck PDFs stored as MySQL LONGBLOB (Cloudinary free tier blocks raw file CDN delivery)
 - **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match summaries, meeting briefings, feed scoring, deck review, content moderation
 
 ---
@@ -96,14 +96,16 @@ Entrepreneurs create project cards that investors can browse and swipe on — se
 
 - **CRUD:** Create, edit, delete, toggle active
 - **Visibility:** `public` (appears in investor feed) vs `private` (hidden)
-- **Uploads:** pitch deck (PDF/PPTX via Cloudinary), demo video (MP4/MOV via Cloudinary)
+- **Pitch deck upload:** PDF stored as `LONGBLOB` in `projects.deck_data` (migration 015) via `multer.memoryStorage()`; `deck_url` set to sentinel `'stored'` to preserve UI truthiness checks; Cloudinary skipped entirely (free tier blocks raw file CDN delivery)
+- **Pitch deck proxy:** `GET /api/projects/:id/deck?token=JWT` — verifies JWT (query param accepted for direct browser navigation), fetches bytes from DB, sends with `Content-Type: application/pdf; Content-Disposition: inline`
+- **Demo video upload:** MP4/MOV via Cloudinary (`bizmatch/videos/`)
 - **Project feed scoring (investor side, 0–100 pts):**
   - Stage match: graduated
   - Budget fit: graduated
   - Industry↔domain overlap: Jaccard
   - Deck present: +10, Video present: +10
 - **Partners:** Entrepreneurs can add/remove partners from a project (`project_partners` table)
-- **AI Deck Review:** `POST /api/projects/:id/deck-review { deckSummary }` → Claude Haiku returns JSON (overallScore 1–10, strengths, weaknesses, suggestions)
+- **AI Deck Review:** `POST /api/projects/:id/deck-review` → reads `deck_data` BLOB from DB, base64-encodes, sends to Claude Haiku as a `document` content block; returns JSON (overallScore 1–10, strengths, weaknesses, suggestions); non-pitch documents receive score 1 with explanation in weaknesses
 
 ---
 
@@ -220,17 +222,17 @@ Screens user-generated text content with Claude Haiku before it is saved to the 
 ## File Storage System
 **Files:** `backend/src/config/cloudinary.js`, `backend/src/middleware/upload.js`
 
-All file uploads go to Cloudinary (not local disk — Railway's filesystem is ephemeral):
+Most uploads go to Cloudinary (not local disk — Railway's filesystem is ephemeral). Pitch deck PDFs are the exception — stored in MySQL due to Cloudinary free-tier raw file restrictions.
 
-| Upload type | Field name | Folder | Formats |
-|-------------|-----------|--------|---------|
-| Profile photo | `photo` | `bizmatch/photos` | jpg, jpeg, png |
-| ID document | `document` | `bizmatch/docs` | jpg, jpeg, png, pdf |
-| Pitch deck | `deck` | `bizmatch/docs` | pdf, pptx, ppt |
-| Demo video | `video` | `bizmatch/videos` | mp4, mov |
-| NDA PDF | (server-generated) | `bizmatch/ndas` | pdf |
+| Upload type | Field name | Storage | Formats | Served via |
+|-------------|-----------|---------|---------|-----------|
+| Profile photo | `photo` | Cloudinary `bizmatch/photos` | jpg, jpeg, png | CDN URL |
+| ID document | `document` | Cloudinary `bizmatch/docs` | jpg, jpeg, png, pdf | CDN URL |
+| **Pitch deck** | `deck` | **MySQL `projects.deck_data` (LONGBLOB)** | **pdf** | **`GET /api/projects/:id/deck?token=JWT`** |
+| Demo video | `video` | Cloudinary `bizmatch/videos` | mp4, mov | CDN URL |
+| NDA PDF | (server-generated) | Cloudinary `bizmatch/ndas` | pdf | CDN URL |
 
-Files are served directly via Cloudinary CDN URLs (no `/uploads` route on the backend).
+**Why pitch decks use MySQL BLOB:** Cloudinary free tier returns `show_original_customer_untrusted` for raw file CDN delivery. Signed CDN URLs still fail (CDN-level block). Admin API private_download_url returns 404. Server-side CDN fetch also returns 401. Storing as LONGBLOB and serving via a backend proxy is the only approach that works on the free tier.
 
 ---
 
@@ -253,6 +255,7 @@ Located in `backend/migrations/` — auto-run on server startup via `migrations/
 | 012 | users.is_premium, users.premium_expires_at, swipes.is_super_like |
 | 013 | ai_match_scores table |
 | 014 | users.login_attempts, users.locked_until (account lockout) |
+| 015 | projects.deck_data LONGBLOB column (pitch deck binary storage) |
 
 To rebuild from scratch: `node backend/scripts/seed.js` (drops all tables, reruns all migrations, seeds 25 investors + 25 entrepreneurs).
 

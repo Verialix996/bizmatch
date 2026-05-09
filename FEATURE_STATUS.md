@@ -56,10 +56,12 @@ Each system is described with its intended behavior and current implementation s
 **What's implemented:**
 - CRUD: create, edit, delete, toggle active
 - Visibility: `public` (investor feed) vs `private` (hidden)
-- Pitch deck upload (PDF/PPTX) and demo video upload (MP4/MOV) via Cloudinary
+- Pitch deck upload (PDF only) — stored as `LONGBLOB` in MySQL (`deck_data` column, migration 015); `deck_url` set to sentinel value `'stored'` to preserve UI truthiness checks
+- Demo video upload (MP4/MOV) via Cloudinary
+- Pitch deck served via backend proxy (`GET /api/projects/:id/deck?token=JWT`) — JWT accepted in query param for direct browser navigation; sets `Content-Type: application/pdf; Content-Disposition: inline`
 - Project feed scoring for investors: stage match + budget fit + industry/domain Jaccard + deck/video bonuses
 - Partner system: add/remove partners (`project_partners` table)
-- **AI Deck Review**: `POST /api/projects/:id/deck-review { deckSummary }` → Claude Haiku returns overallScore (1–10), strengths, weaknesses, suggestions
+- **AI Deck Review**: `POST /api/projects/:id/deck-review` → reads PDF bytes from `deck_data` BLOB, base64-encodes, sends to Claude Haiku as a document; returns overallScore (1–10), strengths, weaknesses, suggestions
 
 ---
 
@@ -105,9 +107,11 @@ Each system is described with its intended behavior and current implementation s
 **Status:** ✅ Complete
 
 **What's implemented:**
-- All uploads go to Cloudinary (Railway disk is ephemeral)
-- Profile photos → `bizmatch/photos/`, docs/decks → `bizmatch/docs/`, videos → `bizmatch/videos/`, NDA PDFs → `bizmatch/ndas/`
-- Files served directly via Cloudinary CDN URLs
+- Profile photos → Cloudinary (`bizmatch/photos/`), served via CDN URL
+- Demo videos → Cloudinary (`bizmatch/videos/`), served via CDN URL
+- NDA PDFs → Cloudinary (`bizmatch/ndas/`), served via CDN URL
+- **Pitch decks (PDF)** → stored as `LONGBLOB` in MySQL (`projects.deck_data`); Cloudinary free tier blocks raw file CDN delivery; backend proxy endpoint serves bytes directly to browser
+- ID documents → Cloudinary (`bizmatch/docs/`), served via CDN URL
 
 ---
 
@@ -118,7 +122,7 @@ Each system is described with its intended behavior and current implementation s
 - **Feed ranking**: Claude Haiku scores candidate pairs 0–100 in background; 60-pt primary signal when cached; falls back to math when not yet scored
 - **Match summary**: 1-sentence "why you match" on mutual match; shown in match modal and Matches tab
 - **Meeting briefing**: 5-section due diligence report; cached per meeting; daily usage limit
-- **Deck review**: structured feedback (score, strengths, weaknesses, suggestions) from a text deck description
+- **Deck review**: PDF bytes read from MySQL BLOB, base64-encoded, sent to Claude Haiku as a document; returns structured feedback (overallScore 1–10, strengths, weaknesses, suggestions); handles non-pitch documents by setting score to 1
 - **Content moderation**: Claude Haiku screens profile bios, chat messages, and project descriptions for inappropriate content before saving; returns 400 with reason if flagged; fails open when API key missing
 - All AI features fail silently when `ANTHROPIC_API_KEY` is missing
 
@@ -168,11 +172,11 @@ Each system is described with its intended behavior and current implementation s
 | Authentication | ✅ Complete — lockout after 5 failed attempts |
 | User & Profile | ✅ Complete — verify button + completeness score |
 | Matching & Feed | ✅ Complete — AI is primary ranking signal (60 pts) |
-| Project System | ✅ Complete — AI deck review |
+| Project System | ✅ Complete — PDF in MySQL BLOB, backend proxy, AI deck review |
 | Messaging | ✅ Complete — polling (15s delay) |
 | NDA System | ✅ Complete |
 | Meeting System | ✅ Complete — rescheduling + AI briefing |
-| File Storage | ✅ Complete |
+| File Storage | ✅ Complete — pitch decks in MySQL, all other files on Cloudinary |
 | AI Features | ✅ Complete — scoring, briefing, deck review, moderation, cost control |
 | Push Notifications | ✅ Complete — real device only |
 | Onboarding Tutorial | ✅ Complete |
