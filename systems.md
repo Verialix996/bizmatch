@@ -17,9 +17,9 @@ Handles all identity and session management:
 - **OTP email verification** — new users must verify before logging in (Gmail API via `backend/src/services/email.service.js`)
 - **JWT sessions** — 7-day tokens, stored via Zustand + SecureStore on the frontend (`frontend/src/store/authStore.js`); persists across app restarts via `restoreAuth()` called on mount
 - **Google OAuth** — web popup flow + React Native mobile flow (`backend/src/config/passport.js`)
-- **LinkedIn OAuth** — same flow as Google
 - **2FA (TOTP)** — speakeasy-based; setup returns a QR code, verify sets the flag. Frontend: `frontend/src/screens/auth/Verify2FAScreen.js`
 - **Password reset** — token-based email link, expires in 1 hour
+- **Account lockout** — 5 consecutive failed login attempts locks the account for 15 minutes; counter resets on successful login. Tracked via `users.login_attempts` + `users.locked_until` (migration 014)
 - **Account deletion** — hard delete via `DELETE /api/users/me`
 
 ---
@@ -28,13 +28,14 @@ Handles all identity and session management:
 **Files:** `backend/src/routes/user.routes.js`, `backend/src/routes/profile.routes.js`
 
 Two-layer identity:
-- **users table** — core identity (email, name, role, photo, oauth fields, 2FA, push_token, is_premium, premium_expires_at)
+- **users table** — core identity (email, name, role, photo, oauth fields, 2FA, push_token, is_premium, premium_expires_at, login_attempts, locked_until, verification_status)
 - **profiles table** — role-specific professional data:
   - Entrepreneur: bio, skills (JSON array), hobbies, venture_stage, funding_needs
   - Investor: bio, investment_domain, preferred_stage, max_investment
 - **Role switching** — `PATCH /api/users/me/role` (entrepreneur ↔ investor)
 - **Profile photo** — uploaded to Cloudinary via `POST /api/users/me/photo`
-- **ID verification** — user uploads document → status set to 'pending' (`POST /api/profile/upload-id`)
+- **ID verification bypass** — "Verify Account" button in Account Settings calls `POST /api/users/me/verify-self`; instantly sets `verification_status = 'verified'` (no admin review, demo-friendly)
+- **Profile completeness score** — progress bar on ProfileScreen (0–100%): photo +20, bio >50 chars +20, skills ≥2 +20, role-specific fields +40; colour-coded (green=100%, blue≥60%, yellow<60%) with inline hints
 - **Push token** — saved via `PATCH /api/users/me/push-token` on app startup
 
 ---
@@ -49,18 +50,25 @@ The core "Tinder" mechanic:
 - Entrepreneur (Find Investors) → sees investors
 - Entrepreneur (Find Partners) → sees other entrepreneurs
 
-**Scoring algorithm (investor↔entrepreneur, 0–110 pts max):**
+**Scoring algorithm — AI primary (when cached):**
 | Factor | Max Points | Logic |
 |--------|-----------|-------|
-| Stage alignment | 40 | Graduated: exact=40, 1 step=20, 2 steps=5 |
-| Budget fit | 30 | Graduated: ≥100%=30, ≥75%=20, ≥50%=10 |
-| AI semantic score | 30 | Claude Haiku rates compatibility 0–100; mapped to 0–30 pts |
+| AI semantic score | 60 | Claude Haiku rates compatibility 0–100; dominant signal when cached |
+| Stage alignment | 20 | Secondary when AI cached (scaled from 40-pt raw score) |
+| Budget fit | 10 | Secondary when AI cached (scaled from 30-pt raw score) |
 | Profile completeness | 10 | +3 photo, +4 bio>50chars, +3 skills≥2 |
 
+**Math-only fallback (when AI score not yet cached):**
+| Factor | Max Points |
+|--------|-----------|
+| Stage alignment | 40 |
+| Budget fit | 30 |
+| Domain/skill overlap (Jaccard) | 30 |
+| Profile completeness | 10 |
+
 **Entrepreneur↔entrepreneur scoring:**
-- AI collaboration score: Claude rates potential 0–100, mapped to 0–30 pts
-- Profile completeness: +10
-- Math fallback used when no AI score cached
+- When AI cached: 60 pts (primary) + profile completeness 10 pts
+- Math fallback: hobby overlap (×20 per shared hobby) + complementary skills (×10 each) + completeness 10 pts
 
 **AI background scoring (`computeAiScores()`):**
 - After `getFeed()` returns, Claude Haiku scores each uncached candidate pair in parallel (`Promise.allSettled`)
@@ -223,5 +231,6 @@ Located in `backend/migrations/` — auto-run on server startup via `migrations/
 | 011 | api_usage table + users.push_token column |
 | 012 | users.is_premium, users.premium_expires_at, swipes.is_super_like |
 | 013 | ai_match_scores table |
+| 014 | users.login_attempts, users.locked_until (account lockout) |
 
 To rebuild from scratch: `node backend/scripts/seed.js` (drops all tables, reruns all migrations, seeds 25 investors + 25 entrepreneurs).

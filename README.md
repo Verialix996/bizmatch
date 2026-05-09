@@ -16,13 +16,15 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Forgot password / reset password via email link (1-hour expiry)
 - Google OAuth sign-in
 - Two-factor authentication (TOTP) — QR code setup + verification screen
+- **Account lockout** — 5 consecutive failed logins locks the account for 15 minutes
 
 ### Profiles
 - Role selection: Entrepreneur or Investor
 - Entrepreneur profile: bio, skills (bubble tags), hobbies, venture stage, funding needs
 - Investor profile: bio, investment domain, preferred stage, max investment
 - Profile photo upload (stored on Cloudinary CDN)
-- ID document upload for verification
+- **Profile completeness score** — progress bar (0–100%) with colour coding and inline hints
+- **One-click identity verification** — "Verify Account" button instantly marks account as verified (demo bypass)
 - Change role at any time from Account Settings
 
 ### Swipe & Matching
@@ -30,7 +32,8 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Entrepreneurs can toggle between "Find Investors" and "Find Partners" modes
 - Investors see entrepreneur profiles and project cards
 - **AI-driven feed ranking** — Claude Haiku scores each candidate pair 0–100 in the background; scores cached in `ai_match_scores`; feed reranks on subsequent loads
-- Scored feed: stage alignment (40 pts) + budget fit (30 pts) + AI semantic score (30 pts) + profile completeness (10 pts)
+- When AI score cached: AI is the dominant signal (60 pts) + stage alignment (20 pts) + budget fit (10 pts) + completeness (10 pts)
+- Math-only fallback when not yet scored: stage (40 pts) + budget (30 pts) + Jaccard domain overlap (30 pts) + completeness (10 pts)
 - Passed profiles recycle back at the bottom of the feed
 - Mutual match detection → match celebration modal with AI-generated "why you match" summary
 - Push notification sent to matched user
@@ -176,7 +179,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # MySQL schema files (001–013), auto-run on startup
+│   ├── migrations/        # MySQL schema files (001–014), auto-run on startup
 │   ├── scripts/           # seed.js — rebuilds DB with demo data
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
@@ -227,7 +230,9 @@ bizmatch/
 | GET | `/api/users/me` | Get current user |
 | PATCH | `/api/users/me/role` | Switch role |
 | POST | `/api/users/me/photo` | Upload profile photo |
+| PATCH | `/api/users/me` | Update name |
 | PATCH | `/api/users/me/push-token` | Save Expo push token |
+| POST | `/api/users/me/verify-self` | Instant self-verification (demo) |
 | POST | `/api/users/me/premium/activate` | Activate 30-day free trial |
 | GET | `/api/users/me/who-liked-me` | Get users who liked you (premium) |
 | DELETE | `/api/users/me` | Delete account |

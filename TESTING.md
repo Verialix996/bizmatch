@@ -44,6 +44,13 @@ Start Expo: run `npx expo start` in `frontend/`, scan QR with Expo Go.
 2. Reopen app
 3. **Expected:** Still logged in, no login screen shown
 
+### Account Lockout
+1. On login screen, enter a valid email with the **wrong** password
+2. Repeat 5 times
+3. **Expected on 5th attempt:** Error "Account locked. Try again in 15 minute(s)."
+4. Wait 15 minutes (or reset via DB: `UPDATE users SET login_attempts = 0, locked_until = NULL WHERE email = '...'`)
+5. Enter correct password → **Expected:** Login succeeds, lockout counter resets
+
 ### OAuth (Google)
 1. Tap "Continue with Google" on login/register screen
 2. Complete Google auth flow
@@ -65,6 +72,23 @@ Start Expo: run `npx expo start` in `frontend/`, scan QR with Expo Go.
 1. Set role to "Investor"
 2. Fill in: bio, investment domain, preferred stage, max investment amount
 3. Upload photo → save
+
+### Profile Completeness Score
+1. Go to Profile tab
+2. **Expected:** "Profile Strength" progress bar visible below the avatar
+3. Start with an empty profile → bar shows yellow at a low percentage with hints ("Add a profile photo · Write a bio · Add skills")
+4. Add a photo, bio (>50 chars), and 2+ skills → bar progresses to green at 100%
+
+### Identity Verification
+1. Go to Profile → Account Settings → Identity Verification section
+2. Tap "Verify Account"
+3. **Expected:** Button disappears; green "✓ Your account is verified" text appears
+
+**DB verification:**
+```sql
+SELECT verification_status FROM users WHERE id = <your_id>;
+-- Should be 'verified'
+```
 
 ### Edit Profile
 1. Go to Profile tab → Edit
@@ -89,15 +113,15 @@ SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
 4. Previously liked users do not reappear. Previously passed users appear at the bottom.
 
 ### AI Score Verification
-1. Load feed for the first time → note card order
-2. Wait 15–30 seconds (background Claude scoring runs)
+1. Load feed for the first time → note card order (math scores used initially)
+2. Wait 15–30 seconds (background Claude Haiku scoring runs in parallel)
 3. Pull to refresh or navigate away and back
-4. **Expected:** Card order may change — AI scores applied
+4. **Expected:** Card order may change — AI scores are now the dominant signal (60 pts) once cached
 
 **DB verification:**
 ```sql
 SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
--- Rows appear with score 0-100 for each candidate
+-- Rows appear with Claude-generated scores 0-100 for each candidate
 ```
 
 **Railway logs:** Look for Claude API calls firing after the feed response is returned.
@@ -346,6 +370,8 @@ Run this before every demo:
 
 - [ ] Login works on both devices
 - [ ] Profile photos load (Cloudinary URLs)
+- [ ] Profile completeness bar visible and accurate on Profile tab
+- [ ] "Verify Account" button works in Account Settings
 - [ ] Feed shows cards in sorted order
 - [ ] Swiping right on each other creates a match
 - [ ] Chat messages appear on both devices
