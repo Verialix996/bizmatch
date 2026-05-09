@@ -12,7 +12,7 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 ### Authentication
 - Email & password registration with OTP email verification (Gmail API)
-- Login with JWT session management (7-day tokens)
+- Login with JWT session management (7-day tokens, persisted across app restarts)
 - Forgot password / reset password via email link (1-hour expiry)
 - Google OAuth sign-in
 - Two-factor authentication (TOTP) — QR code setup + verification screen
@@ -28,11 +28,12 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 ### Swipe & Matching
 - Tinder-style swipe deck — swipe right to like, left to pass
 - Entrepreneurs can toggle between "Find Investors" and "Find Partners" modes
-- Investors see entrepreneur project cards
-- Scored feed — matches ranked by graduated stage alignment (40 pts), budget fit (30 pts), domain overlap via Jaccard similarity (30 pts), and profile completeness (10 pts)
-- Passed profiles recycle back when all fresh profiles are exhausted
-- Mutual match detection → match celebration modal with direct navigate to chat
-- AI match summary — Claude Haiku generates a 1-sentence "why you match" explanation shown in the Matches tab
+- Investors see entrepreneur profiles and project cards
+- **AI-driven feed ranking** — Claude Haiku scores each candidate pair 0–100 in the background; scores cached in `ai_match_scores`; feed reranks on subsequent loads
+- Scored feed: stage alignment (40 pts) + budget fit (30 pts) + AI semantic score (30 pts) + profile completeness (10 pts)
+- Passed profiles recycle back at the bottom of the feed
+- Mutual match detection → match celebration modal with AI-generated "why you match" summary
+- Push notification sent to matched user
 
 ### Projects
 - Entrepreneurs create and manage project cards
@@ -40,13 +41,14 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Pitch deck upload (PDF/PPTX) and demo video upload (MP4/MOV) via Cloudinary
 - Investors swipe on project cards (separate from person-to-person matching)
 - Partner system: invite other entrepreneurs to join a project
+- **AI Deck Review** — submit a deck description, get back an overall score (1–10), strengths, weaknesses, and suggestions from Claude
 
 ### Messaging
 - Chat screen for every mutual match
 - Message updates via 15-second polling
 - Structured message cards: partner invites, NDA requests, project sharing, meeting proposals
 - Date dividers, timestamps, unread blue dot per conversation
-- Auto-scrolls to latest message
+- Push notification on new message (real device only)
 
 ### NDA System
 - Entrepreneur requests NDA via chat
@@ -56,19 +58,30 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 ### Meeting System
 - Either party can propose a meeting from any chat (📅 button)
-- Meeting types: Virtual (video link) or In-Person (address)
-- Proposal appears as a card in chat; receiver can confirm or decline
+- Meeting types: Virtual (video link) or In-Person (address + Google Maps link)
+- Proposal appears as a card in chat; receiver can confirm, decline, or suggest a new time
+- **Meeting rescheduling** — "Suggest New Time" pre-fills the proposal form with original details; new proposal sent with roles swapped
 - Meetings tab shows all upcoming meetings with status badges
-- AI Due Diligence Briefing — Claude Haiku generates a 5-section prep report (person summary, match rationale, talking points, questions to ask, watch out for); cached per meeting
+- **AI Due Diligence Briefing** — Claude Haiku generates a 5-section prep report (person summary, match rationale, talking points, questions to ask, watch out for); cached per meeting; daily usage limit enforced
+
+### Premium System
+- **Free trial** — "Activate Free Trial (30 days)" button; no real payment required
+- **Unlimited swipes** — free users limited to 20 swipes/day; "Go Premium" alert when limit hit
+- **Super Like** — ★ star button; shown with badge in the other user's "Who Liked Me" section
+- **Who Liked Me** — premium-only section in Matches tab showing users who swiped right on you
+
+### Onboarding Tutorial
+- 4-slide walkthrough for first-time users (shown once after role is set)
+- Skip button on any slide; "Get Started" on the final slide
+- Never shown again after completion
+
+### Push Notifications
+- New match and new message alerts when app is backgrounded
+- Real physical device required (not simulators)
 
 ### File Storage
 - All uploads stored on Cloudinary — survives Railway redeploys
 - Profile photos, ID docs, pitch decks, demo videos, NDA PDFs
-
-### Account
-- Change role from Account Settings
-- Edit profile details
-- Delete account (hard delete)
 
 ---
 
@@ -104,6 +117,11 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
    - The app connects to the live Railway backend automatically
 
 That's it — no backend setup needed for testing.
+
+### Demo accounts (password: `Demo1234!`)
+- Investor: `sarah.chen@bizmatch.app`
+- Entrepreneur: `alex.rivera@bizmatch.app`
+- See `DEMO_ACCOUNTS.md` for all 50 accounts (gitignored — ask the team)
 
 ### Verify the backend is live
 
@@ -143,19 +161,13 @@ Fill in `.env`:
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `ANTHROPIC_API_KEY` | Anthropic API key (AI features) |
-
-See `docs/` for setup guides (Cloudinary, Gmail API, Railway).
+| `MAX_DAILY_BRIEFINGS` | Max AI briefings per day (default: 50) |
 
 ```bash
 npm run dev
 ```
 
-Server runs on `http://localhost:3000`. Run migrations manually:
-
-```bash
-mysql -u root -p bizmatch < migrations/001_users.sql
-# ... repeat for 002 through 010
-```
+Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 
 ---
 
@@ -164,15 +176,15 @@ mysql -u root -p bizmatch < migrations/001_users.sql
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # MySQL schema files (001–010)
-│   ├── scripts/           # Manual utility scripts (gitignored)
+│   ├── migrations/        # MySQL schema files (001–013), auto-run on startup
+│   ├── scripts/           # seed.js — rebuilds DB with demo data
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
 │   │   ├── controllers/   # auth, user, profile, match, message, meeting, project
 │   │   ├── middleware/     # auth, upload (Cloudinary multer)
 │   │   ├── models/        # match, message, meeting, project
 │   │   ├── routes/        # API route definitions
-│   │   └── services/      # email (Gmail API)
+│   │   └── services/      # email (Gmail API), notification (Expo push)
 │   └── server.js
 ├── frontend/
 │   ├── src/
@@ -181,14 +193,16 @@ bizmatch/
 │   │   │   ├── auth/      # Login, Register, Verify2FA, ForgotPassword
 │   │   │   ├── match/     # SwipeScreen, MatchesScreen, ChatScreen
 │   │   │   ├── meeting/   # MeetingScreen, MeetingDetailScreen, ProposeMeetingScreen
+│   │   │   ├── onboarding/# OnboardingScreen
+│   │   │   ├── premium/   # PremiumScreen
 │   │   │   ├── profile/   # ProfileScreen, EditProfile
 │   │   │   └── project/   # ProjectsScreen, CreateProject, EditProject
 │   │   ├── services/      # API calls (axios)
-│   │   └── store/         # Zustand (auth, readTimestamps)
+│   │   └── store/         # Zustand (auth + SecureStore persistence)
 │   └── App.js
 ├── docs/                  # Setup guides + academic files (gitignored)
-├── CLAUDE.md              # Claude Code context file
-├── FEATURE_STATUS.md      # Status of every feature (complete/partial/missing)
+├── FEATURE_STATUS.md      # Status of every feature
+├── TESTING.md             # Manual testing guide
 └── systems.md             # Full technical system documentation
 ```
 
@@ -207,14 +221,17 @@ bizmatch/
 | POST | `/api/auth/2fa/setup` | Setup 2FA (returns QR URI) |
 | POST | `/api/auth/2fa/verify` | Verify TOTP code |
 | GET | `/api/profile` | Get my profile |
-| POST | `/api/profile` | Create/update profile |
+| POST | `/api/profile` | Create profile |
 | PUT | `/api/profile` | Update profile |
 | POST | `/api/profile/upload-id` | Upload ID document |
 | GET | `/api/users/me` | Get current user |
 | PATCH | `/api/users/me/role` | Switch role |
 | POST | `/api/users/me/photo` | Upload profile photo |
+| PATCH | `/api/users/me/push-token` | Save Expo push token |
+| POST | `/api/users/me/premium/activate` | Activate 30-day free trial |
+| GET | `/api/users/me/who-liked-me` | Get users who liked you (premium) |
 | DELETE | `/api/users/me` | Delete account |
-| GET | `/api/match/feed` | Get scored swipe feed |
+| GET | `/api/match/feed` | Get AI-scored swipe feed |
 | POST | `/api/match/swipe` | Record a swipe (returns match if mutual) |
 | GET | `/api/match/matches` | Get all matches |
 | GET | `/api/messages` | Get all conversations |
@@ -231,9 +248,11 @@ bizmatch/
 | DELETE | `/api/projects/:id` | Delete a project |
 | GET | `/api/projects/feed` | Get project feed (investors) |
 | POST | `/api/projects/:id/swipe` | Swipe on a project |
+| POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck |
 | POST | `/api/meetings` | Propose a meeting |
 | GET | `/api/meetings` | List my meetings |
 | PUT | `/api/meetings/:id` | Confirm / decline meeting |
+| PATCH | `/api/meetings/:id/reschedule` | Suggest a new meeting time |
 | GET | `/api/meetings/:id/briefing` | Get AI due diligence briefing |
 
 ---
@@ -242,7 +261,7 @@ bizmatch/
 
 The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
 
-- **Database:** MySQL on Railway
+- **Database:** MySQL on Railway — migrations run automatically on startup
 - **File storage:** Cloudinary (photos, docs, videos, NDA PDFs)
 - **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`)
 - **Node.js service:** root directory `backend/`, start command `node server.js`
@@ -250,6 +269,8 @@ The backend is deployed on [Railway](https://railway.app) and auto-deploys on ev
 ## Notes
 
 - Never commit `.env` files
-- All migrations must be run manually on Railway after deploy (see `backend/migrations/`)
 - AI features fail silently when `ANTHROPIC_API_KEY` is missing
-- See `FEATURE_STATUS.md` for what's built, partial, and not yet implemented
+- Push notifications only work on real physical devices
+- See `FEATURE_STATUS.md` for full feature status
+- See `systems.md` for detailed technical documentation
+- See `TESTING.md` for manual testing instructions

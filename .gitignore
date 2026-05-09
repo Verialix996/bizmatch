@@ -42,6 +42,7 @@ Thumbs.db
 *.swp
 .vs
 .claude
+CLAUDE.md
 # ── Test / debug artefacts ───────────────────────────────────────────────────
 testing/
 backend/scripts/FOR_TESTING_ONLY.js
