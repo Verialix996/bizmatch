@@ -5,20 +5,22 @@ const {
   getJoinedProjects, getProjectsByOwner,
 } = require('../models/project.model');
 const { query } = require('../config/db');
-const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
+const { uploadDeckMemory: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 const Anthropic = require('@anthropic-ai/sdk');
 const { moderateText } = require('../services/moderation.service');
 
-// POST /api/projects/:id/upload-deck
+// POST /api/projects/:id/upload-deck — stores PDF bytes in DB (avoids Cloudinary raw-file restrictions)
 const uploadDeck = [
   deckUpload,
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const fileUrl = req.file.path;
-      await query('UPDATE projects SET deck_url = ? WHERE id = ? AND user_id = ?',
-        [fileUrl, Number(req.params.id), req.user.id]);
-      res.json({ deck_url: fileUrl });
+      if (req.file.mimetype !== 'application/pdf') return res.status(400).json({ error: 'Only PDF files are allowed' });
+      await query(
+        'UPDATE projects SET deck_data = ?, deck_url = ? WHERE id = ? AND user_id = ?',
+        [req.file.buffer, 'stored', Number(req.params.id), req.user.id]
+      );
+      res.json({ deck_url: 'stored' });
     } catch (err) { next(err); }
   },
 ];
@@ -182,16 +184,11 @@ const reviewDeck = async (req, res, next) => {
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
-    const deckUrl = rows[0].deck_url;
-    console.log('[reviewDeck] fetching CDN URL:', deckUrl);
-    const fetchRes = await fetch(deckUrl);
-    if (!fetchRes.ok) {
-      const errText = await fetchRes.text().catch(() => '');
-      console.error('[reviewDeck] CDN fetch failed:', fetchRes.status, errText.slice(0, 300));
-      return res.status(502).json({ error: 'Could not read deck file from storage' });
-    }
-    const buffer = await fetchRes.arrayBuffer();
-    const base64 = Buffer.from(buffer).toString('base64');
+    // Fetch deck bytes from DB (stored as BLOB)
+    const deckRows = await query('SELECT deck_data FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+    const deckData = deckRows[0]?.deck_data;
+    if (!deckData || deckData.length === 0) return res.status(400).json({ error: 'Pitch deck not found. Please re-upload the PDF.' });
+    const base64 = Buffer.isBuffer(deckData) ? deckData.toString('base64') : Buffer.from(deckData).toString('base64');
 
     const client = new Anthropic();
     const response = await client.messages.create({
@@ -242,22 +239,15 @@ const serveDeck = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try { jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
 
-    const project = await getProjectById(Number(req.params.id));
-    if (!project) return res.status(404).json({ error: 'Project not found' });
-    if (!project.deck_url) return res.status(404).json({ error: 'No pitch deck uploaded' });
+    const rows = await query('SELECT deck_data, deck_url FROM projects WHERE id = ?', [Number(req.params.id)]);
+    if (!rows[0]) return res.status(404).json({ error: 'Project not found' });
+    const deckData = rows[0].deck_data;
+    if (!deckData || deckData.length === 0) return res.status(404).json({ error: 'No pitch deck uploaded' });
 
-    console.log('[serveDeck] fetching CDN URL:', project.deck_url);
-    const fetchRes = await fetch(project.deck_url);
-    if (!fetchRes.ok) {
-      const errText = await fetchRes.text().catch(() => '');
-      console.error('[serveDeck] CDN fetch failed:', fetchRes.status, errText.slice(0, 300));
-      return res.status(502).json({ error: 'Could not fetch deck from storage' });
-    }
-
-    const buffer = await fetchRes.arrayBuffer();
+    const buffer = Buffer.isBuffer(deckData) ? deckData : Buffer.from(deckData);
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="pitch-deck.pdf"');
-    res.send(Buffer.from(buffer));
+    res.send(buffer);
   } catch (err) { next(err); }
 };
 

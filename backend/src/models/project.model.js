@@ -47,19 +47,21 @@ async function createProject(userId, data) {
     [userId, title, description || null, stage || null, funding_needed || null,
      industry || null, visibility || 'public', deck_url || null, video_url || null]
   );
-  const rows = await query('SELECT * FROM projects WHERE id = ?', [result.insertId]);
+  const rows = await query('SELECT id, user_id, title, description, stage, funding_needed, industry, visibility, deck_url, video_url, is_active, created_at, updated_at FROM projects WHERE id = ?', [result.insertId]);
   return rows[0];
 }
 
+const PROJECT_COLS = 'id, user_id, title, description, stage, funding_needed, industry, visibility, deck_url, video_url, is_active, created_at, updated_at';
+
 async function getProjectsByUser(userId) {
   return await query(
-    'SELECT * FROM projects WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC',
+    `SELECT ${PROJECT_COLS} FROM projects WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC`,
     [userId]
   );
 }
 
 async function getProjectById(id) {
-  const rows = await query('SELECT * FROM projects WHERE id = ?', [id]);
+  const rows = await query(`SELECT ${PROJECT_COLS} FROM projects WHERE id = ?`, [id]);
   return rows[0] || null;
 }
 
@@ -73,7 +75,7 @@ async function updateProject(id, userId, data) {
     [title, description || null, stage || null, funding_needed || null,
      industry || null, visibility || 'public', deck_url || null, video_url || null, id, userId]
   );
-  const rows = await query('SELECT * FROM projects WHERE id = ?', [id]);
+  const rows = await query(`SELECT ${PROJECT_COLS} FROM projects WHERE id = ?`, [id]);
   return rows[0] || null;
 }
 
@@ -98,7 +100,10 @@ async function getProjectFeed(investorId, limit = 20) {
     : '';
 
   const projects = await query(
-    `SELECT p.*, u.name AS owner_name, u.photo_url AS owner_photo,
+    `SELECT p.id, p.user_id, p.title, p.description, p.stage, p.funding_needed,
+            p.industry, p.visibility, p.deck_url, p.video_url, p.is_active,
+            p.created_at, p.updated_at,
+            u.name AS owner_name, u.photo_url AS owner_photo,
             pr.bio AS owner_bio, pr.skills AS owner_skills
      FROM projects p
      JOIN users u ON u.id = p.user_id
@@ -152,7 +157,7 @@ async function getProjectFeed(investorId, limit = 20) {
 
 async function swipeProject(investorId, projectId, direction) {
   const projectRows = await query(
-    'SELECT * FROM projects WHERE id = ? AND is_active = 1',
+    `SELECT ${PROJECT_COLS} FROM projects WHERE id = ? AND is_active = 1`,
     [projectId]
   );
   const project = projectRows[0];
@@ -239,7 +244,7 @@ async function getProjectPartners(projectId) {
 
 async function addProjectPartner(projectId, ownerUserId, partnerUserId) {
   const rows = await query(
-    'SELECT * FROM projects WHERE id = ? AND user_id = ?',
+    `SELECT ${PROJECT_COLS} FROM projects WHERE id = ? AND user_id = ?`,
     [projectId, ownerUserId]
   );
   if (!rows[0]) return { error: 'Project not found or not yours' };
@@ -253,7 +258,7 @@ async function addProjectPartner(projectId, ownerUserId, partnerUserId) {
 
 async function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
   const rows = await query(
-    'SELECT * FROM projects WHERE id = ? AND user_id = ?',
+    `SELECT ${PROJECT_COLS} FROM projects WHERE id = ? AND user_id = ?`,
     [projectId, ownerUserId]
   );
   if (!rows[0]) return { error: 'Project not found or not yours' };
@@ -267,7 +272,10 @@ async function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
 // Projects where the user is a partner (not the owner)
 async function getJoinedProjects(userId) {
   return await query(
-    `SELECT p.*, u.name AS owner_name, u.photo_url AS owner_photo
+    `SELECT p.id, p.user_id, p.title, p.description, p.stage, p.funding_needed,
+            p.industry, p.visibility, p.deck_url, p.video_url, p.is_active,
+            p.created_at, p.updated_at,
+            u.name AS owner_name, u.photo_url AS owner_photo
      FROM project_partners pp
      JOIN projects p ON p.id = pp.project_id
      JOIN users u ON u.id = p.user_id
