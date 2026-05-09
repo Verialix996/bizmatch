@@ -205,7 +205,8 @@ export default function EditProfileScreen({ route, navigation }) {
     try {
       if (isNew) {
         await api.post('/profile', payload);
-        updateUser({ role: selectedRole, has_profile: true }); // Now safe — profile is complete, AppNavigator routes to Onboarding/Main
+        updateUser({ role: selectedRole, has_profile: true });
+        navigation.navigate('Onboarding');
       } else {
         await api.put('/profile', payload);
         navigation.goBack();

@@ -14,7 +14,13 @@ const photoStorage = new CloudinaryStorage({
 
 const docStorage = new CloudinaryStorage({
   cloudinary,
-  params: { folder: 'bizmatch/docs', allowed_formats: ['pdf', 'pptx', 'ppt'], resource_type: 'raw' },
+  params: {
+    folder: 'bizmatch/docs',
+    allowed_formats: ['pdf'],
+    resource_type: 'raw',
+    use_filename: true,
+    unique_filename: true,
+  },
 });
 
 const videoStorage = new CloudinaryStorage({

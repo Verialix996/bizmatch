@@ -127,6 +127,7 @@ export default function AppNavigator() {
         // No profile yet — EditProfile is first so it renders immediately, no flash
         <>
           <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
+          <Stack.Screen name="Onboarding"       component={OnboardingScreen} />
           <Stack.Screen name="Main"             component={MainTabs} />
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />

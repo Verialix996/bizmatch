@@ -44,15 +44,13 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
   const [showDeckReview, setShowDeckReview] = useState(false);
-  const [deckSummaryInput, setDeckSummaryInput] = useState('');
   const [deckFeedback, setDeckFeedback] = useState(null);
   const [deckReviewLoading, setDeckReviewLoading] = useState(false);
 
   const handleDeckReview = async () => {
-    if (!deckSummaryInput.trim()) return Alert.alert('Required', 'Please describe your pitch deck.');
     setDeckReviewLoading(true);
     try {
-      const { data } = await reviewDeck(project.id, deckSummaryInput.trim());
+      const { data } = await reviewDeck(project.id);
       setDeckFeedback(data);
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'Could not get AI feedback.');
@@ -179,7 +177,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           activeOpacity={0.8}
         >
           <Text style={styles.uploadBtnText}>
-            📄 {project.deck_url ? 'Replace Deck' : 'Upload Deck'}
+            📄 {project.deck_url ? 'Replace PDF' : 'Upload PDF'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -207,16 +205,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
             <Text style={styles.deckReviewTitle}>AI Pitch Deck Review</Text>
             {!deckFeedback ? (
               <>
-                <Text style={styles.deckReviewHint}>Describe your deck: problem, solution, market, team, and ask.</Text>
-                <TextInput
-                  style={styles.deckReviewInput}
-                  multiline
-                  numberOfLines={5}
-                  value={deckSummaryInput}
-                  onChangeText={setDeckSummaryInput}
-                  placeholder="e.g. We solve X for Y market (size $Z). Our solution is... Our team has... We are raising $..."
-                  placeholderTextColor={colors.textHint}
-                />
+                <Text style={styles.deckReviewHint}>Claude will read your uploaded PDF and provide structured feedback.</Text>
                 <View style={styles.deckReviewActions}>
                   <TouchableOpacity onPress={() => setShowDeckReview(false)} style={styles.deckReviewCancel}>
                     <Text style={{ color: colors.textHint }}>Cancel</Text>
@@ -627,11 +616,7 @@ export default function ProjectsScreen() {
   const handleUploadDeck = async (projectId) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'application/pdf',
-          'application/vnd.ms-powerpoint',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        ],
+        type: ['application/pdf'],
       });
       if (result.canceled || !result.assets?.[0]) return;
       const file = result.assets[0];

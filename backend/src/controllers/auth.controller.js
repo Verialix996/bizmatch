@@ -5,6 +5,7 @@ const speakeasy = require('speakeasy');
 const UserModel = require('../models/user.model');
 const ProfileModel = require('../models/profile.model');
 const { sendOtp, sendPasswordReset } = require('../services/email.service');
+const { moderateText } = require('../services/moderation.service');
 const logger = require('../utils/logger');
 
 function generateToken(user) {
@@ -22,8 +23,13 @@ async function register(req, res, next) {
   try {
     const { email, password, name, role } = req.body;
 
-    if (!password || password.length < 6) {
-      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    if (!password || password.length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+
+    if (name) {
+      const nameMod = await moderateText(name);
+      if (!nameMod.ok) return res.status(400).json({ error: `Name flagged by moderation: ${nameMod.reason}` });
     }
 
     const existing = await UserModel.findByEmail(email);

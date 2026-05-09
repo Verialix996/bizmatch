@@ -170,31 +170,33 @@ const byOwner = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/projects/:id/deck-review  { deckSummary }
+// POST /api/projects/:id/deck-review
 const reviewDeck = async (req, res, next) => {
   try {
     const projectId = Number(req.params.id);
-    const { deckSummary } = req.body;
     const userId = req.user.id;
 
-    if (!deckSummary?.trim()) return res.status(400).json({ error: 'deckSummary is required' });
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI review not configured' });
 
     const rows = await query('SELECT * FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
+    const fetchRes = await fetch(rows[0].deck_url);
+    if (!fetchRes.ok) return res.status(502).json({ error: 'Could not read deck file from storage' });
+    const buffer = await fetchRes.arrayBuffer();
+    const base64 = Buffer.from(buffer).toString('base64');
+
     const client = new Anthropic();
     const response = await client.messages.create({
       model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
+      max_tokens: 800,
       messages: [{
         role: 'user',
-        content: `Review this startup pitch deck summary. Respond ONLY with valid JSON, no markdown:
-{"strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"overallScore":7}
-
-Pitch deck summary:
-${deckSummary.trim()}`,
+        content: [
+          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
+          { type: 'text', text: 'Review this startup pitch deck. Respond ONLY with valid JSON, no markdown:\n{"strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"overallScore":7}' },
+        ],
       }],
     });
 

@@ -27,44 +27,24 @@
 4. Try `abc1234` (7 chars) → **Expected:** same error
 5. Enter a valid password (8+ chars, letter + number, e.g. `Pass1234`) → submit
 6. **Expected:** "Check your email for the verification code" message appears
+7. Repeat with an inappropriate / offensive name → submit
+8. **Expected:** Error — "Name flagged by moderation: \<reason\>"
 
 ### 1.3 Onboarding Tutorial
 
-1. After first verification, complete profile setup
-2. **Expected:** 4-slide onboarding appears before main tabs
-3. Tap "Next" → advances slides. Tap "Skip" → jumps to main app. Final slide shows "Get Started"
-4. Close and reopen app → **Expected:** Onboarding does NOT appear again
-
-### 1.4 Role Selection & Profile Creation
-
-1. Select role (Entrepreneur or Investor)
-2. Fill in: bio (50+ chars), skills (2+), role-specific fields (stage + funding needs / domain + preferred stage)
-3. Tap the photo circle → **Expected:** device photo library opens
-4. Select a photo → **Expected:** photo uploads and appears in the circle immediately (no "request entity too large" error)
-5. Tap "Save Profile"
-6. **Expected:** Profile saved, redirected to main tabs
-
-> **Completeness score:** each of the 5 fields (photo, bio, skills, stage, funding/domain) = 20 pts each → 100% when all filled.
+1. Register a fresh account and verify email
+2. Complete role selection and fill in profile → tap "Save Profile"
+3. **Expected:** App immediately navigates to the 4-slide onboarding (without requiring a restart)
+4. Tap "Next" → advances slides. Tap "Skip" → jumps to main app. Final slide shows "Get Started"
+5. Close and reopen app → **Expected:** Onboarding does NOT appear again; goes directly to main tabs
 
 ### 1.6 Project Management
 
-#### Create + Video Upload
+#### Deck Download
 
-1. Go to Projects tab → tap "+"
-2. Fill in title, description, industry, stage, funding needed
-3. Set **Visibility** toggle to "Public" → save
-4. **Expected:** Project appears in the list
-5. Tap "Upload Video" on the project card
-6. **Expected:** Device photo/video library opens (not a file picker)
-7. Select a video → **Expected:** uploads successfully, "🎬 Video" chip appears on card
-
-#### Project Visibility
-
-1. Create a project → set **Visibility** toggle to "Private" → save
-2. Log in as Account A (investor) on another device
-3. **Expected:** Private project does NOT appear in investor's feed
-4. Edit the project → switch to "Public" → save
-5. **Expected:** Project now appears in investor's feed
+1. Go to Projects tab → open a project with a deck already uploaded (or upload one)
+2. In the project_shared chat card or project detail → tap "View Pitch Deck"
+3. **Expected:** Opens a PDF/PPTX file that downloads or previews correctly with the proper file extension (`.pdf`, `.pptx`) — not a file with no extension
 
 #### AI Deck Review
 
@@ -72,42 +52,19 @@
 2. Tap "✦ Get AI Deck Feedback" → enter a description (problem, solution, market, team, ask) → submit
 3. **Expected:** Modal shows Overall Score (1–10), Strengths, Weaknesses, Suggestions
 
-> Note: AI reviews a text summary you provide — it does not read the PDF file directly.
+> Note: AI reviews a text summary you provide — it does not read the PDF file directly. Future improvement needed.
 
 ### 1.7 AI Content Moderation
 
-#### Inappropriate name rejected
+#### Inappropriate name rejected (Account Settings)
 
 1. Account Settings → edit name → set it to clearly hateful/offensive text → save
 2. **Expected:** Save fails with "Name flagged by moderation: \<reason\>"
 
-#### Inappropriate bio rejected
-
-1. Edit Profile → set bio to clearly inappropriate content (hate speech / threats) → save
-2. **Expected:** Save fails with "Bio flagged by moderation: \<reason\>"
-
-#### Inappropriate project title rejected
-
-1. Create or edit a project → set the title to clearly inappropriate text → save
-2. **Expected:** Save fails with "Title flagged by moderation: \<reason\>"
-
-#### Inappropriate project description rejected
-
-1. Create or edit a project → set description to inappropriate text → save
-2. **Expected:** Save fails with "Description flagged by moderation: \<reason\>"
-
 #### Chat message flagged
 
 1. In any chat, type a clearly inappropriate message → send
-2. **Expected:** Message is rejected, NOT added to chat, and an alert appears with the moderation reason
-
-### 1.9 Premium — Activate Trial
-
-1. Profile tab → tap "✦ Go Premium" button (visible below Edit Profile for non-premium accounts)
-2. **Expected:** PremiumScreen opens with benefits list and "Activate Free Trial (30 days)" button
-3. Tap "Activate Free Trial (30 days)"
-4. **Expected:** Success alert. "Who Liked Me" section appears in Matches tab
-5. Return to Profile tab → **Expected:** "✦ Go Premium" button is no longer visible
+2. **Expected:** Message is rejected, NOT added to chat, and an alert titled "Message Not Sent" appears with the moderation reason
 
 ---
 
