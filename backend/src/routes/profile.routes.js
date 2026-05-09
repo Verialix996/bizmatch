@@ -9,7 +9,7 @@ router.put('/',         authenticate, requireVerified, updateProfile);
 router.post('/upload-id',
   authenticate,
   requireVerified,
-  upload.single('document'),
+  upload,
   uploadIdDocument
 );
 
