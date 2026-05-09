@@ -1,5 +1,7 @@
 const { sendMessage, getMessages, getConversations } = require('../models/message.model');
 const { query } = require('../config/db');
+const PDFDocument = require('pdfkit');
+const { cloudinary } = require('../config/cloudinary');
 
 const conversations = async (req, res, next) => {
   try {
@@ -200,9 +202,51 @@ const requestNda = async (req, res, next) => {
   }
 };
 
+async function generateNdaPdf(signerName, ownerName, projectTitle, signedAt) {
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 60, size: 'A4' });
+    const chunks = [];
+    doc.on('data', chunk => chunks.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
+
+    doc.fontSize(22).font('Helvetica-Bold').text('BizMatch', { align: 'center' });
+    doc.fontSize(14).font('Helvetica').text('Non-Disclosure Agreement', { align: 'center' });
+    doc.moveDown(1.5);
+
+    doc.fontSize(11).font('Helvetica').text(
+      `This Non-Disclosure Agreement ("Agreement") is entered into on ${signedAt} between ` +
+      `${ownerName} ("Disclosing Party") and ${signerName} ("Receiving Party") with respect to ` +
+      `the project "${projectTitle}" ("Project").`,
+      { lineGap: 4 }
+    );
+    doc.moveDown();
+
+    const clauses = [
+      ['1. Confidential Information', 'The Receiving Party agrees to keep all non-public information about the Project strictly confidential and not to disclose it to any third party without prior written consent from the Disclosing Party.'],
+      ['2. Non-Use', 'The Receiving Party shall not use the Confidential Information for any purpose other than evaluating a potential collaboration or investment in the Project.'],
+      ['3. Duration', 'This obligation of confidentiality shall remain in effect for a period of two (2) years from the date of signing.'],
+      ['4. Exceptions', 'This Agreement does not apply to information that is or becomes publicly available through no breach of this Agreement, or that the Receiving Party can demonstrate was independently known.'],
+      ['5. Governing Law', 'This Agreement shall be governed by and construed in accordance with the laws of the State of Israel.'],
+    ];
+
+    for (const [heading, body] of clauses) {
+      doc.font('Helvetica-Bold').fontSize(11).text(heading);
+      doc.font('Helvetica').fontSize(11).text(body, { lineGap: 3 });
+      doc.moveDown(0.8);
+    }
+
+    doc.moveDown(2);
+    doc.font('Helvetica-Bold').text('Signed electronically via BizMatch platform');
+    doc.font('Helvetica').text(`Signer: ${signerName}`);
+    doc.text(`Date: ${signedAt}`);
+
+    doc.end();
+  });
+}
+
 // POST /api/messages/:matchId/nda-sign  { projectId }
-// Signs the NDA — records it, notifies via chat, and auto-shares project details
-// if the signer is not the project owner (i.e. owner shared → other party signs)
+// Signs the NDA — generates a PDF, uploads to Cloudinary, records it, notifies via chat
 const signNda = async (req, res, next) => {
   try {
     const matchId   = Number(req.params.matchId);
@@ -217,22 +261,44 @@ const signNda = async (req, res, next) => {
     );
     if (!matchRows[0]) return res.status(403).json({ error: 'Not part of this match' });
 
-    // Record the NDA signature (INSERT IGNORE handles duplicates gracefully)
+    const projectRows = await query('SELECT * FROM projects WHERE id = ? AND is_active = 1', [projectId]);
+    const project = projectRows[0];
+    if (!project) return res.status(404).json({ error: 'Project not found' });
+
+    const signerRows = await query('SELECT name FROM users WHERE id = ?', [userId]);
+    const ownerRows  = await query('SELECT name FROM users WHERE id = ?', [project.user_id]);
+    const signerName = signerRows[0]?.name || 'Unknown';
+    const ownerName  = ownerRows[0]?.name  || 'Unknown';
+    const signedAt   = new Date().toISOString().split('T')[0];
+
+    // Generate PDF and upload to Cloudinary
+    const pdfBuffer = await generateNdaPdf(signerName, ownerName, project.title, signedAt);
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'bizmatch/ndas', resource_type: 'raw', format: 'pdf',
+          public_id: `nda-${projectId}-${userId}-${Date.now()}` },
+        (err, result) => err ? reject(err) : resolve(result)
+      );
+      stream.end(pdfBuffer);
+    });
+    const documentUrl = uploadResult.secure_url;
+
+    // Record the NDA signature with document URL (INSERT IGNORE handles duplicates)
     await query(
-      'INSERT IGNORE INTO project_ndas (project_id, user_id) VALUES (?, ?)',
-      [projectId, userId]
+      `INSERT INTO project_ndas (project_id, user_id, document_url)
+       VALUES (?, ?, ?)
+       ON DUPLICATE KEY UPDATE document_url = VALUES(document_url)`,
+      [projectId, userId, documentUrl]
     );
 
     const msg = await sendMessage(
       matchId, userId,
       'NDA signed. You now have access to the full project details.',
       'nda_signed',
-      { projectId }
+      { projectId, documentUrl }
     );
 
     // If the signer is NOT the project owner, the owner wanted to share — auto-send project details
-    const projectRows = await query('SELECT * FROM projects WHERE id = ? AND is_active = 1', [projectId]);
-    const project = projectRows[0];
     if (project && project.user_id !== userId) {
       await sendMessage(
         matchId, project.user_id,

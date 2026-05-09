@@ -1,25 +1,7 @@
 const ProfileModel = require('../models/profile.model');
 const UserModel = require('../models/user.model');
 const { query } = require('../config/db');
-const multer = require('multer');
-const path = require('path');
-
-const storage = multer.diskStorage({
-  destination: process.env.UPLOAD_DIR || 'uploads/',
-  filename: (_req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: (process.env.MAX_FILE_SIZE_MB || 5) * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = ['.jpg', '.jpeg', '.png', '.pdf'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
-  },
-});
+const { uploadDoc: upload } = require('../middleware/upload');
 
 // GET /api/profile/me
 async function getMyProfile(req, res, next) {

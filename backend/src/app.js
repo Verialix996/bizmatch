@@ -14,6 +14,7 @@ const profileRoutes = require('./routes/profile.routes');
 const matchRoutes    = require('./routes/match.routes');
 const messageRoutes  = require('./routes/message.routes');
 const projectRoutes  = require('./routes/project.routes');
+const meetingRoutes  = require('./routes/meeting.routes');
 
 const app = express();
 
@@ -30,9 +31,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(passport.initialize());
 
-// Serve uploaded files (profile photos, decks, etc.)
-app.use('/uploads', express.static(process.env.UPLOAD_DIR || 'uploads'));
-
 // Rate limiting on all /api routes
 app.use('/api', apiLimiter);
 
@@ -43,12 +41,13 @@ app.use((req, _res, next) => {
 });
 
 // Routes
-app.use('/api/auth',    authRoutes);
-app.use('/api/users',   userRoutes);
-app.use('/api/profile', profileRoutes);
+app.use('/api/auth',     authRoutes);
+app.use('/api/users',    userRoutes);
+app.use('/api/profile',  profileRoutes);
 app.use('/api/match',    matchRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/projects', projectRoutes);
+app.use('/api/meetings', meetingRoutes);
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));

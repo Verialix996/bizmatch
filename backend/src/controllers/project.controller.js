@@ -1,5 +1,3 @@
-const path = require('path');
-const multer = require('multer');
 const {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
@@ -7,31 +5,15 @@ const {
   getJoinedProjects, getProjectsByOwner,
 } = require('../models/project.model');
 const { query } = require('../config/db');
-
-const storage = multer.diskStorage({
-  destination: process.env.UPLOAD_DIR || 'uploads/',
-  filename: (_req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname.replace(/\s+/g, '_')}`);
-  },
-});
-
-const upload = multer({
-  storage,
-  limits: { fileSize: (process.env.MAX_FILE_SIZE_MB || 50) * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => {
-    const allowed = ['.pdf', '.pptx', '.ppt', '.mp4', '.mov', '.jpg', '.jpeg', '.png'];
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, allowed.includes(ext));
-  },
-});
+const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 
 // POST /api/projects/:id/upload-deck
 const uploadDeck = [
-  upload.single('deck'),
+  deckUpload,
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const fileUrl = `/uploads/${req.file.filename}`;
+      const fileUrl = req.file.path;
       await query('UPDATE projects SET deck_url = ? WHERE id = ? AND user_id = ?',
         [fileUrl, Number(req.params.id), req.user.id]);
       res.json({ deck_url: fileUrl });
@@ -41,11 +23,11 @@ const uploadDeck = [
 
 // POST /api/projects/:id/upload-video
 const uploadVideo = [
-  upload.single('video'),
+  videoUpload,
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const fileUrl = `/uploads/${req.file.filename}`;
+      const fileUrl = req.file.path;
       await query('UPDATE projects SET video_url = ? WHERE id = ? AND user_id = ?',
         [fileUrl, Number(req.params.id), req.user.id]);
       res.json({ video_url: fileUrl });

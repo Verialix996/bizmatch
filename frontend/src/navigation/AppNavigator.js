@@ -13,6 +13,7 @@ import RegisterScreen       from '../screens/auth/RegisterScreen';
 import VerifyOtpScreen      from '../screens/auth/VerifyOtpScreen';
 import ForgotPasswordScreen  from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen  from '../screens/auth/ResetPasswordScreen';
+import Verify2FAScreen      from '../screens/auth/Verify2FAScreen';
 import SwipeScreen          from '../screens/match/SwipeScreen';
 import MatchesScreen        from '../screens/match/MatchesScreen';
 import ChatScreen           from '../screens/match/ChatScreen';
@@ -21,6 +22,9 @@ import ProfileScreen        from '../screens/profile/ProfileScreen';
 import EditProfileScreen    from '../screens/profile/EditProfileScreen';
 import AccountSettings      from '../screens/profile/AccountSettings';
 import ProjectsScreen       from '../screens/project/ProjectsScreen';
+import MeetingScreen        from '../screens/meeting/MeetingScreen';
+import MeetingDetailScreen  from '../screens/meeting/MeetingDetailScreen';
+import ProposeMeetingScreen from '../screens/meeting/ProposeMeetingScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -35,10 +39,11 @@ export const linking = {
 };
 
 const TAB_ICONS = {
-  Discover: ['compass',       'compass-outline'],
-  Matches:  ['chatbubbles',   'chatbubbles-outline'],
-  Projects: ['folder',        'folder-outline'],
-  Profile:  ['person-circle', 'person-circle-outline'],
+  Discover:  ['compass',       'compass-outline'],
+  Matches:   ['chatbubbles',   'chatbubbles-outline'],
+  Meetings:  ['calendar',      'calendar-outline'],
+  Projects:  ['folder',        'folder-outline'],
+  Profile:   ['person-circle', 'person-circle-outline'],
 };
 
 function MainTabs() {
@@ -90,10 +95,11 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Discover" component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
-      <Tab.Screen name="Matches"  component={MatchesScreen}  options={{ tabBarLabel: 'Matches', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
-      <Tab.Screen name="Projects" component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
-      <Tab.Screen name="Profile"  component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
+      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Matches', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
+      <Tab.Screen name="Meetings"  component={MeetingScreen}  options={{ tabBarLabel: 'Meetings' }} />
+      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
+      <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -112,23 +118,28 @@ export default function AppNavigator() {
           <Stack.Screen name="VerifyOtp"     component={VerifyOtpScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
+          <Stack.Screen name="Verify2FA"      component={Verify2FAScreen} />
         </>
       ) : !user?.role ? (
         // New user — EditProfile is first so it renders immediately, no flash
         <>
-          <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
-          <Stack.Screen name="Main"            component={MainTabs} />
-          <Stack.Screen name="Chat"            component={ChatScreen} />
-          <Stack.Screen name="ProfileDetail"   component={ProfileDetailScreen} />
-          <Stack.Screen name="AccountSettings" component={AccountSettings} />
+          <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
+          <Stack.Screen name="Main"             component={MainTabs} />
+          <Stack.Screen name="Chat"             component={ChatScreen} />
+          <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
+          <Stack.Screen name="AccountSettings"  component={AccountSettings} />
+          <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
+          <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
         </>
       ) : (
         <>
-          <Stack.Screen name="Main"            component={MainTabs} />
-          <Stack.Screen name="Chat"            component={ChatScreen} />
-          <Stack.Screen name="ProfileDetail"   component={ProfileDetailScreen} />
-          <Stack.Screen name="EditProfile"     component={EditProfileScreen} />
-          <Stack.Screen name="AccountSettings" component={AccountSettings} />
+          <Stack.Screen name="Main"             component={MainTabs} />
+          <Stack.Screen name="Chat"             component={ChatScreen} />
+          <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
+          <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
+          <Stack.Screen name="AccountSettings"  component={AccountSettings} />
+          <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
+          <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
         </>
       )}
     </Stack.Navigator>

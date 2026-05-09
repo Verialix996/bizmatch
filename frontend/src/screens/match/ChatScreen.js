@@ -408,6 +408,51 @@ export default function ChatScreen({ route, navigation }) {
       );
     }
 
+    if (item.message_type === 'meeting_proposal') {
+      const scheduledAt = meta.scheduledAt
+        ? new Date(meta.scheduledAt).toLocaleString('en-IL', { dateStyle: 'medium', timeStyle: 'short' })
+        : 'TBD';
+      return (
+        <View style={[styles.actionCard, { borderLeftColor: colors.primary }]}>
+          <Text style={styles.actionCardTitle}>📅 Meeting Proposed</Text>
+          <Text style={styles.actionCardBody}>{meta.title || 'Untitled Meeting'}</Text>
+          <Text style={[styles.actionCardBody, { color: colors.primary }]}>{scheduledAt}</Text>
+          <Text style={[styles.actionCardBody, { color: colors.textHint, fontSize: 12 }]}>
+            {meta.locationType === 'virtual' ? '🎥 Virtual' : '📍 In Person'}
+          </Text>
+          <TouchableOpacity
+            style={styles.viewDetailsBtn}
+            onPress={() => navigation.navigate('MeetingDetail', {
+              meeting: {
+                id: meta.meetingId, match_id: match.matchId, title: meta.title,
+                scheduled_at: meta.scheduledAt, location_type: meta.locationType,
+                address: meta.address || null, video_link: meta.videoLink || null,
+                status: meta.status || 'proposed',
+                proposer_id: isOwn ? user?.id : match.userId,
+                receiver_id: isOwn ? match.userId : user?.id,
+                proposer_name: isOwn ? user?.name : match.name,
+                receiver_name: isOwn ? match.name : user?.name,
+              },
+            })}
+          >
+            <Text style={styles.viewDetailsBtnText}>View Meeting</Text>
+          </TouchableOpacity>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (item.message_type === 'meeting_response') {
+      const label = meta.status === 'confirmed' ? 'Meeting Confirmed' : meta.status === 'declined' ? 'Meeting Declined' : 'Meeting Cancelled';
+      const accent = meta.status === 'confirmed' ? colors.success : colors.error;
+      return (
+        <View style={[styles.actionCard, { borderLeftColor: accent }]}>
+          <Text style={[styles.actionCardTitle, { color: accent }]}>📅 {label}</Text>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
     return null;
   };
 
@@ -492,8 +537,11 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         </View>
 
-        <TouchableOpacity style={styles.headerActionBtn}>
-          <Text style={styles.headerActionIcon}>📹</Text>
+        <TouchableOpacity
+          style={styles.headerActionBtn}
+          onPress={() => navigation.navigate('ProposeMeeting', { matchId: match.matchId })}
+        >
+          <Text style={styles.headerActionIcon}>📅</Text>
         </TouchableOpacity>
       </View>
 

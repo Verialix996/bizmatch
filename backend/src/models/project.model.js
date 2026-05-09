@@ -5,6 +5,38 @@ function safeParseArray(value) {
   try { const p = JSON.parse(value); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
+const STAGE_LADDER = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c'];
+
+function stageScore(stageA, stageB) {
+  const i = STAGE_LADDER.indexOf((stageA || '').toLowerCase());
+  const j = STAGE_LADDER.indexOf((stageB || '').toLowerCase());
+  if (i === -1 || j === -1) return 0;
+  const diff = Math.abs(i - j);
+  if (diff === 0) return 40;
+  if (diff === 1) return 20;
+  if (diff === 2) return 5;
+  return 0;
+}
+
+function budgetScore(maxInvestment, fundingNeeded) {
+  if (maxInvestment == null || fundingNeeded == null || fundingNeeded === 0) return 0;
+  const ratio = maxInvestment / fundingNeeded;
+  if (ratio >= 1)    return 30;
+  if (ratio >= 0.75) return 20;
+  if (ratio >= 0.5)  return 10;
+  return 0;
+}
+
+function jaccardScore(textA, textB, maxPts) {
+  const tokenize = t => new Set((t || '').toLowerCase().split(/[\s,;|]+/).filter(Boolean));
+  const a = tokenize(textA);
+  const b = tokenize(textB);
+  if (!a.size || !b.size) return 0;
+  const intersection = [...a].filter(x => b.has(x)).length;
+  const union = new Set([...a, ...b]).size;
+  return Math.round((intersection / union) * maxPts);
+}
+
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 async function createProject(userId, data) {
@@ -72,6 +104,7 @@ async function getProjectFeed(investorId, limit = 20) {
      JOIN users u ON u.id = p.user_id
      LEFT JOIN profiles pr ON pr.user_id = p.user_id
      WHERE p.is_active = 1
+       AND p.visibility = 'public'
        AND u.role = 'entrepreneur'
        AND u.deleted_at IS NULL
        AND p.user_id != ?
@@ -82,15 +115,14 @@ async function getProjectFeed(investorId, limit = 20) {
   const scored = projects.map(p => {
     let score = 0;
     if (investorProfile) {
-      if (investorProfile.preferred_stage && p.stage === investorProfile.preferred_stage) score += 40;
-      if (investorProfile.max_investment && p.funding_needed &&
-          investorProfile.max_investment >= p.funding_needed) score += 30;
-      if (investorProfile.investment_domain && p.industry) {
-        if (p.industry.toLowerCase().includes(investorProfile.investment_domain.toLowerCase()) ||
-            investorProfile.investment_domain.toLowerCase().includes(p.industry.toLowerCase())) {
-          score += 30;
-        }
-      }
+      score += stageScore(investorProfile.preferred_stage, p.stage);
+      score += budgetScore(investorProfile.max_investment, p.funding_needed);
+      const entText = [
+        p.industry || '',
+        ...(safeParseArray(p.owner_skills)),
+        p.owner_bio || '',
+      ].join(' ');
+      score += jaccardScore(investorProfile.investment_domain || '', entText, 30);
       if (p.deck_url)  score += 10;
       if (p.video_url) score += 10;
     }

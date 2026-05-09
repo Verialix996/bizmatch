@@ -69,3 +69,9 @@ current bugs.txt
 TESTING.md
 TESTING.txt
 tests and bugs/
+
+# ── Project docs (academic submissions, not for repo) ─────────────────────────
+docs/
+
+# ── Demo seed (run manually when needed, never commit) ────────────────────────
+backend/scripts/demo.js

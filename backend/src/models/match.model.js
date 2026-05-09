@@ -1,38 +1,64 @@
 const { query } = require('../config/db');
+const Anthropic = require('@anthropic-ai/sdk');
 
 // ---------------------------------------------------------------------------
 // Scoring helpers
 // ---------------------------------------------------------------------------
 
+const STAGE_LADDER = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c'];
+
+function stageScore(stageA, stageB) {
+  const i = STAGE_LADDER.indexOf((stageA || '').toLowerCase());
+  const j = STAGE_LADDER.indexOf((stageB || '').toLowerCase());
+  if (i === -1 || j === -1) return 0;
+  const diff = Math.abs(i - j);
+  if (diff === 0) return 40;
+  if (diff === 1) return 20;
+  if (diff === 2) return 5;
+  return 0;
+}
+
+function budgetScore(maxInvestment, fundingNeeds) {
+  if (maxInvestment == null || fundingNeeds == null || fundingNeeds === 0) return 0;
+  const ratio = maxInvestment / fundingNeeds;
+  if (ratio >= 1)    return 30;
+  if (ratio >= 0.75) return 20;
+  if (ratio >= 0.5)  return 10;
+  return 0;
+}
+
+function jaccardScore(textA, textB, maxPts) {
+  const tokenize = t => new Set((t || '').toLowerCase().split(/[\s,;|]+/).filter(Boolean));
+  const a = tokenize(textA);
+  const b = tokenize(textB);
+  if (!a.size || !b.size) return 0;
+  const intersection = [...a].filter(x => b.has(x)).length;
+  const union = new Set([...a, ...b]).size;
+  return Math.round((intersection / union) * maxPts);
+}
+
+function completenessBonus(profile) {
+  let bonus = 0;
+  if (profile.photo_url) bonus += 3;
+  if ((profile.bio || '').length > 50) bonus += 4;
+  if (safeParseArray(profile.skills).length >= 2) bonus += 3;
+  return bonus;
+}
+
 function scoreInvestorEntrepreneur(investorProfile, entrepreneurProfile) {
   let score = 0;
 
-  if (
-    investorProfile.preferred_stage &&
-    entrepreneurProfile.venture_stage &&
-    investorProfile.preferred_stage === entrepreneurProfile.venture_stage
-  ) {
-    score += 40;
-  }
+  score += stageScore(investorProfile.preferred_stage, entrepreneurProfile.venture_stage);
+  score += budgetScore(investorProfile.max_investment, entrepreneurProfile.funding_needs);
 
-  if (
-    investorProfile.max_investment != null &&
-    entrepreneurProfile.funding_needs != null &&
-    investorProfile.max_investment >= entrepreneurProfile.funding_needs
-  ) {
-    score += 30;
-  }
+  const domainText = investorProfile.investment_domain || '';
+  const entText = [
+    ...(safeParseArray(entrepreneurProfile.skills)),
+    entrepreneurProfile.bio || '',
+  ].join(' ');
+  score += jaccardScore(domainText, entText, 30);
 
-  if (investorProfile.investment_domain) {
-    const domain = investorProfile.investment_domain.toLowerCase();
-    const skills = safeParseArray(entrepreneurProfile.skills)
-      .map(s => s.toLowerCase())
-      .join(' ');
-    const bio = (entrepreneurProfile.bio || '').toLowerCase();
-    if (skills.includes(domain) || bio.includes(domain)) {
-      score += 30;
-    }
-  }
+  score += completenessBonus(entrepreneurProfile);
 
   return score;
 }
@@ -49,6 +75,8 @@ function scoreEntrepreneurEntrepreneur(profileA, profileB) {
   const skillsB = safeParseArray(profileB.skills).map(s => s.toLowerCase());
   const complementary = skillsB.filter(s => !skillsA.includes(s));
   score += complementary.length * 10;
+
+  score += completenessBonus(profileB);
 
   return score;
 }
@@ -161,8 +189,47 @@ async function recordSwipe(swiperId, swipedId, direction) {
     'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
     [u1, u2]
   );
+  const matchId = matchRows[0]?.id ?? null;
 
-  return { matched: true, matchId: matchRows[0]?.id ?? null };
+  // Generate AI match summary in the background (non-blocking)
+  if (matchId) generateMatchSummary(matchId, swiperId, swipedId).catch(() => {});
+
+  return { matched: true, matchId };
+}
+
+async function generateMatchSummary(matchId, userAId, userBId) {
+  if (!process.env.ANTHROPIC_API_KEY) return;
+  try {
+    const [rowsA, rowsB] = await Promise.all([
+      query(`SELECT u.name, u.role, p.bio, p.skills, p.venture_stage, p.funding_needs,
+                    p.investment_domain, p.preferred_stage, p.max_investment
+             FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`, [userAId]),
+      query(`SELECT u.name, u.role, p.bio, p.skills, p.venture_stage, p.funding_needs,
+                    p.investment_domain, p.preferred_stage, p.max_investment
+             FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`, [userBId]),
+    ]);
+    const a = rowsA[0]; const b = rowsB[0];
+    if (!a || !b) return;
+
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 150,
+      messages: [{
+        role: 'user',
+        content: `Two BizMatch users just mutually matched. Write a single encouraging sentence (max 25 words) explaining why they are a great fit. Be specific and concise.
+
+User A: ${a.name}, ${a.role}. Bio: ${a.bio || 'N/A'}. Stage: ${a.venture_stage || a.preferred_stage || 'N/A'}. Domain: ${a.investment_domain || 'N/A'}.
+User B: ${b.name}, ${b.role}. Bio: ${b.bio || 'N/A'}. Stage: ${b.venture_stage || b.preferred_stage || 'N/A'}. Domain: ${b.investment_domain || 'N/A'}.`,
+      }],
+    });
+    const summary = response.content[0]?.text?.trim();
+    if (summary) {
+      await query('UPDATE matches SET ai_summary = ? WHERE id = ?', [summary, matchId]);
+    }
+  } catch {
+    // non-critical — silently skip if AI call fails
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +241,7 @@ async function getMatches(userId) {
     `SELECT
        m.id AS matchId,
        m.created_at AS matchedAt,
+       m.ai_summary AS aiSummary,
        u.id AS userId,
        u.name,
        u.photo_url AS photoUrl,
