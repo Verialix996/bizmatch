@@ -5,4 +5,4 @@ CREATE TABLE IF NOT EXISTS api_usage (
 );
 
 -- Push notification tokens
-ALTER TABLE users ADD COLUMN IF NOT EXISTS push_token VARCHAR(500);
+ALTER TABLE users ADD COLUMN push_token VARCHAR(500);
