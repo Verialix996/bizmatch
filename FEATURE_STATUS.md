@@ -118,6 +118,7 @@ Each system is described with its intended behavior and current implementation s
 - **Match summary**: 1-sentence "why you match" on mutual match; shown in match modal and Matches tab
 - **Meeting briefing**: 5-section due diligence report; cached per meeting; daily usage limit
 - **Deck review**: structured feedback (score, strengths, weaknesses, suggestions) from a text deck description
+- **Content moderation**: Claude Haiku screens profile bios, chat messages, and project descriptions for inappropriate content before saving; returns 400 with reason if flagged; fails open when API key missing
 - All AI features fail silently when `ANTHROPIC_API_KEY` is missing
 
 ---
@@ -171,7 +172,7 @@ Each system is described with its intended behavior and current implementation s
 | NDA System | ✅ Complete |
 | Meeting System | ✅ Complete — rescheduling + AI briefing |
 | File Storage | ✅ Complete |
-| AI Features | ✅ Complete — scoring, briefing, deck review, cost control |
+| AI Features | ✅ Complete — scoring, briefing, deck review, moderation, cost control |
 | Push Notifications | ✅ Complete — real device only |
 | Onboarding Tutorial | ✅ Complete |
 | Premium System | ✅ Complete — demo free trial |

@@ -2,6 +2,7 @@ const ProfileModel = require('../models/profile.model');
 const UserModel = require('../models/user.model');
 const { query } = require('../config/db');
 const { uploadDoc: upload } = require('../middleware/upload');
+const { moderateText } = require('../services/moderation.service');
 
 // GET /api/profile/me
 async function getMyProfile(req, res, next) {
@@ -18,6 +19,10 @@ async function getMyProfile(req, res, next) {
 // POST /api/profile
 async function createProfile(req, res, next) {
   try {
+    if (req.body.bio) {
+      const mod = await moderateText(req.body.bio);
+      if (!mod.ok) return res.status(400).json({ error: `Bio flagged by moderation: ${mod.reason}` });
+    }
     const profile = await ProfileModel.create(req.user.id, {
       ...req.body,
       role_type: req.user.role,
@@ -31,6 +36,10 @@ async function createProfile(req, res, next) {
 // PUT /api/profile
 async function updateProfile(req, res, next) {
   try {
+    if (req.body.bio) {
+      const mod = await moderateText(req.body.bio);
+      if (!mod.ok) return res.status(400).json({ error: `Bio flagged by moderation: ${mod.reason}` });
+    }
     await ProfileModel.update(req.user.id, {
       ...req.body,
       role_type: req.user.role,

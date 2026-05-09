@@ -2,6 +2,7 @@ const { sendMessage, getMessages, getConversations } = require('../models/messag
 const { query } = require('../config/db');
 const PDFDocument = require('pdfkit');
 const { cloudinary } = require('../config/cloudinary');
+const { moderateText } = require('../services/moderation.service');
 
 const conversations = async (req, res, next) => {
   try {
@@ -36,6 +37,9 @@ const send = async (req, res, next) => {
 
     if (!matchId) return res.status(400).json({ error: 'Invalid matchId' });
     if (!body || !body.trim()) return res.status(400).json({ error: 'Message body required' });
+
+    const mod = await moderateText(body.trim());
+    if (!mod.ok) return res.status(400).json({ error: `Message flagged by moderation: ${mod.reason}` });
 
     const msg = await sendMessage(matchId, req.user.id, body.trim());
     if (!msg) return res.status(403).json({ error: 'Not part of this match' });

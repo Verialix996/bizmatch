@@ -7,6 +7,7 @@ const {
 const { query } = require('../config/db');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 const Anthropic = require('@anthropic-ai/sdk');
+const { moderateText } = require('../services/moderation.service');
 
 // POST /api/projects/:id/upload-deck
 const uploadDeck = [
@@ -91,8 +92,12 @@ const create = async (req, res, next) => {
     if (req.user.role !== 'entrepreneur') {
       return res.status(403).json({ error: 'Only entrepreneurs can create projects' });
     }
-    const { title } = req.body;
+    const { title, description } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
+    if (description) {
+      const mod = await moderateText(description);
+      if (!mod.ok) return res.status(400).json({ error: `Description flagged by moderation: ${mod.reason}` });
+    }
     const project = await createProject(req.user.id, req.body);
     res.status(201).json(project);
   } catch (err) { next(err); }
@@ -101,8 +106,12 @@ const create = async (req, res, next) => {
 // PUT /api/projects/:id
 const update = async (req, res, next) => {
   try {
-    const { title } = req.body;
+    const { title, description } = req.body;
     if (!title) return res.status(400).json({ error: 'title is required' });
+    if (description) {
+      const mod = await moderateText(description);
+      if (!mod.ok) return res.status(400).json({ error: `Description flagged by moderation: ${mod.reason}` });
+    }
     const project = await updateProject(Number(req.params.id), req.user.id, req.body);
     res.json(project);
   } catch (err) { next(err); }

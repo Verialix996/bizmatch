@@ -90,6 +90,29 @@ SELECT verification_status FROM users WHERE id = <your_id>;
 -- Should be 'verified'
 ```
 
+### Role Switching
+1. Go to Profile → Account Settings → tap "Change Role"
+2. Switch from Entrepreneur to Investor (or vice versa) → save
+3. **Expected:** Profile tab shows the new role. Discover feed now shows the other role's candidates.
+
+**DB verification:**
+```sql
+SELECT role FROM users WHERE id = <your_id>;
+-- Should reflect the new role
+```
+
+### Account Name Update
+1. Go to Profile → Account Settings
+2. Change the name field → tap "Save Changes"
+3. **Expected:** Success message; Profile tab shows the updated name.
+
+### Account Deletion
+1. Go to Profile → Account Settings → scroll to Danger Zone
+2. Tap "Delete Account" → confirm in the modal ("Delete Everything")
+3. **Expected:** Success modal appears → tap OK → app returns to login screen
+4. Try logging in with the deleted account credentials
+5. **Expected:** Login fails — account no longer exists
+
 ### Edit Profile
 1. Go to Profile tab → Edit
 2. Change bio text → save
@@ -154,10 +177,25 @@ SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
 3. On the other device, **Expected:** Message appears within 15 seconds (polling interval)
 4. Send a message from the other side → appears on first device
 
+### Unread Message Badge
+1. Account B sends a message to Account A while Account A is NOT in that chat
+2. On Account A, open the Matches tab
+3. **Expected:** A blue unread dot appears on the conversation with Account B
+4. Account A opens the chat → reads the messages
+5. **Expected:** Blue dot disappears
+
 ### Push Notification (real device only)
 1. Background Account A's app (don't close, just go to home screen)
 2. From Account B, send a text message
 3. **Expected:** Account A receives a push notification with sender name + message preview
+
+### Partner Invite (chat flow)
+1. From an entrepreneur account, open a chat with a matched entrepreneur
+2. Tap the action menu → "Invite to Project" → select a project
+3. **Expected:** `partner_invite` card appears in chat with project name and Accept/Decline buttons
+4. On the other device, tap "Accept"
+5. **Expected:** `partner_invite_response` card shows "accepted". Partner now appears in the project's partners list.
+6. Repeat but tap "Decline" → **Expected:** Response card shows "declined"
 
 ---
 
@@ -182,6 +220,16 @@ SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
 3. Set visibility to "Public"
 4. Upload pitch deck (PDF) and/or demo video
 5. **Expected:** Files upload to Cloudinary (URLs start with `res.cloudinary.com`)
+
+### Edit Project
+1. Go to Projects tab → tap an existing project → tap Edit
+2. Change the title or description → save
+3. **Expected:** Updated details appear on the project card immediately
+
+### Delete Project
+1. Go to Projects tab → tap a project → tap Delete (or long-press)
+2. Confirm deletion
+3. **Expected:** Project disappears from the list. Login as investor — project no longer appears in the investor feed.
 
 ### Project Visibility
 1. Set project visibility to "Private"
@@ -211,6 +259,11 @@ SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
 2. Tap the meeting proposal card → opens MeetingDetailScreen
 3. Tap "Confirm"
 4. **Expected:** Meeting status updates to "Confirmed". Both users see it in Meetings tab.
+
+### Cancel a Confirmed Meeting
+1. Both users confirm a meeting (status = confirmed)
+2. Either user opens the meeting from the Meetings tab → tap Cancel
+3. **Expected:** Meeting status updates to "Cancelled". Both users see the updated status. A `meeting_response` card appears in chat.
 
 ---
 
@@ -246,7 +299,33 @@ SELECT ai_briefing FROM meetings WHERE id = <meeting_id>;
 
 ---
 
-## 11. AI Cost Control
+## 11. AI Content Moderation
+
+### Profile Bio Flagged
+1. Go to Edit Profile → set bio to something clearly inappropriate (e.g. hate speech or threats)
+2. Tap Save
+3. **Expected:** Save fails with error "Bio flagged by moderation: <reason>". Profile not updated.
+
+### Clean Bio Accepted
+1. Set bio to normal professional content → save
+2. **Expected:** Saves successfully. No moderation error.
+
+### Chat Message Flagged
+1. In any chat, type a clearly inappropriate message → send
+2. **Expected:** Message is rejected with error. Does NOT appear in the chat thread.
+
+### Project Description Flagged
+1. Create or edit a project with an inappropriate description → save
+2. **Expected:** Save fails with moderation error. Project not created/updated.
+
+### Fallback (no API key)
+1. (Railway) Temporarily remove `ANTHROPIC_API_KEY`
+2. Submit any content → **Expected:** Content is accepted (fail open — moderation never blocks users when AI is unavailable)
+3. Restore the API key
+
+---
+
+## 12. AI Cost Control
 
 1. (DB access required) Insert or update today's usage:
 ```sql
@@ -258,7 +337,7 @@ ON DUPLICATE KEY UPDATE briefing_count = 49;
 
 ---
 
-## 12. Onboarding Tutorial
+## 13. Onboarding Tutorial
 
 ### First Launch
 1. Fresh install OR clear app data / SecureStore
@@ -277,7 +356,7 @@ ON DUPLICATE KEY UPDATE briefing_count = 49;
 
 ---
 
-## 13. Push Notifications
+## 14. Push Notifications
 
 > Must be tested on a **real physical device**. Does not work in simulators.
 
@@ -293,7 +372,7 @@ ON DUPLICATE KEY UPDATE briefing_count = 49;
 
 ---
 
-## 14. Premium System
+## 15. Premium System
 
 ### Activate Free Trial
 1. Navigate to Premium screen (Profile tab → Go Premium, or from the 429 upgrade prompt)
@@ -330,7 +409,7 @@ SELECT is_super_like FROM swipes WHERE swiper_id = <your_id> ORDER BY id DESC LI
 
 ---
 
-## 15. AI Match Scoring (AI-Driven Feed)
+## 16. AI Match Scoring (AI-Driven Feed)
 
 ### Verify Background Scoring
 1. Login fresh (or clear `ai_match_scores` for your user):
@@ -375,8 +454,10 @@ Run this before every demo:
 - [ ] Feed shows cards in sorted order
 - [ ] Swiping right on each other creates a match
 - [ ] Chat messages appear on both devices
+- [ ] Partner invite sent and responded to in chat
 - [ ] Meetings tab shows scheduled meetings
 - [ ] AI Briefing loads for a confirmed meeting
 - [ ] Projects tab shows public projects
 - [ ] Premium screen accessible and trial activates
 - [ ] Auth persists after closing and reopening app
+- [ ] Account deletion removes account and logs out
