@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authenticate, requireVerified } = require('../middleware/auth');
+const { authenticate, requireVerified } = require('../middleware/auth.middleware');
 const { propose, respond, list, briefing, reschedule } = require('../controllers/meeting.controller');
 
 router.use(authenticate, requireVerified);
