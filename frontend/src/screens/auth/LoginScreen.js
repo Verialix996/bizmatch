@@ -38,7 +38,7 @@ export default function LoginScreen({ navigation }) {
                 const data = await resp.json();
                 clearInterval(interval);
                 if (data.token) {
-                  setAuth(data.token, { id: Number(data.userId), email: data.email, name: data.name, role: data.role });
+                  setAuth(data.token, { id: Number(data.userId), email: data.email, name: data.name, role: data.role, has_profile: !!data.has_profile });
                 }
                 return resolve();
               }
@@ -56,7 +56,7 @@ export default function LoginScreen({ navigation }) {
             return [k, decodeURIComponent(v || '')];
           }));
           if (params.token) {
-            setAuth(params.token, { id: Number(params.userId), email: params.email, name: params.name, role: params.role });
+            setAuth(params.token, { id: Number(params.userId), email: params.email, name: params.name, role: params.role, has_profile: params.has_profile === 'true' });
           }
         }
       }

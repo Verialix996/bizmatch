@@ -123,8 +123,8 @@ export default function AppNavigator() {
           <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
           <Stack.Screen name="Verify2FA"      component={Verify2FAScreen} />
         </>
-      ) : !user?.role ? (
-        // New user — EditProfile is first so it renders immediately, no flash
+      ) : (!user?.role || user?.has_profile === false) ? (
+        // No profile yet — EditProfile is first so it renders immediately, no flash
         <>
           <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
           <Stack.Screen name="Main"             component={MainTabs} />

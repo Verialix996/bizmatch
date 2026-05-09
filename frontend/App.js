@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -19,6 +20,7 @@ async function registerForPushNotifications() {
 
 export default function App() {
   const token = useAuthStore(s => s.token);
+  const isRestoring = useAuthStore(s => s.isRestoring);
   const restoreAuth = useAuthStore(s => s.restoreAuth);
 
   useEffect(() => {
@@ -28,6 +30,16 @@ export default function App() {
   useEffect(() => {
     if (token) registerForPushNotifications();
   }, [token]);
+
+  if (isRestoring) {
+    return (
+      <SafeAreaProvider>
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FC' }}>
+          <ActivityIndicator size="large" color="#022466" />
+        </View>
+      </SafeAreaProvider>
+    );
+  }
 
   return (
     <SafeAreaProvider>

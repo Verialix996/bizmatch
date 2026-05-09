@@ -158,7 +158,7 @@ export default function EditProfileScreen({ route, navigation }) {
     setRoleError('');
     try {
       await api.patch('/users/me/role', { role: selectedRole });
-      updateUser({ role: selectedRole });
+      // Don't call updateUser here — it would re-render AppNavigator and skip the profile form
       setStep('profile');
     } catch (err) {
       setRoleError(err.response?.data?.error || 'Failed to save role');
@@ -176,7 +176,7 @@ export default function EditProfileScreen({ route, navigation }) {
     try {
       if (isNew) {
         await api.post('/profile', payload);
-        navigation.navigate('Main');
+        updateUser({ role: selectedRole, has_profile: true }); // Now safe — profile is complete, AppNavigator routes to Onboarding/Main
       } else {
         await api.put('/profile', payload);
         navigation.goBack();

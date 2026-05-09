@@ -29,9 +29,11 @@ router.post('/resend-otp',   ctrl.resendOtp);
 router.post('/forgot-password', authLimiter, ctrl.forgotPassword);
 router.post('/reset-password',  authLimiter, ctrl.resetPassword);
 
-// 2FA (requires login first)
+// 2FA setup/activation (requires being logged in)
 router.post('/2fa/setup',  authenticate, ctrl.setup2FA);
 router.post('/2fa/verify', authenticate, ctrl.verify2FA);
+// 2FA login verification (no token yet — exchanges userId + TOTP code for JWT)
+router.post('/2fa/login',  authLimiter,  ctrl.login2FA);
 
 // Google OAuth (web/browser flow)
 // ?oid=<id> is passed by the web popup flow so the frontend can poll for the result

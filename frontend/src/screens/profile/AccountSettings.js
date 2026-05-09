@@ -19,6 +19,12 @@ export default function AccountSettingsScreen({ navigation }) {
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(user?.verification_status || 'none');
 
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(!!user?.two_factor_enabled);
+  const [twoFactorSetup, setTwoFactorSetup] = useState(null);
+  const [twoFactorCode, setTwoFactorCode] = useState('');
+  const [twoFactorLoading, setTwoFactorLoading] = useState(false);
+  const [twoFactorError, setTwoFactorError] = useState('');
+
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
@@ -53,6 +59,38 @@ export default function AccountSettingsScreen({ navigation }) {
       setError('Verification failed. Please try again.');
     } finally {
       setVerifyLoading(false);
+    }
+  };
+
+  const handleSetup2FA = async () => {
+    setTwoFactorLoading(true);
+    setTwoFactorError('');
+    try {
+      const { data } = await api.post('/auth/2fa/setup');
+      setTwoFactorSetup(data);
+    } catch {
+      setTwoFactorError('Failed to initialize 2FA. Please try again.');
+    } finally {
+      setTwoFactorLoading(false);
+    }
+  };
+
+  const handleVerify2FA = async () => {
+    if (twoFactorCode.length !== 6) {
+      setTwoFactorError('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+    setTwoFactorLoading(true);
+    setTwoFactorError('');
+    try {
+      await api.post('/auth/2fa/verify', { token: twoFactorCode });
+      setTwoFactorEnabled(true);
+      setTwoFactorSetup(null);
+      updateUser({ two_factor_enabled: 1 });
+    } catch {
+      setTwoFactorError('Invalid code. Please try again.');
+    } finally {
+      setTwoFactorLoading(false);
     }
   };
 
@@ -202,6 +240,65 @@ export default function AccountSettingsScreen({ navigation }) {
                 {verifyLoading
                   ? <ActivityIndicator color="#fff" />
                   : <Text style={styles.btnPrimaryText}>Verify Account</Text>
+                }
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>TWO-FACTOR AUTHENTICATION</Text>
+          {twoFactorEnabled ? (
+            <Text style={[styles.dangerText, { color: colors.success }]}>
+              ✓ Two-factor authentication is enabled
+            </Text>
+          ) : twoFactorSetup ? (
+            <>
+              <Text style={styles.dangerText}>
+                Open Google Authenticator or Authy → tap "+" → "Enter a setup key" → paste the key below.
+              </Text>
+              <Text style={styles.fieldLabel}>SETUP KEY</Text>
+              <View style={[styles.input, styles.inputDisabled, { marginBottom: 16 }]}>
+                <Text style={{ color: colors.textPrimary, fontWeight: '700', letterSpacing: 2 }}>
+                  {twoFactorSetup.secret}
+                </Text>
+              </View>
+              <Text style={styles.fieldLabel}>ENTER 6-DIGIT CODE TO ACTIVATE</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="000000"
+                placeholderTextColor={colors.textHint}
+                keyboardType="number-pad"
+                maxLength={6}
+                value={twoFactorCode}
+                onChangeText={(t) => { setTwoFactorCode(t); setTwoFactorError(''); }}
+              />
+              {twoFactorError ? <Text style={styles.errorText}>{twoFactorError}</Text> : null}
+              <TouchableOpacity
+                style={[styles.btnPrimary, twoFactorLoading && styles.btnDisabled]}
+                onPress={handleVerify2FA}
+                disabled={twoFactorLoading}
+              >
+                {twoFactorLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnPrimaryText}>Activate 2FA</Text>
+                }
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.dangerText}>
+                Add an extra layer of security. You'll need an authenticator app (Google Authenticator or Authy).
+              </Text>
+              {twoFactorError ? <Text style={styles.errorText}>{twoFactorError}</Text> : null}
+              <TouchableOpacity
+                style={[styles.btnPrimary, twoFactorLoading && styles.btnDisabled]}
+                onPress={handleSetup2FA}
+                disabled={twoFactorLoading}
+              >
+                {twoFactorLoading
+                  ? <ActivityIndicator color="#fff" />
+                  : <Text style={styles.btnPrimaryText}>Enable 2FA</Text>
                 }
               </TouchableOpacity>
             </>

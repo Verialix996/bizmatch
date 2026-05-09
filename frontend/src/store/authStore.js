@@ -7,6 +7,7 @@ const useAuthStore = create((set, get) => ({
   newMatchCount: 0,
   readTimestamps: {},
   hasSeenOnboarding: false,
+  isRestoring: true,
 
   setAuth: async (token, user) => {
     set({ token, user });
@@ -31,9 +32,9 @@ const useAuthStore = create((set, get) => ({
       const seenStr = await SecureStore.getItemAsync('has_seen_onboarding');
       const user = userStr ? JSON.parse(userStr) : null;
       const hasSeenOnboarding = seenStr === 'true';
-      if (token && user) set({ token, user, hasSeenOnboarding });
-      else set({ hasSeenOnboarding });
-    } catch { /* silent */ }
+      if (token && user) set({ token, user, hasSeenOnboarding, isRestoring: false });
+      else set({ hasSeenOnboarding, isRestoring: false });
+    } catch { set({ isRestoring: false }); }
   },
 
   setHasSeenOnboarding: () => {

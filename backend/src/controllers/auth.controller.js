@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const speakeasy = require('speakeasy');
 const UserModel = require('../models/user.model');
+const ProfileModel = require('../models/profile.model');
 const { sendOtp, sendPasswordReset } = require('../services/email.service');
 const logger = require('../utils/logger');
 
@@ -87,8 +88,9 @@ async function login(req, res, next) {
       return res.status(200).json({ requires2FA: true, userId: user.id });
     }
 
+    const profile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile } });
   } catch (err) {
     next(err);
   }
@@ -108,7 +110,7 @@ async function verifyEmail(req, res, next) {
     await UserModel.setOtpCode(user.id, null, null);
 
     const token = generateToken(user);
-    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: false } });
   } catch (err) {
     next(err);
   }
@@ -212,10 +214,12 @@ setInterval(() => {
 }, 60_000);
 
 // OAuth callback — handles both mobile (bizmatch:// deep link) and web popup (polling)
-function oauthCallback(req, res) {
+async function oauthCallback(req, res) {
   const user = req.user;
   const token = generateToken(user);
   const oid = res.locals.oauthState;  // set by middleware in auth.routes.js
+  const profile = await ProfileModel.findByUserId(user.id);
+  const has_profile = !!profile;
 
   if (oid) {
     // Web popup flow: store result, close the popup, frontend polls /api/auth/poll/:oid
@@ -225,6 +229,7 @@ function oauthCallback(req, res) {
       email:  user.email || '',
       name:   user.name  || '',
       role:   user.role  || '',
+      has_profile,
       createdAt: Date.now(),
     });
     return res.send('<!DOCTYPE html><html><body><script>window.close();</script><p>Signed in! You may close this window.</p></body></html>');
@@ -237,6 +242,7 @@ function oauthCallback(req, res) {
     email:  user.email || '',
     name:   user.name  || '',
     role:   user.role  || '',
+    has_profile: String(has_profile),
   });
   return res.redirect(`bizmatch://auth?${params.toString()}`);
 }
@@ -279,8 +285,40 @@ async function googleMobile(req, res, next) {
       photo:      profile.picture ?? null,
     });
 
+    const profile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile } });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// POST /api/auth/2fa/login — verifies TOTP at login time (no auth token required yet)
+async function login2FA(req, res, next) {
+  try {
+    const { userId, token } = req.body;
+    if (!userId || !token) return res.status(400).json({ error: 'userId and token are required' });
+
+    const user = await UserModel.findById(Number(userId));
+    if (!user || !user.two_factor_enabled || !user.two_factor_secret) {
+      return res.status(400).json({ error: 'Invalid 2FA request' });
+    }
+
+    const valid = speakeasy.totp.verify({
+      secret: user.two_factor_secret,
+      encoding: 'base32',
+      token,
+      window: 1,
+    });
+
+    if (!valid) return res.status(400).json({ error: 'Invalid 2FA code' });
+
+    const profile = await ProfileModel.findByUserId(user.id);
+    const jwtToken = generateToken(user);
+    res.json({
+      token: jwtToken,
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile },
+    });
   } catch (err) {
     next(err);
   }
@@ -289,5 +327,5 @@ async function googleMobile(req, res, next) {
 module.exports = {
   register, login, verifyEmail, resendOtp,
   forgotPassword, resetPassword,
-  setup2FA, verify2FA, oauthCallback, pollPending, googleMobile,
+  setup2FA, verify2FA, login2FA, oauthCallback, pollPending, googleMobile,
 };

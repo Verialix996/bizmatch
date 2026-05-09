@@ -20,7 +20,7 @@ export default function Verify2FAScreen({ route, navigation }) {
     setError('');
     setLoading(true);
     try {
-      const { data } = await api.post('/auth/2fa/verify', { userId, token });
+      const { data } = await api.post('/auth/2fa/login', { userId, token });
       await setAuth(data.token, data.user);
     } catch (err) {
       setError(err.response?.data?.error || 'Invalid code. Please try again.');

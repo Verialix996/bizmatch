@@ -12,50 +12,43 @@ Start Expo: run `npx expo start` in `frontend/`, scan QR with Expo Go.
 
 ---
 
-## 1. Authentication
+## 1. Authentication — Re-test After Fixes
 
-### Register (email/password)
+### Register (email/password) ⚠️ RETEST
+> Bug fixed: new user could reach swipe feed without completing profile. Now profile must be fully saved before AppNavigator switches screens.
+
 1. Open app → tap "Create Account"
 2. Enter name, email, password → submit
 3. Check email for OTP code
-4. Enter OTP on Verify screen → lands on Profile Setup
+4. Enter OTP → **Expected:** lands on Role Selection, not swipe feed
+5. Select a role → fill in bio, skills, and other fields → tap "Save Profile"
+6. **Expected:** Onboarding slides appear. After completing, lands on swipe feed.
+7. **Verify:** Cannot reach Discover tab before profile is saved.
 
-**Expected:** OTP received within 30 seconds. Wrong OTP shows error. Expired OTP shows error.
+after relogging getting to the onboarding prosses, if pressing skip it will move to the swipe screen and allow me to swipe, if user profile is not completed user cant go to the swipe screen — FIXED: AppNavigator now gates on has_profile (returned by login endpoint) instead of role; role can exist in DB without a completed profile
 
-### Login
-1. Open app → tap "Log In"
-2. Enter credentials → tap Login
-3. **Expected:** Lands on main feed (or Profile Setup if role not set)
+### 2FA ⚠️ RETEST
+> Bug fixed: no UI existed. 2FA section now added to Account Settings.
 
-### Forgot Password
-1. Tap "Forgot Password" on login screen
-2. Enter email → submit
-3. Check email for reset link → open link → enter new password
-4. **Expected:** Login works with new password
+1. Go to Profile → Account Settings → scroll to "Two-Factor Authentication"
+2. Tap "Enable 2FA" → **Expected:** Setup key appears with instructions
+3. Open Google Authenticator or Authy → "+" → "Enter a setup key" → paste the key
+4. Enter the 6-digit rotating code → tap "Activate 2FA"
+5. **Expected:** Section shows "✓ Two-factor authentication is enabled"
+6. Logout → login again → **Expected:** prompted for 6-digit TOTP code
+7. Enter correct code → **Expected:** Login succeeds
+8. Enter wrong code → **Expected:** Login rejected
 
-### 2FA
-1. Go to Profile → Account Settings → Enable 2FA
-2. Scan the QR code with an authenticator app (Google Authenticator, Authy)
-3. Logout → login again → enter 6-digit TOTP code
-4. **Expected:** Login requires the rotating code. Wrong code rejected.
+ui exist, but when setting the 2fa as i understand it u need to take the key and put it in google authenticator, push the temp password and enable it, but after trying to log in again cant enter with the code from google authenticator app, even if the code is true — FIXED: Verify2FAScreen was calling the setup endpoint (/auth/2fa/verify) which requires an auth token. New endpoint /auth/2fa/login added that verifies TOTP and returns a JWT without requiring prior authentication
+### Auth Persistence ⚠️ RETEST
+> Bug fixed: no loading state caused flash of Welcome screen before token restored. Now shows spinner until SecureStore is read.
 
-### Auth Persistence
-1. Login on device → close app completely (swipe away)
-2. Reopen app
-3. **Expected:** Still logged in, no login screen shown
+1. Login on a **real device** (Expo Go on iOS or Android — not browser)
+2. Close the app completely (swipe away from app switcher)
+3. Reopen the app
+4. **Expected:** Spinner briefly shows, then lands directly on main feed — no login screen
 
-### Account Lockout
-1. On login screen, enter a valid email with the **wrong** password
-2. Repeat 5 times
-3. **Expected on 5th attempt:** Error "Account locked. Try again in 15 minute(s)."
-4. Wait 15 minutes (or reset via DB: `UPDATE users SET login_attempts = 0, locked_until = NULL WHERE email = '...'`)
-5. Enter correct password → **Expected:** Login succeeds, lockout counter resets
-
-### OAuth (Google)
-1. Tap "Continue with Google" on login/register screen
-2. Complete Google auth flow
-3. **Expected:** Lands in app with profile pre-filled from Google
-
+still doesn't happens, doesn't matter for now
 ---
 
 ## 2. Profile Creation & Editing
