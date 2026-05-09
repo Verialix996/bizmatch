@@ -13,9 +13,10 @@ Each system is described with its intended behavior and current implementation s
 - JWT sessions (7-day tokens), stored via Zustand + SecureStore; persists across app restarts
 - Password reset via token-based email link (expires 1 hour)
 - Google OAuth (web popup + React Native mobile flow)
-- 2FA (TOTP) — speakeasy-based; QR code setup + `Verify2FAScreen.js`
+- 2FA (TOTP) — speakeasy-based; setup in AccountSettings (`POST /api/auth/2fa/setup` + `POST /api/auth/2fa/verify`); login-time TOTP via `POST /api/auth/2fa/login` (unauthenticated, returns JWT)
 - Account deletion (hard delete via `DELETE /api/users/me`)
-- Auth persistence: `restoreAuth()` on app mount reads token/user from SecureStore
+- Auth persistence: `restoreAuth()` on app mount reads token/user from SecureStore; `isRestoring` state prevents Welcome screen flash
+- **has_profile flag** — all auth responses include `has_profile: boolean`; AppNavigator forces profile creation before main tabs
 - **Account lockout**: 5 failed login attempts → account locked for 15 minutes; counter resets on success (migration 014)
 
 ---
@@ -27,7 +28,7 @@ Each system is described with its intended behavior and current implementation s
 - `users` table: email, name, role, photo, OAuth fields, 2FA, push_token, is_premium, premium_expires_at, login_attempts, locked_until, verification_status
 - `profiles` table: role-specific data (entrepreneur: bio, skills, hobbies, venture_stage, funding_needs; investor: bio, investment_domain, preferred_stage, max_investment)
 - Role switching (`PATCH /api/users/me/role`)
-- Profile photo upload to Cloudinary (`POST /api/users/me/photo`)
+- Profile photo upload to Cloudinary (`POST /api/users/me/photo`) — accepts base64 data URI JSON; Cloudinary SDK uploads directly (no multer)
 - **ID verification bypass**: "Verify Account" button in Account Settings → `POST /api/users/me/verify-self` instantly sets `verification_status = 'verified'` (no admin review needed for demo)
 - **Profile completeness score**: progress bar on ProfileScreen (0–100%) calculated from photo, bio length, skills count, and role-specific fields; colour-coded with hints
 

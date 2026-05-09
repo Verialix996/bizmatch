@@ -126,10 +126,18 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 That's it — no backend setup needed for testing.
 
-### Demo accounts (password: `Demo1234!`)
-- Investor: `sarah.chen@bizmatch.app`
-- Entrepreneur: `alex.rivera@bizmatch.app`
-- See `DEMO_ACCOUNTS.md` for all 50 accounts (gitignored — ask the team)
+### Test accounts (password: `Test1234!`)
+
+Run `node scripts/demo.js` from the Railway console to create these accounts (wipes DB and reseeds):
+
+| Account | Email | Role |
+|---------|-------|------|
+| A | test.investor@bizmatch.app | Investor (Premium) |
+| B | test.entrepreneur@bizmatch.app | Entrepreneur |
+| C | test.entrepreneur2@bizmatch.app | Entrepreneur 2 |
+| D | test.investor2@bizmatch.app | Investor 2 (fresh) |
+
+See `DEMO_ACCOUNTS.md` for full details on what each account is used for (gitignored).
 
 ### Verify the backend is live
 
@@ -185,7 +193,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 bizmatch/
 ├── backend/
 │   ├── migrations/        # MySQL schema files (001–014), auto-run on startup
-│   ├── scripts/           # seed.js — rebuilds DB with demo data
+│   ├── scripts/           # seed.js (50 accounts) + demo.js (4 test accounts, wipes DB)
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
 │   │   ├── controllers/   # auth, user, profile, match, message, meeting, project
@@ -226,8 +234,9 @@ bizmatch/
 | POST | `/api/auth/resend-otp` | Resend OTP |
 | POST | `/api/auth/forgot-password` | Request password reset |
 | POST | `/api/auth/reset-password` | Reset with token |
-| POST | `/api/auth/2fa/setup` | Setup 2FA (returns QR URI) |
-| POST | `/api/auth/2fa/verify` | Verify TOTP code |
+| POST | `/api/auth/2fa/setup` | Setup 2FA — returns secret + QR URI (requires auth) |
+| POST | `/api/auth/2fa/verify` | Enable 2FA — verifies TOTP during setup (requires auth) |
+| POST | `/api/auth/2fa/login` | Login-time TOTP verification — returns JWT (no auth required) |
 | GET | `/api/profile` | Get my profile |
 | POST | `/api/profile` | Create profile |
 | PUT | `/api/profile` | Update profile |

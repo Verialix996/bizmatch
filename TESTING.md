@@ -1,363 +1,321 @@
 # BizMatch — Manual Testing Guide
 
-## Prerequisites
+## Setup
 
-- Two physical devices (or one device + one simulator for non-push-notification tests)
-- Expo Go installed on both devices
+- Expo Go installed on device(s)
 - Backend running on Railway (`main-Ai_integrated` branch)
-- Two test accounts: **Account A** (investor) and **Account B** (entrepreneur)
-- Optional: Railway MySQL query access for DB verification
+- Run `npx expo start` in `frontend/`, scan QR with Expo Go
 
-Start Expo: run `npx expo start` in `frontend/`, scan QR with Expo Go.
+### Test Accounts (run `node scripts/demo.js` on Railway to create)
+
+| Account | Email | Password | Role | State |
+|---------|-------|----------|------|-------|
+| **A** | test.investor@bizmatch.app | Test1234! | Investor | Premium, matched with B (8 messages) |
+| **B** | test.entrepreneur@bizmatch.app | Test1234! | Entrepreneur | Project: TeamSync, matched with A + C |
+| **C** | test.entrepreneur2@bizmatch.app | Test1234! | Entrepreneur | Project: VitalBand, matched with B |
+| **D** | test.investor2@bizmatch.app | Test1234! | Investor | Fresh — no matches |
 
 ---
 
-## 2. Profile Creation & Editing ⚠️ RETEST
+## Section 1 — New Account (Single User Flow)
 
-### Create Profile (Entrepreneur/Investor) ⚠️ RETEST
-> Bug fixed: photo upload was "coming soon". Now uses expo-image-picker → uploads to Cloudinary via POST /users/me/photo.
+> Register a brand new account and follow the user journey from start to finish.
 
-1. After registration, set role → fill in bio (50+ chars), skills (2+), stage, funding/domain
-2. Tap the photo area → **Expected:** device photo library opens
-3. Select a photo → **Expected:** photo uploads and appears in the circle immediately
-4. Tap "Save Profile"
-5. **Expected:** Photo URL starts with `res.cloudinary.com`. Profile saved.
+### 1.1 Registration
 
-> **Note on completeness score:** 40% with bio + 2 skills only is correct — each field is worth 20pts. Fill all role-specific fields (venture stage + funding needs for entrepreneurs, domain + preferred stage for investors) + photo = 100%.
-get photo upload failed please try again error
----
+1. Open app → tap "Get Started" → tap "Register"
+2. Enter name, email, password (6+ chars) → submit
+3. **Expected:** "Check your email for the verification code" message appears
 
-## 3. Swipe Feed & AI-Driven Matching
+### 1.2 Email Verification (OTP)
 
-### Basic Feed
+1. Check email inbox for 6-digit code
+2. Enter code on the verify screen
+3. **Expected:** Verified and redirected to role selection / profile creation
+
+### 1.3 Onboarding Tutorial
+
+1. After first verification, complete profile setup
+2. **Expected:** 4-slide onboarding appears before main tabs
+3. Tap "Next" → advances slides. Tap "Skip" → jumps to main app. Final slide shows "Get Started"
+4. Close and reopen app → **Expected:** Onboarding does NOT appear again
+
+### 1.4 Role Selection & Profile Creation
+
+1. Select role (Entrepreneur or Investor)
+2. Fill in: bio (50+ chars), skills (2+), role-specific fields (stage + funding needs / domain + preferred stage)
+3. Tap the photo circle → **Expected:** device photo library opens
+4. Select a photo → **Expected:** photo uploads and appears in the circle immediately
+5. Tap "Save Profile"
+6. **Expected:** Profile saved, redirected to main tabs
+
+> **Completeness score:** each of the 5 fields (photo, bio, skills, stage, funding/domain) = 20 pts each → 100% when all filled.
+
+### 1.5 Discover Tab (Feed)
+
 1. Open Discover tab
-2. **Expected:** Cards appear sorted by compatibility score (highest first)
+2. **Expected:** Cards appear sorted by compatibility score
 3. Swipe right (like) or left (pass)
-4. Previously liked users do not reappear. Previously passed users appear at the bottom.
+4. **Expected:** Passed users don't reappear at top; liked users disappear from feed
+5. (Entrepreneur only) Toggle between "Find Investors" and "Find Partners"
+6. **Expected:** Toggle changes the type of profiles shown
 
-### AI Score Verification
-1. Load feed for the first time → note card order (math scores used initially)
-2. Wait 15–30 seconds (background Claude Haiku scoring runs in parallel)
-3. Pull to refresh or navigate away and back
-4. **Expected:** Card order may change — AI scores are now the dominant signal (60 pts) once cached
+### 1.6 Project Management
 
-**DB verification:**
-```sql
-SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
--- Rows appear with Claude-generated scores 0-100 for each candidate
-```
-
-**Railway logs:** Look for Claude API calls firing after the feed response is returned.
-
-### Mode Toggle (Entrepreneur only)
-1. On Discover tab, toggle between "Find Investors" and "Find Partners"
-2. **Expected:** "Find Investors" shows investor profiles; "Find Partners" shows entrepreneur profiles
-
-### Investor Feed
-1. Login as investor
-2. **Expected:** Sees project cards (not user profiles)
-3. Swipe right on a project → if entrepreneur swipes right on investor → match
-
----
-
-## 4. Match & Match Modal
-
-1. From Account A, swipe right on Account B
-2. From Account B, swipe right on Account A
-3. **Expected on Account B's screen:** Match modal appears — "It's a Match!"
-4. If AI summary has generated: italic one-sentence explanation appears in modal
-5. Tap "Message [Name]" → navigates directly to chat
-
----
-
-## 5. Chat & Messaging
-
-1. Open a matched conversation from Matches tab
-2. Type a message → send
-3. On the other device, **Expected:** Message appears within 15 seconds (polling interval)
-4. Send a message from the other side → appears on first device
-
-### Unread Message Badge
-1. Account B sends a message to Account A while Account A is NOT in that chat
-2. On Account A, open the Matches tab
-3. **Expected:** A blue unread dot appears on the conversation with Account B
-4. Account A opens the chat → reads the messages
-5. **Expected:** Blue dot disappears
-
-### Push Notification (real device only)
-1. Background Account A's app (don't close, just go to home screen)
-2. From Account B, send a text message
-3. **Expected:** Account A receives a push notification with sender name + message preview
-
-### Partner Invite (chat flow)
-1. From an entrepreneur account, open a chat with a matched entrepreneur
-2. Tap the action menu → "Invite to Project" → select a project
-3. **Expected:** `partner_invite` card appears in chat with project name and Accept/Decline buttons
-4. On the other device, tap "Accept"
-5. **Expected:** `partner_invite_response` card shows "accepted". Partner now appears in the project's partners list.
-6. Repeat but tap "Decline" → **Expected:** Response card shows "declined"
-
----
-
-## 6. NDA Signing & PDF
-
-1. In chat, tap the "+" or action menu → "Share Project"
-2. Select a project → project card appears in chat for the other user
-3. Other user taps "Request NDA" on the project card
-4. Original user sees "Sign NDA" button → tap it
-5. **Expected:** "NDA Signed ✅" message appears with "View NDA Document →" link
-6. Tap "View NDA Document →" → PDF opens in browser
-
-**Expected PDF content:** BizMatch header, both user names, date, NDA body text.
-
----
-
-## 7. Project Management
-
-### Create Project
+#### Create
 1. Go to Projects tab → tap "+"
-2. Fill in: title, description, industry, stage, funding needed
-3. Set visibility to "Public"
-4. Upload pitch deck (PDF) and/or demo video
-5. **Expected:** Files upload to Cloudinary (URLs start with `res.cloudinary.com`)
+2. Fill in title, description, industry, stage, funding needed → set visibility to "Public" → save
+3. **Expected:** Project appears in the list
 
-### Edit Project
-1. Go to Projects tab → tap an existing project → tap Edit
-2. Change the title or description → save
-3. **Expected:** Updated details appear on the project card immediately
+#### Edit
+1. Tap the project → tap Edit → change title or description → save
+2. **Expected:** Updated details show immediately
 
-### Delete Project
-1. Go to Projects tab → tap a project → tap Delete (or long-press)
-2. Confirm deletion
-3. **Expected:** Project disappears from the list. Login as investor — project no longer appears in the investor feed.
+#### Delete
+1. Tap the project → tap Delete → confirm
+2. **Expected:** Project disappears from the list
 
-### Project Visibility
-1. Set project visibility to "Private"
-2. Login as investor on another device
-3. **Expected:** Private project does NOT appear in investor's project feed
+#### Project Visibility
+1. Create a project → set visibility to "Private"
+2. Log in as Account A (investor) on another device
+3. **Expected:** Private project does NOT appear in investor's feed
 
-### AI Deck Review
-1. Open your own project (must have a deck uploaded)
-2. Tap "✦ Get AI Deck Feedback"
-3. In the modal, type a description: problem, solution, market, team, funding ask
-4. Tap Submit
-5. **Expected:** Modal shows Overall Score (1–10), Strengths, Weaknesses, Suggestions
+#### AI Deck Review
+1. Open a project that has a deck uploaded
+2. Tap "✦ Get AI Deck Feedback" → enter a description (problem, solution, market, team, ask) → submit
+3. **Expected:** Modal shows Overall Score (1–10), Strengths, Weaknesses, Suggestions
+
+### 1.7 AI Content Moderation
+
+#### Bio flagged
+1. Edit Profile → set bio to clearly inappropriate content (hate speech / threats) → save
+2. **Expected:** Save fails with "Bio flagged by moderation: \<reason\>"
+
+#### Clean bio accepted
+1. Set bio to normal professional text → save
+2. **Expected:** Saves successfully, no error
+
+#### Project description flagged
+1. Create or edit a project with an inappropriate description → save
+2. **Expected:** Save fails with moderation error
+
+#### Chat message flagged
+1. In any chat, type a clearly inappropriate message → send
+2. **Expected:** Message rejected with error, does not appear in chat
+
+### 1.8 Account Settings
+
+#### Verify Account
+1. Profile tab → Account Settings → tap "Verify Account"
+2. **Expected:** Status changes to "Verified ✓" instantly (demo bypass)
+
+#### 2FA Setup
+1. Account Settings → Two-Factor Authentication → tap "Set Up 2FA"
+2. **Expected:** Secret key appears. Copy it into an authenticator app (Google Authenticator / Authy)
+3. Enter the 6-digit code from the app → tap Verify
+4. **Expected:** "2FA enabled" confirmation
+5. Log out → log back in → **Expected:** 2FA code prompt appears after password
+
+#### Auth Persistence
+1. Log in → close app fully → reopen
+2. **Expected:** Still logged in, main tabs appear immediately (no login screen)
+
+### 1.9 Premium — Activate Trial
+
+1. Profile tab → "Go Premium" → tap "Activate Free Trial (30 days)"
+2. **Expected:** Success alert. "Who Liked Me" section appears in Matches tab
+
+### 1.10 Account Deletion
+
+1. Account Settings → Delete Account → confirm
+2. **Expected:** Account deleted, redirected to Welcome screen
+3. Try logging in with the deleted credentials
+4. **Expected:** "Invalid credentials" error
 
 ---
 
-## 8. Meeting Scheduling
+## Section 2 — Two Accounts Testing
 
-### Propose a Meeting
-1. Open a chat with a match → tap "Schedule Meeting" (header or action menu)
-2. Fill in: title, date/time (future date), type (Virtual or In-Person)
-3. For Virtual: enter a video link (e.g. Zoom URL)
-4. Submit
-5. **Expected:** `meeting_proposal` card appears in chat thread
+> Use the pre-seeded accounts. A↔B are already matched with 8 messages. B↔C are matched with 2 messages.
 
-### Confirm a Meeting
-1. On the receiver's device, open the chat
-2. Tap the meeting proposal card → opens MeetingDetailScreen
-3. Tap "Confirm"
-4. **Expected:** Meeting status updates to "Confirmed". Both users see it in Meetings tab.
+### 2.1 Login
 
-### Cancel a Confirmed Meeting
-1. Both users confirm a meeting (status = confirmed)
-2. Either user opens the meeting from the Meetings tab → tap Cancel
-3. **Expected:** Meeting status updates to "Cancelled". Both users see the updated status. A `meeting_response` card appears in chat.
+1. Device 1: log in as **Account A** (investor)
+2. Device 2: log in as **Account B** (entrepreneur)
+3. **Expected:** Both land on main tabs. A sees investor feed (project cards). B sees swipe feed (user cards)
 
----
+### 2.2 Swipe & Match (fresh)
 
-## 9. Meeting Rescheduling
+> Use **Account D** + **Account B** (or any unmatched pair)
 
-1. Receiver opens a proposed meeting → tap "Decline"
-2. **Expected:** Alert appears with three options: Cancel / Just Decline / Suggest New Time
+1. Log in as D (investor) — Discover tab shows project cards
+2. Swipe right on B's TeamSync project
+3. Log in as B — swipe right on D
+4. **Expected:** Match modal appears on B's screen — "It's a Match!"
+5. If AI summary has generated: italic one-sentence explanation in the modal
+6. Tap "Message [Name]" → navigates directly to chat
+
+### 2.3 Push Notifications — New Match
+
+1. Background Account B's app (home screen, not closed)
+2. From Account D, swipe right on B; then B swipes right on D (or vice versa — whichever creates the match)
+3. **Expected:** B receives "🎉 New Match!" push notification with D's name
+
+> Must be tested on a real physical device. Does not work in simulators.
+
+### 2.4 Chat — Text Messaging
+
+> A ↔ B already have 8 messages. Use their existing chat.
+
+1. Device 1 (A): open Matches tab → open chat with B → send a message
+2. Device 2 (B): **Expected:** message appears within 15 seconds
+3. B replies → **Expected:** appears on A's screen within 15 seconds
+
+### 2.5 Unread Message Badge
+
+1. B sends a message to A while A is NOT in the chat
+2. On A, open the Matches tab
+3. **Expected:** blue unread dot on B's conversation
+4. A opens the chat → **Expected:** dot disappears
+
+### 2.6 Push Notifications — New Message
+
+1. Background Account A (home screen, not closed)
+2. From Account B, send a text message
+3. **Expected:** A receives push notification: "New message from Alex Rivera" + preview
+
+> Must be tested on a real physical device.
+
+### 2.7 Partner Invite
+
+> Use B ↔ C (both entrepreneurs, already matched)
+
+1. Device 1 (B): open chat with C → action menu → "Invite to Project" → select TeamSync
+2. **Expected:** `partner_invite` card appears with project name + Accept / Decline buttons
+3. Device 2 (C): tap "Accept"
+4. **Expected:** response card shows "accepted". TeamSync's partners list now includes C
+5. Repeat from step 1 → tap "Decline" → **Expected:** response card shows "declined"
+
+### 2.8 NDA Signing & PDF
+
+> Use A ↔ B chat
+
+1. Device 2 (B): action menu → "Share Project" → select TeamSync
+2. **Expected:** project card appears in chat for A
+3. Device 1 (A): tap "Request NDA" on the project card
+4. Device 2 (B): tap "Sign NDA"
+5. **Expected:** "NDA Signed ✅" message appears with "View NDA Document →" link
+6. Tap the link → **Expected:** PDF opens in browser with BizMatch header, both names, date, NDA body
+
+### 2.9 Meeting — Propose & Confirm
+
+> Use A ↔ B chat
+
+1. Device 1 (A): action menu → "Schedule Meeting" → fill title, future date/time, Virtual, video link → submit
+2. **Expected:** `meeting_proposal` card appears in chat
+3. Device 2 (B): tap the proposal card → MeetingDetailScreen → tap "Confirm"
+4. **Expected:** status updates to "Confirmed". Both see it in Meetings tab
+
+### 2.10 Meeting — Cancel
+
+1. From Meetings tab (either device) → open a confirmed meeting → tap Cancel
+2. **Expected:** status updates to "Cancelled" on both devices. `meeting_response` card appears in chat
+
+### 2.11 Meeting — Reschedule
+
+1. Device 2 (B): open a proposed meeting → tap "Decline"
+2. **Expected:** Alert with three options: Cancel / Just Decline / Suggest New Time
 3. Tap "Suggest New Time"
-4. **Expected:** ProposeMeeting screen opens, pre-filled with original meeting details
+4. **Expected:** ProposeMeeting screen opens pre-filled with original details
 5. Change the date/time → submit
-6. **Expected:** Original proposer now sees a new proposal (roles swapped). Chat shows reschedule message.
+6. **Expected:** Device 1 (A) sees a new proposal (roles swapped). Chat shows reschedule message
 
----
+### 2.12 AI Due Diligence Briefing
 
-## 10. AI Due Diligence Briefing
-
-1. Open a confirmed meeting (Meetings tab → tap meeting)
-2. Tap "Get AI Briefing"
-3. **Expected:** Briefing loads with 5 sections:
-   - Person Summary
-   - Match Rationale
-   - Talking Points (3–4 bullets)
-   - Questions to Ask (3–4 bullets)
-   - Watch Out For (2–3 bullets)
-4. Tap "Get AI Briefing" again
-5. **Expected:** Returns instantly (cached — no second Claude call)
+1. Either device: Meetings tab → open a confirmed meeting → tap "Get AI Briefing"
+2. **Expected:** Briefing loads with 5 sections: Person Summary, Match Rationale, Talking Points (3–4), Questions to Ask (3–4), Watch Out For (2–3)
+3. Tap "Get AI Briefing" again → **Expected:** returns instantly (cached, no second Claude call)
 
 **DB verification:**
 ```sql
 SELECT ai_briefing FROM meetings WHERE id = <meeting_id>;
--- Should be populated after first call, same value on subsequent calls
+-- populated after first call; same value on second call
 ```
 
----
+### 2.13 Premium — Who Liked Me
 
-## 11. AI Content Moderation
+> Account A is already premium. Use Account D (fresh investor) to like someone.
 
-### Profile Bio Flagged
-1. Go to Edit Profile → set bio to something clearly inappropriate (e.g. hate speech or threats)
-2. Tap Save
-3. **Expected:** Save fails with error "Bio flagged by moderation: <reason>". Profile not updated.
+1. Log in as D → swipe right on B or C
+2. Log in as A (premium) → Matches tab
+3. **Expected:** "WHO LIKED YOU ★ PREMIUM" section shows D's name/photo
 
-### Clean Bio Accepted
-1. Set bio to normal professional content → save
-2. **Expected:** Saves successfully. No moderation error.
+### 2.14 Premium — Super Like
 
-### Chat Message Flagged
-1. In any chat, type a clearly inappropriate message → send
-2. **Expected:** Message is rejected with error. Does NOT appear in the chat thread.
+1. Logged in as A (premium) → Discover tab → tap the ★ star button
+2. **Expected:** swipe recorded as super like
 
-### Project Description Flagged
-1. Create or edit a project with an inappropriate description → save
-2. **Expected:** Save fails with moderation error. Project not created/updated.
+**DB verification:**
+```sql
+SELECT is_super_like FROM swipes WHERE swiper_id = <A_id> ORDER BY id DESC LIMIT 1;
+-- is_super_like = 1
+```
 
-### Fallback (no API key)
-1. (Railway) Temporarily remove `ANTHROPIC_API_KEY`
-2. Submit any content → **Expected:** Content is accepted (fail open — moderation never blocks users when AI is unavailable)
-3. Restore the API key
+### 2.15 Swipe Limit (free account)
 
----
+> Account D is non-premium
 
-## 12. AI Cost Control
+1. Logged in as D → swipe 20 times
+2. On the 21st swipe → **Expected:** "Daily Limit Reached" alert with "Go Premium" button
 
-1. (DB access required) Insert or update today's usage:
+### 2.16 AI Match Scoring
+
+1. Log in as D → Discover tab loads immediately with math-based scores
+2. Wait 20–30 seconds (Claude Haiku runs in background)
+3. Navigate away and back → **Expected:** card order may change as AI scores replace math scores
+
+**DB verification:**
+```sql
+SELECT * FROM ai_match_scores WHERE user_id = <D_id>;
+-- rows with Claude-generated scores 0-100 appear after ~30s
+```
+
+#### Score invalidation on profile update
+1. Edit any profile field → save
+2. **Expected:** ai_match_scores rows for that user are deleted → background scoring restarts on next feed load
+
+```sql
+SELECT COUNT(*) FROM ai_match_scores WHERE user_id = <your_id>;
+-- should be 0 immediately after saving profile
+```
+
+### 2.17 AI Cost Control
+
+1. Set today's briefing count to 49 via Railway MySQL:
 ```sql
 INSERT INTO api_usage (date, briefing_count) VALUES (CURDATE(), 49)
 ON DUPLICATE KEY UPDATE briefing_count = 49;
 ```
-2. Request one briefing → **Expected:** Succeeds (count becomes 50)
-3. Request another briefing → **Expected:** 429 error "Daily AI briefing limit reached. Try again tomorrow."
-
----
-
-## 13. Onboarding Tutorial
-
-### First Launch
-1. Fresh install OR clear app data / SecureStore
-2. Register and set a role
-3. **Expected:** 4-slide onboarding appears before main tabs
-
-### Navigation
-- Tap "Next" → advances slides
-- Tap "Skip" on any slide → goes directly to main app
-- Final slide shows "Get Started" instead of "Next"
-
-### One-Time Only
-1. Complete onboarding → use app normally
-2. Close and reopen app
-3. **Expected:** Onboarding does NOT appear again
-
----
-
-## 14. Push Notifications
-
-> Must be tested on a **real physical device**. Does not work in simulators.
-
-### New Message Notification
-1. Background Account A (home screen, not closed)
-2. Account B sends a text message
-3. **Expected:** Account A receives push notification: "New message from [Name]" + preview
-
-### New Match Notification
-1. Account A swipes right on Account B
-2. Account B swipes right on Account A (creating a mutual match)
-3. **Expected:** Account B receives "🎉 New Match!" notification with Account A's name
-
----
-
-## 15. Premium System
-
-### Activate Free Trial
-1. Navigate to Premium screen (Profile tab → Go Premium, or from the 429 upgrade prompt)
-2. Tap "Activate Free Trial (30 days)"
-3. **Expected:** Success alert. "Who Liked Me" section appears in Matches tab.
-
-**DB verification:**
-```sql
-SELECT is_premium, premium_expires_at FROM users WHERE id = <your_id>;
--- is_premium = 1, premium_expires_at = 30 days from now
-```
-
-### Swipe Limit (free account)
-1. Use a non-premium account
-2. Swipe 20 times in one day
-3. On the 21st swipe → **Expected:** Alert "Daily Limit Reached" with "Go Premium" button
-
-### Super Like
-1. Activate premium
-2. Tap the ★ star button (center action button in feed)
-3. **Expected:** Swipe recorded
-
-**DB verification:**
-```sql
-SELECT is_super_like FROM swipes WHERE swiper_id = <your_id> ORDER BY id DESC LIMIT 1;
--- is_super_like = 1
-```
-
-### Who Liked Me
-1. From Account B (non-premium), swipe right on Account A
-2. On Account A (premium), open Matches tab
-3. **Expected:** "WHO LIKED YOU ★ PREMIUM" section shows Account B's name/photo
-4. If Account B used Super Like → ★ badge on their bubble
-
----
-
-## 16. AI Match Scoring (AI-Driven Feed)
-
-### Verify Background Scoring
-1. Login fresh (or clear `ai_match_scores` for your user):
-```sql
-DELETE FROM ai_match_scores WHERE user_id = <your_id>;
-```
-2. Open Discover tab → feed loads immediately with math scores
-3. Wait 20–30 seconds
-4. Check DB:
-```sql
-SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
--- Rows appear with Claude-generated scores 0-100
-```
-5. Navigate away and back to Discover tab
-6. **Expected:** Feed may reorder based on AI scores
-
-### Verify Score Invalidation on Profile Update
-1. Note current `ai_match_scores` rows for your user
-2. Edit any field in your profile → save
-3. Check DB immediately:
-```sql
-SELECT COUNT(*) FROM ai_match_scores WHERE user_id = <your_id>;
--- Should be 0 (all invalidated)
-```
-4. Reload feed → background scoring starts again
-
-### Verify Fallback (no API key)
-1. (Railway) Temporarily remove `ANTHROPIC_API_KEY` env var
-2. Load feed → **Expected:** Still works, math scores used, no errors shown to user
-3. Restore the API key
+2. Request one briefing → **Expected:** succeeds (count = 50)
+3. Request another → **Expected:** 429 "Daily AI briefing limit reached. Try again tomorrow."
 
 ---
 
 ## Quick Smoke Test Checklist
 
-Run this before every demo:
+Run before every demo:
 
-- [ ] Login works on both devices
+- [ ] Login works (Account A and B)
 - [ ] Profile photos load (Cloudinary URLs)
-- [ ] Profile completeness bar visible and accurate on Profile tab
-- [ ] "Verify Account" button works in Account Settings
-- [ ] Feed shows cards in sorted order
-- [ ] Swiping right on each other creates a match
-- [ ] Chat messages appear on both devices
-- [ ] Partner invite sent and responded to in chat
-- [ ] Meetings tab shows scheduled meetings
+- [ ] Profile completeness bar accurate on Profile tab
+- [ ] Discover tab shows cards in sorted order
+- [ ] Swiping right on each other creates a match + modal
+- [ ] Chat messages appear on both devices within 15s
+- [ ] Partner invite sent and accepted in B↔C chat
+- [ ] NDA signed and PDF link opens
+- [ ] Meeting proposed, confirmed, visible in Meetings tab
 - [ ] AI Briefing loads for a confirmed meeting
 - [ ] Projects tab shows public projects
-- [ ] Premium screen accessible and trial activates
+- [ ] Premium trial activates, Who Liked Me section appears
 - [ ] Auth persists after closing and reopening app
 - [ ] Account deletion removes account and logs out

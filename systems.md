@@ -17,10 +17,12 @@ Handles all identity and session management:
 - **OTP email verification** — new users must verify before logging in (Gmail API via `backend/src/services/email.service.js`)
 - **JWT sessions** — 7-day tokens, stored via Zustand + SecureStore on the frontend (`frontend/src/store/authStore.js`); persists across app restarts via `restoreAuth()` called on mount
 - **Google OAuth** — web popup flow + React Native mobile flow (`backend/src/config/passport.js`)
-- **2FA (TOTP)** — speakeasy-based; setup returns a QR code, verify sets the flag. Frontend: `frontend/src/screens/auth/Verify2FAScreen.js`
+- **2FA (TOTP)** — speakeasy-based; setup via `POST /api/auth/2fa/setup` + `POST /api/auth/2fa/verify` (both require auth — used in AccountSettings). Login-time TOTP uses `POST /api/auth/2fa/login` (no auth — returns JWT on success). Frontend: `frontend/src/screens/auth/Verify2FAScreen.js`
 - **Password reset** — token-based email link, expires in 1 hour
 - **Account lockout** — 5 consecutive failed login attempts locks the account for 15 minutes; counter resets on successful login. Tracked via `users.login_attempts` + `users.locked_until` (migration 014)
 - **Account deletion** — hard delete via `DELETE /api/users/me`
+- **has_profile flag** — all auth responses (`login`, `verifyEmail`, `oauthCallback`, `googleMobile`, `login2FA`) include `has_profile: boolean` so AppNavigator can gate users without a profile into EditProfileScreen
+- **isRestoring state** — authStore initialises with `isRestoring: true`; set to `false` after SecureStore read completes. App.js renders a spinner while restoring to prevent Welcome screen flash on cold start
 
 ---
 
@@ -33,7 +35,7 @@ Two-layer identity:
   - Entrepreneur: bio, skills (JSON array), hobbies, venture_stage, funding_needs
   - Investor: bio, investment_domain, preferred_stage, max_investment
 - **Role switching** — `PATCH /api/users/me/role` (entrepreneur ↔ investor)
-- **Profile photo** — uploaded to Cloudinary via `POST /api/users/me/photo`
+- **Profile photo** — uploaded to Cloudinary via `POST /api/users/me/photo`; frontend sends `{ photo: "data:image/jpeg;base64,..." }` JSON (expo-image-picker with `base64: true`); backend uses Cloudinary SDK directly — no multer involved
 - **ID verification bypass** — "Verify Account" button in Account Settings calls `POST /api/users/me/verify-self`; instantly sets `verification_status = 'verified'` (no admin review, demo-friendly)
 - **Profile completeness score** — progress bar on ProfileScreen (0–100%): photo +20, bio >50 chars +20, skills ≥2 +20, role-specific fields +40; colour-coded (green=100%, blue≥60%, yellow<60%) with inline hints
 - **Push token** — saved via `PATCH /api/users/me/push-token` on app startup
@@ -253,3 +255,5 @@ Located in `backend/migrations/` — auto-run on server startup via `migrations/
 | 014 | users.login_attempts, users.locked_until (account lockout) |
 
 To rebuild from scratch: `node backend/scripts/seed.js` (drops all tables, reruns all migrations, seeds 25 investors + 25 entrepreneurs).
+
+To reset to 4 test accounts only: `node backend/scripts/demo.js` (drops all tables, reruns all migrations, seeds accounts A/B/C/D with pre-built matches and chat).
