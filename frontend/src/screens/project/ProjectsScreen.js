@@ -9,6 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
   uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
+  reviewDeck,
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import { colors, radius, cardShadow } from '../../theme';
@@ -41,6 +42,22 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   const [partners, setPartners] = useState([]);
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
+  const [showDeckReview, setShowDeckReview] = useState(false);
+  const [deckSummaryInput, setDeckSummaryInput] = useState('');
+  const [deckFeedback, setDeckFeedback] = useState(null);
+  const [deckReviewLoading, setDeckReviewLoading] = useState(false);
+
+  const handleDeckReview = async () => {
+    if (!deckSummaryInput.trim()) return Alert.alert('Required', 'Please describe your pitch deck.');
+    setDeckReviewLoading(true);
+    try {
+      const { data } = await reviewDeck(project.id, deckSummaryInput.trim());
+      setDeckFeedback(data);
+    } catch (err) {
+      Alert.alert('Error', err.response?.data?.error || 'Could not get AI feedback.');
+    }
+    setDeckReviewLoading(false);
+  };
 
   useFocusEffect(useCallback(() => {
     getPartners(project.id)
@@ -174,6 +191,59 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* AI Deck Review — only if deck uploaded */}
+      {project.deck_url ? (
+        <TouchableOpacity style={styles.aiFeedbackBtn} onPress={() => { setShowDeckReview(true); setDeckFeedback(null); }}>
+          <Text style={styles.aiFeedbackBtnText}>✦ Get AI Deck Feedback</Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {/* AI Deck Review Modal */}
+      <Modal visible={showDeckReview} transparent animationType="slide">
+        <View style={styles.deckReviewOverlay}>
+          <View style={styles.deckReviewSheet}>
+            <Text style={styles.deckReviewTitle}>AI Pitch Deck Review</Text>
+            {!deckFeedback ? (
+              <>
+                <Text style={styles.deckReviewHint}>Describe your deck: problem, solution, market, team, and ask.</Text>
+                <TextInput
+                  style={styles.deckReviewInput}
+                  multiline
+                  numberOfLines={5}
+                  value={deckSummaryInput}
+                  onChangeText={setDeckSummaryInput}
+                  placeholder="e.g. We solve X for Y market (size $Z). Our solution is... Our team has... We are raising $..."
+                  placeholderTextColor={colors.textHint}
+                />
+                <View style={styles.deckReviewActions}>
+                  <TouchableOpacity onPress={() => setShowDeckReview(false)} style={styles.deckReviewCancel}>
+                    <Text style={{ color: colors.textHint }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={handleDeckReview} style={styles.deckReviewSubmit} disabled={deckReviewLoading}>
+                    {deckReviewLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Analyse</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }}>
+                <Text style={styles.deckFeedbackScore}>Overall Score: {deckFeedback.overallScore}/10</Text>
+                {[['Strengths', deckFeedback.strengths], ['Weaknesses', deckFeedback.weaknesses], ['Suggestions', deckFeedback.suggestions]].map(([label, items]) =>
+                  items?.length ? (
+                    <View key={label} style={{ marginBottom: 12 }}>
+                      <Text style={styles.deckFeedbackLabel}>{label}</Text>
+                      {items.map((item, i) => <Text key={i} style={styles.deckFeedbackItem}>• {item}</Text>)}
+                    </View>
+                  ) : null
+                )}
+                <TouchableOpacity onPress={() => setShowDeckReview(false)} style={[styles.deckReviewSubmit, { marginTop: 8 }]}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Close</Text>
+                </TouchableOpacity>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Remove partner confirmation modal */}
       <Modal visible={!!removeConfirm} transparent animationType="fade">
@@ -853,6 +923,19 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
 
+  aiFeedbackBtn: { marginTop: 8, backgroundColor: colors.primaryLight || '#e8f0fe', borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 16, alignItems: 'center' },
+  aiFeedbackBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  deckReviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
+  deckReviewSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
+  deckReviewTitle: { fontSize: 17, fontWeight: '800', color: colors.primaryDark, marginBottom: 10 },
+  deckReviewHint: { fontSize: 13, color: colors.textHint, marginBottom: 10 },
+  deckReviewInput: { borderWidth: 1.5, borderColor: colors.surfaceBorder, borderRadius: radius.md, padding: 12, minHeight: 110, textAlignVertical: 'top', color: colors.textPrimary, fontSize: 14, marginBottom: 12 },
+  deckReviewActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
+  deckReviewCancel: { paddingVertical: 10, paddingHorizontal: 16 },
+  deckReviewSubmit: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
+  deckFeedbackScore: { fontSize: 18, fontWeight: '800', color: colors.primary, textAlign: 'center', marginBottom: 14 },
+  deckFeedbackLabel: { fontSize: 13, fontWeight: '700', color: colors.primaryDark, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  deckFeedbackItem: { fontSize: 13, color: colors.textSecondary, marginBottom: 4, lineHeight: 19 },
   // Upload
   uploadRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   uploadBtn: {

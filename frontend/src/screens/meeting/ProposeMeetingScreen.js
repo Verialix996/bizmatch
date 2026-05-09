@@ -9,12 +9,12 @@ import { colors, radius, typography } from '../../theme';
 import api from '../../services/api';
 
 export default function ProposeMeetingScreen({ route, navigation }) {
-  const { matchId } = route.params;
+  const { matchId, rescheduleId, prefill } = route.params;
 
-  const [title, setTitle] = useState('');
-  const [locationType, setLocationType] = useState('virtual');
-  const [videoLink, setVideoLink] = useState('');
-  const [address, setAddress] = useState('');
+  const [title, setTitle] = useState(prefill?.title || '');
+  const [locationType, setLocationType] = useState(prefill?.locationType || 'virtual');
+  const [videoLink, setVideoLink] = useState(prefill?.videoLink || '');
+  const [address, setAddress] = useState(prefill?.address || '');
   const [date, setDate] = useState(new Date(Date.now() + 86400000)); // tomorrow
   const [showPicker, setShowPicker] = useState(false);
   const [pickerMode, setPickerMode] = useState('date');
@@ -34,17 +34,25 @@ export default function ProposeMeetingScreen({ route, navigation }) {
 
     setLoading(true);
     try {
-      await api.post('/meetings', {
-        matchId,
-        title: title.trim(),
-        scheduledAt: date.toISOString(),
-        locationType,
-        videoLink:   locationType === 'virtual'   ? videoLink.trim()  : undefined,
-        address:     locationType === 'in_person'  ? address.trim()   : undefined,
-      });
+      if (rescheduleId) {
+        await api.patch(`/meetings/${rescheduleId}/reschedule`, {
+          scheduledAt: date.toISOString(),
+          videoLink:   locationType === 'virtual'   ? videoLink.trim()  : undefined,
+          address:     locationType === 'in_person'  ? address.trim()   : undefined,
+        });
+      } else {
+        await api.post('/meetings', {
+          matchId,
+          title: title.trim(),
+          scheduledAt: date.toISOString(),
+          locationType,
+          videoLink:   locationType === 'virtual'   ? videoLink.trim()  : undefined,
+          address:     locationType === 'in_person'  ? address.trim()   : undefined,
+        });
+      }
       navigation.goBack();
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Could not propose meeting.');
+      Alert.alert('Error', err.response?.data?.error || 'Could not submit meeting.');
     }
     setLoading(false);
   };
@@ -59,7 +67,7 @@ export default function ProposeMeetingScreen({ route, navigation }) {
         <Text style={styles.backText}>Back</Text>
       </TouchableOpacity>
 
-      <Text style={styles.heading}>Propose a Meeting</Text>
+      <Text style={styles.heading}>{rescheduleId ? 'Suggest a New Time' : 'Propose a Meeting'}</Text>
 
       <Text style={styles.label}>Meeting Title</Text>
       <TextInput
@@ -143,7 +151,7 @@ export default function ProposeMeetingScreen({ route, navigation }) {
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text style={styles.submitBtnText}>Send Meeting Proposal</Text>
+          <Text style={styles.submitBtnText}>{rescheduleId ? 'Send New Time' : 'Send Meeting Proposal'}</Text>
         )}
       </TouchableOpacity>
     </ScrollView>

@@ -5,7 +5,7 @@ import {
   ScrollView, SafeAreaView, StatusBar,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import { getConversations } from '../../services/match.service';
+import { getConversations, whoLikedMe } from '../../services/match.service';
 import { colors, cardShadow, radius } from '../../theme';
 import useAuthStore from '../../store/authStore';
 
@@ -116,8 +116,27 @@ function ConversationRow({ item, onPress, currentUserId, readTimestamps }) {
   );
 }
 
+function WhoLikedMeBubble({ item }) {
+  return (
+    <View style={styles.newMatchItem}>
+      <View style={styles.newMatchAvatarWrap}>
+        <Avatar photoUrl={item.photoUrl} name={item.name} size={56} />
+        {item.isSuperLike ? (
+          <View style={[styles.onlineDot, styles.superLikeDot]}>
+            <Text style={styles.superLikeDotText}>★</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text style={styles.newMatchName} numberOfLines={1}>
+        {item.name.split(' ')[0]}
+      </Text>
+    </View>
+  );
+}
+
 export default function MatchesScreen({ navigation }) {
   const [conversations, setConversations] = useState([]);
+  const [likedBy, setLikedBy] = useState([]);
   const [loading, setLoading] = useState(true);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser = useAuthStore(s => s.user);
@@ -128,6 +147,9 @@ export default function MatchesScreen({ navigation }) {
     try {
       const res = await getConversations();
       setConversations(res.data);
+      if (currentUser?.is_premium) {
+        whoLikedMe().then(r => setLikedBy(r.data || [])).catch(() => {});
+      }
       const items = res.data || [];
       const readTs = useAuthStore.getState().readTimestamps;
       // Badge = new matches (no messages) + conversations with unread last message
@@ -232,6 +254,27 @@ export default function MatchesScreen({ navigation }) {
               </View>
             )}
 
+            {/* Who Liked Me — premium only */}
+            {currentUser?.is_premium && likedBy.length > 0 && (
+              <View style={styles.section}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionLabel}>WHO LIKED YOU</Text>
+                  <View style={[styles.badge, styles.badgePremium]}>
+                    <Text style={styles.badgeText}>★ PREMIUM</Text>
+                  </View>
+                </View>
+                <ScrollView
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={styles.newMatchesRow}
+                >
+                  {likedBy.map(item => (
+                    <WhoLikedMeBubble key={String(item.id)} item={item} />
+                  ))}
+                </ScrollView>
+              </View>
+            )}
+
             {/* Conversations */}
             <View style={styles.section}>
               <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
@@ -319,6 +362,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
+  badgePremium: {
+    backgroundColor: '#F5A623',
+  },
   badgeText: {
     fontSize: 10,
     fontWeight: '700',
@@ -346,6 +392,18 @@ const styles = StyleSheet.create({
     backgroundColor: colors.success,
     borderWidth: 2,
     borderColor: colors.backgroundSoft,
+  },
+  superLikeDot: {
+    backgroundColor: '#F5A623',
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  superLikeDotText: {
+    fontSize: 9,
+    color: '#fff',
   },
   newMatchName: {
     fontSize: 12,

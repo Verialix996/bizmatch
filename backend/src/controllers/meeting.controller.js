@@ -114,6 +114,12 @@ const briefing = async (req, res, next) => {
       return res.status(503).json({ error: 'AI briefing not configured' });
     }
 
+    const MAX_DAILY = parseInt(process.env.MAX_DAILY_BRIEFINGS || '50', 10);
+    const usageRows = await query('SELECT briefing_count FROM api_usage WHERE date = CURDATE()');
+    if ((usageRows[0]?.briefing_count ?? 0) >= MAX_DAILY) {
+      return res.status(429).json({ error: 'Daily AI briefing limit reached. Try again tomorrow.' });
+    }
+
     const otherId = meeting.proposer_id === userId ? meeting.receiver_id : meeting.proposer_id;
 
     const [profileRows, projectRows] = await Promise.all([
@@ -171,10 +177,55 @@ Person profile:
     const briefingData = JSON.parse(raw);
 
     await saveBriefing(id, JSON.stringify(briefingData));
+    await query(
+      `INSERT INTO api_usage (date, briefing_count) VALUES (CURDATE(), 1)
+       ON DUPLICATE KEY UPDATE briefing_count = briefing_count + 1`
+    );
     res.json(briefingData);
   } catch (err) {
     next(err);
   }
 };
 
-module.exports = { propose, respond, list, briefing };
+// PATCH /api/meetings/:id/reschedule  { scheduledAt, videoLink?, address? }
+const reschedule = async (req, res, next) => {
+  try {
+    const meetingId = Number(req.params.id);
+    const userId = req.user.id;
+    const { scheduledAt, videoLink, address } = req.body;
+
+    if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt is required' });
+
+    const meeting = await getMeetingById(meetingId);
+    if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
+    if (meeting.receiver_id !== userId) return res.status(403).json({ error: 'Only the receiver can reschedule' });
+    if (meeting.status !== 'proposed') return res.status(400).json({ error: 'Can only reschedule a proposed meeting' });
+
+    await query(
+      `UPDATE meetings SET
+         scheduled_at = ?,
+         video_link   = ?,
+         address      = ?,
+         proposer_id  = receiver_id,
+         receiver_id  = proposer_id,
+         status       = 'proposed'
+       WHERE id = ?`,
+      [scheduledAt, videoLink || null, address || null, meetingId]
+    );
+
+    const updated = await getMeetingById(meetingId);
+
+    await sendMessage(
+      meeting.match_id, userId,
+      `Meeting rescheduled to ${new Date(scheduledAt).toLocaleString()}. Please confirm or decline.`,
+      'meeting_response',
+      { meetingId, status: 'rescheduled' }
+    );
+
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { propose, respond, list, briefing, reschedule };

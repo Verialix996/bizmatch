@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
-  SafeAreaView, StatusBar, Dimensions,
+  SafeAreaView, StatusBar, Dimensions, Alert,
 } from 'react-native';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -212,7 +212,7 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
   );
 }
 
-function MatchModal({ visible, matchedName, onClose, onMessage }) {
+function MatchModal({ visible, matchedName, aiSummary, onClose, onMessage }) {
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
@@ -224,6 +224,9 @@ function MatchModal({ visible, matchedName, onClose, onMessage }) {
           <Text style={styles.modalSub}>
             You and {matchedName} have connected.
           </Text>
+          {aiSummary ? (
+            <Text style={styles.modalAiSummary}>{aiSummary}</Text>
+          ) : null}
           <TouchableOpacity style={styles.modalBtn} onPress={onMessage} activeOpacity={0.85}>
             <Text style={styles.modalBtnText}>MESSAGE {matchedName?.toUpperCase()}</Text>
           </TouchableOpacity>
@@ -244,7 +247,7 @@ export default function SwipeScreen() {
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
-  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null });
+  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null, aiSummary: null });
   const [mode, setMode] = useState('investors');
   const [currentIndex, setCurrentIndex] = useState(0);
 
@@ -279,7 +282,7 @@ export default function SwipeScreen() {
 
   useEffect(() => { loadFeed(mode); }, [mode, loadFeed]);
 
-  const sendSwipe = useCallback(async (direction) => {
+  const sendSwipe = useCallback(async (direction, superLike = false) => {
     if (swiping) return;
     const item = feed[currentIndex];
     if (!item) return;
@@ -293,19 +296,28 @@ export default function SwipeScreen() {
       position.setValue({ x: 0, y: 0 });
       try {
         if (isEntrepreneur) {
-          const res = await swipe(item.userId, direction);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null });
+          const res = await swipe(item.userId, direction, superLike);
+          if (res.data.matched) setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null, aiSummary: res.data.aiSummary ?? null });
         } else {
           const res = await swipeProject(item.projectId, direction);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null });
+          if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null, aiSummary: null });
         }
       } catch (e) {
-        console.error('Swipe failed', e);
+        if (e.response?.status === 429 && e.response?.data?.upgradeRequired) {
+          Alert.alert(
+            'Daily Limit Reached',
+            "You've used all 20 free swipes today. Upgrade to Premium for unlimited swipes!",
+            [
+              { text: 'Maybe Later' },
+              { text: 'Go Premium', onPress: () => navigation.navigate('Premium') },
+            ]
+          );
+        }
       }
       setCurrentIndex(i => i + 1);
       setSwiping(false);
     });
-  }, [feed, currentIndex, swiping, position, isEntrepreneur]);
+  }, [feed, currentIndex, swiping, position, isEntrepreneur, navigation]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
@@ -464,6 +476,8 @@ export default function SwipeScreen() {
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.starBtn]}
+            onPress={() => sendSwipe('like', true)}
+            disabled={swiping}
             activeOpacity={0.8}
           >
             <Text style={styles.starBtnText}>★</Text>
@@ -483,11 +497,13 @@ export default function SwipeScreen() {
       <MatchModal
         visible={matchModal.visible}
         matchedName={matchModal.name}
-        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null })}
+        aiSummary={matchModal.aiSummary}
+        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null, aiSummary: null })}
         onMessage={() => {
-          setMatchModal({ visible: false, name: '', matchId: null, photo: null });
+          const { matchId, name, photo } = matchModal;
+          setMatchModal({ visible: false, name: '', matchId: null, photo: null, aiSummary: null });
           navigation.navigate('Chat', {
-            match: { matchId: matchModal.matchId, name: matchModal.name, photoUrl: matchModal.photo },
+            match: { matchId, name, photoUrl: photo },
           });
         }}
       />
@@ -840,9 +856,18 @@ const styles = StyleSheet.create({
   modalSub: {
     color: colors.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 12,
     lineHeight: 20,
     fontSize: 14,
+  },
+  modalAiSummary: {
+    color: colors.primary,
+    textAlign: 'center',
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 19,
+    marginBottom: 20,
+    paddingHorizontal: 8,
   },
   modalBtn: {
     backgroundColor: colors.primary,

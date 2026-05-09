@@ -6,6 +6,7 @@ const {
 } = require('../models/project.model');
 const { query } = require('../config/db');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
+const Anthropic = require('@anthropic-ai/sdk');
 
 // POST /api/projects/:id/upload-deck
 const uploadDeck = [
@@ -156,4 +157,39 @@ const byOwner = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner };
+// POST /api/projects/:id/deck-review  { deckSummary }
+const reviewDeck = async (req, res, next) => {
+  try {
+    const projectId = Number(req.params.id);
+    const { deckSummary } = req.body;
+    const userId = req.user.id;
+
+    if (!deckSummary?.trim()) return res.status(400).json({ error: 'deckSummary is required' });
+    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI review not configured' });
+
+    const rows = await query('SELECT * FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+    if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
+    if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
+
+    const client = new Anthropic();
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: `Review this startup pitch deck summary. Respond ONLY with valid JSON, no markdown:
+{"strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"overallScore":7}
+
+Pitch deck summary:
+${deckSummary.trim()}`,
+      }],
+    });
+
+    const raw = response.content[0]?.text?.trim() || '{}';
+    res.json(JSON.parse(raw));
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck };

@@ -2,11 +2,14 @@ const router = require('express').Router();
 const { authenticate, requireVerified } = require('../middleware/auth.middleware');
 const ctrl = require('../controllers/user.controller');
 
-router.patch('/me',       authenticate, requireVerified, ctrl.updateMe);
-router.delete('/me',      authenticate, ctrl.deleteAccount);
-router.patch('/me/role',  authenticate, ctrl.setRole);
-router.post('/me/photo',  authenticate, ctrl.uploadPhoto);
-router.get('/:id',   authenticate, ctrl.getUser);
-router.patch('/:id/verification', authenticate, ctrl.setVerificationStatus);
+router.patch('/me',                     authenticate, requireVerified, ctrl.updateMe);
+router.delete('/me',                    authenticate, ctrl.deleteAccount);
+router.patch('/me/role',                authenticate, ctrl.setRole);
+router.post('/me/photo',                authenticate, ctrl.uploadPhoto);
+router.patch('/me/push-token',          authenticate, ctrl.savePushToken);
+router.post('/me/premium/activate',     authenticate, ctrl.activatePremium);
+router.get('/me/who-liked-me',          authenticate, ctrl.whoLikedMe);
+router.get('/:id',                      authenticate, ctrl.getUser);
+router.patch('/:id/verification',       authenticate, ctrl.setVerificationStatus);
 
 module.exports = router;

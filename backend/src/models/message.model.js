@@ -1,8 +1,9 @@
 const { query } = require('../config/db');
+const { sendPushNotification } = require('../services/notification.service');
 
 async function sendMessage(matchId, senderId, body, type = 'text', metadata = null) {
   const matchRows = await query(
-    'SELECT id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
+    'SELECT id, user1_id, user2_id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
     [matchId, senderId, senderId]
   );
   if (!matchRows[0]) return null;
@@ -17,6 +18,14 @@ async function sendMessage(matchId, senderId, body, type = 'text', metadata = nu
     'SELECT id, match_id, sender_id, body, message_type, metadata, created_at FROM messages WHERE id = ?',
     [result.insertId]
   );
+
+  if (type === 'text') {
+    const otherId = matchRows[0].user1_id === senderId ? matchRows[0].user2_id : matchRows[0].user1_id;
+    query('SELECT name FROM users WHERE id = ?', [senderId]).then(senderRows => {
+      sendPushNotification(otherId, `New message from ${senderRows[0]?.name}`, body.substring(0, 80), { matchId });
+    }).catch(() => {});
+  }
+
   return rows[0];
 }
 

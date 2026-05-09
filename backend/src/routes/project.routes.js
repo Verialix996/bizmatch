@@ -17,5 +17,6 @@ router.post('/:id/upload-video',          authenticate, requireVerified, ...ctrl
 router.get('/:id/partners',              authenticate, ctrl.listPartners);
 router.post('/:id/partners',             authenticate, requireVerified, ctrl.addPartner);
 router.delete('/:id/partners/:userId',   authenticate, requireVerified, ctrl.removePartner);
+router.post('/:id/deck-review',          authenticate, requireVerified, ctrl.reviewDeck);
 
 module.exports = router;

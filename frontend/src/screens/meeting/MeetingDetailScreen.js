@@ -116,8 +116,30 @@ export default function MeetingDetailScreen({ route, navigation }) {
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.actionBtn, { backgroundColor: colors.error }]}
-            onPress={() => respond('declined')}
             disabled={loadingAction}
+            onPress={() =>
+              Alert.alert(
+                'Decline Meeting',
+                'Would you like to decline or suggest a new time?',
+                [
+                  { text: 'Cancel' },
+                  { text: 'Just Decline', style: 'destructive', onPress: () => respond('declined') },
+                  {
+                    text: 'Suggest New Time',
+                    onPress: () => navigation.navigate('ProposeMeeting', {
+                      matchId: meeting.match_id,
+                      rescheduleId: meeting.id,
+                      prefill: {
+                        title: meeting.title,
+                        locationType: meeting.location_type,
+                        videoLink: meeting.video_link,
+                        address: meeting.address,
+                      },
+                    }),
+                  },
+                ]
+              )
+            }
           >
             <Text style={styles.actionBtnText}>Decline</Text>
           </TouchableOpacity>

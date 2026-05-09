@@ -29,3 +29,4 @@ export const addPartner        = (projectId, partnerUserId) => api.post(`/projec
 export const removePartner     = (projectId, partnerUserId) => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
 export const getJoinedProjects = ()                         => api.get('/projects/joined');
 export const getProjectsByOwner = (userId)                  => api.get(`/projects/owner/${userId}`);
+export const reviewDeck         = (projectId, deckSummary)  => api.post(`/projects/${projectId}/deck-review`, { deckSummary });

@@ -25,6 +25,8 @@ import ProjectsScreen       from '../screens/project/ProjectsScreen';
 import MeetingScreen        from '../screens/meeting/MeetingScreen';
 import MeetingDetailScreen  from '../screens/meeting/MeetingDetailScreen';
 import ProposeMeetingScreen from '../screens/meeting/ProposeMeetingScreen';
+import OnboardingScreen     from '../screens/onboarding/OnboardingScreen';
+import PremiumScreen        from '../screens/premium/PremiumScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab   = createBottomTabNavigator();
@@ -105,8 +107,9 @@ function MainTabs() {
 }
 
 export default function AppNavigator() {
-  const token = useAuthStore(s => s.token);
-  const user  = useAuthStore(s => s.user);
+  const token              = useAuthStore(s => s.token);
+  const user               = useAuthStore(s => s.user);
+  const hasSeenOnboarding  = useAuthStore(s => s.hasSeenOnboarding);
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -131,6 +134,8 @@ export default function AppNavigator() {
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
           <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
         </>
+      ) : !hasSeenOnboarding ? (
+        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
       ) : (
         <>
           <Stack.Screen name="Main"             component={MainTabs} />
@@ -140,6 +145,7 @@ export default function AppNavigator() {
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
           <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
+          <Stack.Screen name="Premium"          component={PremiumScreen} />
         </>
       )}
     </Stack.Navigator>

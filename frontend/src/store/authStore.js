@@ -1,17 +1,44 @@
 import { create } from 'zustand';
+import * as SecureStore from 'expo-secure-store';
 
-const useAuthStore = create((set) => ({
+const useAuthStore = create((set, get) => ({
   token: null,
   user: null,
   newMatchCount: 0,
-  readTimestamps: {}, // matchId → timestamp when last opened
+  readTimestamps: {},
+  hasSeenOnboarding: false,
 
-  setAuth: (token, user) => {
+  setAuth: async (token, user) => {
     set({ token, user });
+    try {
+      await SecureStore.setItemAsync('auth_token', token);
+      await SecureStore.setItemAsync('auth_user', JSON.stringify(user));
+    } catch { /* silent */ }
   },
 
   updateUser: (updates) => {
-    set(state => ({ user: state.user ? { ...state.user, ...updates } : state.user }));
+    set(state => {
+      const updated = state.user ? { ...state.user, ...updates } : state.user;
+      SecureStore.setItemAsync('auth_user', JSON.stringify(updated)).catch(() => {});
+      return { user: updated };
+    });
+  },
+
+  restoreAuth: async () => {
+    try {
+      const token = await SecureStore.getItemAsync('auth_token');
+      const userStr = await SecureStore.getItemAsync('auth_user');
+      const seenStr = await SecureStore.getItemAsync('has_seen_onboarding');
+      const user = userStr ? JSON.parse(userStr) : null;
+      const hasSeenOnboarding = seenStr === 'true';
+      if (token && user) set({ token, user, hasSeenOnboarding });
+      else set({ hasSeenOnboarding });
+    } catch { /* silent */ }
+  },
+
+  setHasSeenOnboarding: () => {
+    set({ hasSeenOnboarding: true });
+    SecureStore.setItemAsync('has_seen_onboarding', 'true').catch(() => {});
   },
 
   setNewMatchCount: (count) => set({ newMatchCount: count }),
@@ -22,6 +49,8 @@ const useAuthStore = create((set) => ({
 
   logout: () => {
     set({ token: null, user: null, newMatchCount: 0, readTimestamps: {} });
+    SecureStore.deleteItemAsync('auth_token').catch(() => {});
+    SecureStore.deleteItemAsync('auth_user').catch(() => {});
   },
 }));
 

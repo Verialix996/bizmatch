@@ -1,5 +1,6 @@
 const { query } = require('../config/db');
 const Anthropic = require('@anthropic-ai/sdk');
+const { sendPushNotification } = require('../services/notification.service');
 
 // ---------------------------------------------------------------------------
 // Scoring helpers
@@ -160,12 +161,12 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
 // Swipe
 // ---------------------------------------------------------------------------
 
-async function recordSwipe(swiperId, swipedId, direction) {
+async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
   await query(
-    `INSERT INTO swipes (swiper_id, swiped_id, direction)
-     VALUES (?, ?, ?)
-     ON DUPLICATE KEY UPDATE direction = VALUES(direction)`,
-    [swiperId, swipedId, direction]
+    `INSERT INTO swipes (swiper_id, swiped_id, direction, is_super_like)
+     VALUES (?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE direction = VALUES(direction), is_super_like = VALUES(is_super_like)`,
+    [swiperId, swipedId, direction, isSuperLike ? 1 : 0]
   );
 
   if (direction !== 'like') return { matched: false };
@@ -192,7 +193,12 @@ async function recordSwipe(swiperId, swipedId, direction) {
   const matchId = matchRows[0]?.id ?? null;
 
   // Generate AI match summary in the background (non-blocking)
-  if (matchId) generateMatchSummary(matchId, swiperId, swipedId).catch(() => {});
+  if (matchId) {
+    generateMatchSummary(matchId, swiperId, swipedId).catch(() => {});
+    query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
+      sendPushNotification(swipedId, '🎉 New Match!', `You matched with ${rows[0]?.name}!`, { matchId });
+    }).catch(() => {});
+  }
 
   return { matched: true, matchId };
 }
