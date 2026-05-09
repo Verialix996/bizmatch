@@ -8,29 +8,6 @@ const { query } = require('../config/db');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 const Anthropic = require('@anthropic-ai/sdk');
 const { moderateText } = require('../services/moderation.service');
-const crypto = require('crypto');
-
-// Manually build a Cloudinary authenticated download URL (bypasses CDN free-tier restrictions)
-function getPrivateDownloadUrl(deckUrl) {
-  if (!deckUrl) return null;
-  const match = deckUrl.match(/\/raw\/upload\/(?:v\d+\/)?(.+)$/);
-  if (!match) return null;
-  const publicId = match[1];
-
-  const { CLOUDINARY_CLOUD_NAME: cloud, CLOUDINARY_API_KEY: apiKey, CLOUDINARY_API_SECRET: apiSecret } = process.env;
-  if (!cloud || !apiKey || !apiSecret) {
-    console.error('[deck] Missing Cloudinary credentials');
-    return null;
-  }
-
-  const timestamp = Math.round(Date.now() / 1000);
-  // Cloudinary signature: alphabetically sorted params (excluding api_key/cloud_name/resource_type/signature) + api_secret
-  const toSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
-  const signature = crypto.createHash('sha1').update(toSign).digest('hex');
-
-  const qs = new URLSearchParams({ public_id: publicId, api_key: apiKey, timestamp: String(timestamp), signature });
-  return `https://api.cloudinary.com/v1_1/${cloud}/raw/download?${qs}`;
-}
 
 // POST /api/projects/:id/upload-deck
 const uploadDeck = [
@@ -205,13 +182,12 @@ const reviewDeck = async (req, res, next) => {
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
-    const downloadUrl = getPrivateDownloadUrl(rows[0].deck_url);
-    if (!downloadUrl) return res.status(500).json({ error: 'Invalid deck URL format' });
-    console.log('[reviewDeck] fetching:', downloadUrl);
-    const fetchRes = await fetch(downloadUrl);
+    const deckUrl = rows[0].deck_url;
+    console.log('[reviewDeck] fetching CDN URL:', deckUrl);
+    const fetchRes = await fetch(deckUrl);
     if (!fetchRes.ok) {
       const errText = await fetchRes.text().catch(() => '');
-      console.error('[reviewDeck] Cloudinary error:', fetchRes.status, errText.slice(0, 300));
+      console.error('[reviewDeck] CDN fetch failed:', fetchRes.status, errText.slice(0, 300));
       return res.status(502).json({ error: 'Could not read deck file from storage' });
     }
     const buffer = await fetchRes.arrayBuffer();
@@ -270,14 +246,11 @@ const serveDeck = async (req, res, next) => {
     if (!project) return res.status(404).json({ error: 'Project not found' });
     if (!project.deck_url) return res.status(404).json({ error: 'No pitch deck uploaded' });
 
-    const downloadUrl = getPrivateDownloadUrl(project.deck_url);
-    if (!downloadUrl) return res.status(500).json({ error: 'Invalid deck URL format' });
-
-    console.log('[serveDeck] fetching:', downloadUrl);
-    const fetchRes = await fetch(downloadUrl);
+    console.log('[serveDeck] fetching CDN URL:', project.deck_url);
+    const fetchRes = await fetch(project.deck_url);
     if (!fetchRes.ok) {
       const errText = await fetchRes.text().catch(() => '');
-      console.error('[serveDeck] Cloudinary error:', fetchRes.status, errText.slice(0, 300));
+      console.error('[serveDeck] CDN fetch failed:', fetchRes.status, errText.slice(0, 300));
       return res.status(502).json({ error: 'Could not fetch deck from storage' });
     }
 
