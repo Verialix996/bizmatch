@@ -14,13 +14,13 @@ const photoStorage = new CloudinaryStorage({
 
 const docStorage = new CloudinaryStorage({
   cloudinary,
-  params: {
+  params: async (_req, _file) => ({
     folder: 'bizmatch/docs',
     allowed_formats: ['pdf'],
     resource_type: 'raw',
-    use_filename: true,
-    unique_filename: true,
-  },
+    // Include .pdf in the public_id so the Cloudinary URL always ends with .pdf
+    public_id: `deck_${Date.now()}.pdf`,
+  }),
 });
 
 const videoStorage = new CloudinaryStorage({

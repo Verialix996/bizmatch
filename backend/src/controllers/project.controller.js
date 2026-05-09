@@ -195,7 +195,22 @@ const reviewDeck = async (req, res, next) => {
         role: 'user',
         content: [
           { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-          { type: 'text', text: 'Review this startup pitch deck. Respond ONLY with valid JSON, no markdown:\n{"strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"overallScore":7}' },
+          { type: 'text', text: `You are an experienced startup investor reviewing a pitch deck for investment readiness.
+
+Evaluate the document ONLY as a business pitch deck against these standard investor criteria:
+1. Problem statement — is a clear real-world problem defined?
+2. Solution — is the product/service clearly explained?
+3. Market size — is TAM/SAM/SOM or market opportunity shown?
+4. Business model — how does the company make money?
+5. Traction — any users, revenue, partnerships, or milestones?
+6. Team — are founders/key people introduced with relevant background?
+7. Financial projections — are growth forecasts or unit economics shown?
+8. Funding ask — is the amount sought and its use of funds stated?
+
+If the document is NOT a business pitch deck (e.g. it is a spreadsheet, equation, academic paper, or unrelated content), set overallScore to 1 and state clearly in weaknesses that this does not appear to be a pitch deck.
+
+Respond ONLY with valid JSON, no markdown:
+{"strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"overallScore":7}` },
         ],
       }],
     });

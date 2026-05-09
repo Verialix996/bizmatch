@@ -19,70 +19,20 @@
 
 ## Section 1 — New Account (Single User Flow)
 
-### 1.1 Registration
+### 1.7 Project Management (Entrepreneur only)
 
-1. Open app → tap "Get Started" → tap "Register"
-2. Enter name, email → try a weak password (e.g. `abc123`) → submit
-3. **Expected:** Error — "Password must be at least 8 characters"
-4. Try `abc1234` (7 chars) → **Expected:** same error
-5. Enter a valid password (8+ chars, letter + number, e.g. `Pass1234`) → submit
-6. **Expected:** "Check your email for the verification code" message appears
-7. Repeat with an inappropriate / offensive name → submit
-8. **Expected:** Error — "Name flagged by moderation: \<reason\>"
-works correctly
-### 1.3 Onboarding Tutorial
+#### View pitch deck
+1. Tap "Replace PDF" on an existing project → upload a fresh PDF
+2. Share that project in a chat (action menu → "Share Project") → tap "View Full Details" → tap "📄 View Pitch Deck"
+3. **Expected:** Browser opens the file with a `.pdf` extension in the URL — file is openable
 
-1. Register a fresh account and verify email
-2. Complete role selection and fill in profile → tap "Save Profile"
-3. **Expected:** App immediately navigates to the 4-slide onboarding (without requiring a restart)
-4. Tap "Next" → advances slides. Tap "Skip" → jumps to main app. Final slide shows "Get Started"
-5. Close and reopen app → **Expected:** Onboarding does NOT appear again; goes directly to main tabs
-doesn't work still have the bug after creating new profile where pressing create profile leads nowhere
-### 1.6 Project Management
+#### AI deck review
+1. Open a project with a PDF deck uploaded → tap "✦ Get AI Deck Feedback"
+2. Tap "Analyse"
+3. **Expected:** Results show Overall Score (1–10), Strengths, Weaknesses, Suggestions rated against standard pitch deck criteria (problem, solution, market, team, business model, funding ask)
+4. Upload a non-pitch document (e.g. a plain text or math page as PDF) → tap "Analyse"
+5. **Expected:** Score is 1 and weaknesses clearly state the document is not a business pitch deck
 
-#### Deck Download
-
-1. Go to Projects tab → open a project with a deck already uploaded (or upload one)
-2. In the project_shared chat card or project detail → tap "View Pitch Deck"
-3. **Expected:** Opens a PDF/PPTX file that downloads or previews correctly with the proper file extension (`.pdf`, `.pptx`) — not a file with no extension
-
-#### AI Deck Review
-
-in railway https logs i get this:{
-  "requestId": "IyC1ESvJRauijG_h63j4Ww",
-  "timestamp": "2026-05-09T17:51:55.983190372Z",
-  "method": "POST",
-  "path": "/api/projects/5/deck-review",
-  "host": "zooming-surprise-production.up.railway.app",
-  "httpStatus": 500,
-  "upstreamProto": "HTTP/1.1",
-  "downstreamProto": "HTTP/2.0",
-  "responseDetails": "",
-  "totalDuration": 4763,
-  "upstreamAddress": "http://[fd12:e2b9:284f:1:5000:df:c5:e589]:8080",
-  "clientUa": "Expo/1017756 CFNetwork/3860.400.51 Darwin/25.3.0",
-  "upstreamRqDuration": 4763,
-  "txBytes": 33,
-  "rxBytes": 596,
-  "srcIp": "213.57.115.198",
-  "edgeRegion": "europe-west4-drams3a",
-  "upstreamErrors": ""
-}
-
-when trying to send a pdf to ai review
-
-### 1.7 AI Content Moderation
-
-#### Inappropriate name rejected (Account Settings)
-
-1. Account Settings → edit name → set it to clearly hateful/offensive text → save
-2. **Expected:** Save fails with "Name flagged by moderation: \<reason\>"
-
-#### Chat message flagged
-
-1. In any chat, type a clearly inappropriate message → send
-2. **Expected:** Message is rejected, NOT added to chat, and an alert titled "Message Not Sent" appears with the moderation reason
-needs to show in the chat log a red bubble with warning about content moderation and an explanation that the message wasn't sent and the reason
 ---
 
 ## Section 2 — Two Accounts Testing
