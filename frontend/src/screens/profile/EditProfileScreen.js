@@ -1,9 +1,10 @@
 import {
   View, Text, TextInput, TouchableOpacity, Image,
-  StyleSheet, ScrollView, SafeAreaView, StatusBar,
+  StyleSheet, ScrollView, SafeAreaView, StatusBar, ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import { colors, radius, cardShadow } from '../../theme';
@@ -131,9 +132,35 @@ export default function EditProfileScreen({ route, navigation }) {
   const [selectedRole, setSelectedRole] = useState(currentUser?.role || '');
   const [roleError, setRoleError] = useState('');
   const [saveError, setSaveError] = useState('');
+  const [photoUrl, setPhotoUrl] = useState(existing?.photo_url || currentUser?.photo_url || null);
+  const [photoUploading, setPhotoUploading] = useState(false);
 
-  const handlePickPhoto = () => {
-    // Photo upload coming soon — Railway ephemeral filesystem doesn't persist uploads
+  const handlePickPhoto = async () => {
+    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (status !== 'granted') {
+      setSaveError('Photo library permission is required to upload a photo.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+    });
+    if (result.canceled) return;
+    const asset = result.assets[0];
+    setPhotoUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('photo', { uri: asset.uri, type: 'image/jpeg', name: 'photo.jpg' });
+      const { data } = await api.post('/users/me/photo', formData);
+      setPhotoUrl(data.photo_url);
+      updateUser({ photo_url: data.photo_url });
+    } catch {
+      setSaveError('Photo upload failed. Please try again.');
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   // When changing role, start with a blank form (old role-specific data is irrelevant)
@@ -251,16 +278,25 @@ export default function EditProfileScreen({ route, navigation }) {
           {isNew ? 'Create Profile' : 'Edit Profile'}
         </Text>
 
-        {/* Photo — coming soon */}
-        <View style={styles.photoArea}>
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoPlaceholderText}>📷</Text>
-            <Text style={styles.photoPlaceholderLabel}>Coming Soon</Text>
+        {/* Photo upload */}
+        <TouchableOpacity style={styles.photoArea} onPress={handlePickPhoto} activeOpacity={0.8} disabled={photoUploading}>
+          {photoUrl ? (
+            <Image source={{ uri: photoUrl }} style={styles.photoImage} />
+          ) : (
+            <View style={styles.photoPlaceholder}>
+              {photoUploading
+                ? <ActivityIndicator color={colors.primary} />
+                : <>
+                    <Text style={styles.photoPlaceholderText}>📷</Text>
+                    <Text style={styles.photoPlaceholderLabel}>Add Photo</Text>
+                  </>
+              }
+            </View>
+          )}
+          <View style={[styles.photoBadge, photoUrl && { backgroundColor: colors.primary }]}>
+            <Text style={styles.photoBadgeText}>{photoUploading ? '…' : '✦'}</Text>
           </View>
-          <View style={[styles.photoBadge, styles.photoBadgeSoon]}>
-            <Text style={styles.photoBadgeText}>✦</Text>
-          </View>
-        </View>
+        </TouchableOpacity>
 
         {/* Bio */}
         <FieldLabel>BIO</FieldLabel>
@@ -667,12 +703,11 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.textHint,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
   },
   photoBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-  photoBadgeSoon: { backgroundColor: colors.textHint },
 });

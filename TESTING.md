@@ -12,112 +12,19 @@ Start Expo: run `npx expo start` in `frontend/`, scan QR with Expo Go.
 
 ---
 
-## 1. Authentication — Re-test After Fixes
+## 2. Profile Creation & Editing ⚠️ RETEST
 
-### Register (email/password) ⚠️ RETEST
-> Bug fixed: new user could reach swipe feed without completing profile. Now profile must be fully saved before AppNavigator switches screens.
+### Create Profile (Entrepreneur/Investor) ⚠️ RETEST
+> Bug fixed: photo upload was "coming soon". Now uses expo-image-picker → uploads to Cloudinary via POST /users/me/photo.
 
-1. Open app → tap "Create Account"
-2. Enter name, email, password → submit
-3. Check email for OTP code
-4. Enter OTP → **Expected:** lands on Role Selection, not swipe feed
-5. Select a role → fill in bio, skills, and other fields → tap "Save Profile"
-6. **Expected:** Onboarding slides appear. After completing, lands on swipe feed.
-7. **Verify:** Cannot reach Discover tab before profile is saved.
+1. After registration, set role → fill in bio (50+ chars), skills (2+), stage, funding/domain
+2. Tap the photo area → **Expected:** device photo library opens
+3. Select a photo → **Expected:** photo uploads and appears in the circle immediately
+4. Tap "Save Profile"
+5. **Expected:** Photo URL starts with `res.cloudinary.com`. Profile saved.
 
-after relogging getting to the onboarding prosses, if pressing skip it will move to the swipe screen and allow me to swipe, if user profile is not completed user cant go to the swipe screen — FIXED: AppNavigator now gates on has_profile (returned by login endpoint) instead of role; role can exist in DB without a completed profile
-
-### 2FA ⚠️ RETEST
-> Bug fixed: no UI existed. 2FA section now added to Account Settings.
-
-1. Go to Profile → Account Settings → scroll to "Two-Factor Authentication"
-2. Tap "Enable 2FA" → **Expected:** Setup key appears with instructions
-3. Open Google Authenticator or Authy → "+" → "Enter a setup key" → paste the key
-4. Enter the 6-digit rotating code → tap "Activate 2FA"
-5. **Expected:** Section shows "✓ Two-factor authentication is enabled"
-6. Logout → login again → **Expected:** prompted for 6-digit TOTP code
-7. Enter correct code → **Expected:** Login succeeds
-8. Enter wrong code → **Expected:** Login rejected
-
-ui exist, but when setting the 2fa as i understand it u need to take the key and put it in google authenticator, push the temp password and enable it, but after trying to log in again cant enter with the code from google authenticator app, even if the code is true — FIXED: Verify2FAScreen was calling the setup endpoint (/auth/2fa/verify) which requires an auth token. New endpoint /auth/2fa/login added that verifies TOTP and returns a JWT without requiring prior authentication
-### Auth Persistence ⚠️ RETEST
-> Bug fixed: no loading state caused flash of Welcome screen before token restored. Now shows spinner until SecureStore is read.
-
-1. Login on a **real device** (Expo Go on iOS or Android — not browser)
-2. Close the app completely (swipe away from app switcher)
-3. Reopen the app
-4. **Expected:** Spinner briefly shows, then lands directly on main feed — no login screen
-
-still doesn't happens, doesn't matter for now
----
-
-## 2. Profile Creation & Editing
-
-### Create Profile (Entrepreneur)
-1. After registration, set role to "Entrepreneur"
-2. Fill in: bio (50+ chars), skills (add 2+), venture stage, funding needs
-3. Upload profile photo (tap photo area → choose from library)
-4. Save
-
-**Expected:** Photo URL starts with `res.cloudinary.com` (not a local path). Profile saved.
-
-### Create Profile (Investor)
-1. Set role to "Investor"
-2. Fill in: bio, investment domain, preferred stage, max investment amount
-3. Upload photo → save
-
-### Profile Completeness Score
-1. Go to Profile tab
-2. **Expected:** "Profile Strength" progress bar visible below the avatar
-3. Start with an empty profile → bar shows yellow at a low percentage with hints ("Add a profile photo · Write a bio · Add skills")
-4. Add a photo, bio (>50 chars), and 2+ skills → bar progresses to green at 100%
-
-### Identity Verification
-1. Go to Profile → Account Settings → Identity Verification section
-2. Tap "Verify Account"
-3. **Expected:** Button disappears; green "✓ Your account is verified" text appears
-
-**DB verification:**
-```sql
-SELECT verification_status FROM users WHERE id = <your_id>;
--- Should be 'verified'
-```
-
-### Role Switching
-1. Go to Profile → Account Settings → tap "Change Role"
-2. Switch from Entrepreneur to Investor (or vice versa) → save
-3. **Expected:** Profile tab shows the new role. Discover feed now shows the other role's candidates.
-
-**DB verification:**
-```sql
-SELECT role FROM users WHERE id = <your_id>;
--- Should reflect the new role
-```
-
-### Account Name Update
-1. Go to Profile → Account Settings
-2. Change the name field → tap "Save Changes"
-3. **Expected:** Success message; Profile tab shows the updated name.
-
-### Account Deletion
-1. Go to Profile → Account Settings → scroll to Danger Zone
-2. Tap "Delete Account" → confirm in the modal ("Delete Everything")
-3. **Expected:** Success modal appears → tap OK → app returns to login screen
-4. Try logging in with the deleted account credentials
-5. **Expected:** Login fails — account no longer exists
-
-### Edit Profile
-1. Go to Profile tab → Edit
-2. Change bio text → save
-3. Go back to Discover tab → swipe a few cards
-4. **Expected (next feed load):** AI match scores for this user are cleared from DB, recomputed on background next load
-
-**DB verification:**
-```sql
-SELECT * FROM ai_match_scores WHERE user_id = <your_id>;
--- Should be empty immediately after profile update
-```
-
+> **Note on completeness score:** 40% with bio + 2 skills only is correct — each field is worth 20pts. Fill all role-specific fields (venture stage + funding needs for entrepreneurs, domain + preferred stage for investors) + photo = 100%.
+get photo upload failed please try again error
 ---
 
 ## 3. Swipe Feed & AI-Driven Matching
