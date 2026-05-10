@@ -6,7 +6,7 @@ const { sendPushNotification } = require('../services/notification.service');
 // Scoring helpers
 // ---------------------------------------------------------------------------
 
-const STAGE_LADDER = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c'];
+const STAGE_LADDER = ['idea', 'mvp', 'growth', 'scale'];
 
 function stageScore(stageA, stageB) {
   const i = STAGE_LADDER.indexOf((stageA || '').toLowerCase());
@@ -108,7 +108,7 @@ function safeParseArray(value) {
 // AI background scoring
 // ---------------------------------------------------------------------------
 
-async function computeAiScores(userId, userRole, myProfile, candidates) {
+async function computeAiScores(userId, userRole, myProfile, candidates, selectedProject = null) {
   if (!process.env.ANTHROPIC_API_KEY || !myProfile || candidates.length === 0) return;
 
   try {
@@ -133,9 +133,12 @@ Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myPr
 Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
       }
       if (userRole === 'entrepreneur' && candidate.role_type === 'investor') {
+        const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
+        const needs = selectedProject?.funding_needed || myProfile.funding_needs || 0;
+        const projectDesc = selectedProject ? `, project="${selectedProject.title || ''} - ${selectedProject.description || ''}"` : '';
         return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
 Investor: domain=${candidate.investment_domain || 'N/A'}, preferred stage=${candidate.preferred_stage || 'N/A'}, max invest=$${candidate.max_investment || 0}.
-Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${myProfile.venture_stage || 'N/A'}, needs=$${myProfile.funding_needs || 0}.`;
+Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${stage}, needs=$${needs}${projectDesc}.`;
       }
       // entrepreneur-entrepreneur
       return `Rate collaboration potential 0-100. Reply with ONLY a number.
@@ -169,7 +172,7 @@ Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skill
 // Feed
 // ---------------------------------------------------------------------------
 
-async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
+async function getFeed(userId, userRole, mode = 'investors', projectId = null, limit = 20) {
   const allSwiped = await query(
     'SELECT swiped_id, direction FROM swipes WHERE swiper_id = ?',
     [userId]
@@ -194,6 +197,16 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
 
   const myProfileRows = await query('SELECT * FROM profiles WHERE user_id = ?', [userId]);
   const myProfile = myProfileRows[0];
+
+  // If a specific project was selected, load it for more accurate scoring
+  let selectedProject = null;
+  if (projectId && userRole === 'entrepreneur') {
+    const pRows = await query(
+      'SELECT stage, funding_needed, title, description, industry FROM projects WHERE id = ? AND user_id = ? AND is_active = 1',
+      [projectId, userId]
+    );
+    selectedProject = pRows[0] || null;
+  }
 
   // Load cached AI scores for all candidates in one query
   const aiScoreMap = new Map();
@@ -228,7 +241,17 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
     if (userRole === 'investor' && c.role_type === 'entrepreneur') {
       return myProfile ? scoreInvestorEntrepreneur(myProfile, c, aiScore) : 0;
     } else if (userRole === 'entrepreneur' && c.role_type === 'investor') {
-      return myProfile ? scoreInvestorEntrepreneur(c, myProfile, aiScore) : 0;
+      if (!myProfile) return 0;
+      if (selectedProject) {
+        // Score investor against the selected project's specifics
+        const projectProxy = {
+          ...myProfile,
+          venture_stage: selectedProject.stage || myProfile.venture_stage,
+          funding_needs: selectedProject.funding_needed || myProfile.funding_needs,
+        };
+        return scoreInvestorEntrepreneur(c, projectProxy, aiScore);
+      }
+      return scoreInvestorEntrepreneur(c, myProfile, aiScore);
     } else if (userRole === 'entrepreneur' && c.role_type === 'entrepreneur') {
       return myProfile ? scoreEntrepreneurEntrepreneur(myProfile, c, aiScore) : 0;
     }
@@ -243,7 +266,7 @@ async function getFeed(userId, userRole, mode = 'investors', limit = 20) {
   const result = [...scoreAndSort(fresh), ...scoreAndSort(passed)].slice(0, limit);
 
   // Trigger background AI scoring for uncached candidates (non-blocking)
-  computeAiScores(userId, userRole, myProfile, candidates).catch(() => {});
+  computeAiScores(userId, userRole, myProfile, candidates, selectedProject).catch(() => {});
 
   return result;
 }
@@ -268,7 +291,17 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
     [swipedId, swiperId]
   );
 
-  if (!theirSwipe[0]) return { matched: false };
+  if (!theirSwipe[0]) {
+    // No mutual profile swipe — check if the swiped investor already liked one of this entrepreneur's projects
+    const projectLike = await query(
+      `SELECT ps.id FROM project_swipes ps
+       JOIN projects p ON p.id = ps.project_id
+       WHERE ps.investor_id = ? AND p.user_id = ? AND p.is_active = 1 AND ps.direction = 'like'
+       LIMIT 1`,
+      [swipedId, swiperId]
+    );
+    if (!projectLike[0]) return { matched: false };
+  }
 
   const [u1, u2] = swiperId < swipedId ? [swiperId, swipedId] : [swipedId, swiperId];
 

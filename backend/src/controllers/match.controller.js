@@ -6,7 +6,8 @@ const DAILY_SWIPE_LIMIT = 20;
 const feed = async (req, res, next) => {
   try {
     const mode = req.query.mode === 'partners' ? 'partners' : 'investors';
-    const candidates = await getFeed(req.user.id, req.user.role, mode);
+    const projectId = req.query.projectId ? Number(req.query.projectId) : null;
+    const candidates = await getFeed(req.user.id, req.user.role, mode, projectId);
     res.json(candidates);
   } catch (err) {
     next(err);

@@ -1,11 +1,12 @@
 const { query } = require('../config/db');
+const { sendPushNotification } = require('../services/notification.service');
 
 function safeParseArray(value) {
   if (!value) return [];
   try { const p = JSON.parse(value); return Array.isArray(p) ? p : []; } catch { return []; }
 }
 
-const STAGE_LADDER = ['pre-seed', 'seed', 'series-a', 'series-b', 'series-c'];
+const STAGE_LADDER = ['idea', 'mvp', 'growth', 'scale'];
 
 function stageScore(stageA, stageB) {
   const i = STAGE_LADDER.indexOf((stageA || '').toLowerCase());
@@ -172,6 +173,26 @@ async function swipeProject(investorId, projectId, direction) {
 
   if (direction !== 'like') return { matched: false };
 
+  // Check if entrepreneur has already swiped right on this investor (mutual match)
+  const entSwipe = await query(
+    `SELECT id FROM swipes WHERE swiper_id = ? AND swiped_id = ? AND direction = 'like'`,
+    [project.user_id, investorId]
+  );
+
+  if (!entSwipe[0]) {
+    // One-sided: investor liked but entrepreneur hasn't swiped on them yet
+    query('SELECT name FROM users WHERE id = ?', [investorId]).then(rows => {
+      sendPushNotification(
+        project.user_id,
+        '👀 Investor Interest',
+        `${rows[0]?.name || 'An investor'} is interested in your project!`,
+        { type: 'investor_liked' }
+      );
+    }).catch(() => {});
+    return { matched: false };
+  }
+
+  // Mutual match — create records
   await query(
     'INSERT IGNORE INTO project_matches (investor_id, project_id, user_id) VALUES (?, ?, ?)',
     [investorId, projectId, project.user_id]
@@ -186,6 +207,15 @@ async function swipeProject(investorId, projectId, direction) {
     'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
     [u1, u2]
   );
+
+  query('SELECT name FROM users WHERE id = ?', [investorId]).then(rows => {
+    sendPushNotification(
+      project.user_id,
+      '🎉 It\'s a Match!',
+      `You matched with ${rows[0]?.name || 'an investor'}!`,
+      { matchId: matchRows[0]?.id }
+    );
+  }).catch(() => {});
 
   return { matched: true, matchId: matchRows[0]?.id ?? null, projectTitle: project.title, entrepreneurId: project.user_id };
 }
