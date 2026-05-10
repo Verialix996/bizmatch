@@ -4,6 +4,7 @@ import {
   TouchableOpacity, KeyboardAvoidingView, Platform,
   SafeAreaView, ActivityIndicator, Image, StatusBar, Alert, Modal, Linking,
 } from 'react-native';
+import { Video, ResizeMode } from 'expo-av';
 import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject } from '../../services/match.service';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
@@ -85,6 +86,10 @@ export default function ChatScreen({ route, navigation }) {
 
   // Project detail popup
   const [detailProject, setDetailProject] = useState(null);
+
+  // Inline video player
+  const [videoModal, setVideoModal] = useState({ visible: false, url: null });
+  const videoRef = useRef(null);
 
   const load = useCallback(async () => {
     try {
@@ -752,7 +757,7 @@ export default function ChatScreen({ route, navigation }) {
                 {detailProject?.videoUrl ? (
                   <TouchableOpacity
                     style={styles.detailLinkBtn}
-                    onPress={() => Linking.openURL(toAbsoluteUrl(detailProject.videoUrl))}
+                    onPress={() => setVideoModal({ visible: true, url: toAbsoluteUrl(detailProject.videoUrl) })}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.detailLinkBtnText}>🎬 Watch Demo Video</Text>
@@ -770,6 +775,32 @@ export default function ChatScreen({ route, navigation }) {
             </TouchableOpacity>
           </View>
         </View>
+      </Modal>
+
+      {/* Inline video player */}
+      <Modal
+        visible={videoModal.visible}
+        animationType="slide"
+        onRequestClose={() => setVideoModal({ visible: false, url: null })}
+      >
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
+          <TouchableOpacity
+            onPress={() => setVideoModal({ visible: false, url: null })}
+            style={{ padding: 16 }}
+          >
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>✕  Close</Text>
+          </TouchableOpacity>
+          {videoModal.url ? (
+            <Video
+              ref={videoRef}
+              source={{ uri: videoModal.url }}
+              style={{ flex: 1 }}
+              useNativeControls
+              resizeMode={ResizeMode.CONTAIN}
+              shouldPlay
+            />
+          ) : null}
+        </SafeAreaView>
       </Modal>
     </SafeAreaView>
   );
