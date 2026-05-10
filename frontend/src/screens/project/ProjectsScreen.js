@@ -177,7 +177,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           activeOpacity={0.8}
         >
           <Text style={styles.uploadBtnText}>
-            📄 {project.deck_url ? 'Replace Deck' : 'Upload PDF / PPTX'}
+            📄 {project.deck_url ? 'Replace PDF' : 'Upload PDF'}
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
@@ -205,7 +205,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
             <Text style={styles.deckReviewTitle}>AI Pitch Deck Review</Text>
             {!deckFeedback ? (
               <>
-                <Text style={styles.deckReviewHint}>Gemini will read your uploaded deck and provide structured feedback.</Text>
+                <Text style={styles.deckReviewHint}>Claude will read your uploaded PDF and provide structured feedback.</Text>
                 <View style={styles.deckReviewActions}>
                   <TouchableOpacity onPress={() => setShowDeckReview(false)} style={styles.deckReviewCancel}>
                     <Text style={{ color: colors.textHint }}>Cancel</Text>
@@ -616,14 +616,11 @@ export default function ProjectsScreen() {
   const handleUploadDeck = async (projectId) => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
-        type: [
-          'application/pdf',
-          'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-        ],
+        type: ['application/pdf'],
       });
       if (result.canceled || !result.assets?.[0]) return;
       const file = result.assets[0];
-      await uploadDeck(projectId, file.uri, file.name, file.mimeType);
+      await uploadDeck(projectId, file.uri, file.name);
       load();
     } catch {
       Alert.alert('Upload Failed', 'Could not upload deck. Please try again.');

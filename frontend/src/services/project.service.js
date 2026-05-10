@@ -10,12 +10,9 @@ export const createProject     = (data)                 => api.post('/projects',
 export const updateProject     = (id, data)             => api.put(`/projects/${id}`, data);
 export const deleteProject     = (id)                   => api.delete(`/projects/${id}`);
 
-const PPTX_MIME = 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
-
-export const uploadDeck = (projectId, fileUri, fileName, mimeType) => {
+export const uploadDeck = (projectId, fileUri, fileName) => {
   const formData = new FormData();
-  const type = mimeType || (fileName?.toLowerCase().endsWith('.pptx') ? PPTX_MIME : 'application/pdf');
-  formData.append('deck', { uri: fileUri, name: fileName, type });
+  formData.append('deck', { uri: fileUri, name: fileName, type: 'application/pdf' });
   return api.post(`/projects/${projectId}/upload-deck`, formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
