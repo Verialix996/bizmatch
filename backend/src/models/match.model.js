@@ -1,5 +1,5 @@
 const { query } = require('../config/db');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { sendPushNotification } = require('../services/notification.service');
 
 // ---------------------------------------------------------------------------
@@ -109,7 +109,7 @@ function safeParseArray(value) {
 // ---------------------------------------------------------------------------
 
 async function computeAiScores(userId, userRole, myProfile, candidates) {
-  if (!process.env.ANTHROPIC_API_KEY || !myProfile || candidates.length === 0) return;
+  if (!process.env.GEMINI_API_KEY || !myProfile || candidates.length === 0) return;
 
   try {
     // Find which pairs are already cached
@@ -124,7 +124,8 @@ async function computeAiScores(userId, userRole, myProfile, candidates) {
 
     if (uncached.length === 0) return;
 
-    const client = new Anthropic();
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const scoreModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { maxOutputTokens: 5 } });
 
     const buildPrompt = (candidate) => {
       if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
@@ -145,12 +146,8 @@ Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skill
 
     await Promise.allSettled(
       uncached.map(async (candidate) => {
-        const response = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 5,
-          messages: [{ role: 'user', content: buildPrompt(candidate) }],
-        });
-        const raw = response.content[0]?.text?.trim();
+        const scoreResult = await scoreModel.generateContent(buildPrompt(candidate));
+        const raw = scoreResult.response.text().trim();
         const score = parseInt(raw, 10);
         if (isNaN(score)) return;
         const clamped = Math.max(0, Math.min(100, score));
@@ -295,7 +292,7 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
 }
 
 async function generateMatchSummary(matchId, userAId, userBId) {
-  if (!process.env.ANTHROPIC_API_KEY) return;
+  if (!process.env.GEMINI_API_KEY) return;
   try {
     const [rowsA, rowsB] = await Promise.all([
       query(`SELECT u.name, u.role, p.bio, p.skills, p.venture_stage, p.funding_needs,
@@ -308,19 +305,15 @@ async function generateMatchSummary(matchId, userAId, userBId) {
     const a = rowsA[0]; const b = rowsB[0];
     if (!a || !b) return;
 
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
-      messages: [{
-        role: 'user',
-        content: `Two BizMatch users just mutually matched. Write a single encouraging sentence (max 25 words) explaining why they are a great fit. Be specific and concise.
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const summaryModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { maxOutputTokens: 150 } });
+    const summaryResult = await summaryModel.generateContent(
+      `Two BizMatch users just mutually matched. Write a single encouraging sentence (max 25 words) explaining why they are a great fit. Be specific and concise.
 
 User A: ${a.name}, ${a.role}. Bio: ${a.bio || 'N/A'}. Stage: ${a.venture_stage || a.preferred_stage || 'N/A'}. Domain: ${a.investment_domain || 'N/A'}.
-User B: ${b.name}, ${b.role}. Bio: ${b.bio || 'N/A'}. Stage: ${b.venture_stage || b.preferred_stage || 'N/A'}. Domain: ${b.investment_domain || 'N/A'}.`,
-      }],
-    });
-    const summary = response.content[0]?.text?.trim();
+User B: ${b.name}, ${b.role}. Bio: ${b.bio || 'N/A'}. Stage: ${b.venture_stage || b.preferred_stage || 'N/A'}. Domain: ${b.investment_domain || 'N/A'}.`
+    );
+    const summary = summaryResult.response.text().trim();
     if (summary) {
       await query('UPDATE matches SET ai_summary = ? WHERE id = ?', [summary, matchId]);
     }

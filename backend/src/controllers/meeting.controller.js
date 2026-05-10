@@ -1,7 +1,7 @@
 const { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, saveBriefing } = require('../models/meeting.model');
 const { sendMessage } = require('../models/message.model');
 const { query } = require('../config/db');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 // POST /api/meetings  { matchId, title, scheduledAt, locationType, videoLink, address, lat, lng }
 const propose = async (req, res, next) => {
@@ -110,7 +110,7 @@ const briefing = async (req, res, next) => {
       return res.json(JSON.parse(meeting.ai_briefing));
     }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
+    if (!process.env.GEMINI_API_KEY) {
       return res.status(503).json({ error: 'AI briefing not configured' });
     }
 
@@ -166,14 +166,11 @@ Person profile:
 - Max investment: ${other.max_investment ? '$' + Number(other.max_investment).toLocaleString() : 'N/A'}
 - Projects:\n${projectSummary}`;
 
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 600,
-      messages: [{ role: 'user', content: prompt }],
-    });
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { maxOutputTokens: 600 } });
+    const result = await model.generateContent(prompt);
 
-    const raw = response.content[0]?.text?.trim() || '{}';
+    const raw = result.response.text().trim() || '{}';
     const briefingData = JSON.parse(raw);
 
     await saveBriefing(id, JSON.stringify(briefingData));

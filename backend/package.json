@@ -10,7 +10,7 @@
     "seed": "node scripts/seed.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.95.1",
+    "@google/generative-ai": "^0.21.0",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^12.8.0",
     "cloudinary": "^1.41.3",

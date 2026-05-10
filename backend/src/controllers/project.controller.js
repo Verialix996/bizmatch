@@ -6,19 +6,26 @@ const {
 } = require('../models/project.model');
 const { query } = require('../config/db');
 const { uploadDeckMemory: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
-const Anthropic = require('@anthropic-ai/sdk');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 const { moderateText } = require('../services/moderation.service');
 
-// POST /api/projects/:id/upload-deck — stores PDF bytes in DB (avoids Cloudinary raw-file restrictions)
+const ALLOWED_DECK_MIMES = [
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+];
+
+// POST /api/projects/:id/upload-deck — stores PDF/PPTX bytes in DB (avoids Cloudinary raw-file restrictions)
 const uploadDeck = [
   deckUpload,
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      if (req.file.mimetype !== 'application/pdf') return res.status(400).json({ error: 'Only PDF files are allowed' });
+      if (!ALLOWED_DECK_MIMES.includes(req.file.mimetype)) {
+        return res.status(400).json({ error: 'Only PDF or PPTX files are allowed' });
+      }
       await query(
-        'UPDATE projects SET deck_data = ?, deck_url = ? WHERE id = ? AND user_id = ?',
-        [req.file.buffer, 'stored', Number(req.params.id), req.user.id]
+        'UPDATE projects SET deck_data = ?, deck_mime = ?, deck_url = ? WHERE id = ? AND user_id = ?',
+        [req.file.buffer, req.file.mimetype, 'stored', Number(req.params.id), req.user.id]
       );
       res.json({ deck_url: 'stored' });
     } catch (err) { next(err); }
@@ -178,27 +185,27 @@ const reviewDeck = async (req, res, next) => {
     const projectId = Number(req.params.id);
     const userId = req.user.id;
 
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI review not configured' });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'AI review not configured' });
 
     const rows = await query('SELECT * FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
     // Fetch deck bytes from DB (stored as BLOB)
-    const deckRows = await query('SELECT deck_data FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+    const deckRows = await query('SELECT deck_data, deck_mime FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
     const deckData = deckRows[0]?.deck_data;
-    if (!deckData || deckData.length === 0) return res.status(400).json({ error: 'Pitch deck not found. Please re-upload the PDF.' });
+    if (!deckData || deckData.length === 0) return res.status(400).json({ error: 'Pitch deck not found. Please re-upload the file.' });
     const base64 = Buffer.isBuffer(deckData) ? deckData.toString('base64') : Buffer.from(deckData).toString('base64');
+    const mimeType = deckRows[0]?.deck_mime || 'application/pdf';
 
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 800,
-      messages: [{
+    const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { maxOutputTokens: 800 } });
+    const result = await model.generateContent({
+      contents: [{
         role: 'user',
-        content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-          { type: 'text', text: `You are an experienced startup investor reviewing a pitch deck for investment readiness.
+        parts: [
+          { inlineData: { mimeType, data: base64 } },
+          { text: `You are an experienced startup investor reviewing a pitch deck for investment readiness.
 
 Evaluate the document ONLY as a business pitch deck against these standard investor criteria:
 1. Problem statement — is a clear real-world problem defined?
@@ -218,7 +225,7 @@ Respond ONLY with valid JSON, no markdown:
       }],
     });
 
-    const raw = response.content[0]?.text?.trim() || '{}';
+    const raw = result.response.text().trim() || '{}';
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     try {
       res.json(JSON.parse(cleaned));
@@ -239,14 +246,16 @@ const serveDeck = async (req, res, next) => {
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try { jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
 
-    const rows = await query('SELECT deck_data, deck_url FROM projects WHERE id = ?', [Number(req.params.id)]);
+    const rows = await query('SELECT deck_data, deck_mime FROM projects WHERE id = ?', [Number(req.params.id)]);
     if (!rows[0]) return res.status(404).json({ error: 'Project not found' });
     const deckData = rows[0].deck_data;
     if (!deckData || deckData.length === 0) return res.status(404).json({ error: 'No pitch deck uploaded' });
 
     const buffer = Buffer.isBuffer(deckData) ? deckData : Buffer.from(deckData);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="pitch-deck.pdf"');
+    const mime = rows[0].deck_mime || 'application/pdf';
+    const isPptx = mime.includes('presentation');
+    res.setHeader('Content-Type', mime);
+    res.setHeader('Content-Disposition', `${isPptx ? 'attachment' : 'inline'}; filename="pitch-deck.${isPptx ? 'pptx' : 'pdf'}"`);
     res.send(buffer);
   } catch (err) { next(err); }
 };
