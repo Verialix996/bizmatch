@@ -125,7 +125,7 @@ async function computeAiScores(userId, userRole, myProfile, candidates) {
     if (uncached.length === 0) return;
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const scoreModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { maxOutputTokens: 5 } });
+    const scoreModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { maxOutputTokens: 5 } });
 
     const buildPrompt = (candidate) => {
       if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
@@ -306,7 +306,7 @@ async function generateMatchSummary(matchId, userAId, userBId) {
     if (!a || !b) return;
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-    const summaryModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash', generationConfig: { maxOutputTokens: 150 } });
+    const summaryModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash', generationConfig: { maxOutputTokens: 150 } });
     const summaryResult = await summaryModel.generateContent(
       `Two BizMatch users just mutually matched. Write a single encouraging sentence (max 25 words) explaining why they are a great fit. Be specific and concise.
 
