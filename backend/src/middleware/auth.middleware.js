@@ -1,5 +1,5 @@
 const passport = require('passport');
-const { query } = require('../db');
+const { query } = require('../config/db');
 
 // Debounce map: userId → last DB write timestamp (ms)
 const lastActiveWrite = new Map();
