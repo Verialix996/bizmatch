@@ -506,28 +506,6 @@ function ProjectForm({ initial, onSave, onCancel }) {
         ))}
       </View>
 
-      <Text style={styles.fieldLabel}>DECK URL</Text>
-      <TextInput
-        style={styles.input}
-        value={form.deck_url}
-        onChangeText={v => setForm(f => ({ ...f, deck_url: v }))}
-        placeholder="Link to your pitch deck"
-        placeholderTextColor={colors.textHint}
-        autoCapitalize="none"
-        keyboardType="url"
-      />
-
-      <Text style={styles.fieldLabel}>VIDEO URL</Text>
-      <TextInput
-        style={styles.input}
-        value={form.video_url}
-        onChangeText={v => setForm(f => ({ ...f, video_url: v }))}
-        placeholder="Demo video link"
-        placeholderTextColor={colors.textHint}
-        autoCapitalize="none"
-        keyboardType="url"
-      />
-
       {error ? <Text style={styles.errorText}>{error}</Text> : null}
 
       <View style={styles.formBtnRow}>

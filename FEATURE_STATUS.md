@@ -74,7 +74,7 @@ Each system is described with its intended behavior and current implementation s
 - Structured message types: `partner_invite`, `partner_invite_response`, `nda_request`, `nda_signed`, `project_shared`, `meeting_proposal`, `meeting_response`
 - Push notification to recipient on new text message
 
-**Known limitation:** Up to 15s message delay (polling, no WebSocket)
+**Known limitation:** Up to 3s message delay (polling, no WebSocket)
 
 ---
 
@@ -173,7 +173,7 @@ Each system is described with its intended behavior and current implementation s
 | User & Profile | ✅ Complete — verify button + completeness score |
 | Matching & Feed | ✅ Complete — AI is primary ranking signal (60 pts) |
 | Project System | ✅ Complete — PDF in MySQL BLOB, backend proxy, AI deck review |
-| Messaging | ✅ Complete — polling (15s delay) |
+| Messaging | ✅ Complete — polling (3s delay) |
 | NDA System | ✅ Complete |
 | Meeting System | ✅ Complete — rescheduling + AI briefing |
 | File Storage | ✅ Complete — pitch decks in MySQL, all other files on Cloudinary |

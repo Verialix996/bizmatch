@@ -2,16 +2,27 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  SafeAreaView, ActivityIndicator, Image, StatusBar, Alert, Modal, Linking,
+  SafeAreaView, ActivityIndicator, Image, StatusBar, Alert, Modal, Linking, Dimensions,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
-import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject } from '../../services/match.service';
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+import { VideoView, useVideoPlayer } from 'expo-video';
+import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
+
+const toVideoUrl = url => {
+  if (!url) return null;
+  const abs = toAbsoluteUrl(url);
+  if (abs && abs.includes('cloudinary.com') && !/\.(mp4|mov|m3u8)(\?|$)/i.test(abs)) {
+    return abs + '.mp4';
+  }
+  return abs;
+};
 
 function parseUTC(dateStr) {
   if (!dateStr) return new Date(NaN);
@@ -87,9 +98,23 @@ export default function ChatScreen({ route, navigation }) {
   // Project detail popup
   const [detailProject, setDetailProject] = useState(null);
 
+  // NDA preview modal
+  const [ndaPreviewVisible, setNdaPreviewVisible] = useState(false);
+  const [ndaPreviewItem, setNdaPreviewItem] = useState(null);
+
+  // Job offer modal
+  const [jobOfferVisible, setJobOfferVisible] = useState(false);
+  const [jobOfferTitle, setJobOfferTitle] = useState('');
+  const [jobOfferDesc, setJobOfferDesc] = useState('');
+  const [jobOfferSending, setJobOfferSending] = useState(false);
+
   // Inline video player
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
-  const videoRef = useRef(null);
+  const videoPlayer = useVideoPlayer(videoModal.url || '', p => { p.loop = false; });
+  useEffect(() => {
+    if (videoModal.visible && videoModal.url) videoPlayer.play();
+    else videoPlayer.pause();
+  }, [videoModal.visible, videoModal.url]);
 
   const load = useCallback(async () => {
     try {
@@ -222,6 +247,33 @@ export default function ChatScreen({ route, navigation }) {
       appendMessages(res.data);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not sign NDA.');
+    }
+  };
+
+  const handleSendJobOffer = async () => {
+    if (!jobOfferTitle.trim()) return;
+    setJobOfferSending(true);
+    try {
+      const res = await sendJobOffer(match.matchId, jobOfferTitle.trim(), jobOfferDesc.trim());
+      if (res.data?.id) lastIdRef.current = res.data.id;
+      appendMessages(res.data);
+      setJobOfferVisible(false);
+      setJobOfferTitle('');
+      setJobOfferDesc('');
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not send job offer.');
+    } finally {
+      setJobOfferSending(false);
+    }
+  };
+
+  const handleRespondToJobOffer = async (item, accepted) => {
+    try {
+      const res = await respondToJobOffer(match.matchId, item.id, accepted);
+      if (res.data?.id) lastIdRef.current = res.data.id;
+      appendMessages(res.data);
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not respond.');
     }
   };
 
@@ -376,7 +428,7 @@ export default function ChatScreen({ route, navigation }) {
           {!isOwn && !alreadySigned && (
             <TouchableOpacity
               style={[styles.actionBtn, styles.actionBtnAccept, { marginTop: 10 }]}
-              onPress={() => handleSignNda(item)}
+              onPress={() => { setNdaPreviewItem(item); setNdaPreviewVisible(true); }}
               activeOpacity={0.85}
             >
               <Text style={styles.actionBtnAcceptText}>Sign NDA</Text>
@@ -458,6 +510,52 @@ export default function ChatScreen({ route, navigation }) {
           >
             <Text style={styles.viewDetailsBtnText}>View Meeting</Text>
           </TouchableOpacity>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'job_offer') {
+      const alreadyResponded = messages.some(m => {
+        if (m.message_type !== 'job_offer_response') return false;
+        const mm = tryParseJson(m.metadata) || {};
+        return mm.originalMessageId === item.id;
+      });
+      return (
+        <View style={[styles.actionCard, { borderLeftColor: '#7B1FA2' }]}>
+          <Text style={[styles.actionCardTitle, { color: '#7B1FA2' }]}>💼 Job Offer</Text>
+          <Text style={styles.actionCardBody}>{meta.roleTitle}</Text>
+          {meta.description ? <Text style={[styles.actionCardBody, { fontSize: 12 }]}>{meta.description}</Text> : null}
+          {!isOwn && !alreadyResponded && (
+            <View style={styles.actionBtnRow}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnAccept]}
+                onPress={() => handleRespondToJobOffer(item, true)}
+              >
+                <Text style={styles.actionBtnAcceptText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnDecline]}
+                onPress={() => handleRespondToJobOffer(item, false)}
+              >
+                <Text style={styles.actionBtnDeclineText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {alreadyResponded && <Text style={styles.actionCardStatus}>Responded</Text>}
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'job_offer_response') {
+      const accepted = meta.accepted === true;
+      return (
+        <View style={[styles.actionCard, styles.actionCardResponse]}>
+          <Text style={[styles.actionCardTitle, { color: accepted ? colors.success : colors.error }]}>
+            💼 {accepted ? 'Job Offer Accepted' : 'Job Offer Declined'}
+          </Text>
+          {meta.roleTitle ? <Text style={styles.actionCardBody}>{meta.roleTitle}</Text> : null}
           <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
         </View>
       );
@@ -677,6 +775,15 @@ export default function ChatScreen({ route, navigation }) {
                     </View>
                   </TouchableOpacity>
                 )}
+                {user?.role === 'entrepreneur' && match.roleType === 'entrepreneur' && (
+                  <TouchableOpacity style={styles.sheetItem} onPress={() => { closeActionSheet(); setJobOfferVisible(true); }} activeOpacity={0.8}>
+                    <Text style={styles.sheetItemIcon}>💼</Text>
+                    <View>
+                      <Text style={styles.sheetItemLabel}>Propose Job</Text>
+                      <Text style={styles.sheetItemSub}>Send a job offer or collaboration proposal</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
                 <TouchableOpacity style={styles.sheetCancel} onPress={closeActionSheet} activeOpacity={0.8}>
                   <Text style={styles.sheetCancelText}>Cancel</Text>
                 </TouchableOpacity>
@@ -757,7 +864,7 @@ export default function ChatScreen({ route, navigation }) {
                 {detailProject?.videoUrl ? (
                   <TouchableOpacity
                     style={styles.detailLinkBtn}
-                    onPress={() => setVideoModal({ visible: true, url: toAbsoluteUrl(detailProject.videoUrl) })}
+                    onPress={() => setVideoModal({ visible: true, url: toVideoUrl(detailProject.videoUrl) })}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.detailLinkBtnText}>🎬 Watch Demo Video</Text>
@@ -783,24 +890,114 @@ export default function ChatScreen({ route, navigation }) {
         animationType="slide"
         onRequestClose={() => setVideoModal({ visible: false, url: null })}
       >
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
-          <TouchableOpacity
-            onPress={() => setVideoModal({ visible: false, url: null })}
-            style={{ padding: 16 }}
-          >
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>✕  Close</Text>
-          </TouchableOpacity>
-          {videoModal.url ? (
-            <Video
-              ref={videoRef}
-              source={{ uri: videoModal.url }}
-              style={{ flex: 1 }}
-              useNativeControls
-              resizeMode={ResizeMode.CONTAIN}
-              shouldPlay
+        <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: '#000' }}>
+          <VideoView
+            player={videoPlayer}
+            style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+            contentFit="contain"
+            allowsFullscreen
+            allowsPictureInPicture
+            nativeControls
+          />
+          <SafeAreaView style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+            <TouchableOpacity
+              onPress={() => setVideoModal({ visible: false, url: null })}
+              style={{ padding: 16 }}
+            >
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>✕  Close</Text>
+            </TouchableOpacity>
+          </SafeAreaView>
+        </View>
+      </Modal>
+
+      {/* Job offer modal */}
+      <Modal visible={jobOfferVisible} transparent animationType="fade" onRequestClose={() => setJobOfferVisible(false)}>
+        <View style={styles.ndaOverlay}>
+          <View style={styles.ndaModal}>
+            <Text style={styles.ndaModalTitle}>Propose a Job / Collaboration</Text>
+            <Text style={styles.ndaModalSub}>Send a formal proposal to your match</Text>
+            <Text style={[styles.ndaClauseTitle, { marginBottom: 6 }]}>ROLE / POSITION TITLE</Text>
+            <TextInput
+              style={[styles.jobInput]}
+              placeholder="e.g. Co-founder, CTO, Lead Developer..."
+              placeholderTextColor={colors.textHint}
+              value={jobOfferTitle}
+              onChangeText={setJobOfferTitle}
+              maxLength={80}
             />
-          ) : null}
-        </SafeAreaView>
+            <Text style={[styles.ndaClauseTitle, { marginBottom: 6, marginTop: 12 }]}>DESCRIPTION (optional)</Text>
+            <TextInput
+              style={[styles.jobInput, { height: 80, textAlignVertical: 'top' }]}
+              placeholder="Describe the role, expectations, or collaboration details..."
+              placeholderTextColor={colors.textHint}
+              value={jobOfferDesc}
+              onChangeText={setJobOfferDesc}
+              multiline
+              maxLength={400}
+            />
+            <View style={[styles.ndaModalActions, { marginTop: 16 }]}>
+              <TouchableOpacity
+                style={styles.ndaCancelBtn}
+                onPress={() => { setJobOfferVisible(false); setJobOfferTitle(''); setJobOfferDesc(''); }}
+              >
+                <Text style={styles.ndaCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.ndaSignBtn, (!jobOfferTitle.trim() || jobOfferSending) && { opacity: 0.5 }]}
+                onPress={handleSendJobOffer}
+                disabled={!jobOfferTitle.trim() || jobOfferSending}
+              >
+                <Text style={styles.ndaSignBtnText}>{jobOfferSending ? 'Sending…' : 'Send Offer'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* NDA preview modal */}
+      <Modal visible={ndaPreviewVisible} transparent animationType="fade" onRequestClose={() => setNdaPreviewVisible(false)}>
+        <View style={styles.ndaOverlay}>
+          <View style={styles.ndaModal}>
+            <Text style={styles.ndaModalTitle}>Non-Disclosure Agreement</Text>
+            <Text style={styles.ndaModalSub}>Please review the key terms before signing</Text>
+            <View style={styles.ndaClauseList}>
+              <View style={styles.ndaClause}>
+                <Text style={styles.ndaClauseTitle}>Confidentiality</Text>
+                <Text style={styles.ndaClauseBody}>You agree to keep all disclosed information strictly confidential and not share it with third parties.</Text>
+              </View>
+              <View style={styles.ndaClause}>
+                <Text style={styles.ndaClauseTitle}>Non-Use</Text>
+                <Text style={styles.ndaClauseBody}>You may not use the disclosed information for any purpose other than evaluating a potential business relationship.</Text>
+              </View>
+              <View style={styles.ndaClause}>
+                <Text style={styles.ndaClauseTitle}>Duration</Text>
+                <Text style={styles.ndaClauseBody}>This agreement remains in effect for 2 years from the date of signing.</Text>
+              </View>
+              <View style={styles.ndaClause}>
+                <Text style={styles.ndaClauseTitle}>Governing Law</Text>
+                <Text style={styles.ndaClauseBody}>This agreement is governed by the laws of the State of Israel.</Text>
+              </View>
+            </View>
+            <View style={styles.ndaModalActions}>
+              <TouchableOpacity
+                style={styles.ndaCancelBtn}
+                onPress={() => { setNdaPreviewVisible(false); setNdaPreviewItem(null); }}
+              >
+                <Text style={styles.ndaCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.ndaSignBtn}
+                onPress={() => {
+                  setNdaPreviewVisible(false);
+                  if (ndaPreviewItem) handleSignNda(ndaPreviewItem);
+                  setNdaPreviewItem(null);
+                }}
+              >
+                <Text style={styles.ndaSignBtnText}>Sign NDA</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -1307,5 +1504,80 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 13,
+  },
+
+  // NDA preview modal
+  ndaOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2,36,102,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  ndaModal: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.xl,
+    padding: 24,
+    width: '100%',
+    maxWidth: 420,
+  },
+  ndaModalTitle: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  ndaModalSub: {
+    fontSize: 13,
+    color: colors.textHint,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  ndaClauseList: { gap: 14, marginBottom: 24 },
+  ndaClause: {
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    padding: 12,
+  },
+  ndaClauseTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: colors.primaryDark,
+    marginBottom: 4,
+  },
+  ndaClauseBody: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  ndaModalActions: { flexDirection: 'row', gap: 12 },
+  ndaCancelBtn: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  ndaCancelBtnText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  ndaSignBtn: {
+    flex: 1,
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  ndaSignBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
+
+  jobInput: {
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
   },
 });

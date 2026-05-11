@@ -28,6 +28,19 @@ const propose = async (req, res, next) => {
     );
     if (!matchRows[0]) return res.status(403).json({ error: 'Not part of this match' });
 
+    const userRows = await query('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', [proposerId]);
+    const u = userRows[0];
+    const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
+    if (!isPremium) {
+      const countRows = await query(
+        "SELECT COUNT(*) AS cnt FROM meetings WHERE proposer_id = ? AND status = 'proposed'",
+        [proposerId]
+      );
+      if ((countRows[0]?.cnt ?? 0) >= 3) {
+        return res.status(429).json({ error: 'Meeting limit reached. Upgrade to Premium for unlimited meetings.', upgradeRequired: true });
+      }
+    }
+
     const match = matchRows[0];
     const receiverId = match.user1_id === proposerId ? match.user2_id : match.user1_id;
 

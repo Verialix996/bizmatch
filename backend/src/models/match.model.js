@@ -186,7 +186,7 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   const roleFilter = (mode === 'partners' || userRole === 'investor') ? 'entrepreneur' : 'investor';
 
   const candidates = await query(
-    `SELECT u.id, u.name, u.photo_url, p.*
+    `SELECT u.id, u.name, u.photo_url, u.is_premium, u.premium_expires_at, p.*
      FROM users u
      JOIN profiles p ON p.user_id = u.id
      WHERE u.role = ?
@@ -224,6 +224,7 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
     userId: c.user_id,
     name: c.name,
     photoUrl: c.photo_url,
+    isPremium: !!(c.is_premium && c.premium_expires_at && new Date(c.premium_expires_at) > new Date()),
     role: c.role_type,
     bio: c.bio,
     skills: safeParseArray(c.skills),

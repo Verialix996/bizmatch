@@ -214,36 +214,64 @@ async function generateNdaPdf(signerName, ownerName, projectTitle, signedAt) {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
     doc.on('error', reject);
 
-    doc.fontSize(22).font('Helvetica-Bold').text('BizMatch', { align: 'center' });
-    doc.fontSize(14).font('Helvetica').text('Non-Disclosure Agreement', { align: 'center' });
+    // Title block
+    doc.fontSize(24).font('Helvetica-Bold').text('BizMatch', { align: 'center' });
+    doc.moveDown(0.3);
+    doc.fontSize(16).font('Helvetica-Bold').text('NON-DISCLOSURE AGREEMENT', { align: 'center', underline: true });
+    doc.moveDown(2);
+
+    // Parties & project
+    doc.fontSize(11).font('Helvetica-Bold').text('Effective Date:  ', { continued: true });
+    doc.font('Helvetica').text(signedAt);
+    doc.moveDown(0.4);
+    doc.font('Helvetica-Bold').text('Project:  ', { continued: true });
+    doc.font('Helvetica').text(`"${projectTitle}"`);
+    doc.moveDown(0.4);
+    doc.font('Helvetica-Bold').text('Disclosing Party:  ', { continued: true });
+    doc.font('Helvetica').text(ownerName);
+    doc.moveDown(0.4);
+    doc.font('Helvetica-Bold').text('Receiving Party:  ', { continued: true });
+    doc.font('Helvetica').text(signerName);
     doc.moveDown(1.5);
 
-    doc.fontSize(11).font('Helvetica').text(
-      `This Non-Disclosure Agreement ("Agreement") is entered into on ${signedAt} between ` +
-      `${ownerName} ("Disclosing Party") and ${signerName} ("Receiving Party") with respect to ` +
-      `the project "${projectTitle}" ("Project").`,
+    doc.font('Helvetica').text(
+      'This Non-Disclosure Agreement ("Agreement") is entered into between the parties named above with respect to the Project identified above.',
       { lineGap: 4 }
     );
-    doc.moveDown();
+    doc.moveDown(1);
 
     const clauses = [
       ['1. Confidential Information', 'The Receiving Party agrees to keep all non-public information about the Project strictly confidential and not to disclose it to any third party without prior written consent from the Disclosing Party.'],
       ['2. Non-Use', 'The Receiving Party shall not use the Confidential Information for any purpose other than evaluating a potential collaboration or investment in the Project.'],
-      ['3. Duration', 'This obligation of confidentiality shall remain in effect for a period of two (2) years from the date of signing.'],
-      ['4. Exceptions', 'This Agreement does not apply to information that is or becomes publicly available through no breach of this Agreement, or that the Receiving Party can demonstrate was independently known.'],
-      ['5. Governing Law', 'This Agreement shall be governed by and construed in accordance with the laws of the State of Israel.'],
+      ['3. Duration', 'This obligation of confidentiality shall remain in effect for a period of two (2) years from the Effective Date.'],
+      ['4. Exceptions', 'This Agreement does not apply to information that is or becomes publicly available through no breach of this Agreement, or that the Receiving Party can demonstrate was independently known prior to disclosure.'],
+      ['5. Governing Law', 'This Agreement shall be governed by and construed in accordance with the laws of the State of Israel, and any disputes shall be resolved in the competent courts thereof.'],
     ];
 
     for (const [heading, body] of clauses) {
+      doc.moveTo(60, doc.y).lineTo(doc.page.width - 60, doc.y).stroke('#CCCCCC');
+      doc.moveDown(0.5);
       doc.font('Helvetica-Bold').fontSize(11).text(heading);
       doc.font('Helvetica').fontSize(11).text(body, { lineGap: 3 });
-      doc.moveDown(0.8);
+      doc.moveDown(1);
     }
 
-    doc.moveDown(2);
-    doc.font('Helvetica-Bold').text('Signed electronically via BizMatch platform');
-    doc.font('Helvetica').text(`Signer: ${signerName}`);
-    doc.text(`Date: ${signedAt}`);
+    // Signature block
+    doc.moveTo(60, doc.y).lineTo(doc.page.width - 60, doc.y).stroke('#CCCCCC');
+    doc.moveDown(1.5);
+    doc.font('Helvetica-Bold').fontSize(12).text('SIGNATURE', { align: 'center' });
+    doc.moveDown(0.8);
+    doc.font('Helvetica-Bold').fontSize(11).text('Receiving Party:  ', { continued: true });
+    doc.font('Helvetica').text(signerName);
+    doc.moveDown(0.4);
+    doc.font('Helvetica-Bold').text('Disclosing Party:  ', { continued: true });
+    doc.font('Helvetica').text(ownerName);
+    doc.moveDown(0.4);
+    doc.font('Helvetica-Bold').text('Signed On:  ', { continued: true });
+    doc.font('Helvetica').text(signedAt);
+    doc.moveDown(1);
+    doc.font('Helvetica').fontSize(9).fillColor('#888888')
+      .text('Electronically signed via the BizMatch platform. This digital signature is legally binding.', { align: 'center' });
 
     doc.end();
   });
@@ -380,4 +408,74 @@ const shareProject = async (req, res, next) => {
   }
 };
 
-module.exports = { conversations, messages, send, sendInvite, respondToInvite, requestNda, signNda, shareProject };
+// POST /api/messages/:matchId/job-offer  { roleTitle, description }
+// Only between two entrepreneurs
+const sendJobOffer = async (req, res, next) => {
+  try {
+    const matchId = Number(req.params.matchId);
+    const { roleTitle, description } = req.body;
+    const senderId = req.user.id;
+
+    if (!matchId) return res.status(400).json({ error: 'Invalid matchId' });
+    if (!roleTitle?.trim()) return res.status(400).json({ error: 'roleTitle is required' });
+
+    // Validate sender is entrepreneur
+    if (req.user.role !== 'entrepreneur') {
+      return res.status(403).json({ error: 'Only entrepreneurs can send job offers' });
+    }
+
+    // Validate match membership and get other user's role
+    const matchRows = await query(
+      'SELECT user1_id, user2_id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
+      [matchId, senderId, senderId]
+    );
+    if (!matchRows[0]) return res.status(403).json({ error: 'Not part of this match' });
+
+    const otherId = matchRows[0].user1_id === senderId ? matchRows[0].user2_id : matchRows[0].user1_id;
+    const otherRows = await query('SELECT role FROM users WHERE id = ?', [otherId]);
+    if (otherRows[0]?.role !== 'entrepreneur') {
+      return res.status(403).json({ error: 'Job offers can only be sent to other entrepreneurs' });
+    }
+
+    const msg = await sendMessage(matchId, senderId, `Job offer: ${roleTitle.trim()}`, 'job_offer', {
+      roleTitle: roleTitle.trim(),
+      description: description?.trim() || '',
+    });
+
+    res.status(201).json(msg);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// POST /api/messages/:matchId/job-offer/respond  { messageId, accepted }
+const respondToJobOffer = async (req, res, next) => {
+  try {
+    const matchId = Number(req.params.matchId);
+    const { messageId, accepted } = req.body;
+    const responderId = req.user.id;
+
+    if (!matchId || !messageId) return res.status(400).json({ error: 'matchId and messageId are required' });
+
+    const offerRows = await query(
+      'SELECT * FROM messages WHERE id = ? AND match_id = ? AND message_type = ?',
+      [messageId, matchId, 'job_offer']
+    );
+    if (!offerRows[0]) return res.status(404).json({ error: 'Job offer not found' });
+    if (offerRows[0].sender_id === responderId) return res.status(400).json({ error: 'Cannot respond to your own offer' });
+
+    const offerMeta = (() => { try { return JSON.parse(offerRows[0].metadata); } catch { return {}; } })();
+
+    const msg = await sendMessage(matchId, responderId,
+      accepted ? `Accepted job offer: ${offerMeta.roleTitle}` : `Declined job offer: ${offerMeta.roleTitle}`,
+      'job_offer_response',
+      { originalMessageId: messageId, accepted: !!accepted, roleTitle: offerMeta.roleTitle }
+    );
+
+    res.status(201).json(msg);
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { conversations, messages, send, sendInvite, respondToInvite, requestNda, signNda, shareProject, sendJobOffer, respondToJobOffer };

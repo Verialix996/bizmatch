@@ -63,6 +63,10 @@ const UserModel = {
     await query('UPDATE users SET two_factor_enabled = 1 WHERE id = ?', [id]);
   },
 
+  async disableTwoFactor(id) {
+    await query('UPDATE users SET two_factor_enabled = 0, two_factor_secret = NULL WHERE id = ?', [id]);
+  },
+
   async setResetToken(id, token, expiresAt) {
     await query(
       'UPDATE users SET reset_token = ?, reset_token_expires = ? WHERE id = ?',

@@ -210,6 +210,29 @@ async function verify2FA(req, res, next) {
   }
 }
 
+// POST /api/auth/2fa/disable
+async function disableTwoFactor(req, res, next) {
+  try {
+    const { token } = req.body;
+    const user = req.user;
+
+    if (!user.two_factor_secret) return res.status(400).json({ error: '2FA is not enabled' });
+
+    const valid = speakeasy.totp.verify({
+      secret: user.two_factor_secret,
+      encoding: 'base32',
+      token,
+    });
+
+    if (!valid) return res.status(400).json({ error: 'Invalid 2FA code' });
+
+    await UserModel.disableTwoFactor(user.id);
+    res.json({ ok: true });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // In-memory store for pending web OAuth results { oid -> { token, userId, ... , createdAt } }
 const pendingAuths = new Map();
 setInterval(() => {
@@ -333,5 +356,5 @@ async function login2FA(req, res, next) {
 module.exports = {
   register, login, verifyEmail, resendOtp,
   forgotPassword, resetPassword,
-  setup2FA, verify2FA, login2FA, oauthCallback, pollPending, googleMobile,
+  setup2FA, verify2FA, disableTwoFactor, login2FA, oauthCallback, pollPending, googleMobile,
 };

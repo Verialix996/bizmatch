@@ -4,7 +4,7 @@ import {
   TouchableOpacity, ActivityIndicator, Modal, Image,
   SafeAreaView, StatusBar, Dimensions, Alert, FlatList,
 } from 'react-native';
-import { Video, ResizeMode } from 'expo-av';
+import { VideoView, useVideoPlayer } from 'expo-video';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = Math.min(340, SCREEN_WIDTH * 0.9);
@@ -20,6 +20,16 @@ import { colors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
+
+// Cloudinary video URLs often lack a file extension; iOS AVPlayer needs .mp4 to pick the right codec pipeline
+const toVideoUrl = url => {
+  if (!url) return null;
+  const abs = toAbsoluteUrl(url);
+  if (abs && abs.includes('cloudinary.com') && !/\.(mp4|mov|m3u8)(\?|$)/i.test(abs)) {
+    return abs + '.mp4';
+  }
+  return abs;
+};
 
 const SWIPE_THRESHOLD = 120;
 const ROTATION_FACTOR = 12;
@@ -67,6 +77,11 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
           </View>
         )}
         <StageBadge stage={profile.ventureStage || profile.preferredStage} />
+        {profile.isPremium && (
+          <View style={styles.premiumBadge}>
+            <Text style={styles.premiumBadgeText}>★ Premium</Text>
+          </View>
+        )}
         <View style={styles.cardPhotoOverlay} />
         <View style={styles.cardNameBlock}>
           <Text style={styles.cardName}>{profile.name}</Text>
@@ -155,6 +170,11 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
           </View>
         )}
         <StageBadge stage={project.stage} />
+        {project.isPremium && (
+          <View style={styles.premiumBadge}>
+            <Text style={styles.premiumBadgeText}>★ Premium</Text>
+          </View>
+        )}
         <View style={styles.cardPhotoOverlay} />
         <View style={styles.cardNameBlock}>
           <Text style={styles.cardName}>{project.title}</Text>
@@ -261,25 +281,24 @@ function MatchModal({ visible, matchedName, aiSummary, isProjectMatch, onClose, 
   );
 }
 
-function VideoPlayerModal({ visible, url, onClose }) {
-  const videoRef = useRef(null);
+function VideoPlayerModal({ visible, player, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }}>
-        <TouchableOpacity onPress={onClose} style={styles.videoCloseBtn}>
-          <Text style={styles.videoCloseBtnText}>✕  Close</Text>
-        </TouchableOpacity>
-        {url ? (
-          <Video
-            ref={videoRef}
-            source={{ uri: url }}
-            style={{ flex: 1 }}
-            useNativeControls
-            resizeMode={ResizeMode.CONTAIN}
-            shouldPlay
-          />
-        ) : null}
-      </SafeAreaView>
+      <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: '#000' }}>
+        <VideoView
+          player={player}
+          style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
+          contentFit="contain"
+          allowsFullscreen
+          allowsPictureInPicture
+          nativeControls
+        />
+        <SafeAreaView style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
+          <TouchableOpacity onPress={onClose} style={styles.videoCloseBtn}>
+            <Text style={styles.videoCloseBtnText}>✕  Close</Text>
+          </TouchableOpacity>
+        </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -334,6 +353,12 @@ export default function SwipeScreen() {
   const [myProjects, setMyProjects] = useState([]);
   const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
+
+  const videoPlayer = useVideoPlayer(videoModal.url || '', p => { p.loop = false; });
+  useEffect(() => {
+    if (videoModal.visible && videoModal.url) videoPlayer.play();
+    else videoPlayer.pause();
+  }, [videoModal.visible, videoModal.url]);
 
   const position = useRef(new Animated.ValueXY()).current;
 
@@ -547,7 +572,7 @@ export default function SwipeScreen() {
                   likeOpacity={likeOpacity}
                   passOpacity={passOpacity}
                   cardRotation={cardRotation}
-                  onWatchVideo={(url) => setVideoModal({ visible: true, url: toAbsoluteUrl(url) })}
+                  onWatchVideo={(url) => setVideoModal({ visible: true, url: toVideoUrl(url) })}
                 />
               )
             ) : null}
@@ -573,7 +598,7 @@ export default function SwipeScreen() {
                 likeOpacity={likeOpacity}
                 passOpacity={passOpacity}
                 cardRotation={cardRotation}
-                onWatchVideo={(url) => setVideoModal({ visible: true, url: toAbsoluteUrl(url) })}
+                onWatchVideo={(url) => setVideoModal({ visible: true, url: toVideoUrl(url) })}
               />
             )}
           </View>
@@ -629,7 +654,7 @@ export default function SwipeScreen() {
 
       <VideoPlayerModal
         visible={videoModal.visible}
-        url={videoModal.url}
+        player={videoPlayer}
         onClose={() => setVideoModal({ visible: false, url: null })}
       />
 
@@ -785,6 +810,20 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  premiumBadge: {
+    position: 'absolute',
+    top: 12,
+    left: 12,
+    backgroundColor: 'rgba(245,166,35,0.9)',
+    borderRadius: radius.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  premiumBadgeText: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#fff',
+  },
   stageBadge: {
     position: 'absolute',
     top: 12,

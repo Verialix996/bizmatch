@@ -18,4 +18,10 @@ function requireVerified(req, res, next) {
   next();
 }
 
-module.exports = { authenticate, requireVerified };
+// Require admin role
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Admin only' });
+  next();
+}
+
+module.exports = { authenticate, requireVerified, requireAdmin };

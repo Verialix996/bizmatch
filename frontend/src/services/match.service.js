@@ -14,3 +14,5 @@ export const respondToInvite    = (matchId, invitationId, accepted) => api.post(
 export const requestNda         = (matchId, projectId)              => api.post(`/messages/${matchId}/nda-request`, { projectId });
 export const signNda            = (matchId, projectId)              => api.post(`/messages/${matchId}/nda-sign`, { projectId });
 export const shareProject       = (matchId, projectId)              => api.post(`/messages/${matchId}/share-project`, { projectId });
+export const sendJobOffer       = (matchId, roleTitle, description)  => api.post(`/messages/${matchId}/job-offer`, { roleTitle, description });
+export const respondToJobOffer  = (matchId, messageId, accepted)     => api.post(`/messages/${matchId}/job-offer/respond`, { messageId, accepted });

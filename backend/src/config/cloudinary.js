@@ -27,9 +27,4 @@ const videoStorage = new CloudinaryStorage({
   params: { folder: 'bizmatch/videos', allowed_formats: ['mp4', 'mov'], resource_type: 'video' },
 });
 
-const ndaStorage = new CloudinaryStorage({
-  cloudinary,
-  params: { folder: 'bizmatch/ndas', allowed_formats: ['pdf'], resource_type: 'raw' },
-});
-
-module.exports = { cloudinary, photoStorage, docStorage, videoStorage, ndaStorage };
+module.exports = { cloudinary, photoStorage, docStorage, videoStorage };

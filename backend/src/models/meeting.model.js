@@ -42,8 +42,8 @@ async function getMeetingsForUser(userId) {
 
 async function updateMeetingStatus(id, userId, status) {
   await query(
-    'UPDATE meetings SET status = ? WHERE id = ? AND receiver_id = ?',
-    [status, id, userId]
+    'UPDATE meetings SET status = ? WHERE id = ?',
+    [status, id]
   );
   return getMeetingById(id);
 }

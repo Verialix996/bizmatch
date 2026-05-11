@@ -1,8 +1,11 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, Image, SafeAreaView, StatusBar,
+  TouchableOpacity, Image, SafeAreaView, StatusBar, ActivityIndicator,
 } from 'react-native';
+import { useState, useEffect } from 'react';
 import { colors, radius, cardShadow } from '../../theme';
+import api from '../../services/api';
+import useAuthStore from '../../store/authStore';
 
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
@@ -59,6 +62,26 @@ function ChipRow({ items }) {
 
 export default function ProfileDetailScreen({ route, navigation }) {
   const { profile, matchId } = route.params;
+  const user = useAuthStore(s => s.user);
+
+  const [compatibility, setCompatibility] = useState(null);
+  const [compatibilityLoading, setCompatibilityLoading] = useState(true);
+  const [ndaSigned, setNdaSigned] = useState(null);
+
+  useEffect(() => {
+    if (!profile?.userId) { setCompatibilityLoading(false); return; }
+    api.get(`/match/compatibility/${profile.userId}`)
+      .then(r => setCompatibility(r.data))
+      .catch(() => {})
+      .finally(() => setCompatibilityLoading(false));
+  }, [profile?.userId]);
+
+  useEffect(() => {
+    if (!matchId || !profile?.projectId || user?.role !== 'investor') return;
+    api.get(`/match/nda-status?matchId=${matchId}&projectId=${profile.projectId}`)
+      .then(r => setNdaSigned(r.data.signed))
+      .catch(() => {});
+  }, [matchId, profile?.projectId, user?.role]);
 
   const roleLabel = profile.role === 'investor'
     ? `Investor · ${profile.investmentDomain || 'Multi-sector'}`
@@ -93,7 +116,14 @@ export default function ProfileDetailScreen({ route, navigation }) {
         </View>
 
         <View style={styles.body}>
-          <Text style={styles.name}>{profile.name}</Text>
+          <View style={styles.nameRow}>
+            <Text style={styles.name}>{profile.name}</Text>
+            {profile.isPremium && (
+              <View style={styles.premiumBadge}>
+                <Text style={styles.premiumBadgeText}>★ Premium</Text>
+              </View>
+            )}
+          </View>
 
           {profile.bio ? (
             <Section title="ABOUT ME">
@@ -157,6 +187,60 @@ export default function ProfileDetailScreen({ route, navigation }) {
             <View style={styles.scoreRow}>
               <Text style={styles.scoreLabel}>Match Score</Text>
               <Text style={styles.scoreValue}>{profile.score}</Text>
+            </View>
+          )}
+
+          {/* AI compatibility breakdown */}
+          {compatibilityLoading ? (
+            <View style={styles.compatCard}>
+              <ActivityIndicator size="small" color={colors.primary} />
+            </View>
+          ) : compatibility ? (
+            <View style={styles.compatCard}>
+              <Text style={styles.compatTitle}>AI COMPATIBILITY</Text>
+              <View style={styles.compatScoreRow}>
+                <View style={styles.compatBarBg}>
+                  <View style={[styles.compatBarFill, { width: `${compatibility.score}%` }]} />
+                </View>
+                <Text style={styles.compatScoreText}>{compatibility.score}%</Text>
+              </View>
+              {compatibility.pros?.length > 0 && (
+                <View style={styles.compatList}>
+                  {compatibility.pros.map((p, i) => (
+                    <View key={i} style={styles.compatItem}>
+                      <Text style={styles.compatIconGood}>✓</Text>
+                      <Text style={styles.compatItemText}>{p}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+              {compatibility.cons?.length > 0 && (
+                <View style={styles.compatList}>
+                  {compatibility.cons.map((c, i) => (
+                    <View key={i} style={styles.compatItem}>
+                      <Text style={styles.compatIconWarn}>!</Text>
+                      <Text style={styles.compatItemText}>{c}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          ) : null}
+
+          {/* NDA gate for investor viewing matched project */}
+          {matchId && user?.role === 'investor' && ndaSigned === false && (
+            <View style={styles.ndaGate}>
+              <Text style={styles.ndaGateIcon}>🔒</Text>
+              <Text style={styles.ndaGateTitle}>NDA Required</Text>
+              <Text style={styles.ndaGateBody}>Sign an NDA to unlock full project details, pitch deck, and demo video.</Text>
+              <TouchableOpacity
+                style={styles.ndaGateBtn}
+                onPress={() => navigation.navigate('Chat', {
+                  match: { matchId, name: profile.name, photoUrl: profile.photoUrl, roleType: 'entrepreneur' },
+                })}
+              >
+                <Text style={styles.ndaGateBtnText}>Go to Chat to Sign NDA</Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
@@ -240,12 +324,29 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 40,
   },
+  nameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 10,
+    marginBottom: 20,
+  },
   name: {
     fontSize: 28,
     fontWeight: '800',
     color: colors.primaryDark,
     letterSpacing: -0.5,
-    marginBottom: 20,
+  },
+  premiumBadge: {
+    backgroundColor: '#F5A623',
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  premiumBadgeText: {
+    fontSize: 11,
+    fontWeight: '800',
+    color: '#fff',
   },
 
   section: { marginBottom: 20 },
@@ -312,6 +413,55 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.primary,
   },
+
+  // AI compatibility
+  compatCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: 16,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    ...cardShadow,
+    shadowOpacity: 0.04,
+  },
+  compatTitle: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: colors.textHint,
+    letterSpacing: 1,
+    marginBottom: 10,
+  },
+  compatScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
+  compatBarBg: { flex: 1, height: 6, backgroundColor: '#E8ECF4', borderRadius: 3, overflow: 'hidden' },
+  compatBarFill: { height: 6, backgroundColor: colors.primary, borderRadius: 3 },
+  compatScoreText: { fontSize: 16, fontWeight: '800', color: colors.primary, minWidth: 36, textAlign: 'right' },
+  compatList: { gap: 6, marginTop: 4 },
+  compatItem: { flexDirection: 'row', alignItems: 'flex-start', gap: 8 },
+  compatIconGood: { fontSize: 13, fontWeight: '800', color: '#2E7D32', marginTop: 1 },
+  compatIconWarn: { fontSize: 13, fontWeight: '800', color: '#E65100', marginTop: 1 },
+  compatItemText: { flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
+
+  // NDA gate
+  ndaGate: {
+    backgroundColor: '#FFF8E1',
+    borderRadius: radius.lg,
+    padding: 20,
+    marginTop: 12,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#FFE082',
+  },
+  ndaGateIcon: { fontSize: 32, marginBottom: 8 },
+  ndaGateTitle: { fontSize: 16, fontWeight: '800', color: colors.primaryDark, marginBottom: 6 },
+  ndaGateBody: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19, marginBottom: 16 },
+  ndaGateBtn: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.pill,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  ndaGateBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   ctaBar: {
     paddingHorizontal: 24,

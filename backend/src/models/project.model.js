@@ -105,6 +105,7 @@ async function getProjectFeed(investorId, limit = 20) {
             p.industry, p.visibility, p.deck_url, p.video_url, p.is_active,
             p.created_at, p.updated_at,
             u.name AS owner_name, u.photo_url AS owner_photo,
+            u.is_premium AS owner_is_premium, u.premium_expires_at AS owner_premium_expires_at,
             pr.bio AS owner_bio, pr.skills AS owner_skills
      FROM projects p
      JOIN users u ON u.id = p.user_id
@@ -139,6 +140,7 @@ async function getProjectFeed(investorId, limit = 20) {
       ownerPhoto: p.owner_photo,
       ownerBio: p.owner_bio,
       ownerSkills: safeParseArray(p.owner_skills),
+      isPremium: !!(p.owner_is_premium && p.owner_premium_expires_at && new Date(p.owner_premium_expires_at) > new Date()),
       title: p.title,
       description: p.description,
       stage: p.stage,
@@ -187,6 +189,13 @@ async function swipeProject(investorId, projectId, direction) {
         '👀 Investor Interest',
         `${rows[0]?.name || 'An investor'} is interested in your project!`,
         { type: 'investor_liked' }
+      );
+      // Confirm to investor that their interest was registered
+      sendPushNotification(
+        investorId,
+        '✅ Interest Registered',
+        `Your interest in "${project.title}" has been sent to the entrepreneur!`,
+        { type: 'interest_sent', projectId: project.id }
       );
     }).catch(() => {});
     return { matched: false };

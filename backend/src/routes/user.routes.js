@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authenticate, requireVerified } = require('../middleware/auth.middleware');
+const { authenticate, requireVerified, requireAdmin } = require('../middleware/auth.middleware');
 const ctrl = require('../controllers/user.controller');
 
 router.patch('/me',                     authenticate, requireVerified, ctrl.updateMe);
@@ -11,6 +11,6 @@ router.patch('/me/push-token',          authenticate, ctrl.savePushToken);
 router.post('/me/premium/activate',     authenticate, ctrl.activatePremium);
 router.get('/me/who-liked-me',          authenticate, ctrl.whoLikedMe);
 router.get('/:id',                      authenticate, ctrl.getUser);
-router.patch('/:id/verification',       authenticate, ctrl.setVerificationStatus);
+router.patch('/:id/verification',       authenticate, requireAdmin, ctrl.setVerificationStatus);
 
 module.exports = router;

@@ -171,7 +171,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
         <View style={styles.briefingCard}>
           <Text style={styles.briefingHeader}>AI Due Diligence Briefing</Text>
 
-          <Section title="About {otherName}">
+          <Section title={`About ${otherName}`}>
             <Text style={styles.bodyText}>{briefing.personSummary}</Text>
           </Section>
 

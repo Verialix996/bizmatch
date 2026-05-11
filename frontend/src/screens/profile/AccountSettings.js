@@ -24,6 +24,10 @@ export default function AccountSettingsScreen({ navigation }) {
   const [twoFactorCode, setTwoFactorCode] = useState('');
   const [twoFactorLoading, setTwoFactorLoading] = useState(false);
   const [twoFactorError, setTwoFactorError] = useState('');
+  const [disable2FAStep, setDisable2FAStep] = useState(false);
+  const [disable2FACode, setDisable2FACode] = useState('');
+  const [disable2FALoading, setDisable2FALoading] = useState(false);
+  const [disable2FAError, setDisable2FAError] = useState('');
 
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -91,6 +95,26 @@ export default function AccountSettingsScreen({ navigation }) {
       setTwoFactorError('Invalid code. Please try again.');
     } finally {
       setTwoFactorLoading(false);
+    }
+  };
+
+  const handleDisable2FA = async () => {
+    if (disable2FACode.length !== 6) {
+      setDisable2FAError('Enter the 6-digit code from your authenticator app.');
+      return;
+    }
+    setDisable2FALoading(true);
+    setDisable2FAError('');
+    try {
+      await api.post('/auth/2fa/disable', { token: disable2FACode });
+      setTwoFactorEnabled(false);
+      setDisable2FAStep(false);
+      setDisable2FACode('');
+      updateUser({ two_factor_enabled: 0 });
+    } catch {
+      setDisable2FAError('Invalid code. Please try again.');
+    } finally {
+      setDisable2FALoading(false);
     }
   };
 
@@ -249,9 +273,51 @@ export default function AccountSettingsScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>TWO-FACTOR AUTHENTICATION</Text>
           {twoFactorEnabled ? (
-            <Text style={[styles.dangerText, { color: colors.success }]}>
-              ✓ Two-factor authentication is enabled
-            </Text>
+            <>
+              <Text style={[styles.dangerText, { color: colors.success }]}>
+                ✓ Two-factor authentication is enabled
+              </Text>
+              {disable2FAStep ? (
+                <>
+                  <Text style={styles.fieldLabel}>ENTER 6-DIGIT CODE TO DISABLE</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="000000"
+                    placeholderTextColor={colors.textHint}
+                    keyboardType="number-pad"
+                    maxLength={6}
+                    value={disable2FACode}
+                    onChangeText={(t) => { setDisable2FACode(t); setDisable2FAError(''); }}
+                  />
+                  {disable2FAError ? <Text style={styles.errorText}>{disable2FAError}</Text> : null}
+                  <View style={{ flexDirection: 'row', gap: 12 }}>
+                    <TouchableOpacity
+                      style={[styles.btnCancel, { flex: 1 }]}
+                      onPress={() => { setDisable2FAStep(false); setDisable2FACode(''); setDisable2FAError(''); }}
+                    >
+                      <Text style={styles.btnCancelText}>Cancel</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.btnDelete, { flex: 1 }, disable2FALoading && styles.btnDisabled]}
+                      onPress={handleDisable2FA}
+                      disabled={disable2FALoading}
+                    >
+                      {disable2FALoading
+                        ? <ActivityIndicator color={colors.error} />
+                        : <Text style={styles.btnDeleteText}>Confirm Disable</Text>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                <TouchableOpacity
+                  style={styles.btnDelete}
+                  onPress={() => setDisable2FAStep(true)}
+                >
+                  <Text style={styles.btnDeleteText}>Disable 2FA</Text>
+                </TouchableOpacity>
+              )}
+            </>
           ) : twoFactorSetup ? (
             <>
               <Text style={styles.dangerText}>

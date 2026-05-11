@@ -112,7 +112,7 @@ Entrepreneurs create project cards that investors can browse and swipe on — se
 ## Messaging System
 **Files:** `backend/src/models/message.model.js`, `backend/src/controllers/message.controller.js`
 
-Real-time-like chat per match (polling-based, 15s interval):
+Real-time-like chat per match (polling-based, 3s interval):
 
 **Message types:**
 | type | Description |
