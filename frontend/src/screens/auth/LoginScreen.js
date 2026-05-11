@@ -6,13 +6,9 @@ import {
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as WebBrowser from 'expo-web-browser';
 import { login } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { colors, brandGradient, radius } from '../../theme';
-import { API_BASE_URL } from '../../config/constants';
-
-WebBrowser.maybeCompleteAuthSession();
 
 export default function LoginScreen({ navigation }) {
   const { control, handleSubmit } = useForm();
@@ -20,50 +16,6 @@ export default function LoginScreen({ navigation }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
-
-  const handleGoogleSignIn = async () => {
-    setError('');
-    try {
-      if (Platform.OS === 'web') {
-        const oid = Math.random().toString(36).slice(2) + Date.now().toString(36);
-        const popup = window.open(`${API_BASE_URL}/auth/google?oid=${oid}`, 'google-auth', 'width=500,height=600,left=200,top=100');
-        if (!popup) { setError('Allow popups for this site and try again.'); return; }
-        await new Promise((resolve) => {
-          let attempts = 0;
-          const interval = setInterval(async () => {
-            attempts++;
-            try {
-              const resp = await fetch(`${API_BASE_URL}/auth/poll/${oid}`);
-              if (resp.status === 200) {
-                const data = await resp.json();
-                clearInterval(interval);
-                if (data.token) {
-                  setAuth(data.token, { id: Number(data.userId), email: data.email, name: data.name, role: data.role, has_profile: !!data.has_profile });
-                }
-                return resolve();
-              }
-            } catch { /* keep polling */ }
-            // Only stop after attempting the fetch, so we don't miss the token
-            if (popup.closed || attempts > 150) { clearInterval(interval); resolve(); }
-          }, 1000);
-        });
-      } else {
-        const result = await WebBrowser.openAuthSessionAsync(`${API_BASE_URL}/auth/google`, 'bizmatch://');
-        if (result.type === 'success' && result.url) {
-          const qs = result.url.split('?')[1] || '';
-          const params = Object.fromEntries(qs.split('&').map(p => {
-            const [k, v] = p.split('=');
-            return [k, decodeURIComponent(v || '')];
-          }));
-          if (params.token) {
-            setAuth(params.token, { id: Number(params.userId), email: params.email, name: params.name, role: params.role, has_profile: params.has_profile === 'true' });
-          }
-        }
-      }
-    } catch {
-      setError('Google sign-in failed. Please try again.');
-    }
-  };
 
   const onSubmit = async ({ email, password }) => {
     setError('');
@@ -172,14 +124,6 @@ export default function LoginScreen({ navigation }) {
                 <Text style={styles.btnPrimaryText}>
                   {loading ? 'SIGNING IN...' : 'SIGN IN'}
                 </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.btnGoogle}
-                onPress={handleGoogleSignIn}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
               </TouchableOpacity>
 
               <TouchableOpacity

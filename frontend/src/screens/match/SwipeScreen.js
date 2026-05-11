@@ -361,6 +361,8 @@ export default function SwipeScreen() {
   }, [videoModal.visible, videoModal.url]);
 
   const position = useRef(new Animated.ValueXY()).current;
+  const superStarScale = useRef(new Animated.Value(1)).current;
+  const superFlashOpacity = useRef(new Animated.Value(0)).current;
 
   const likeOpacity = position.x.interpolate({
     inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp',
@@ -413,9 +415,30 @@ export default function SwipeScreen() {
     setSwiping(true);
     const toX = direction === 'like' ? 500 : -500;
 
-    Animated.timing(position, {
-      toValue: { x: toX, y: 0 }, duration: 250, useNativeDriver: false,
-    }).start(async () => {
+    const doCardFly = (callback) => {
+      if (superLike) {
+        // Star burst on the ★ button
+        Animated.sequence([
+          Animated.timing(superStarScale, { toValue: 2.2, duration: 180, useNativeDriver: true }),
+          Animated.timing(superStarScale, { toValue: 1, duration: 120, useNativeDriver: true }),
+        ]).start();
+        // Gold flash overlay
+        Animated.sequence([
+          Animated.timing(superFlashOpacity, { toValue: 0.55, duration: 150, useNativeDriver: true }),
+          Animated.timing(superFlashOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+        ]).start();
+        // Card flies up-right with rotation (use position Y to go up)
+        Animated.timing(position, {
+          toValue: { x: toX, y: -300 }, duration: 350, useNativeDriver: false,
+        }).start(callback);
+      } else {
+        Animated.timing(position, {
+          toValue: { x: toX, y: 0 }, duration: 250, useNativeDriver: false,
+        }).start(callback);
+      }
+    };
+
+    doCardFly(async () => {
       position.setValue({ x: 0, y: 0 });
       try {
         if (isEntrepreneur) {
@@ -440,7 +463,7 @@ export default function SwipeScreen() {
       setCurrentIndex(i => i + 1);
       setSwiping(false);
     });
-  }, [feed, currentIndex, swiping, position, isEntrepreneur, navigation]);
+  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, isEntrepreneur, navigation]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
@@ -617,14 +640,16 @@ export default function SwipeScreen() {
             <Text style={styles.passBtnText}>✕</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={[styles.actionBtn, styles.starBtn]}
-            onPress={() => sendSwipe('like', true)}
-            disabled={swiping}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.starBtnText}>★</Text>
-          </TouchableOpacity>
+          <Animated.View style={{ transform: [{ scale: superStarScale }] }}>
+            <TouchableOpacity
+              style={[styles.actionBtn, styles.starBtn]}
+              onPress={() => sendSwipe('like', true)}
+              disabled={swiping}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.starBtnText}>★</Text>
+            </TouchableOpacity>
+          </Animated.View>
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.likeBtn]}
@@ -667,6 +692,12 @@ export default function SwipeScreen() {
         }}
         onClose={() => setShowProjectPicker(false)}
       />
+
+      {/* Super Like gold flash overlay */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.superFlash, { opacity: superFlashOpacity }]}
+      />
     </SafeAreaView>
   );
 }
@@ -675,6 +706,11 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.backgroundSoft,
+  },
+  superFlash: {
+    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+    backgroundColor: '#FFD700',
+    zIndex: 99,
   },
 
   header: {

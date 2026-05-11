@@ -15,7 +15,7 @@ async function sendMessage(matchId, senderId, body, type = 'text', metadata = nu
   );
 
   const rows = await query(
-    'SELECT id, match_id, sender_id, body, message_type, metadata, created_at FROM messages WHERE id = ?',
+    'SELECT id, match_id, sender_id, body, message_type, metadata, created_at, read_at FROM messages WHERE id = ?',
     [result.insertId]
   );
 
@@ -38,7 +38,7 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
 
   if (after != null) {
     return await query(
-      `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at,
+      `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at, m.read_at,
               u.name AS sender_name, u.photo_url AS sender_photo
        FROM messages m
        JOIN users u ON u.id = m.sender_id
@@ -49,7 +49,7 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
   }
 
   return await query(
-    `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at,
+    `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at, m.read_at,
             u.name AS sender_name, u.photo_url AS sender_photo
      FROM messages m
      JOIN users u ON u.id = m.sender_id
@@ -69,6 +69,7 @@ async function getConversations(userId) {
        u.id AS userId,
        u.name,
        u.photo_url AS photoUrl,
+       u.last_active_at AS lastActiveAt,
        p.role_type AS roleType,
        p.bio,
        p.venture_stage AS ventureStage,
@@ -92,4 +93,13 @@ async function getConversations(userId) {
   );
 }
 
-module.exports = { sendMessage, getMessages, getConversations };
+async function markMessagesRead(matchId, userId) {
+  // Stamp read_at on all messages in this match sent by the OTHER user that haven't been read yet
+  await query(
+    `UPDATE messages SET read_at = NOW()
+     WHERE match_id = ? AND sender_id != ? AND read_at IS NULL`,
+    [matchId, userId]
+  );
+}
+
+module.exports = { sendMessage, getMessages, getConversations, markMessagesRead };

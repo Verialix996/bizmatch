@@ -18,6 +18,9 @@ export const resetPassword = (token, newPassword) =>
 export const googleSignIn = (accessToken) =>
   api.post('/auth/google/mobile', { accessToken });
 
+export const activatePremium = () => api.post('/users/me/premium/activate');
+export const cancelPremium   = () => api.delete('/users/me/premium');
+
 export const uploadPhoto = (uri, fileName) => {
   const form = new FormData();
   form.append('photo', { uri, name: fileName, type: 'image/jpeg' });

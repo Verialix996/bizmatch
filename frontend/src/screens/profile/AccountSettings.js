@@ -1,9 +1,10 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert
 } from 'react-native';
 import { useState } from 'react';
 import api from '../../services/api';
+import { cancelPremium } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { colors, typography, radius, cardShadow } from '../../theme';
 
@@ -28,6 +29,34 @@ export default function AccountSettingsScreen({ navigation }) {
   const [disable2FACode, setDisable2FACode] = useState('');
   const [disable2FALoading, setDisable2FALoading] = useState(false);
   const [disable2FAError, setDisable2FAError] = useState('');
+
+  // Premium state
+  const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
+  const [premiumLoading, setPremiumLoading] = useState(false);
+
+  const handleCancelPremium = () => {
+    Alert.alert(
+      'Cancel Subscription',
+      'Are you sure you want to cancel your Premium subscription? You will lose access immediately.',
+      [
+        { text: 'Keep Premium', style: 'cancel' },
+        {
+          text: 'Cancel Subscription', style: 'destructive',
+          onPress: async () => {
+            setPremiumLoading(true);
+            try {
+              await cancelPremium();
+              updateUser({ ...user, is_premium: 0, premium_expires_at: null });
+            } catch {
+              Alert.alert('Error', 'Could not cancel subscription. Please try again.');
+            } finally {
+              setPremiumLoading(false);
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -371,6 +400,42 @@ export default function AccountSettingsScreen({ navigation }) {
           )}
         </View>
 
+        {/* Subscriptions */}
+        <View style={[styles.card, isPremium && styles.premiumCard]}>
+          <Text style={styles.sectionLabel}>SUBSCRIPTION</Text>
+          {isPremium ? (
+            <>
+              <View style={styles.premiumBadgeRow}>
+                <Text style={styles.premiumCrown}>👑</Text>
+                <Text style={styles.premiumBadgeText}>Premium Member</Text>
+              </View>
+              <Text style={styles.premiumExpiry}>
+                Expires {new Date(user.premium_expires_at).toLocaleDateString()}
+              </Text>
+              <TouchableOpacity
+                style={styles.btnCancel}
+                onPress={handleCancelPremium}
+                disabled={premiumLoading}
+              >
+                {premiumLoading
+                  ? <ActivityIndicator color={colors.textSecondary} />
+                  : <Text style={styles.btnCancelText}>Cancel Subscription</Text>
+                }
+              </TouchableOpacity>
+            </>
+          ) : (
+            <>
+              <Text style={styles.dangerText}>You are on the Free plan.</Text>
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                onPress={() => navigation.navigate('Premium')}
+              >
+                <Text style={styles.btnPrimaryText}>Upgrade to Premium</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
+
         <View style={[styles.card, styles.dangerZone]}>
           <Text style={[styles.sectionLabel, { color: colors.error }]}>DANGER ZONE</Text>
           <Text style={styles.dangerText}>
@@ -438,6 +503,16 @@ const styles = StyleSheet.create({
   btnPrimary: { backgroundColor: colors.buttonPrimary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: colors.buttonPrimaryText, ...typography.labelLarge },
+  premiumCard: { borderWidth: 2, borderColor: '#D4AF37', backgroundColor: '#FFFDF0' },
+  premiumBadgeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
+  premiumCrown: { fontSize: 22 },
+  premiumBadgeText: { ...typography.titleSmall, color: '#B8860B', fontWeight: '700' },
+  premiumExpiry: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: 20 },
+  btnCancel: {
+    borderWidth: 1, borderColor: colors.surfaceBorder,
+    borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center',
+  },
+  btnCancelText: { color: colors.textSecondary, ...typography.labelLarge },
   dangerZone: { borderWidth: 1, borderColor: colors.errorLight, backgroundColor: '#FFFAFA' },
   dangerText: { ...typography.bodyMedium, color: colors.textSecondary, marginBottom: 24 },
   btnDelete: { backgroundColor: colors.errorLight, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },

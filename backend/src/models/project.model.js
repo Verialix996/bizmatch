@@ -305,6 +305,11 @@ async function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
     'DELETE FROM project_partners WHERE project_id = ? AND user_id = ?',
     [projectId, partnerUserId]
   );
+  // Clear the invitation record so the user can be re-invited later
+  await query(
+    'DELETE FROM partner_invitations WHERE project_id = ? AND invitee_id = ?',
+    [projectId, partnerUserId]
+  );
   return { ok: true };
 }
 

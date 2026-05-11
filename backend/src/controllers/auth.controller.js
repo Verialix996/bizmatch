@@ -300,12 +300,6 @@ async function googleMobile(req, res, next) {
 
     const profile = await response.json();
 
-    // If this email is already registered with a different auth method, reject cleanly
-    const existing = await UserModel.findByEmail(profile.email);
-    if (existing && existing.oauth_provider !== 'google') {
-      return res.status(409).json({ error: 'An account with this email already exists. Please sign in with your email and password.' });
-    }
-
     const user = await UserModel.findOrCreateOAuth({
       provider:   'google',
       providerId: profile.sub,

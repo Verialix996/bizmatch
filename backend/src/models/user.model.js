@@ -20,6 +20,7 @@ const UserModel = {
   },
 
   async findOrCreateOAuth({ provider, providerId, email, name, photo }) {
+    // First: look up by provider ID (returning user via OAuth)
     const rows = await query(
       'SELECT * FROM users WHERE oauth_provider = ? AND oauth_provider_id = ?',
       [provider, providerId]
@@ -30,6 +31,20 @@ const UserModel = {
         rows[0].is_verified = 1;
       }
       return rows[0];
+    }
+
+    // Second: check if this email already exists (e.g. registered with password)
+    // If so, link the OAuth provider to the existing account
+    const byEmail = await query('SELECT * FROM users WHERE email = ?', [email]);
+    if (byEmail[0]) {
+      await query(
+        'UPDATE users SET oauth_provider = ?, oauth_provider_id = ?, is_verified = 1 WHERE id = ?',
+        [provider, providerId, byEmail[0].id]
+      );
+      byEmail[0].oauth_provider = provider;
+      byEmail[0].oauth_provider_id = providerId;
+      byEmail[0].is_verified = 1;
+      return byEmail[0];
     }
 
     const result = await query(

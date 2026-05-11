@@ -131,6 +131,17 @@ async function whoLikedMe(req, res, next) {
   } catch (err) { next(err); }
 }
 
+// DELETE /api/users/me/premium — cancel premium subscription
+async function cancelPremium(req, res, next) {
+  try {
+    await query(
+      'UPDATE users SET is_premium = 0, premium_expires_at = NULL WHERE id = ?',
+      [req.user.id]
+    );
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
 // POST /api/users/me/verify-self  — skip ID review, mark as verified instantly (demo)
 async function verifySelf(req, res, next) {
   try {
@@ -142,4 +153,4 @@ async function verifySelf(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, whoLikedMe, verifySelf };
+module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, cancelPremium, whoLikedMe, verifySelf };

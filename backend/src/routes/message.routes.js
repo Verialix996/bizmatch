@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const { authenticate, requireVerified } = require('../middleware/auth.middleware');
 const {
-  conversations, messages, send,
+  conversations, messages, send, markRead,
   sendInvite, respondToInvite,
   requestNda, signNda, shareProject,
   sendJobOffer, respondToJobOffer,
@@ -10,6 +10,7 @@ const {
 router.get('/',                                              authenticate, requireVerified, conversations);
 router.get('/:matchId',                                      authenticate, requireVerified, messages);
 router.post('/:matchId',                                     authenticate, requireVerified, send);
+router.post('/:matchId/read',                                authenticate, requireVerified, markRead);
 router.post('/:matchId/invite',                              authenticate, requireVerified, sendInvite);
 router.post('/:matchId/invite/:invitationId/respond',        authenticate, requireVerified, respondToInvite);
 router.post('/:matchId/nda-request',                         authenticate, requireVerified, requestNda);

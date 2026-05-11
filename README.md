@@ -49,9 +49,11 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 ### Messaging
 - Chat screen for every mutual match
-- Message updates via 15-second polling
+- Message updates via 3-second polling
 - Structured message cards: partner invites, NDA requests, project sharing, meeting proposals
 - Date dividers, timestamps, unread blue dot per conversation
+- **Read receipts** — ✓ (sent) / ✓✓ (read) indicators; ✓✓ gated behind Premium
+- **Last seen** — chat header shows "Active now" (< 2 min) or "Last seen Xm/h/d ago" based on real activity
 - Push notification on new message (real device only)
 
 ### NDA System
@@ -71,8 +73,10 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 ### Premium System
 - **Free trial** — "Activate Free Trial (30 days)" button; no real payment required
 - **Unlimited swipes** — free users limited to 20 swipes/day; "Go Premium" alert when limit hit
-- **Super Like** — ★ star button; shown with badge in the other user's "Who Liked Me" section
+- **Super Like** — ★ star button with gold flash animation + card fly-up; shown with badge in "Who Liked Me"
 - **Who Liked Me** — premium-only section in Matches tab showing users who swiped right on you
+- **Read receipts** — ✓✓ "read" indicator in chat (Premium only; free users see ✓ only)
+- **Subscription management** — gold-bordered Premium card in Account Settings with cancel option
 
 ### Onboarding Tutorial
 - 4-slide walkthrough for first-time users (shown once after role is set)
@@ -84,9 +88,9 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Real physical device required (not simulators)
 
 ### AI Content Moderation
-- Profile bios, chat messages, and project descriptions screened by Claude Haiku before saving
-- Inappropriate content (hate speech, threats, sexual content) rejected with a user-facing reason
-- Fails open — content always allowed through if `ANTHROPIC_API_KEY` is missing
+- Profile bios, chat messages, and project descriptions screened before saving
+- Uses a local word-list (hate speech, sexual content, threats, spam triggers) — instant response, no API calls
+- Inappropriate content rejected with a user-facing reason
 
 ### File Storage
 - Profile photos, ID docs, demo videos, and NDA PDFs stored on Cloudinary — survives Railway redeploys
@@ -193,7 +197,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # MySQL schema files (001–015), auto-run on startup
+│   ├── migrations/        # MySQL schema files (001–019), auto-run on startup
 │   ├── scripts/           # seed.js (50 accounts) + demo.js (4 test accounts, wipes DB)
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
@@ -249,14 +253,16 @@ bizmatch/
 | PATCH | `/api/users/me/push-token` | Save Expo push token |
 | POST | `/api/users/me/verify-self` | Instant self-verification (demo) |
 | POST | `/api/users/me/premium/activate` | Activate 30-day free trial |
+| DELETE | `/api/users/me/premium` | Cancel premium subscription |
 | GET | `/api/users/me/who-liked-me` | Get users who liked you (premium) |
 | DELETE | `/api/users/me` | Delete account |
 | GET | `/api/match/feed` | Get AI-scored swipe feed |
 | POST | `/api/match/swipe` | Record a swipe (returns match if mutual) |
 | GET | `/api/match/matches` | Get all matches |
 | GET | `/api/messages` | Get all conversations |
-| GET | `/api/messages/:matchId` | Get messages for a match |
+| GET | `/api/messages/:matchId` | Get messages for a match (includes `read_at`) |
 | POST | `/api/messages/:matchId` | Send a message |
+| POST | `/api/messages/:matchId/read` | Mark all received messages in this chat as read |
 | POST | `/api/messages/:matchId/invite` | Send partner invite |
 | POST | `/api/messages/:matchId/invite/:id/respond` | Accept or decline invite |
 | POST | `/api/messages/:matchId/nda-request` | Request NDA signing |
@@ -283,9 +289,10 @@ bizmatch/
 
 The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
 
-- **Database:** MySQL on Railway — migrations run automatically on startup (001–015)
+- **Database:** MySQL on Railway — migrations run automatically on startup (001–019)
 - **File storage:** Cloudinary (photos, docs, videos, NDA PDFs); pitch deck PDFs stored as MySQL BLOB
-- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`)
+- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match scoring, summaries, deck review, meeting briefings
+- **Content moderation:** local word-list (no API calls)
 - **Node.js service:** root directory `backend/`, start command `node server.js`
 
 ## Notes

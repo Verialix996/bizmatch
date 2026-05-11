@@ -15,7 +15,6 @@ import {
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import { colors, radius, cardShadow } from '../../theme';
 
-const STAGES = ['idea', 'mvp', 'growth', 'scale'];
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
 
 function PartnerAvatar({ name, photoUrl, size = 36 }) {
@@ -402,8 +401,6 @@ function ProjectForm({ initial, onSave, onCancel }) {
   const [form, setForm] = useState({
     title: initial?.title || '',
     description: initial?.description || '',
-    stage: initial?.stage || '',
-    funding_needed: initial?.funding_needed ? String(initial.funding_needed) : '',
     industry: initial?.industry || '',
     visibility: initial?.visibility || 'public',
     deck_url: initial?.deck_url || '',
@@ -418,10 +415,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
     }
     setError('');
     try {
-      await onSave({
-        ...form,
-        funding_needed: form.funding_needed ? Number(form.funding_needed) : null,
-      });
+      await onSave({ ...form });
     } catch (e) {
       setError(e.response?.data?.error || 'Failed to save. Please try again.');
     }
@@ -458,35 +452,6 @@ function ProjectForm({ initial, onSave, onCancel }) {
         value={form.industry}
         onChangeText={v => setForm(f => ({ ...f, industry: v }))}
         placeholder="e.g. FinTech, HealthTech, SaaS"
-        placeholderTextColor={colors.textHint}
-      />
-
-      <Text style={styles.fieldLabel}>STAGE</Text>
-      <View style={styles.stageRow}>
-        {STAGES.map(s => (
-          <TouchableOpacity
-            key={s}
-            style={[styles.stageChip, form.stage === s && styles.stageChipActive]}
-            onPress={() => setForm(f => ({ ...f, stage: s }))}
-            activeOpacity={0.8}
-          >
-            <Text style={[
-              styles.stageChipText,
-              form.stage === s && styles.stageChipTextActive,
-            ]}>
-              {STAGE_LABELS[s]}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <Text style={styles.fieldLabel}>FUNDING NEEDED ($)</Text>
-      <TextInput
-        style={styles.input}
-        value={form.funding_needed}
-        onChangeText={v => setForm(f => ({ ...f, funding_needed: v }))}
-        keyboardType="numeric"
-        placeholder="e.g. 500000"
         placeholderTextColor={colors.textHint}
       />
 

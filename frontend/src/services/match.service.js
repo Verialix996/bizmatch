@@ -8,6 +8,7 @@ export const whoLikedMe      = ()                           => api.get('/users/m
 export const getConversations = ()                          => api.get('/messages');
 export const getMessages      = (matchId, after = null)     => api.get(`/messages/${matchId}${after != null ? `?after=${after}` : ''}`);
 export const sendMessage      = (matchId, body)             => api.post(`/messages/${matchId}`, { body });
+export const markRead         = (matchId)                   => api.post(`/messages/${matchId}/read`);
 
 export const sendPartnerInvite  = (matchId, projectId)              => api.post(`/messages/${matchId}/invite`, { projectId });
 export const respondToInvite    = (matchId, invitationId, accepted) => api.post(`/messages/${matchId}/invite/${invitationId}/respond`, { accepted });

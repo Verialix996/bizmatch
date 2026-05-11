@@ -1,29 +1,28 @@
-const Anthropic = require('@anthropic-ai/sdk');
+// Word-list based content moderation — no external API calls, instant response.
+// Categories: hate speech, sexual content, threats, spam triggers.
+const BANNED_WORDS = [
+  // Hate speech / slurs (representative set)
+  'nigger', 'nigga', 'kike', 'spic', 'chink', 'gook', 'wetback', 'faggot', 'tranny',
+  // Sexual content
+  'porn', 'pornography', 'nude', 'naked', 'sex tape', 'onlyfans', 'escort',
+  'prostitut', 'camgirl', 'dildo', 'vibrator', 'masturbat',
+  // Threats / violence
+  'kill yourself', 'kys', 'i will kill', 'bomb threat', 'shoot you', 'rape',
+  'i\'ll rape', 'stab you',
+  // Obvious spam triggers
+  'click here to earn', 'make money fast', 'nigerian prince', 'wire transfer urgently',
+  'crypto giveaway', 'double your bitcoin', 'free money now',
+];
 
-async function moderateText(text) {
-  if (!process.env.ANTHROPIC_API_KEY || !text?.trim()) return { ok: true };
-
-  try {
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 60,
-      messages: [{
-        role: 'user',
-        content: `You are a content moderator for a professional business networking platform for entrepreneurs and investors. Flag ONLY clearly inappropriate content: hate speech, sexual content, threats, or obvious spam. Normal business language, frustration, or informal tone is fine. Reply with ONLY "PASS" or "FAIL: <one-line reason>".
-
-Content: ${text.trim()}`,
-      }],
-    });
-    const raw = (response.content[0]?.text || '').trim();
-    if (raw.toUpperCase().startsWith('FAIL')) {
-      const reason = raw.replace(/^FAIL[:\s]*/i, '').trim() || 'Content flagged by moderation';
-      return { ok: false, reason };
+function moderateText(text) {
+  if (!text?.trim()) return { ok: true };
+  const lower = text.toLowerCase();
+  for (const word of BANNED_WORDS) {
+    if (lower.includes(word)) {
+      return { ok: false, reason: 'Content contains inappropriate language' };
     }
-    return { ok: true };
-  } catch {
-    return { ok: true }; // fail open — never block users if AI is unavailable
   }
+  return { ok: true };
 }
 
 module.exports = { moderateText };

@@ -7,7 +7,7 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { getMessages, sendMessage, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
+import { getMessages, sendMessage, markRead, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import { colors, cardShadow, radius } from '../../theme';
@@ -34,6 +34,16 @@ function formatTime(dateStr) {
   return parseUTC(dateStr).toLocaleTimeString([], {
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function formatLastSeen(dateStr) {
+  if (!dateStr) return 'Last seen recently';
+  const d = parseUTC(dateStr);
+  const diffMs = Date.now() - d.getTime();
+  if (diffMs < 2 * 60 * 1000) return 'Active now';
+  if (diffMs < 60 * 60 * 1000) return `Last seen ${Math.floor(diffMs / 60000)}m ago`;
+  if (diffMs < 24 * 60 * 60 * 1000) return `Last seen ${Math.floor(diffMs / 3600000)}h ago`;
+  return `Last seen ${Math.floor(diffMs / 86400000)}d ago`;
 }
 
 function formatDateDivider(dateStr) {
@@ -123,6 +133,7 @@ export default function ChatScreen({ route, navigation }) {
       if (res.data.length > 0) {
         lastIdRef.current = res.data[res.data.length - 1].id;
       }
+      markRead(match.matchId).catch(() => {});
     } catch (e) {
       console.error('Failed to load messages', e);
     } finally {
@@ -140,6 +151,7 @@ export default function ChatScreen({ route, navigation }) {
           return [...prev, ...res.data.filter(m => !ids.has(m.id))];
         });
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+        markRead(match.matchId).catch(() => {});
       }
     } catch (e) {
       // silent — polling failure shouldn't surface to user
@@ -637,12 +649,19 @@ export default function ChatScreen({ route, navigation }) {
               ]}>
                 {item.body}
               </Text>
-              <Text style={[
-                styles.bubbleTime,
-                isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeTheir,
-              ]}>
-                {formatTime(item.created_at)}
-              </Text>
+              <View style={styles.bubbleFooter}>
+                <Text style={[
+                  styles.bubbleTime,
+                  isOwn ? styles.bubbleTimeOwn : styles.bubbleTimeTheir,
+                ]}>
+                  {formatTime(item.created_at)}
+                </Text>
+                {isOwn && (
+                  <Text style={styles.readReceipt}>
+                    {item.read_at && user?.is_premium ? '✓✓' : '✓'}
+                  </Text>
+                )}
+              </View>
             </View>
           </View>
         )}
@@ -667,7 +686,7 @@ export default function ChatScreen({ route, navigation }) {
           <Avatar photoUrl={match.photoUrl} name={match.name} size={38} />
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{match.name}</Text>
-            <Text style={styles.headerStatus}>ACTIVE NOW</Text>
+            <Text style={styles.headerStatus}>{formatLastSeen(match.lastActiveAt).toUpperCase()}</Text>
           </View>
         </View>
 
@@ -1142,6 +1161,8 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
   bubbleTimeTheir: { color: colors.textHint },
+  bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
+  readReceipt: { fontSize: 10, color: 'rgba(255,255,255,0.55)' },
 
   // Empty state
   emptyChat: {

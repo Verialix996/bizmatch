@@ -9,6 +9,7 @@ router.patch('/me/role',                authenticate, ctrl.setRole);
 router.post('/me/photo',                authenticate, ctrl.uploadPhoto);
 router.patch('/me/push-token',          authenticate, ctrl.savePushToken);
 router.post('/me/premium/activate',     authenticate, ctrl.activatePremium);
+router.delete('/me/premium',            authenticate, ctrl.cancelPremium);
 router.get('/me/who-liked-me',          authenticate, ctrl.whoLikedMe);
 router.get('/:id',                      authenticate, ctrl.getUser);
 router.patch('/:id/verification',       authenticate, requireAdmin, ctrl.setVerificationStatus);

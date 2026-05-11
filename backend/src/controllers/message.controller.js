@@ -1,4 +1,4 @@
-const { sendMessage, getMessages, getConversations } = require('../models/message.model');
+const { sendMessage, getMessages, getConversations, markMessagesRead } = require('../models/message.model');
 const { query } = require('../config/db');
 const PDFDocument = require('pdfkit');
 const { cloudinary } = require('../config/cloudinary');
@@ -478,4 +478,13 @@ const respondToJobOffer = async (req, res, next) => {
   }
 };
 
-module.exports = { conversations, messages, send, sendInvite, respondToInvite, requestNda, signNda, shareProject, sendJobOffer, respondToJobOffer };
+const markRead = async (req, res, next) => {
+  try {
+    const matchId = Number(req.params.matchId);
+    if (!matchId) return res.status(400).json({ error: 'Invalid matchId' });
+    await markMessagesRead(matchId, req.user.id);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+};
+
+module.exports = { conversations, messages, send, markRead, sendInvite, respondToInvite, requestNda, signNda, shareProject, sendJobOffer, respondToJobOffer };
