@@ -559,18 +559,18 @@ export default function SwipeScreen() {
 
       {/* Mode toggle — entrepreneurs only */}
       {isEntrepreneur && (
-        <View style={[styles.modeToggleBar, investorMode && { backgroundColor: investorColors.surface, borderColor: investorColors.surfaceBorder }]}>
+        <View style={styles.modeToggleBar}>
           <TouchableOpacity
             style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
             onPress={() => handleModeToggle(false)}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Text style={[styles.modeToggleBtnText, !investorMode && styles.modeToggleBtnTextActive]}>🤝 Partners</Text>
           </TouchableOpacity>
           <TouchableOpacity
             style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
             onPress={() => handleModeToggle(true)}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
           >
             <Text style={[styles.modeToggleBtnText, investorMode && styles.modeToggleBtnTextInvestorActive]}>💼 Investors</Text>
           </TouchableOpacity>
@@ -827,39 +827,57 @@ const styles = StyleSheet.create({
 
   modeToggleBar: {
     flexDirection: 'row',
-    marginHorizontal: 8,
-    marginBottom: 6,
-    marginTop: 4,
+    marginHorizontal: 16,
+    marginBottom: 10,
+    marginTop: 6,
     backgroundColor: colors.surface,
-    borderRadius: radius.md,
-    padding: 3,
+    borderRadius: radius.lg,
+    padding: 4,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 3,
   },
   modeToggleBtn: {
     flex: 1,
-    paddingVertical: 8,
-    borderRadius: radius.sm,
+    paddingVertical: 11,
+    borderRadius: radius.md,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   modeToggleBtnActive: {
     backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   modeToggleBtnInvestorActive: {
     backgroundColor: '#E8D5A3',
+    shadowColor: '#E8D5A3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   modeToggleBtnText: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
     color: colors.textHint,
   },
   modeToggleBtnTextActive: {
     color: '#fff',
     fontWeight: '700',
+    fontSize: 14,
   },
   modeToggleBtnTextInvestorActive: {
     color: '#0A0F1E',
     fontWeight: '700',
+    fontSize: 14,
   },
 
   deckArea: {
