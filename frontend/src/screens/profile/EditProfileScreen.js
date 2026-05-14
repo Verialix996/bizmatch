@@ -5,9 +5,11 @@ import {
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
-import { colors, radius, cardShadow } from '../../theme';
+import useAppStore from '../../store/appStore';
+import { colors, investorColors, radius, cardShadow } from '../../theme';
 
 const ROLE_OPTIONS = [
   {
@@ -65,7 +67,7 @@ function parseSkills(raw) {
   }
 }
 
-function SkillsInput({ value, onChange }) {
+function SkillsInput({ value, onChange, styles, C }) {
   const [inputText, setInputText] = useState('');
 
   const addSkill = () => {
@@ -88,7 +90,7 @@ function SkillsInput({ value, onChange }) {
         <TextInput
           style={[styles.input, styles.skillTextInput]}
           placeholder="e.g. React, Finance..."
-          placeholderTextColor={colors.textHint}
+          placeholderTextColor={C.textHint}
           value={inputText}
           onChangeText={setInputText}
           onSubmitEditing={addSkill}
@@ -123,6 +125,9 @@ export default function EditProfileScreen({ route, navigation }) {
   const forceStep = route.params?.forceStep;
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
+  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
+  const C = (darkMode || investorMode) ? investorColors : colors;
+  const styles = makeStyles(C);
 
   // forceStep='role' means the user is changing role — treat as an update (profile already exists)
   const isNew = forceStep === 'role' ? false : !existing?.bio;
@@ -134,6 +139,8 @@ export default function EditProfileScreen({ route, navigation }) {
   const [saveError, setSaveError] = useState('');
   const [photoUrl, setPhotoUrl] = useState(existing?.photo_url || currentUser?.photo_url || null);
   const [photoUploading, setPhotoUploading] = useState(false);
+  const [cvUrl, setCvUrl] = useState(existing?.cv_url || null);
+  const [cvUploading, setCvUploading] = useState(false);
 
   const handlePickPhoto = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -174,8 +181,28 @@ export default function EditProfileScreen({ route, navigation }) {
       investment_domain: profileDefaults?.investment_domain || '',
       preferred_stage: profileDefaults?.preferred_stage || '',
       max_investment: profileDefaults?.max_investment ? String(profileDefaults.max_investment) : '',
+      portfolio_url: profileDefaults?.portfolio_url || '',
+      linkedin_url: profileDefaults?.linkedin_url || '',
+      experience: profileDefaults?.experience || '',
     },
   });
+
+  const handlePickCv = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+      if (result.canceled) return;
+      const asset = result.assets[0];
+      setCvUploading(true);
+      const formData = new FormData();
+      formData.append('document', { uri: asset.uri, name: asset.name || 'cv.pdf', type: asset.mimeType || 'application/pdf' });
+      const { data } = await api.post('/profile/upload-cv', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      setCvUrl(data.cv_url);
+    } catch (err) {
+      setSaveError('CV upload failed');
+    } finally {
+      setCvUploading(false);
+    }
+  };
 
   const handleRoleContinue = async () => {
     if (!selectedRole) {
@@ -198,6 +225,7 @@ export default function EditProfileScreen({ route, navigation }) {
       ...data,
       skills: Array.isArray(data.skills) ? data.skills : [],
       max_investment: data.max_investment ? Number(data.max_investment) : null,
+      cv_url: cvUrl || null,
     };
     try {
       if (isNew) {
@@ -285,7 +313,7 @@ export default function EditProfileScreen({ route, navigation }) {
           ) : (
             <View style={styles.photoPlaceholder}>
               {photoUploading
-                ? <ActivityIndicator color={colors.primary} />
+                ? <ActivityIndicator color={C.primary} />
                 : <>
                     <Text style={styles.photoPlaceholderText}>📷</Text>
                     <Text style={styles.photoPlaceholderLabel}>Add Photo</Text>
@@ -293,7 +321,7 @@ export default function EditProfileScreen({ route, navigation }) {
               }
             </View>
           )}
-          <View style={[styles.photoBadge, photoUrl && { backgroundColor: colors.primary }]}>
+          <View style={[styles.photoBadge, photoUrl && { backgroundColor: C.primary }]}>
             <Text style={styles.photoBadgeText}>{photoUploading ? '…' : '✦'}</Text>
           </View>
         </TouchableOpacity>
@@ -309,7 +337,7 @@ export default function EditProfileScreen({ route, navigation }) {
               style={[styles.input, styles.inputMultiline, errors.bio && styles.inputError]}
               multiline
               placeholder="Tell us about yourself..."
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               onChangeText={onChange}
               value={value}
             />
@@ -324,7 +352,7 @@ export default function EditProfileScreen({ route, navigation }) {
           name="skills"
           rules={{ validate: v => (!isInvestor && (!v || v.length === 0)) ? 'At least one skill is required' : true }}
           render={({ field: { onChange, value } }) => (
-            <SkillsInput value={value} onChange={onChange} />
+            <SkillsInput value={value} onChange={onChange} styles={styles} C={C} />
           )}
         />
         {errors.skills && <Text style={styles.fieldError}>{errors.skills.message}</Text>}
@@ -341,7 +369,7 @@ export default function EditProfileScreen({ route, navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. FinTech, HealthTech, SaaS"
-                  placeholderTextColor={colors.textHint}
+                  placeholderTextColor={C.textHint}
                   onChangeText={onChange}
                   value={value}
                 />
@@ -381,7 +409,7 @@ export default function EditProfileScreen({ route, navigation }) {
                 <TextInput
                   style={styles.input}
                   placeholder="e.g. 2000000"
-                  placeholderTextColor={colors.textHint}
+                  placeholderTextColor={C.textHint}
                   keyboardType="numeric"
                   onChangeText={onChange}
                   value={value}
@@ -390,6 +418,68 @@ export default function EditProfileScreen({ route, navigation }) {
             />
           </>
         )}
+
+        {/* Past Experience */}
+        <FieldLabel>PAST EXPERIENCE</FieldLabel>
+        <Controller
+          control={control}
+          name="experience"
+          render={({ field: { onChange, value } }) => (
+            <TextInput
+              style={[styles.input, styles.inputMultiline]}
+              multiline
+              placeholder="Previous roles, companies, achievements..."
+              placeholderTextColor={C.textHint}
+              onChangeText={onChange}
+              value={value}
+            />
+          )}
+        />
+
+        {/* LinkedIn */}
+        <FieldLabel>LINKEDIN URL</FieldLabel>
+        <Controller
+          control={control}
+          name="linkedin_url"
+          render={({ field: { onChange, value } }) => (
+            <TextInput
+              style={styles.input}
+              placeholder="https://linkedin.com/in/yourprofile"
+              placeholderTextColor={C.textHint}
+              autoCapitalize="none"
+              keyboardType="url"
+              onChangeText={onChange}
+              value={value}
+            />
+          )}
+        />
+
+        {/* Portfolio */}
+        <FieldLabel>PORTFOLIO / WEBSITE URL</FieldLabel>
+        <Controller
+          control={control}
+          name="portfolio_url"
+          render={({ field: { onChange, value } }) => (
+            <TextInput
+              style={styles.input}
+              placeholder="https://yourwebsite.com"
+              placeholderTextColor={C.textHint}
+              autoCapitalize="none"
+              keyboardType="url"
+              onChangeText={onChange}
+              value={value}
+            />
+          )}
+        />
+
+        {/* CV Upload */}
+        <FieldLabel>CV / RESUME (PDF)</FieldLabel>
+        <TouchableOpacity style={styles.cvBtn} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.8}>
+          {cvUploading
+            ? <ActivityIndicator color={C.primary} />
+            : <Text style={styles.cvBtnText}>{cvUrl ? '✓ CV Uploaded — tap to replace' : '📄 Upload PDF'}</Text>
+          }
+        </TouchableOpacity>
 
         {saveError ? <Text style={styles.errorText}>{saveError}</Text> : null}
 
@@ -405,10 +495,10 @@ export default function EditProfileScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
   },
   scrollInner: {
     flexGrow: 1,
@@ -420,7 +510,7 @@ const styles = StyleSheet.create({
   stepLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 20,
@@ -428,15 +518,15 @@ const styles = StyleSheet.create({
   roleTitle: {
     fontSize: 32,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.textPrimary,
     letterSpacing: -0.6,
     lineHeight: 40,
     marginBottom: 10,
   },
-  roleTitleAccent: { color: colors.primary },
+  roleTitleAccent: { color: C.primary },
   roleSubtitle: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     lineHeight: 20,
     marginBottom: 28,
   },
@@ -444,18 +534,18 @@ const styles = StyleSheet.create({
   roleCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.lg,
     padding: 16,
     marginBottom: 12,
     gap: 14,
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     ...cardShadow,
     shadowOpacity: 0.03,
   },
   roleCardSelected: {
-    borderColor: colors.primary,
+    borderColor: C.primary,
     backgroundColor: '#F0F4FF',
   },
   roleCardEmoji: { fontSize: 26 },
@@ -463,20 +553,20 @@ const styles = StyleSheet.create({
   roleCardTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.textPrimary,
     marginBottom: 3,
   },
-  roleCardTitleSelected: { color: colors.primary },
+  roleCardTitleSelected: { color: C.primary },
   roleCardSubtitle: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     lineHeight: 17,
   },
   roleCardCheck: {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -490,13 +580,13 @@ const styles = StyleSheet.create({
   backBtn: { marginBottom: 20 },
   backBtnText: {
     fontSize: 15,
-    color: colors.primary,
+    color: C.primary,
     fontWeight: '600',
   },
   formTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.textPrimary,
     letterSpacing: -0.4,
     marginBottom: 24,
   },
@@ -504,20 +594,20 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: C.textSecondary,
     letterSpacing: 1.0,
     marginBottom: 8,
     marginTop: 16,
   },
   input: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: colors.primaryDark,
+    color: C.textPrimary,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   inputMultiline: {
     height: 100,
@@ -536,7 +626,7 @@ const styles = StyleSheet.create({
     width: 46,
     height: 46,
     borderRadius: radius.md,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -555,7 +645,7 @@ const styles = StyleSheet.create({
   skillBubble: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 7,
@@ -581,40 +671,40 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: 18,
     paddingVertical: 10,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   stageChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: C.primary,
+    borderColor: C.primary,
   },
   stageChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   stageChipTextActive: { color: '#fff' },
 
   errorText: {
-    color: colors.error,
+    color: C.error,
     fontSize: 13,
     textAlign: 'center',
     marginTop: 12,
   },
   fieldError: {
-    color: colors.error,
+    color: C.error,
     fontSize: 12,
     marginTop: 4,
     marginBottom: 4,
   },
   inputError: {
-    borderColor: colors.error,
+    borderColor: C.error,
     borderWidth: 1.5,
   },
 
   btnPrimary: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.pill,
     paddingVertical: 16,
     alignItems: 'center',
@@ -636,21 +726,21 @@ const styles = StyleSheet.create({
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.surfaceBorder,
+    backgroundColor: C.surfaceBorder,
   },
   photoPlaceholder: {
     width: 96,
     height: 96,
     borderRadius: 48,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: C.surfaceElevated,
     borderWidth: 2,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     borderStyle: 'dashed',
     justifyContent: 'center',
     alignItems: 'center',
   },
   photoPlaceholderText: { fontSize: 24 },
-  photoPlaceholderLabel: { fontSize: 11, color: colors.textHint, marginTop: 2 },
+  photoPlaceholderLabel: { fontSize: 11, color: C.textHint, marginTop: 2 },
   photoBadge: {
     position: 'absolute',
     bottom: 0,
@@ -658,11 +748,22 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: colors.textHint,
+    backgroundColor: C.textHint,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
     borderColor: '#fff',
   },
   photoBadgeText: { color: '#fff', fontSize: 13, fontWeight: '700' },
-});
+
+  cvBtn: {
+    backgroundColor: C.surface,
+    borderRadius: radius.md,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderWidth: 1.5,
+    borderColor: C.surfaceBorder,
+    alignItems: 'center',
+  },
+  cvBtnText: { fontSize: 14, color: C.primary, fontWeight: '600' },
+}); }

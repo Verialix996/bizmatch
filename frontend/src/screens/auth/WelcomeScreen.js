@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, StatusBar, Platform, ActivityIndicator,
+  StyleSheet, StatusBar, Platform, ActivityIndicator, Linking,
 } from 'react-native';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -108,10 +108,10 @@ export default function WelcomeScreen({ navigation }) {
         <View style={styles.bottomArea}>
           <Text style={styles.legalText}>
             By tapping "Create account" or "Sign in", you agree to our{' '}
-            <Text style={styles.legalLink}>Terms</Text>. Learn how we process
+            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://bizmatch.app/terms')}>Terms</Text>. Learn how we process
             your data in our{' '}
-            <Text style={styles.legalLink}>Privacy Policy</Text> and{' '}
-            <Text style={styles.legalLink}>Cookies Policy</Text>.
+            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://bizmatch.app/privacy')}>Privacy Policy</Text> and{' '}
+            <Text style={styles.legalLink} onPress={() => Linking.openURL('https://bizmatch.app/cookies')}>Cookies Policy</Text>.
           </Text>
 
           <TouchableOpacity
