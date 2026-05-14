@@ -9,4 +9,4 @@ CREATE TABLE IF NOT EXISTS messages (
   FOREIGN KEY (sender_id) REFERENCES users(id)    ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
-CREATE INDEX idx_messages_match_id ON messages(match_id);
+CREATE INDEX IF NOT EXISTS idx_messages_match_id ON messages(match_id);
