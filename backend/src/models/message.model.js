@@ -69,26 +69,28 @@ async function getConversations(userId) {
        u.id AS userId,
        u.name,
        u.photo_url AS photoUrl,
-       u.last_active_at AS lastActiveAt,
        p.role_type AS roleType,
        p.bio,
        p.venture_stage AS ventureStage,
        p.investment_domain AS investmentDomain,
-       (SELECT body FROM messages
-        WHERE match_id = m.id
-        ORDER BY created_at DESC LIMIT 1) AS lastMessage,
-       (SELECT created_at FROM messages
-        WHERE match_id = m.id
-        ORDER BY created_at DESC LIMIT 1) AS lastMessageAt,
-       (SELECT sender_id FROM messages
-        WHERE match_id = m.id
-        ORDER BY created_at DESC LIMIT 1) AS lastMessageSenderId
+       msg.last_msg AS lastMessage,
+       msg.last_msg_at AS lastMessageAt,
+       msg.last_sender AS lastMessageSenderId
      FROM matches m
      JOIN users u ON u.id = CASE WHEN m.user1_id = ? THEN m.user2_id ELSE m.user1_id END
      LEFT JOIN profiles p ON p.user_id = u.id
+     LEFT JOIN (
+       SELECT match_id,
+              MAX(id) AS last_id,
+              SUBSTRING_INDEX(GROUP_CONCAT(body ORDER BY id DESC), ',', 1) AS last_msg,
+              MAX(created_at) AS last_msg_at,
+              SUBSTRING_INDEX(GROUP_CONCAT(sender_id ORDER BY id DESC), ',', 1) AS last_sender
+       FROM messages
+       GROUP BY match_id
+     ) msg ON msg.match_id = m.id
      WHERE (m.user1_id = ? OR m.user2_id = ?)
        AND u.deleted_at IS NULL
-     ORDER BY COALESCE(lastMessageAt, m.created_at) DESC`,
+     ORDER BY COALESCE(msg.last_msg_at, m.created_at) DESC`,
     [userId, userId, userId]
   );
 }
