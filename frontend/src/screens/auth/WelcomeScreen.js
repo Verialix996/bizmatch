@@ -71,8 +71,9 @@ export default function WelcomeScreen({ navigation }) {
             setGoogleError('Sign-in completed but no token received. Please try again.');
           }
         } else if (result.type === 'cancel' || result.type === 'dismiss') {
-          // User closed the browser — could also mean server-side config issue
-          setGoogleError('Sign-in was cancelled or the server is not configured for Google login. Please use email/password instead.');
+          // On Android the deep link is handled by the OS (Linking listener in App.js),
+          // so openAuthSessionAsync returns 'cancel' even on success — do nothing here.
+          // Only show an error if we're sure it was a genuine user cancellation (no account change).
         } else {
           setGoogleError('Google sign-in failed. Please try again.');
         }

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator } from 'react-native';
+import { View, ActivityIndicator, Linking } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -7,6 +7,18 @@ import * as Device from 'expo-device';
 import AppNavigator, { linking } from './src/navigation/AppNavigator';
 import useAuthStore from './src/store/authStore';
 import api from './src/services/api';
+
+function parseOAuthUrl(url) {
+  if (!url || !url.startsWith('bizmatch://auth')) return null;
+  const qs = url.split('?')[1] || '';
+  const params = Object.fromEntries(
+    qs.split('&').map(p => {
+      const [k, v] = p.split('=');
+      return [k, decodeURIComponent(v || '')];
+    })
+  );
+  return params.token ? params : null;
+}
 
 async function registerForPushNotifications() {
   if (!Device.isDevice) return;
@@ -22,6 +34,7 @@ export default function App() {
   const token = useAuthStore(s => s.token);
   const isRestoring = useAuthStore(s => s.isRestoring);
   const restoreAuth = useAuthStore(s => s.restoreAuth);
+  const setAuth = useAuthStore(s => s.setAuth);
 
   useEffect(() => {
     restoreAuth();
@@ -30,6 +43,30 @@ export default function App() {
   useEffect(() => {
     if (token) registerForPushNotifications();
   }, [token]);
+
+  // Handle bizmatch://auth?token=... deep links (Google OAuth redirect on Android)
+  useEffect(() => {
+    const handleUrl = ({ url }) => {
+      const params = parseOAuthUrl(url);
+      if (params) {
+        setAuth(params.token, {
+          id: Number(params.userId),
+          email: params.email,
+          name: params.name,
+          role: params.role,
+          has_profile: params.has_profile === 'true',
+        });
+      }
+    };
+
+    // Handle URL if the app was opened from a cold start via the deep link
+    Linking.getInitialURL().then(url => {
+      if (url) handleUrl({ url });
+    });
+
+    const sub = Linking.addEventListener('url', handleUrl);
+    return () => sub.remove();
+  }, [setAuth]);
 
   if (isRestoring) {
     return (
