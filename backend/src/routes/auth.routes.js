@@ -36,9 +36,20 @@ router.post('/2fa/disable', authenticate, ctrl.disableTwoFactor);
 // 2FA login verification (no token yet — exchanges userId + TOTP code for JWT)
 router.post('/2fa/login',   authLimiter,  ctrl.login2FA);
 
+const googleConfigured = () =>
+  !!(process.env.GOOGLE_CLIENT_ID && !process.env.GOOGLE_CLIENT_ID.startsWith('dummy'));
+
 // Google OAuth (web/browser flow)
 // ?oid=<id> is passed by the web popup flow so the frontend can poll for the result
 router.get('/google', (req, res, next) => {
+  if (!googleConfigured()) {
+    return res.status(503).send(
+      '<!DOCTYPE html><html><body>' +
+      '<h2>Google sign-in is not configured on this server.</h2>' +
+      '<p>Please use email/password login or contact the administrator.</p>' +
+      '</body></html>'
+    );
+  }
   const oid = (req.query.oid || '').replace(/[^a-z0-9]/gi, '');
   passport.authenticate('google', {
     scope: ['profile', 'email'],

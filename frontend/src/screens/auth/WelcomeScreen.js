@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity,
-  StyleSheet, StatusBar, Platform,
+  StyleSheet, StatusBar, Platform, ActivityIndicator,
 } from 'react-native';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -14,9 +14,11 @@ WebBrowser.maybeCompleteAuthSession();
 export default function WelcomeScreen({ navigation }) {
   const setAuth = useAuthStore(s => s.setAuth);
   const [googleError, setGoogleError] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleGoogleSignIn = async () => {
     setGoogleError('');
+    setGoogleLoading(true);
     try {
       if (Platform.OS === 'web') {
         const oid = Math.random().toString(36).slice(2) + Date.now().toString(36);
@@ -43,12 +45,14 @@ export default function WelcomeScreen({ navigation }) {
                 return resolve();
               }
             } catch { /* keep polling */ }
-            // Only stop after attempting the fetch, so we don't miss the token
             if (popup.closed || attempts > 150) { clearInterval(interval); resolve(); }
           }, 1000);
         });
       } else {
-        const result = await WebBrowser.openAuthSessionAsync(`${API_BASE_URL}/auth/google`, 'bizmatch://');
+        const result = await WebBrowser.openAuthSessionAsync(
+          `${API_BASE_URL}/auth/google`,
+          'bizmatch://'
+        );
         if (result.type === 'success' && result.url) {
           const qs = result.url.split('?')[1] || '';
           const params = Object.fromEntries(qs.split('&').map(p => {
@@ -63,11 +67,20 @@ export default function WelcomeScreen({ navigation }) {
               role: params.role,
               has_profile: params.has_profile === 'true',
             });
+          } else {
+            setGoogleError('Sign-in completed but no token received. Please try again.');
           }
+        } else if (result.type === 'cancel' || result.type === 'dismiss') {
+          // User closed the browser — could also mean server-side config issue
+          setGoogleError('Sign-in was cancelled or the server is not configured for Google login. Please use email/password instead.');
+        } else {
+          setGoogleError('Google sign-in failed. Please try again.');
         }
       }
-    } catch {
+    } catch (e) {
       setGoogleError('Google sign-in failed. Please try again.');
+    } finally {
+      setGoogleLoading(false);
     }
   };
   return (
@@ -114,11 +127,15 @@ export default function WelcomeScreen({ navigation }) {
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.btnGoogle}
+            style={[styles.btnGoogle, googleLoading && { opacity: 0.7 }]}
             onPress={handleGoogleSignIn}
+            disabled={googleLoading}
             activeOpacity={0.85}
           >
-            <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
+            {googleLoading
+              ? <ActivityIndicator size="small" color="#444" />
+              : <Text style={styles.btnGoogleText}>G   CONTINUE WITH GOOGLE</Text>
+            }
           </TouchableOpacity>
           {!!googleError && <Text style={styles.errorText}>{googleError}</Text>}
 
