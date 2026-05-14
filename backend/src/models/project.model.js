@@ -263,13 +263,16 @@ async function getProjectMatches(userId, role) {
 
 async function getProjectPartners(projectId) {
   const rows = await query(
-    `SELECT pp.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills
-     FROM project_partners pp
-     JOIN users u ON u.id = pp.user_id
-     LEFT JOIN profiles pr ON pr.user_id = pp.user_id
-     WHERE pp.project_id = ?
-     ORDER BY pp.added_at ASC`,
-    [projectId]
+    `SELECT team.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills, team.is_owner
+     FROM (
+       SELECT user_id AS user_id, 1 AS is_owner FROM projects WHERE id = ?
+       UNION
+       SELECT pp.user_id, 0 AS is_owner FROM project_partners pp WHERE pp.project_id = ?
+     ) AS team
+     JOIN users u ON u.id = team.user_id
+     LEFT JOIN profiles pr ON pr.user_id = team.user_id
+     ORDER BY team.is_owner DESC`,
+    [projectId, projectId]
   );
   return rows.map(r => ({
     userId: r.user_id,
@@ -278,6 +281,7 @@ async function getProjectPartners(projectId) {
     bio: r.bio,
     roleType: r.role_type,
     skills: safeParseArray(r.skills),
+    isOwner: !!r.is_owner,
   }));
 }
 

@@ -7,9 +7,9 @@ import {
 import { VideoView, useVideoPlayer } from 'expo-video';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
-const CARD_WIDTH = Math.min(340, SCREEN_WIDTH * 0.9);
-const CARD_HEIGHT = Math.min(420, Math.max(300, SCREEN_HEIGHT * 0.52));
-const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.5);
+const CARD_WIDTH = SCREEN_WIDTH - 16;
+const CARD_HEIGHT = Math.round(SCREEN_HEIGHT * 0.68);
+const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.55);
 const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe } from '../../services/match.service';
@@ -344,8 +344,20 @@ export default function SwipeScreen() {
   const user = useAuthStore(s => s.user);
   const isEntrepreneur = user?.role === 'entrepreneur';
 
-  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode } = useAppStore();
+  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, exitInvestorMode, openProjectPicker, darkMode } = useAppStore();
   const mode = investorMode ? 'investors' : 'partners';
+  const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
+
+  const handleModeToggle = (toInvestor) => {
+    if (!toInvestor) { exitInvestorMode(); return; }
+    if (!isPremium) {
+      Alert.alert('Premium Required', 'Investor search mode is a Premium feature. Upgrade to find investors for your project.',
+        [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
+      );
+      return;
+    }
+    openProjectPicker();
+  };
 
   const [myProjects, setMyProjects] = useState([]);
   const [feed, setFeed] = useState([]);
@@ -355,7 +367,7 @@ export default function SwipeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
 
-  const C = investorMode ? investorColors : colors;
+  const C = (investorMode || darkMode) ? investorColors : colors;
 
   const videoPlayer = useVideoPlayer(videoModal.url || '', p => { p.loop = false; });
   useEffect(() => {
@@ -543,7 +555,27 @@ export default function SwipeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
-      <StatusBar barStyle={investorMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
+
+      {/* Mode toggle — entrepreneurs only */}
+      {isEntrepreneur && (
+        <View style={[styles.modeToggleBar, investorMode && { backgroundColor: investorColors.surface, borderColor: investorColors.surfaceBorder }]}>
+          <TouchableOpacity
+            style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
+            onPress={() => handleModeToggle(false)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.modeToggleBtnText, !investorMode && styles.modeToggleBtnTextActive]}>🤝 Partners</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
+            onPress={() => handleModeToggle(true)}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.modeToggleBtnText, investorMode && styles.modeToggleBtnTextInvestorActive]}>💼 Investors</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Deck */}
       <View style={styles.deckArea}>
@@ -785,32 +817,41 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
 
-  toggle: {
+  modeToggleBar: {
     flexDirection: 'row',
-    marginHorizontal: 24,
+    marginHorizontal: 8,
+    marginBottom: 6,
+    marginTop: 4,
     backgroundColor: colors.surface,
     borderRadius: radius.md,
     padding: 3,
-    marginBottom: 12,
     borderWidth: 1,
     borderColor: colors.surfaceBorder,
   },
-  toggleBtn: {
+  modeToggleBtn: {
     flex: 1,
-    paddingVertical: 9,
+    paddingVertical: 8,
     borderRadius: radius.sm,
     alignItems: 'center',
   },
-  toggleBtnActive: {
+  modeToggleBtnActive: {
     backgroundColor: colors.primary,
   },
-  toggleBtnText: {
+  modeToggleBtnInvestorActive: {
+    backgroundColor: '#E8D5A3',
+  },
+  modeToggleBtnText: {
     fontSize: 13,
     fontWeight: '600',
     color: colors.textHint,
   },
-  toggleBtnTextActive: {
+  modeToggleBtnTextActive: {
     color: '#fff',
+    fontWeight: '700',
+  },
+  modeToggleBtnTextInvestorActive: {
+    color: '#0A0F1E',
+    fontWeight: '700',
   },
 
   deckArea: {

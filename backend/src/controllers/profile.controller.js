@@ -29,7 +29,7 @@ async function createProfile(req, res, next) {
     });
     res.status(201).json(profile);
   } catch (err) {
-    next(err);
+    return res.status(500).json({ error: `[diag] ${err.errno || ''} ${err.sqlMessage || err.message}` });
   }
 }
 

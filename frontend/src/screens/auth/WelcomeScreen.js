@@ -66,6 +66,9 @@ export default function WelcomeScreen({ navigation }) {
               name: params.name,
               role: params.role,
               has_profile: params.has_profile === 'true',
+              is_premium: params.is_premium === '1' || params.is_premium === 'true' ? 1 : 0,
+              premium_expires_at: params.premium_expires_at || null,
+              photo_url: params.photo_url || null,
             });
           } else {
             setGoogleError('Sign-in completed but no token received. Please try again.');

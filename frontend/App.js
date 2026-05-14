@@ -6,6 +6,7 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import AppNavigator, { linking } from './src/navigation/AppNavigator';
 import useAuthStore from './src/store/authStore';
+import useAppStore from './src/store/appStore';
 import api from './src/services/api';
 
 function parseOAuthUrl(url) {
@@ -36,8 +37,11 @@ export default function App() {
   const restoreAuth = useAuthStore(s => s.restoreAuth);
   const setAuth = useAuthStore(s => s.setAuth);
 
+  const initDarkMode = useAppStore(s => s.initDarkMode);
+
   useEffect(() => {
     restoreAuth();
+    initDarkMode();
   }, []);
 
   useEffect(() => {
@@ -55,6 +59,9 @@ export default function App() {
           name: params.name,
           role: params.role,
           has_profile: params.has_profile === 'true',
+          is_premium: params.is_premium === '1' || params.is_premium === 'true' ? 1 : 0,
+          premium_expires_at: params.premium_expires_at || null,
+          photo_url: params.photo_url || null,
         });
       }
     };

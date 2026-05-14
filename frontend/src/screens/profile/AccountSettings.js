@@ -1,17 +1,20 @@
 import {
-  View, Text, TextInput, TouchableOpacity,
+  View, Text, TextInput, TouchableOpacity, Switch,
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert
 } from 'react-native';
 import { useState } from 'react';
 import api from '../../services/api';
 import { cancelPremium } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
+import useAppStore from '../../store/appStore';
 import { colors, typography, radius, cardShadow } from '../../theme';
 
 export default function AccountSettingsScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
   const updateUser = useAuthStore(s => s.updateUser);
   const logout = useAuthStore(s => s.logout);
+  const darkMode = useAppStore(s => s.darkMode);
+  const setDarkMode = useAppStore(s => s.setDarkMode);
 
   const [name, setName] = useState(user?.name || '');
   const [loading, setLoading] = useState(false);
@@ -441,6 +444,23 @@ export default function AccountSettingsScreen({ navigation }) {
           )}
         </View>
 
+        {/* Appearance */}
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>APPEARANCE</Text>
+          <View style={styles.switchRow}>
+            <View>
+              <Text style={styles.switchLabel}>Dark Mode</Text>
+              <Text style={styles.switchSub}>Use a dark color scheme</Text>
+            </View>
+            <Switch
+              value={darkMode}
+              onValueChange={setDarkMode}
+              trackColor={{ false: colors.surfaceBorder, true: colors.primary }}
+              thumbColor="#fff"
+            />
+          </View>
+        </View>
+
         <View style={[styles.card, styles.dangerZone]}>
           <Text style={[styles.sectionLabel, { color: colors.error }]}>DANGER ZONE</Text>
           <Text style={styles.dangerText}>
@@ -501,6 +521,9 @@ const styles = StyleSheet.create({
   },
   inputDisabled: { backgroundColor: '#ECEEF2', justifyContent: 'center' },
   helperText: { ...typography.caption, color: colors.textHint, marginTop: -8, marginBottom: 20 },
+  switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  switchLabel: { ...typography.bodyLarge, color: colors.textPrimary, fontWeight: '600' },
+  switchSub: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
   errorText: { color: colors.error, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
   successText: { color: colors.success, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
 

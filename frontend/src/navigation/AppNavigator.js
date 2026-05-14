@@ -54,7 +54,8 @@ function MainTabs() {
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser    = useAuthStore(s => s.user);
   const investorMode   = useAppStore(s => s.investorMode);
-  const TC = investorMode ? investorColors : colors;
+  const darkMode       = useAppStore(s => s.darkMode);
+  const TC = (investorMode || darkMode) ? investorColors : colors;
 
   useEffect(() => {
     const pollBadge = async () => {

@@ -66,6 +66,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
 
   const [compatibility, setCompatibility] = useState(null);
   const [compatibilityLoading, setCompatibilityLoading] = useState(true);
+  const [compatibilityVisible, setCompatibilityVisible] = useState(true);
   const [ndaSigned, setNdaSigned] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
 
@@ -217,9 +218,14 @@ export default function ProfileDetailScreen({ route, navigation }) {
             <View style={styles.compatCard}>
               <ActivityIndicator size="small" color={colors.primary} />
             </View>
-          ) : compatibility ? (
+          ) : compatibility && compatibilityVisible ? (
             <View style={styles.compatCard}>
-              <Text style={styles.compatTitle}>AI COMPATIBILITY</Text>
+              <View style={styles.compatHeader}>
+                <Text style={styles.compatTitle}>AI COMPATIBILITY</Text>
+                <TouchableOpacity onPress={() => setCompatibilityVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.compatClose}>✕</Text>
+                </TouchableOpacity>
+              </View>
               <View style={styles.compatScoreRow}>
                 <View style={styles.compatBarBg}>
                   <View style={[styles.compatBarFill, { width: `${compatibility.score}%` }]} />
@@ -451,12 +457,22 @@ const styles = StyleSheet.create({
     ...cardShadow,
     shadowOpacity: 0.04,
   },
+  compatHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
   compatTitle: {
     fontSize: 10,
     fontWeight: '700',
     color: colors.textHint,
     letterSpacing: 1,
-    marginBottom: 10,
+  },
+  compatClose: {
+    fontSize: 16,
+    color: colors.textHint,
+    fontWeight: '600',
   },
   compatScoreRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 12 },
   compatBarBg: { flex: 1, height: 6, backgroundColor: '#E8ECF4', borderRadius: 3, overflow: 'hidden' },

@@ -96,7 +96,7 @@ async function login(req, res, next) {
 
     const profile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url } });
   } catch (err) {
     next(err);
   }
@@ -116,7 +116,7 @@ async function verifyEmail(req, res, next) {
     await UserModel.setOtpCode(user.id, null, null);
 
     const token = generateToken(user);
-    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: false } });
+    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: false, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url } });
   } catch (err) {
     next(err);
   }
@@ -259,6 +259,9 @@ async function oauthCallback(req, res) {
       name:   user.name  || '',
       role:   user.role  || '',
       has_profile,
+      is_premium: user.is_premium || 0,
+      premium_expires_at: user.premium_expires_at || '',
+      photo_url: user.photo_url || '',
       createdAt: Date.now(),
     });
     return res.send('<!DOCTYPE html><html><body><script>window.close();</script><p>Signed in! You may close this window.</p></body></html>');
@@ -272,6 +275,9 @@ async function oauthCallback(req, res) {
     name:   user.name  || '',
     role:   user.role  || '',
     has_profile: String(has_profile),
+    is_premium: String(user.is_premium || 0),
+    premium_expires_at: user.premium_expires_at || '',
+    photo_url: user.photo_url || '',
   });
   return res.redirect(`bizmatch://auth?${params.toString()}`);
 }
@@ -310,7 +316,7 @@ async function googleMobile(req, res, next) {
 
     const userProfile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!userProfile } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!userProfile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url } });
   } catch (err) {
     next(err);
   }
@@ -340,7 +346,7 @@ async function login2FA(req, res, next) {
     const jwtToken = generateToken(user);
     res.json({
       token: jwtToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url },
     });
   } catch (err) {
     next(err);
