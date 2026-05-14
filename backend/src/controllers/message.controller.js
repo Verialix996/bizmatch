@@ -9,7 +9,7 @@ const conversations = async (req, res, next) => {
   try {
     res.json(await getConversations(req.user.id));
   } catch (err) {
-    next(err);
+    return res.status(500).json({ error: `[diag] ${err.errno || ''} ${err.sqlMessage || err.message}` });
   }
 };
 
