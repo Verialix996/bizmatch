@@ -14,11 +14,12 @@ import {
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import api from '../../services/api';
-import { colors, radius, cardShadow } from '../../theme';
+import useAppStore from '../../store/appStore';
+import { colors, investorColors, radius, cardShadow } from '../../theme';
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
 
-function PartnerAvatar({ name, photoUrl, size = 36 }) {
+function PartnerAvatar({ name, photoUrl, size = 36, styles, C }) {
   if (photoUrl) {
     return (
       <Image
@@ -39,7 +40,7 @@ function PartnerAvatar({ name, photoUrl, size = 36 }) {
   );
 }
 
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners }) {
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, styles, C }) {
   const [partners, setPartners] = useState([]);
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
@@ -153,7 +154,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           <View style={styles.partnerList}>
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={30} />
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={30} styles={styles} C={C} />
                 <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
                 <TouchableOpacity
                   onPress={() => setRemoveConfirm({ userId: p.userId, name: p.name })}
@@ -208,7 +209,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
                 <Text style={styles.deckReviewHint}>Claude will read your uploaded PDF and provide structured feedback.</Text>
                 <View style={styles.deckReviewActions}>
                   <TouchableOpacity onPress={() => setShowDeckReview(false)} style={styles.deckReviewCancel}>
-                    <Text style={{ color: colors.textHint }}>Cancel</Text>
+                    <Text style={{ color: C.textHint }}>Cancel</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={handleDeckReview} style={styles.deckReviewSubmit} disabled={deckReviewLoading}>
                     {deckReviewLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Analyse</Text>}
@@ -267,7 +268,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   );
 }
 
-function AddPartnerModal({ visible, onClose, onAdd, projectId }) {
+function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
@@ -300,7 +301,7 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId }) {
           <Text style={styles.modalTitle}>Add Partner</Text>
           <Text style={styles.modalSub}>Pick from your matched connections</Text>
           {loading ? (
-            <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
+            <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
           ) : matches.length === 0 ? (
             <Text style={styles.noPartnersText}>
               No available matches — either you have no connections yet or they're already on this project.
@@ -317,7 +318,7 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId }) {
                   activeOpacity={0.7}
                   disabled={sending}
                 >
-                  <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} />
+                  <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} styles={styles} C={C} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
                     <Text style={styles.matchPickerName}>{item.name}</Text>
                     {item.roleType ? (
@@ -341,7 +342,7 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId }) {
   );
 }
 
-function JoinedProjectCard({ project }) {
+function JoinedProjectCard({ project, styles, C }) {
   const [partners, setPartners] = useState([]);
   useFocusEffect(useCallback(() => {
     getPartners(project.id).then(res => setPartners(res.data)).catch(() => {});
@@ -387,7 +388,7 @@ function JoinedProjectCard({ project }) {
           <View style={[styles.partnerList, { marginTop: 8 }]}>
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} />
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} styles={styles} C={C} />
                 <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
               </View>
             ))}
@@ -398,7 +399,7 @@ function JoinedProjectCard({ project }) {
   );
 }
 
-function ProjectForm({ initial, onSave, onCancel }) {
+function ProjectForm({ initial, onSave, onCancel, styles, C }) {
   const [form, setForm] = useState({
     title: initial?.title || '',
     description: initial?.description || '',
@@ -434,7 +435,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
         value={form.title}
         onChangeText={v => setForm(f => ({ ...f, title: v }))}
         placeholder="Project name"
-        placeholderTextColor={colors.textHint}
+        placeholderTextColor={C.textHint}
       />
 
       <Text style={styles.fieldLabel}>DESCRIPTION</Text>
@@ -444,7 +445,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
         value={form.description}
         onChangeText={v => setForm(f => ({ ...f, description: v }))}
         placeholder="What does your project do?"
-        placeholderTextColor={colors.textHint}
+        placeholderTextColor={C.textHint}
       />
 
       <Text style={styles.fieldLabel}>INDUSTRY</Text>
@@ -453,7 +454,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
         value={form.industry}
         onChangeText={v => setForm(f => ({ ...f, industry: v }))}
         placeholder="e.g. FinTech, HealthTech, SaaS"
-        placeholderTextColor={colors.textHint}
+        placeholderTextColor={C.textHint}
       />
 
       <Text style={styles.fieldLabel}>VISIBILITY</Text>
@@ -495,6 +496,10 @@ function ProjectForm({ initial, onSave, onCancel }) {
 }
 
 export default function ProjectsScreen({ route }) {
+  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
+  const C = (darkMode || investorMode) ? investorColors : colors;
+  const styles = makeStyles(C);
+
   const [projects, setProjects] = useState([]);
   const [joinedProjects, setJoinedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -608,7 +613,7 @@ export default function ProjectsScreen({ route }) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.centered}>
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={C.primary} />
         </View>
       </SafeAreaView>
     );
@@ -616,7 +621,7 @@ export default function ProjectsScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={darkMode || investorMode ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}
@@ -640,6 +645,8 @@ export default function ProjectsScreen({ route }) {
             initial={editingProject}
             onSave={handleSave}
             onCancel={() => { setShowForm(false); setEditingProject(null); }}
+            styles={styles}
+            C={C}
           />
         )}
 
@@ -664,6 +671,8 @@ export default function ProjectsScreen({ route }) {
               onUploadDeck={handleUploadDeck}
               onUploadVideo={handleUploadVideo}
               onManagePartners={handleManagePartners}
+              styles={styles}
+              C={C}
             />
           ))
         )}
@@ -675,7 +684,7 @@ export default function ProjectsScreen({ route }) {
               <Text style={styles.sectionDividerLabel}>PROJECTS I'VE JOINED</Text>
             </View>
             {joinedProjects.map(p => (
-              <JoinedProjectCard key={p.id} project={p} />
+              <JoinedProjectCard key={p.id} project={p} styles={styles} C={C} />
             ))}
           </>
         )}
@@ -686,6 +695,8 @@ export default function ProjectsScreen({ route }) {
         projectId={partnerModal.projectId}
         onAdd={handleAddPartner}
         onClose={() => setPartnerModal({ visible: false, projectId: null })}
+        styles={styles}
+        C={C}
       />
 
       {/* Delete confirmation modal */}
@@ -717,8 +728,9 @@ export default function ProjectsScreen({ route }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundSoft },
+function makeStyles(C) {
+  return StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.backgroundSoft },
   centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
 
   header: {
@@ -732,7 +744,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 2,
@@ -740,11 +752,11 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 24,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     letterSpacing: -0.4,
   },
   addBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.md,
     paddingHorizontal: 18,
     paddingVertical: 9,
@@ -753,13 +765,13 @@ const styles = StyleSheet.create({
 
   // Project card
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     marginHorizontal: 16,
     marginBottom: 12,
     borderRadius: radius.lg,
     padding: 16,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     ...cardShadow,
     shadowOpacity: 0.04,
   },
@@ -771,59 +783,59 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 6,
   },
   stagePill: {
     alignSelf: 'flex-start',
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   stagePillText: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   cardActions: { flexDirection: 'row', gap: 8 },
   cardActionBtn: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.sm,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   cardActionBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   cardActionBtnDelete: { backgroundColor: '#FFF0F0', borderColor: '#FFD4D4' },
-  cardActionBtnDeleteText: { color: colors.error, fontSize: 12, fontWeight: '600' },
+  cardActionBtnDeleteText: { color: C.error, fontSize: 12, fontWeight: '600' },
 
   cardDesc: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     lineHeight: 18,
     marginBottom: 10,
   },
   cardMeta: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 4 },
   metaChip: {
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: C.surfaceElevated,
     borderRadius: radius.pill,
     paddingHorizontal: 10,
     paddingVertical: 3,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   metaChipText: {
     fontSize: 11,
     fontWeight: '600',
-    color: colors.primary,
+    color: C.primary,
   },
 
   // Partners
@@ -831,7 +843,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: colors.backgroundSoft,
+    borderTopColor: C.backgroundSoft,
   },
   partnersHeader: {
     flexDirection: 'row',
@@ -842,22 +854,22 @@ const styles = StyleSheet.create({
   partnersSectionLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   addPartnerBtn: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.sm,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   addPartnerBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
+    color: C.primary,
   },
   partnerList: { flexDirection: 'column', gap: 8, marginTop: 4 },
   partnerItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
@@ -865,7 +877,7 @@ const styles = StyleSheet.create({
     width: 22,
     height: 22,
     borderRadius: 11,
-    backgroundColor: colors.error,
+    backgroundColor: C.error,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -878,86 +890,86 @@ const styles = StyleSheet.create({
   partnerName: {
     flex: 1,
     fontSize: 13,
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   partnerAvatarPlaceholder: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   noPartnersText: {
     fontSize: 12,
-    color: colors.textHint,
+    color: C.textHint,
     fontStyle: 'italic',
   },
 
-  aiFeedbackBtn: { marginTop: 8, backgroundColor: colors.primaryLight || '#e8f0fe', borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 16, alignItems: 'center' },
-  aiFeedbackBtnText: { color: colors.primary, fontWeight: '700', fontSize: 13 },
+  aiFeedbackBtn: { marginTop: 8, backgroundColor: C.primaryLight || '#e8f0fe', borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 16, alignItems: 'center' },
+  aiFeedbackBtnText: { color: C.primary, fontWeight: '700', fontSize: 13 },
   deckReviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   deckReviewSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  deckReviewTitle: { fontSize: 17, fontWeight: '800', color: colors.primaryDark, marginBottom: 10 },
-  deckReviewHint: { fontSize: 13, color: colors.textHint, marginBottom: 10 },
-  deckReviewInput: { borderWidth: 1.5, borderColor: colors.surfaceBorder, borderRadius: radius.md, padding: 12, minHeight: 110, textAlignVertical: 'top', color: colors.textPrimary, fontSize: 14, marginBottom: 12 },
+  deckReviewTitle: { fontSize: 17, fontWeight: '800', color: C.primaryDark, marginBottom: 10 },
+  deckReviewHint: { fontSize: 13, color: C.textHint, marginBottom: 10 },
+  deckReviewInput: { borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, padding: 12, minHeight: 110, textAlignVertical: 'top', color: C.textPrimary, fontSize: 14, marginBottom: 12 },
   deckReviewActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
   deckReviewCancel: { paddingVertical: 10, paddingHorizontal: 16 },
-  deckReviewSubmit: { backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
-  deckFeedbackScore: { fontSize: 18, fontWeight: '800', color: colors.primary, textAlign: 'center', marginBottom: 14 },
-  deckFeedbackLabel: { fontSize: 13, fontWeight: '700', color: colors.primaryDark, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  deckFeedbackItem: { fontSize: 13, color: colors.textSecondary, marginBottom: 4, lineHeight: 19 },
+  deckReviewSubmit: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
+  deckFeedbackScore: { fontSize: 18, fontWeight: '800', color: C.primary, textAlign: 'center', marginBottom: 14 },
+  deckFeedbackLabel: { fontSize: 13, fontWeight: '700', color: C.primaryDark, marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+  deckFeedbackItem: { fontSize: 13, color: C.textSecondary, marginBottom: 4, lineHeight: 19 },
   // Upload
   uploadRow: { flexDirection: 'row', gap: 8, marginTop: 12 },
   uploadBtn: {
     flex: 1,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingVertical: 10,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     borderStyle: 'dashed',
   },
   uploadBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
+    color: C.primary,
   },
 
   // Form panel
   formPanel: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     marginHorizontal: 16,
     marginBottom: 16,
     borderRadius: radius.lg,
     padding: 20,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     ...cardShadow,
     shadowOpacity: 0.05,
   },
   formTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 16,
   },
   fieldLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: C.textSecondary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginBottom: 6,
     marginTop: 14,
   },
   input: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: colors.primaryDark,
+    color: C.primaryDark,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   inputMultiline: { height: 80, textAlignVertical: 'top' },
 
@@ -966,18 +978,18 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   stageChipActive: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: C.primary,
+    borderColor: C.primary,
   },
   stageChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   stageChipTextActive: { color: '#fff' },
 
@@ -988,18 +1000,18 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
-  cancelBtnText: { color: colors.textSecondary, fontWeight: '600' },
+  cancelBtnText: { color: C.textSecondary, fontWeight: '600' },
   saveBtn: {
     flex: 2,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: 'center',
   },
   saveBtnText: { color: '#fff', fontWeight: '700' },
-  errorText: { color: colors.error, marginTop: 8, fontSize: 13 },
+  errorText: { color: C.error, marginTop: 8, fontSize: 13 },
 
   // Empty state
   emptyState: {
@@ -1010,22 +1022,22 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: C.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 8,
   },
   emptySub: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     textAlign: 'center',
     lineHeight: 20,
   },
@@ -1037,7 +1049,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modalBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderTopLeftRadius: radius.xl,
     borderTopRightRadius: radius.xl,
     padding: 24,
@@ -1046,12 +1058,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 4,
   },
   modalSub: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     marginBottom: 16,
   },
   matchPickerItem: {
@@ -1059,30 +1071,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: colors.backgroundSoft,
+    borderBottomColor: C.backgroundSoft,
   },
   matchPickerName: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
   matchPickerRole: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     marginTop: 2,
     textTransform: 'capitalize',
   },
   modalCloseBtn: {
     marginTop: 16,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingVertical: 14,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   modalCloseBtnText: {
-    color: colors.textSecondary,
+    color: C.textSecondary,
     fontWeight: '600',
     fontSize: 15,
   },
@@ -1090,19 +1102,19 @@ const styles = StyleSheet.create({
   // Joined projects
   joinedCard: {
     borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    borderLeftColor: C.primary,
   },
   joinedOwnerTag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: C.surfaceElevated,
     borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   joinedOwnerText: {
     fontSize: 11,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     fontWeight: '600',
   },
 
@@ -1115,7 +1127,7 @@ const styles = StyleSheet.create({
   sectionDividerLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
@@ -1129,7 +1141,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   deleteModal: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.xl,
     padding: 28,
     width: '100%',
@@ -1139,13 +1151,13 @@ const styles = StyleSheet.create({
   deleteModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.textPrimary,
+    color: C.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
   },
   deleteModalBody: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
     marginBottom: 28,
     lineHeight: 22,
@@ -1154,18 +1166,19 @@ const styles = StyleSheet.create({
   deleteBtnCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  deleteBtnCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  deleteBtnCancelText: { color: C.textSecondary, fontWeight: '600', fontSize: 14 },
   deleteBtnConfirm: {
     flex: 1,
-    backgroundColor: colors.error,
+    backgroundColor: C.error,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
   },
   deleteBtnConfirmText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 });
+}

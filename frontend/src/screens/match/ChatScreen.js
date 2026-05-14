@@ -10,7 +10,8 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import { getMessages, sendMessage, markRead, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
-import { colors, cardShadow, radius } from '../../theme';
+import useAppStore from '../../store/appStore';
+import { colors, investorColors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
@@ -60,7 +61,7 @@ function formatDateDivider(dateStr) {
   }).toUpperCase();
 }
 
-function Avatar({ photoUrl, name, size = 36 }) {
+function Avatar({ photoUrl, name, size = 36, styles, C }) {
   const initials = name ? name[0].toUpperCase() : '?';
   if (photoUrl) {
     return (
@@ -93,6 +94,9 @@ export default function ChatScreen({ route, navigation }) {
   const { match } = route.params;
   const user = useAuthStore(s => s.user);
   const markMatchRead = useAuthStore(s => s.markMatchRead);
+  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
+  const C = (darkMode || investorMode) ? investorColors : colors;
+  const styles = makeStyles(C);
 
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -585,11 +589,11 @@ export default function ChatScreen({ route, navigation }) {
         ? new Date(meta.scheduledAt).toLocaleString('en-IL', { dateStyle: 'medium', timeStyle: 'short' })
         : 'TBD';
       return (
-        <View style={[styles.actionCard, { borderLeftColor: colors.primary }]}>
+        <View style={[styles.actionCard, { borderLeftColor: C.primary }]}>
           <Text style={styles.actionCardTitle}>📅 Meeting Proposed</Text>
           <Text style={styles.actionCardBody}>{meta.title || 'Untitled Meeting'}</Text>
-          <Text style={[styles.actionCardBody, { color: colors.primary }]}>{scheduledAt}</Text>
-          <Text style={[styles.actionCardBody, { color: colors.textHint, fontSize: 12 }]}>
+          <Text style={[styles.actionCardBody, { color: C.primary }]}>{scheduledAt}</Text>
+          <Text style={[styles.actionCardBody, { color: C.textHint, fontSize: 12 }]}>
             {meta.locationType === 'virtual' ? '🎥 Virtual' : '📍 In Person'}
           </Text>
           <TouchableOpacity
@@ -651,7 +655,7 @@ export default function ChatScreen({ route, navigation }) {
       const accepted = meta.accepted === true;
       return (
         <View style={[styles.actionCard, styles.actionCardResponse]}>
-          <Text style={[styles.actionCardTitle, { color: accepted ? colors.success : colors.error }]}>
+          <Text style={[styles.actionCardTitle, { color: accepted ? C.success : C.error }]}>
             💼 {accepted ? 'Job Offer Accepted' : 'Job Offer Declined'}
           </Text>
           {meta.roleTitle ? <Text style={styles.actionCardBody}>{meta.roleTitle}</Text> : null}
@@ -662,7 +666,7 @@ export default function ChatScreen({ route, navigation }) {
 
     if (item.message_type === 'meeting_response') {
       const label = meta.status === 'confirmed' ? 'Meeting Confirmed' : meta.status === 'declined' ? 'Meeting Declined' : 'Meeting Cancelled';
-      const accent = meta.status === 'confirmed' ? colors.success : colors.error;
+      const accent = meta.status === 'confirmed' ? C.success : C.error;
       return (
         <View style={[styles.actionCard, { borderLeftColor: accent }]}>
           <Text style={[styles.actionCardTitle, { color: accent }]}>📅 {label}</Text>
@@ -724,6 +728,8 @@ export default function ChatScreen({ route, navigation }) {
                 photoUrl={match.photoUrl}
                 name={match.name}
                 size={28}
+                styles={styles}
+                C={C}
               />
             )}
             <View style={[
@@ -758,7 +764,7 @@ export default function ChatScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={darkMode || investorMode ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>
@@ -770,7 +776,7 @@ export default function ChatScreen({ route, navigation }) {
         </TouchableOpacity>
 
         <View style={styles.headerCenter}>
-          <Avatar photoUrl={match.photoUrl} name={match.name} size={38} />
+          <Avatar photoUrl={match.photoUrl} name={match.name} size={38} styles={styles} C={C} />
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{match.name}</Text>
             <Text style={styles.headerStatus}>{formatLastSeen(match.lastActiveAt).toUpperCase()}</Text>
@@ -793,7 +799,7 @@ export default function ChatScreen({ route, navigation }) {
       >
         {loading ? (
           <View style={styles.centered}>
-            <ActivityIndicator size="large" color={colors.primary} />
+            <ActivityIndicator size="large" color={C.primary} />
           </View>
         ) : (
           <FlatList
@@ -831,7 +837,7 @@ export default function ChatScreen({ route, navigation }) {
             value={input}
             onChangeText={setInput}
             placeholder="Type a message..."
-            placeholderTextColor={colors.textHint}
+            placeholderTextColor={C.textHint}
             multiline
             maxLength={1000}
             returnKeyType="send"
@@ -916,7 +922,7 @@ export default function ChatScreen({ route, navigation }) {
                                              'Pick a Project'}
                 </Text>
                 {actionLoading ? (
-                  <ActivityIndicator color={colors.primary} style={{ marginVertical: 24 }} />
+                  <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
                 ) : actionProjects.length === 0 ? (
                   <Text style={styles.sheetEmpty}>No projects found.</Text>
                 ) : (
@@ -1039,7 +1045,7 @@ export default function ChatScreen({ route, navigation }) {
             <TextInput
               style={[styles.jobInput]}
               placeholder="e.g. Co-founder, CTO, Lead Developer..."
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={jobOfferTitle}
               onChangeText={setJobOfferTitle}
               maxLength={80}
@@ -1048,7 +1054,7 @@ export default function ChatScreen({ route, navigation }) {
             <TextInput
               style={[styles.jobInput, { height: 80, textAlignVertical: 'top' }]}
               placeholder="Describe the role, expectations, or collaboration details..."
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={jobOfferDesc}
               onChangeText={setJobOfferDesc}
               multiline
@@ -1125,7 +1131,7 @@ export default function ChatScreen({ route, navigation }) {
           <View style={styles.ndaModal}>
             <Text style={styles.ndaModalTitle}>Define the Role</Text>
             <Text style={styles.ndaModalSub}>Optionally set role details for your partner invite</Text>
-            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Role</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Role</Text>
             <View style={styles.roleChipRow}>
               {ROLE_OPTIONS.map(r => (
                 <TouchableOpacity
@@ -1142,27 +1148,27 @@ export default function ChatScreen({ route, navigation }) {
               <TextInput
                 style={styles.ndaInput}
                 placeholder="Enter custom role title"
-                placeholderTextColor={colors.textHint}
+                placeholderTextColor={C.textHint}
                 value={customRole}
                 onChangeText={setCustomRole}
                 maxLength={80}
               />
             )}
-            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Equity %</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Equity %</Text>
             <TextInput
               style={styles.ndaInput}
               placeholder="e.g. 10"
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={roleEquity}
               onChangeText={setRoleEquity}
               keyboardType="decimal-pad"
               maxLength={6}
             />
-            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Salary ($/yr, optional)</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Salary ($/yr, optional)</Text>
             <TextInput
               style={styles.ndaInput}
               placeholder="e.g. 80000"
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={roleSalary}
               onChangeText={setRoleSalary}
               keyboardType="number-pad"
@@ -1191,30 +1197,30 @@ export default function ChatScreen({ route, navigation }) {
           <View style={styles.ndaModal}>
             <Text style={styles.ndaModalTitle}>Counter Offer</Text>
             <Text style={styles.ndaModalSub}>Edit the terms and send a counter proposal</Text>
-            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Role Title</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Role Title</Text>
             <TextInput
               style={styles.ndaInput}
               placeholder="e.g. CTO"
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={counterRole}
               onChangeText={setCounterRole}
               maxLength={80}
             />
-            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Equity %</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Equity %</Text>
             <TextInput
               style={styles.ndaInput}
               placeholder="e.g. 15"
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={counterEquity}
               onChangeText={setCounterEquity}
               keyboardType="decimal-pad"
               maxLength={6}
             />
-            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Salary ($/yr, optional)</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Salary ($/yr, optional)</Text>
             <TextInput
               style={styles.ndaInput}
               placeholder="e.g. 90000"
-              placeholderTextColor={colors.textHint}
+              placeholderTextColor={C.textHint}
               value={counterSalary}
               onChangeText={setCounterSalary}
               keyboardType="number-pad"
@@ -1240,10 +1246,11 @@ export default function ChatScreen({ route, navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C) {
+  return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
   },
   flex: { flex: 1 },
   centered: {
@@ -1258,9 +1265,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceBorder,
+    borderBottomColor: C.surfaceBorder,
     gap: 10,
     ...cardShadow,
     shadowOpacity: 0.03,
@@ -1268,7 +1275,7 @@ const styles = StyleSheet.create({
   backBtn: { padding: 4 },
   backIcon: {
     fontSize: 24,
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
   headerCenter: {
     flex: 1,
@@ -1280,12 +1287,12 @@ const styles = StyleSheet.create({
   headerName: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
   headerStatus: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.success,
+    color: C.success,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     marginTop: 1,
@@ -1294,16 +1301,16 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerActionIcon: { fontSize: 16 },
 
   avatarPlaceholder: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -1328,12 +1335,12 @@ const styles = StyleSheet.create({
   dateDividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.surfaceBorder,
+    backgroundColor: C.surfaceBorder,
   },
   dateDividerText: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     letterSpacing: 1,
   },
 
@@ -1353,14 +1360,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   bubbleOwn: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderBottomRightRadius: 4,
   },
   bubbleTheir: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderBottomLeftRadius: 4,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     ...cardShadow,
     shadowOpacity: 0.03,
   },
@@ -1369,7 +1376,7 @@ const styles = StyleSheet.create({
     lineHeight: 20,
   },
   bubbleTextOwn: { color: '#fff' },
-  bubbleTextTheir: { color: colors.primaryDark },
+  bubbleTextTheir: { color: C.primaryDark },
   bubbleTime: {
     fontSize: 10,
     marginTop: 4,
@@ -1378,7 +1385,7 @@ const styles = StyleSheet.create({
     color: 'rgba(255,255,255,0.55)',
     textAlign: 'right',
   },
-  bubbleTimeTheir: { color: colors.textHint },
+  bubbleTimeTheir: { color: C.textHint },
   bubbleFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4 },
   readReceipt: { fontSize: 10, color: 'rgba(255,255,255,0.55)' },
 
@@ -1394,23 +1401,23 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: colors.surfaceElevated,
+    backgroundColor: C.surfaceElevated,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   emptyChatTitle: {
     fontSize: 17,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 6,
     textAlign: 'center',
   },
   emptyChatSub: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     textAlign: 'center',
     lineHeight: 19,
   },
@@ -1422,33 +1429,33 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderTopWidth: 1,
-    borderTopColor: colors.surfaceBorder,
+    borderTopColor: C.surfaceBorder,
   },
   input: {
     flex: 1,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: 22,
     paddingHorizontal: 16,
     paddingVertical: 10,
     fontSize: 14,
-    color: colors.primaryDark,
+    color: C.primaryDark,
     maxHeight: 120,
     lineHeight: 20,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   sendBtn: {
     width: 42,
     height: 42,
     borderRadius: 21,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   sendBtnDisabled: {
-    backgroundColor: colors.surfaceBorder,
+    backgroundColor: C.surfaceBorder,
   },
   sendBtnText: {
     fontSize: 15,
@@ -1460,15 +1467,15 @@ const styles = StyleSheet.create({
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     justifyContent: 'center',
     alignItems: 'center',
   },
   plusBtnText: {
     fontSize: 22,
-    color: colors.primary,
+    color: C.primary,
     lineHeight: 26,
     fontWeight: '400',
   },
@@ -1479,7 +1486,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(2,36,102,0.4)',
   },
   sheetBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -1488,7 +1495,7 @@ const styles = StyleSheet.create({
   sheetTitle: {
     fontSize: 16,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 16,
   },
   sheetItem: {
@@ -1497,32 +1504,32 @@ const styles = StyleSheet.create({
     gap: 14,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: colors.backgroundSoft,
+    borderBottomColor: C.backgroundSoft,
   },
   sheetItemIcon: { fontSize: 22 },
   sheetItemLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
   sheetItemSub: {
     fontSize: 12,
-    color: colors.textHint,
+    color: C.textHint,
     marginTop: 2,
   },
   sheetCancel: {
     marginTop: 14,
     paddingVertical: 14,
     alignItems: 'center',
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
-  sheetCancelText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  sheetCancelText: { color: C.textSecondary, fontWeight: '600', fontSize: 14 },
   sheetEmpty: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     fontStyle: 'italic',
     textAlign: 'center',
     marginVertical: 24,
@@ -1530,23 +1537,23 @@ const styles = StyleSheet.create({
 
   // project_shared card
   projectSharedCard: {
-    borderColor: colors.primary,
+    borderColor: C.primary,
     borderWidth: 1.5,
   },
   projectSharedTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 2,
   },
   projectSharedMeta: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     textTransform: 'capitalize',
     marginBottom: 10,
   },
   viewDetailsBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.pill,
     paddingVertical: 10,
     alignItems: 'center',
@@ -1567,7 +1574,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   detailBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.xl,
     padding: 24,
     width: '100%',
@@ -1576,26 +1583,26 @@ const styles = StyleSheet.create({
   detailTitle: {
     fontSize: 20,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 4,
   },
   detailMeta: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
     textTransform: 'capitalize',
     marginBottom: 12,
   },
   detailDesc: {
     fontSize: 14,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     lineHeight: 20,
     marginBottom: 12,
   },
   detailFunding: {
     fontSize: 14,
     fontWeight: '600',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 16,
   },
   detailLinks: {
@@ -1603,20 +1610,20 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   detailLinkBtn: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingVertical: 13,
     alignItems: 'center',
     borderWidth: 1.5,
-    borderColor: colors.primary,
+    borderColor: C.primary,
   },
   detailLinkBtnText: {
-    color: colors.primary,
+    color: C.primary,
     fontWeight: '700',
     fontSize: 14,
   },
   detailCloseBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
@@ -1662,56 +1669,56 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     width: '85%',
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     padding: 16,
     ...cardShadow,
   },
   actionCardResponse: {
-    borderColor: colors.success || '#38a169',
+    borderColor: C.success || '#38a169',
   },
   actionCardTitle: {
     fontSize: 13,
     fontWeight: '800',
-    color: colors.primary,
+    color: C.primary,
     letterSpacing: 0.5,
     marginBottom: 6,
     textTransform: 'uppercase',
   },
   actionCardBody: {
     fontSize: 14,
-    color: colors.primaryDark,
+    color: C.primaryDark,
     lineHeight: 20,
     marginBottom: 4,
   },
   actionCardProject: {
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
   actionCardNote: {
     fontSize: 12,
-    color: colors.textHint,
+    color: C.textHint,
     marginTop: 4,
     marginBottom: 8,
     fontStyle: 'italic',
   },
   actionCardStatus: {
     fontSize: 12,
-    color: colors.textHint,
+    color: C.textHint,
     marginTop: 10,
     fontStyle: 'italic',
   },
   ndaViewLink: {
     fontSize: 13,
-    color: colors.primary,
+    color: C.primary,
     marginTop: 6,
     textDecorationLine: 'underline',
   },
   actionCardTime: {
     fontSize: 10,
-    color: colors.textHint,
+    color: C.textHint,
     marginTop: 8,
     textAlign: 'right',
   },
@@ -1727,7 +1734,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   actionBtnAccept: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
   },
   actionBtnAcceptText: {
     color: '#fff',
@@ -1735,12 +1742,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   actionBtnDecline: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   actionBtnDeclineText: {
-    color: colors.textSecondary,
+    color: C.textSecondary,
     fontWeight: '700',
     fontSize: 13,
   },
@@ -1755,7 +1762,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   roleDetails: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.sm,
     padding: 8,
     marginTop: 8,
@@ -1763,7 +1770,7 @@ const styles = StyleSheet.create({
   },
   roleDetailText: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     fontWeight: '600',
   },
   roleChipRow: {
@@ -1776,31 +1783,31 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   roleChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: C.primary,
+    borderColor: C.primary,
   },
   roleChipText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   roleChipTextSelected: {
     color: '#fff',
   },
   ndaInput: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: colors.textPrimary,
+    color: C.textPrimary,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     marginBottom: 4,
   },
 
@@ -1813,7 +1820,7 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   ndaModal: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.xl,
     padding: 24,
     width: '100%',
@@ -1822,46 +1829,46 @@ const styles = StyleSheet.create({
   ndaModalTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     textAlign: 'center',
     marginBottom: 4,
   },
   ndaModalSub: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     textAlign: 'center',
     marginBottom: 20,
   },
   ndaClauseList: { gap: 14, marginBottom: 24 },
   ndaClause: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     padding: 12,
   },
   ndaClauseTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 4,
   },
   ndaClauseBody: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     lineHeight: 18,
   },
   ndaModalActions: { flexDirection: 'row', gap: 12 },
   ndaCancelBtn: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  ndaCancelBtnText: { color: colors.textSecondary, fontWeight: '600', fontSize: 14 },
+  ndaCancelBtnText: { color: C.textSecondary, fontWeight: '600', fontSize: 14 },
   ndaSignBtn: {
     flex: 1,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
@@ -1869,13 +1876,14 @@ const styles = StyleSheet.create({
   ndaSignBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   jobInput: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 14,
-    color: colors.textPrimary,
+    color: C.textPrimary,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
 });
+}
