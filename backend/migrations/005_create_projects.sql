@@ -12,10 +12,9 @@ CREATE TABLE IF NOT EXISTS projects (
   created_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at      DATETIME DEFAULT CURRENT_TIMESTAMP,
 
+  INDEX idx_projects_user_id (user_id),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
-CREATE INDEX idx_projects_user_id ON projects(user_id);
 
 CREATE TABLE IF NOT EXISTS project_swipes (
   id          INT AUTO_INCREMENT PRIMARY KEY,

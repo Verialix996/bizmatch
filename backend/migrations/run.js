@@ -58,7 +58,14 @@ async function runMigrations() {
       console.log(`Migrated: ${file}`);
     } catch (err) {
       await conn.rollback();
-      throw new Error(`Migration failed for ${file}: ${err.message}`);
+      // These codes mean the change already exists in the DB — treat as applied.
+      const alreadyExists = new Set([1050, 1060, 1061]); // table/column/key exists
+      if (alreadyExists.has(err.errno)) {
+        console.warn(`Warning – already applied, recording: ${file}: ${err.message}`);
+        await pool.execute('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);
+      } else {
+        throw new Error(`Migration failed for ${file}: ${err.message}`);
+      }
     } finally {
       conn.release();
     }
