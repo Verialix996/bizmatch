@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, StyleSheet,
   ActivityIndicator, TouchableOpacity, Image,
-  ScrollView, SafeAreaView, StatusBar,
+  ScrollView, SafeAreaView, StatusBar, Alert,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getConversations, whoLikedMe } from '../../services/match.service';
@@ -163,7 +163,9 @@ export default function MatchesScreen({ navigation }) {
       }).length;
       setNewMatchCount(newMatchCount + unreadCount);
     } catch (e) {
-      console.error('Failed to load conversations', e);
+      const msg = e.response?.data?.error || e.message;
+      console.error('Conversations error:', msg);
+      Alert.alert('Chat error (debug)', msg);
     } finally {
       setLoading(false);
     }
