@@ -669,7 +669,15 @@ export default function SwipeScreen() {
           <Animated.View style={{ transform: [{ scale: superStarScale }] }}>
             <TouchableOpacity
               style={[styles.actionBtn, styles.starBtn]}
-              onPress={() => sendSwipe('like', true)}
+              onPress={() => {
+                if (!isPremium) {
+                  Alert.alert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
+                    [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
+                  );
+                  return;
+                }
+                sendSwipe('like', true);
+              }}
               disabled={swiping}
               activeOpacity={0.8}
             >

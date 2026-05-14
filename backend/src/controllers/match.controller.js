@@ -45,7 +45,7 @@ const swipe = async (req, res, next) => {
       }
     }
 
-    const isSuperLike = superLike === true;
+    const isSuperLike = superLike === true && isPremium;
     const result = await recordSwipe(req.user.id, targetUserId, direction, isSuperLike);
     res.json(result);
   } catch (err) {
