@@ -1,0 +1,211 @@
+import {
+  View, Text, TouchableOpacity, Modal, FlatList,
+  StyleSheet, TouchableWithoutFeedback,
+} from 'react-native';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { useNavigation } from '@react-navigation/native';
+import api from '../services/api';
+
+const TYPE_ICON = {
+  match:          '🤝',
+  meeting:        '📅',
+  super_like:     '⭐',
+  partner_invite: '📋',
+};
+
+const TYPE_LABEL = {
+  match:          'New Match',
+  meeting:        'Meeting Invitation',
+  super_like:     'Super Like',
+  partner_invite: 'Partner Invitation',
+};
+
+function formatTime(dateStr) {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'Just now';
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  return `${Math.floor(h / 24)}d ago`;
+}
+
+export default function NotificationBell({ tintColor }) {
+  const navigation = useNavigation();
+  const [notifications, setNotifications] = useState([]);
+  const [open, setOpen] = useState(false);
+  const intervalRef = useRef(null);
+
+  const fetchNotifications = useCallback(async () => {
+    try {
+      const { data } = await api.get('/notifications');
+      setNotifications(data);
+    } catch { /* silent — bell is non-critical */ }
+  }, []);
+
+  useEffect(() => {
+    fetchNotifications();
+    intervalRef.current = setInterval(fetchNotifications, 15000);
+    return () => clearInterval(intervalRef.current);
+  }, [fetchNotifications]);
+
+  const unreadCount = notifications.filter(n => !n.readAt).length;
+
+  const markIds = useCallback(async (ids) => {
+    if (!ids.length) return;
+    try {
+      await api.post('/notifications/read', { ids });
+      setNotifications(prev => prev.map(n => ids.includes(n.id) ? { ...n, readAt: new Date().toISOString() } : n));
+    } catch { /* silent */ }
+  }, []);
+
+  const handleOpen = () => {
+    setOpen(true);
+    const unreadIds = notifications.filter(n => !n.readAt).map(n => n.id);
+    if (unreadIds.length) markIds(unreadIds);
+  };
+
+  const handleTap = (item) => {
+    setOpen(false);
+    switch (item.type) {
+      case 'match':
+        navigation.navigate('Matches');
+        break;
+      case 'super_like':
+        navigation.navigate('Matches');
+        break;
+      case 'meeting':
+        navigation.navigate('Meetings');
+        break;
+      case 'partner_invite':
+        navigation.navigate('Projects');
+        break;
+    }
+  };
+
+  const iconColor = tintColor || '#022466';
+
+  return (
+    <>
+      <TouchableOpacity style={styles.bellBtn} onPress={handleOpen} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+        <Text style={[styles.bellIcon, { color: iconColor }]}>🔔</Text>
+        {unreadCount > 0 && (
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+          </View>
+        )}
+      </TouchableOpacity>
+
+      <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
+        <TouchableWithoutFeedback onPress={() => setOpen(false)}>
+          <View style={styles.overlay}>
+            <TouchableWithoutFeedback onPress={() => {}}>
+              <View style={styles.bubble}>
+                <Text style={styles.bubbleTitle}>Notifications</Text>
+                {notifications.length === 0 ? (
+                  <Text style={styles.emptyText}>No notifications yet</Text>
+                ) : (
+                  <FlatList
+                    data={notifications}
+                    keyExtractor={item => String(item.id)}
+                    style={styles.list}
+                    renderItem={({ item }) => (
+                      <TouchableOpacity
+                        style={[styles.row, !item.readAt && styles.rowUnread]}
+                        onPress={() => handleTap(item)}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.rowIcon}>{TYPE_ICON[item.type] || '🔔'}</Text>
+                        <View style={styles.rowBody}>
+                          <Text style={styles.rowLabel}>{TYPE_LABEL[item.type] || item.type}</Text>
+                          {item.payload?.name ? (
+                            <Text style={styles.rowSub} numberOfLines={1}>{item.payload.name}</Text>
+                          ) : item.payload?.title ? (
+                            <Text style={styles.rowSub} numberOfLines={1}>{item.payload.title}</Text>
+                          ) : null}
+                        </View>
+                        <Text style={styles.rowTime}>{formatTime(item.createdAt)}</Text>
+                      </TouchableOpacity>
+                    )}
+                    ItemSeparatorComponent={() => <View style={styles.sep} />}
+                  />
+                )}
+              </View>
+            </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
+      </Modal>
+    </>
+  );
+}
+
+const styles = StyleSheet.create({
+  bellBtn: { position: 'relative', padding: 4 },
+  bellIcon: { fontSize: 22 },
+  badge: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#E53E3E',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 3,
+  },
+  badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
+
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(2,36,102,0.35)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 80,
+    paddingRight: 16,
+  },
+  bubble: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    width: 300,
+    maxHeight: 420,
+    shadowColor: '#022466',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.18,
+    shadowRadius: 20,
+    elevation: 12,
+    overflow: 'hidden',
+  },
+  bubbleTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#022466',
+    letterSpacing: 0.3,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#DDE3F0',
+  },
+  list: { maxHeight: 360 },
+  emptyText: {
+    fontSize: 13,
+    color: '#8A96AE',
+    textAlign: 'center',
+    paddingVertical: 24,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    gap: 10,
+  },
+  rowUnread: { backgroundColor: '#F0F4FF' },
+  rowIcon: { fontSize: 22, width: 30 },
+  rowBody: { flex: 1 },
+  rowLabel: { fontSize: 13, fontWeight: '700', color: '#022466' },
+  rowSub: { fontSize: 12, color: '#4A5A7A', marginTop: 2 },
+  rowTime: { fontSize: 11, color: '#8A96AE' },
+  sep: { height: 1, backgroundColor: '#F4F6F9', marginHorizontal: 14 },
+});

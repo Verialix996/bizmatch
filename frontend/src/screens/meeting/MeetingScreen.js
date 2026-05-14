@@ -69,7 +69,10 @@ export default function MeetingScreen({ navigation }) {
     setRefreshing(false);
   };
 
-  useFocusEffect(useCallback(() => { load(); }, []));
+  useFocusEffect(useCallback(() => {
+    api.post('/notifications/read', { types: ['meeting'] }).catch(() => {});
+    load();
+  }, []));
 
   if (loading) {
     return <View style={styles.center}><ActivityIndicator size="large" color={colors.primary} /></View>;

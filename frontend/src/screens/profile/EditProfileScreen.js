@@ -171,8 +171,6 @@ export default function EditProfileScreen({ route, navigation }) {
     defaultValues: {
       bio: profileDefaults?.bio || '',
       skills: parseSkills(profileDefaults?.skills),
-      venture_stage: profileDefaults?.venture_stage || '',
-      funding_needs: profileDefaults?.funding_needs ? String(profileDefaults.funding_needs) : '',
       investment_domain: profileDefaults?.investment_domain || '',
       preferred_stage: profileDefaults?.preferred_stage || '',
       max_investment: profileDefaults?.max_investment ? String(profileDefaults.max_investment) : '',
@@ -199,7 +197,6 @@ export default function EditProfileScreen({ route, navigation }) {
     const payload = {
       ...data,
       skills: Array.isArray(data.skills) ? data.skills : [],
-      funding_needs: data.funding_needs ? Number(data.funding_needs) : null,
       max_investment: data.max_investment ? Number(data.max_investment) : null,
     };
     try {
@@ -332,51 +329,6 @@ export default function EditProfileScreen({ route, navigation }) {
         />
         {errors.skills && <Text style={styles.fieldError}>{errors.skills.message}</Text>}
 
-        {/* Entrepreneur fields */}
-        {!isInvestor && (
-          <>
-            <FieldLabel>VENTURE STAGE</FieldLabel>
-            <Controller
-              control={control}
-              name="venture_stage"
-              render={({ field: { onChange, value } }) => (
-                <View style={styles.stageRow}>
-                  {STAGES.map(s => (
-                    <TouchableOpacity
-                      key={s}
-                      style={[styles.stageChip, value === s && styles.stageChipActive]}
-                      onPress={() => onChange(s)}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[
-                        styles.stageChipText,
-                        value === s && styles.stageChipTextActive,
-                      ]}>
-                        {STAGE_LABELS[s]}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
-            />
-
-            <FieldLabel>FUNDING NEEDED ($)</FieldLabel>
-            <Controller
-              control={control}
-              name="funding_needs"
-              render={({ field: { onChange, value } }) => (
-                <TextInput
-                  style={styles.input}
-                  placeholder="e.g. 500000"
-                  placeholderTextColor={colors.textHint}
-                  keyboardType="numeric"
-                  onChangeText={onChange}
-                  value={value}
-                />
-              )}
-            />
-          </>
-        )}
 
         {/* Investor fields */}
         {isInvestor && (

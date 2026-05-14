@@ -46,6 +46,45 @@ export const colors = {
   tabBarInactive:       '#8A96AE',
 };
 
+// Investor mode palette — deep navy + champagne (high-end, luxury feel)
+export const investorColors = {
+  primary:              '#E8D5A3',   // Champagne — buttons, active tabs
+  primaryDark:          '#C4AD78',   // Dark champagne — text on dark
+  primaryLight:         '#F0E4BC',   // Light champagne — highlights
+
+  background:           '#0A0F1E',   // Deep navy — main background
+  backgroundSoft:       '#0D1426',   // Slightly lighter navy
+  surface:              '#111827',   // Card surfaces
+  surfaceElevated:      '#1A2340',   // Elevated cards
+  surfaceBorder:        '#2A3550',   // Subtle border
+
+  textPrimary:          '#F0EDE8',   // Cream — main body text
+  textSecondary:        '#B8C0D4',   // Muted blue-gray
+  textHint:             '#6B7A99',   // Dim text
+  textOnPrimary:        '#0A0F1E',   // Dark on champagne
+
+  success:              '#4ADE80',
+  successLight:         '#052e16',
+  error:                '#F87171',
+  errorLight:           '#450a0a',
+  warning:              '#FCD34D',
+  warningLight:         '#422006',
+
+  buttonPrimary:        '#E8D5A3',
+  buttonPrimaryText:    '#0A0F1E',
+  buttonOutlineBorder:  '#E8D5A3',
+  buttonOutlineText:    '#E8D5A3',
+  buttonDestructive:    '#F87171',
+
+  swipeLike:            '#4ADE80',
+  swipePass:            '#F87171',
+
+  tabBarBackground:     '#0A0F1E',
+  tabBarBorder:         '#2A3550',
+  tabBarActive:         '#E8D5A3',
+  tabBarInactive:       '#6B7A99',
+};
+
 // Auth screens / splash — use as a LinearGradient from top to bottom
 export const brandGradient = {
   start:    '#0070F0',   // Top — Bright Azure

@@ -402,9 +402,14 @@ export default function AccountSettingsScreen({ navigation }) {
 
         {/* Subscriptions */}
         <View style={[styles.card, isPremium && styles.premiumCard]}>
-          <Text style={styles.sectionLabel}>SUBSCRIPTION</Text>
+          <Text style={styles.sectionLabel}>SUBSCRIPTIONS</Text>
           {isPremium ? (
             <>
+              <View style={styles.premiumTagRow}>
+                <View style={styles.premiumTag}>
+                  <Text style={styles.premiumTagText}>✦ PREMIUM</Text>
+                </View>
+              </View>
               <View style={styles.premiumBadgeRow}>
                 <Text style={styles.premiumCrown}>👑</Text>
                 <Text style={styles.premiumBadgeText}>Premium Member</Text>
@@ -504,6 +509,15 @@ const styles = StyleSheet.create({
   btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: colors.buttonPrimaryText, ...typography.labelLarge },
   premiumCard: { borderWidth: 2, borderColor: '#D4AF37', backgroundColor: '#FFFDF0' },
+  premiumTagRow: { marginBottom: 12 },
+  premiumTag: {
+    alignSelf: 'flex-start',
+    backgroundColor: '#D4AF37',
+    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+  },
+  premiumTagText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
   premiumBadgeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   premiumCrown: { fontSize: 22 },
   premiumBadgeText: { ...typography.titleSmall, color: '#B8860B', fontWeight: '700' },

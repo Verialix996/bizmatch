@@ -10,7 +10,7 @@ export const getMessages      = (matchId, after = null)     => api.get(`/message
 export const sendMessage      = (matchId, body)             => api.post(`/messages/${matchId}`, { body });
 export const markRead         = (matchId)                   => api.post(`/messages/${matchId}/read`);
 
-export const sendPartnerInvite  = (matchId, projectId)              => api.post(`/messages/${matchId}/invite`, { projectId });
+export const sendPartnerInvite  = (matchId, projectId, roleData = {}) => api.post(`/messages/${matchId}/invite`, { projectId, ...roleData });
 export const respondToInvite    = (matchId, invitationId, accepted) => api.post(`/messages/${matchId}/invite/${invitationId}/respond`, { accepted });
 export const requestNda         = (matchId, projectId)              => api.post(`/messages/${matchId}/nda-request`, { projectId });
 export const signNda            = (matchId, projectId)              => api.post(`/messages/${matchId}/nda-sign`, { projectId });

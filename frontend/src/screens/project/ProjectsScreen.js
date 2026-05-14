@@ -13,6 +13,7 @@ import {
   reviewDeck,
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
+import api from '../../services/api';
 import { colors, radius, cardShadow } from '../../theme';
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
@@ -493,7 +494,7 @@ function ProjectForm({ initial, onSave, onCancel }) {
   );
 }
 
-export default function ProjectsScreen() {
+export default function ProjectsScreen({ route }) {
   const [projects, setProjects] = useState([]);
   const [joinedProjects, setJoinedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -501,6 +502,9 @@ export default function ProjectsScreen() {
   const [editingProject, setEditingProject] = useState(null);
   const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null });
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
+
+  const coFounderMatchId = route?.params?.coFounderMatchId ?? null;
+  const coFounderName    = route?.params?.coFounderName ?? null;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -518,13 +522,23 @@ export default function ProjectsScreen() {
     }
   }, []);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useFocusEffect(useCallback(() => {
+    api.post('/notifications/read', { types: ['partner_invite'] }).catch(() => {});
+    load();
+    if (route?.params?.startProject) {
+      setShowForm(true);
+      setEditingProject(null);
+    }
+  }, [load, route?.params?.startProject]));
 
   const handleSave = async (data) => {
     if (editingProject) {
       await updateProject(editingProject.id, data);
     } else {
-      await createProject(data);
+      const res = await createProject(data);
+      if (coFounderMatchId && res?.data?.id) {
+        sendPartnerInvite(coFounderMatchId, res.data.id, { role_title: 'Co-Founder' }).catch(() => {});
+      }
     }
     setShowForm(false);
     setEditingProject(null);

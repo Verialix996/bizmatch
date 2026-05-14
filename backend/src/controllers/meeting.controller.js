@@ -2,6 +2,7 @@ const { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, 
 const { sendMessage } = require('../models/message.model');
 const { query } = require('../config/db');
 const Anthropic = require('@anthropic-ai/sdk');
+const { emitNotification } = require('./notification.controller');
 
 // POST /api/meetings  { matchId, title, scheduledAt, locationType, videoLink, address, lat, lng }
 const propose = async (req, res, next) => {
@@ -55,6 +56,8 @@ const propose = async (req, res, next) => {
       videoLink: meeting.video_link || null,
       status: meeting.status,
     });
+
+    emitNotification(receiverId, 'meeting', meeting.id, { title: meeting.title, matchId }).catch(() => {});
 
     res.status(201).json(meeting);
   } catch (err) {

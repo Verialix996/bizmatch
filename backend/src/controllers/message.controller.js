@@ -3,6 +3,7 @@ const { query } = require('../config/db');
 const PDFDocument = require('pdfkit');
 const { cloudinary } = require('../config/cloudinary');
 const { moderateText } = require('../services/moderation.service');
+const { emitNotification } = require('./notification.controller');
 
 const conversations = async (req, res, next) => {
   try {
@@ -57,8 +58,16 @@ const sendInvite = async (req, res, next) => {
     const matchId   = Number(req.params.matchId);
     const projectId = Number(req.body.projectId);
     const senderId  = req.user.id;
+    const roleTitle = req.body.role_title ? String(req.body.role_title).trim() : null;
+    const equityPct = req.body.equity_pct != null ? Number(req.body.equity_pct) : null;
+    const salary    = req.body.salary    != null ? Number(req.body.salary)    : null;
 
     if (!matchId || !projectId) return res.status(400).json({ error: 'matchId and projectId required' });
+
+    if (roleTitle) {
+      const mod = await moderateText(roleTitle);
+      if (!mod.ok) return res.status(400).json({ error: `Role title flagged: ${mod.reason}` });
+    }
 
     // Verify sender is part of this match
     const matchRows = await query(
@@ -87,29 +96,43 @@ const sendInvite = async (req, res, next) => {
     let invitationId;
     if (existing[0]) {
       if (existing[0].status === 'pending') return res.status(409).json({ error: 'Invite already pending' });
-      if (existing[0].status === 'accepted') return res.status(409).json({ error: 'User is already a partner' });
-      // Previously rejected — reset to pending so they can be re-invited
-      await query(
-        `UPDATE partner_invitations SET status = 'pending', inviter_id = ?, match_id = ?, created_at = NOW() WHERE id = ?`,
-        [senderId, matchId, existing[0].id]
-      );
-      invitationId = existing[0].id;
-    } else {
+      if (existing[0].status === 'accepted') {
+        // Verify the user is still an active partner — they may have been removed
+        const partnerRows = await query(
+          'SELECT 1 FROM project_partners WHERE project_id = ? AND user_id = ?',
+          [projectId, inviteeId]
+        );
+        if (partnerRows[0]) return res.status(409).json({ error: 'User is already a partner' });
+        // Stale accepted record — clear it and allow re-invite
+        await query('DELETE FROM partner_invitations WHERE id = ?', [existing[0].id]);
+      } else {
+        // Previously rejected — reset to pending so they can be re-invited
+        await query(
+          `UPDATE partner_invitations SET status = 'pending', inviter_id = ?, match_id = ?, role_title = ?, equity_pct = ?, salary = ?, created_at = NOW() WHERE id = ?`,
+          [senderId, matchId, roleTitle, equityPct, salary, existing[0].id]
+        );
+        invitationId = existing[0].id;
+      }
+    }
+    if (!invitationId) {
       const invResult = await query(
-        `INSERT INTO partner_invitations (project_id, match_id, inviter_id, invitee_id, status)
-         VALUES (?, ?, ?, ?, 'pending')`,
-        [projectId, matchId, senderId, inviteeId]
+        `INSERT INTO partner_invitations (project_id, match_id, inviter_id, invitee_id, status, role_title, equity_pct, salary)
+         VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)`,
+        [projectId, matchId, senderId, inviteeId, roleTitle, equityPct, salary]
       );
       invitationId = invResult.insertId;
     }
 
+    const roleLabel = roleTitle ? ` as ${roleTitle}` : ' as a partner';
     // Send the invite as a chat message
     const msg = await sendMessage(
       matchId, senderId,
-      `You've been invited to join "${project.title}" as a partner. Please review and sign the NDA to accept.`,
+      `You've been invited to join "${project.title}"${roleLabel}. Please review and sign the NDA to accept.`,
       'partner_invite',
-      { projectId, projectTitle: project.title, invitationId }
+      { projectId, projectTitle: project.title, invitationId, roleTitle, equityPct, salary }
     );
+
+    emitNotification(inviteeId, 'partner_invite', invitationId, { projectId, projectTitle: project.title }).catch(() => {});
 
     res.status(201).json({ invitation: { id: invitationId, projectId, inviteeId }, message: msg });
   } catch (err) {

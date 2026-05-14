@@ -16,7 +16,8 @@ import { getFeed, swipe } from '../../services/match.service';
 import { getProjectFeed, swipeProject, getMyProjects } from '../../services/project.service';
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
-import { colors, cardShadow, radius } from '../../theme';
+import useAppStore from '../../store/appStore';
+import { colors, investorColors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
@@ -343,16 +344,18 @@ export default function SwipeScreen() {
   const user = useAuthStore(s => s.user);
   const isEntrepreneur = user?.role === 'entrepreneur';
 
+  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode } = useAppStore();
+  const mode = investorMode ? 'investors' : 'partners';
+
+  const [myProjects, setMyProjects] = useState([]);
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
   const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null, aiSummary: null, isProjectMatch: false });
-  const [mode, setMode] = useState('investors');
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedProject, setSelectedProject] = useState(null);
-  const [myProjects, setMyProjects] = useState([]);
-  const [showProjectPicker, setShowProjectPicker] = useState(false);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
+
+  const C = investorMode ? investorColors : colors;
 
   const videoPlayer = useVideoPlayer(videoModal.url || '', p => { p.loop = false; });
   useEffect(() => {
@@ -363,6 +366,15 @@ export default function SwipeScreen() {
   const position = useRef(new Animated.ValueXY()).current;
   const superStarScale = useRef(new Animated.Value(1)).current;
   const superFlashOpacity = useRef(new Animated.Value(0)).current;
+  const superBadgeScale = useRef(new Animated.Value(0.5)).current;
+  const superBadgeOpacity = useRef(new Animated.Value(0)).current;
+  const superParticles = useRef(
+    Array.from({ length: 8 }, () => ({
+      x: new Animated.Value(0),
+      y: new Animated.Value(0),
+      opacity: new Animated.Value(0),
+    }))
+  ).current;
 
   const likeOpacity = position.x.interpolate({
     inputRange: [0, SWIPE_THRESHOLD], outputRange: [0, 1], extrapolate: 'clamp',
@@ -422,11 +434,37 @@ export default function SwipeScreen() {
           Animated.timing(superStarScale, { toValue: 2.2, duration: 180, useNativeDriver: true }),
           Animated.timing(superStarScale, { toValue: 1, duration: 120, useNativeDriver: true }),
         ]).start();
-        // Gold flash overlay
+        // Deeper gold flash overlay (0.75 opacity, 600ms fade)
         Animated.sequence([
-          Animated.timing(superFlashOpacity, { toValue: 0.55, duration: 150, useNativeDriver: true }),
-          Animated.timing(superFlashOpacity, { toValue: 0, duration: 400, useNativeDriver: true }),
+          Animated.timing(superFlashOpacity, { toValue: 0.75, duration: 150, useNativeDriver: true }),
+          Animated.timing(superFlashOpacity, { toValue: 0, duration: 600, useNativeDriver: true }),
         ]).start();
+        // "⭐ SUPER LIKE!" badge — scale in then fade out
+        superBadgeScale.setValue(0.5);
+        superBadgeOpacity.setValue(0);
+        Animated.sequence([
+          Animated.parallel([
+            Animated.timing(superBadgeOpacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+            Animated.spring(superBadgeScale, { toValue: 1.1, friction: 4, useNativeDriver: true }),
+          ]),
+          Animated.timing(superBadgeScale, { toValue: 1, duration: 100, useNativeDriver: true }),
+          Animated.delay(400),
+          Animated.timing(superBadgeOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+        ]).start();
+        // 8 particle stars radiating outward
+        const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+        superParticles.forEach((p, i) => {
+          p.x.setValue(0); p.y.setValue(0); p.opacity.setValue(0);
+          const rad = (ANGLES[i] * Math.PI) / 180;
+          const dist = 80 + Math.random() * 40;
+          Animated.parallel([
+            Animated.timing(p.opacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+            Animated.timing(p.x, { toValue: Math.cos(rad) * dist, duration: 500, useNativeDriver: true }),
+            Animated.timing(p.y, { toValue: Math.sin(rad) * dist, duration: 500, useNativeDriver: true }),
+          ]).start(() => {
+            Animated.timing(p.opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
+          });
+        });
         // Card flies up-right with rotation (use position Y to go up)
         Animated.timing(position, {
           toValue: { x: toX, y: -300 }, duration: 350, useNativeDriver: false,
@@ -463,7 +501,7 @@ export default function SwipeScreen() {
       setCurrentIndex(i => i + 1);
       setSwiping(false);
     });
-  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, isEntrepreneur, navigation]);
+  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, isEntrepreneur, navigation]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
@@ -473,7 +511,9 @@ export default function SwipeScreen() {
     onTapRef.current = () => {
       const item = feed[currentIndex];
       if (!item) return;
-      navigation.navigate('ProfileDetail', { profile: item, matchId: null });
+      // Normalize project items so ProfileDetailScreen can render them
+      const profile = item.projectId ? { ...item, name: item.ownerName, photoUrl: item.ownerPhoto } : item;
+      navigation.navigate('ProfileDetail', { profile, matchId: null });
     };
   }, [feed, currentIndex, navigation]);
 
@@ -502,65 +542,19 @@ export default function SwipeScreen() {
   const visibleCards = feed.slice(currentIndex, currentIndex + 2);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
-
-      {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.logo}>BizMatch</Text>
-      </View>
-
-      {/* Title */}
-      <View style={styles.titleBlock}>
-        <Text style={styles.sectionLabel}>DISCOVERY FEED</Text>
-        <Text style={styles.pageTitle}>
-          {isEntrepreneur ? 'New Connections' : 'New Projects'}
-        </Text>
-      </View>
-
-      {/* Mode toggle — entrepreneurs only */}
-      {isEntrepreneur && (
-        <>
-          <View style={styles.toggle}>
-            {['investors', 'partners'].map(m => (
-              <TouchableOpacity
-                key={m}
-                style={[styles.toggleBtn, mode === m && styles.toggleBtnActive]}
-                onPress={() => {
-                  if (m !== mode) {
-                    setSelectedProject(null);
-                    setMode(m);
-                  }
-                }}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.toggleBtnText, mode === m && styles.toggleBtnTextActive]}>
-                  {m === 'investors' ? 'Find Investors' : 'Find Partners'}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          {mode === 'investors' && selectedProject && (
-            <View style={styles.projectPill}>
-              <Text style={styles.projectPillText} numberOfLines={1}>📁 {selectedProject.title}</Text>
-              <TouchableOpacity onPress={() => setSelectedProject(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.projectPillChange}>Change</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </>
-      )}
+    <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
+      <StatusBar barStyle={investorMode ? 'light-content' : 'dark-content'} />
 
       {/* Deck */}
       <View style={styles.deckArea}>
         {isEntrepreneur && mode === 'investors' && !selectedProject ? (
-          <TouchableOpacity style={styles.pickProjectBtn} onPress={() => setShowProjectPicker(true)} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.pickProjectBtn} onPress={() => useAppStore.getState().openProjectPicker()} activeOpacity={0.85}>
             <Text style={styles.pickProjectIcon}>📁</Text>
             <Text style={styles.pickProjectTitle}>Select a project</Text>
             <Text style={styles.pickProjectSub}>Choose which project to find investors for</Text>
           </TouchableOpacity>
         ) : loading ? (
-          <ActivityIndicator size="large" color={colors.primary} />
+          <ActivityIndicator size="large" color={C.primary} />
         ) : visibleCards.length === 0 ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyTitle}>All caught up</Text>
@@ -686,11 +680,8 @@ export default function SwipeScreen() {
       <ProjectPickerModal
         visible={showProjectPicker}
         projects={myProjects}
-        onSelect={(project) => {
-          setSelectedProject(project);
-          setShowProjectPicker(false);
-        }}
-        onClose={() => setShowProjectPicker(false)}
+        onSelect={(project) => enterInvestorMode(project)}
+        onClose={closeProjectPicker}
       />
 
       {/* Super Like gold flash overlay */}
@@ -698,6 +689,28 @@ export default function SwipeScreen() {
         pointerEvents="none"
         style={[styles.superFlash, { opacity: superFlashOpacity }]}
       />
+
+      {/* Super Like badge */}
+      <Animated.View
+        pointerEvents="none"
+        style={[styles.superBadge, { opacity: superBadgeOpacity, transform: [{ scale: superBadgeScale }] }]}
+      >
+        <Text style={styles.superBadgeText}>⭐ SUPER LIKE!</Text>
+      </Animated.View>
+
+      {/* Particle stars */}
+      {superParticles.map((p, i) => (
+        <Animated.View
+          key={i}
+          pointerEvents="none"
+          style={[
+            styles.superParticle,
+            { opacity: p.opacity, transform: [{ translateX: p.x }, { translateY: p.y }] },
+          ]}
+        >
+          <Text style={styles.superParticleText}>★</Text>
+        </Animated.View>
+      ))}
     </SafeAreaView>
   );
 }
@@ -711,6 +724,32 @@ const styles = StyleSheet.create({
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
     backgroundColor: '#FFD700',
     zIndex: 99,
+  },
+  superBadge: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '40%',
+    zIndex: 100,
+    backgroundColor: '#FFD700',
+    borderRadius: 24,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  superBadgeText: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#0A0F1E',
+    letterSpacing: 1,
+  },
+  superParticle: {
+    position: 'absolute',
+    alignSelf: 'center',
+    top: '45%',
+    zIndex: 100,
+  },
+  superParticleText: {
+    fontSize: 18,
+    color: '#FFD700',
   },
 
   header: {

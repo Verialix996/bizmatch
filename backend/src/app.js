@@ -15,6 +15,7 @@ const matchRoutes    = require('./routes/match.routes');
 const messageRoutes  = require('./routes/message.routes');
 const projectRoutes  = require('./routes/project.routes');
 const meetingRoutes  = require('./routes/meeting.routes');
+const notificationRoutes = require('./routes/notification.routes');
 
 const app = express();
 
@@ -47,7 +48,8 @@ app.use('/api/profile',  profileRoutes);
 app.use('/api/match',    matchRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/projects', projectRoutes);
-app.use('/api/meetings', meetingRoutes);
+app.use('/api/meetings',       meetingRoutes);
+app.use('/api/notifications',  notificationRoutes);
 
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));

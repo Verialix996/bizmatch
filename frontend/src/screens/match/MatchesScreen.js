@@ -6,6 +6,7 @@ import {
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { getConversations, whoLikedMe } from '../../services/match.service';
+import api from '../../services/api';
 import { colors, cardShadow, radius } from '../../theme';
 import useAuthStore from '../../store/authStore';
 
@@ -169,6 +170,8 @@ export default function MatchesScreen({ navigation }) {
   }, [setNewMatchCount, currentUser]);
 
   useFocusEffect(useCallback(() => {
+    // Clear match/super_like notifications when user visits this screen
+    api.post('/notifications/read', { types: ['match', 'super_like'] }).catch(() => {});
     load();
     const interval = setInterval(async () => {
       try {

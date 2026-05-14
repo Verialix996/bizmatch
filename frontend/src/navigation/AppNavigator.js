@@ -3,7 +3,8 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../store/authStore';
-import { colors } from '../theme';
+import useAppStore from '../store/appStore';
+import { colors, investorColors } from '../theme';
 import AppHeader from '../components/AppHeader';
 import { getConversations } from '../services/match.service';
 
@@ -52,6 +53,8 @@ function MainTabs() {
   const newMatchCount  = useAuthStore(s => s.newMatchCount);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser    = useAuthStore(s => s.user);
+  const investorMode   = useAppStore(s => s.investorMode);
+  const TC = investorMode ? investorColors : colors;
 
   useEffect(() => {
     const pollBadge = async () => {
@@ -83,13 +86,13 @@ function MainTabs() {
       screenOptions={({ route }) => ({
         header: () => <AppHeader />,
         tabBarStyle: {
-          backgroundColor: '#FFFFFF',
-          borderTopColor: '#DDE3F0',
+          backgroundColor: TC.tabBarBackground,
+          borderTopColor: TC.tabBarBorder,
           height: 60,
           paddingBottom: 8,
         },
-        tabBarActiveTintColor: colors.primary,
-        tabBarInactiveTintColor: colors.textHint,
+        tabBarActiveTintColor: TC.tabBarActive,
+        tabBarInactiveTintColor: TC.tabBarInactive,
         tabBarLabelStyle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
         tabBarIcon: ({ focused, color }) => {
           const [filled, outline] = TAB_ICONS[route.name];

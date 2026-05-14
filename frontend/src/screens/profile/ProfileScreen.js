@@ -90,7 +90,7 @@ export default function ProfileScreen({ navigation }) {
   const isInvestor = profile?.role_type === 'investor' || user?.role === 'investor';
   const roleTitle = isInvestor
     ? `Investor · ${profile?.investment_domain || 'Multi-sector'}`
-    : `Entrepreneur · ${stageLabel[profile?.venture_stage] || 'Early Stage'}`;
+    : 'Entrepreneur';
 
   const skills = (() => {
     try { return JSON.parse(profile?.skills || '[]'); } catch { return []; }
@@ -105,8 +105,8 @@ export default function ProfileScreen({ navigation }) {
       if (profile?.investment_domain) pts += 20;
       if (profile?.preferred_stage) pts += 20;
     } else {
-      if (profile?.venture_stage) pts += 20;
-      if (profile?.funding_needs) pts += 20;
+      if (skills.length >= 1) pts += 10;
+      if (profile?.bio && (profile?.bio || '').length > 100) pts += 10;
     }
     return pts;
   })();
@@ -149,7 +149,7 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.completenessHint}>
                 {!profile.photo_url ? 'Add a profile photo · ' : ''}
                 {(profile.bio || '').length <= 50 ? 'Write a bio · ' : ''}
-                {skills.length < 2 ? 'Add skills' : ''}
+                {skills.length < 2 ? 'Add 2+ skills' : ''}
               </Text>
             )}
           </View>
@@ -208,28 +208,6 @@ export default function ProfileScreen({ navigation }) {
             </View>
           )}
 
-          {/* Entrepreneur fields */}
-          {!isInvestor && (profile?.venture_stage || profile?.funding_needs) && (
-            <View style={styles.card}>
-              <Text style={styles.sectionLabel}>VENTURE DETAILS</Text>
-              {profile?.venture_stage && (
-                <View style={styles.dataRow}>
-                  <Text style={styles.dataLabel}>Stage</Text>
-                  <Text style={styles.dataValue}>
-                    {stageLabel[profile.venture_stage] || profile.venture_stage}
-                  </Text>
-                </View>
-              )}
-              {profile?.funding_needs && (
-                <View style={styles.dataRow}>
-                  <Text style={styles.dataLabel}>Seeking</Text>
-                  <Text style={styles.highlight}>
-                    ${Number(profile.funding_needs).toLocaleString()}
-                  </Text>
-                </View>
-              )}
-            </View>
-          )}
 
           {/* Actions */}
           <View style={styles.actionsContainer}>

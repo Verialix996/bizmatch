@@ -87,6 +87,8 @@ function tryParseJson(str) {
   try { return JSON.parse(str); } catch { return null; }
 }
 
+const ROLE_OPTIONS = ['Co-Founder', 'CEO', 'CTO', 'CFO', 'COO', 'CMO', 'VP', 'Director', 'Custom'];
+
 export default function ChatScreen({ route, navigation }) {
   const { match } = route.params;
   const user = useAuthStore(s => s.user);
@@ -117,6 +119,23 @@ export default function ChatScreen({ route, navigation }) {
   const [jobOfferTitle, setJobOfferTitle] = useState('');
   const [jobOfferDesc, setJobOfferDesc] = useState('');
   const [jobOfferSending, setJobOfferSending] = useState(false);
+
+  // Role picker modal (for partner invite)
+  const [rolePickerVisible, setRolePickerVisible] = useState(false);
+  const [rolePendingProject, setRolePendingProject] = useState(null);
+  const [selectedRole, setSelectedRole] = useState('');
+  const [customRole, setCustomRole] = useState('');
+  const [roleEquity, setRoleEquity] = useState('');
+  const [roleSalary, setRoleSalary] = useState('');
+  const [roleSending, setRoleSending] = useState(false);
+
+  // Counter-offer modal (partner invite negotiation)
+  const [counterVisible, setCounterVisible] = useState(false);
+  const [counterItem, setCounterItem] = useState(null);
+  const [counterRole, setCounterRole] = useState('');
+  const [counterEquity, setCounterEquity] = useState('');
+  const [counterSalary, setCounterSalary] = useState('');
+  const [counterSending, setCounterSending] = useState(false);
 
   // Inline video player
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
@@ -164,7 +183,7 @@ export default function ChatScreen({ route, navigation }) {
   useEffect(() => { markMatchRead(match.matchId); }, [match.matchId, markMatchRead]);
 
   useEffect(() => {
-    const interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 2000);
     return () => clearInterval(interval);
   }, [poll]);
 
@@ -320,9 +339,14 @@ export default function ChatScreen({ route, navigation }) {
     closeActionSheet();
     try {
       if (actionType === 'invite') {
-        await sendPartnerInvite(match.matchId, project.id);
-        Alert.alert('Invite Sent', `Partner invite sent for "${project.title}". They must sign the NDA and accept to join.`);
-        await load(); // refresh messages
+        // Open role picker before sending
+        setRolePendingProject(project);
+        setSelectedRole('');
+        setCustomRole('');
+        setRoleEquity('');
+        setRoleSalary('');
+        setRolePickerVisible(true);
+        return;
       } else if (actionType === 'share') {
         const alreadySigned = messages.some(m => {
           if (m.message_type !== 'nda_signed') return false;
@@ -346,6 +370,54 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
+  const handleSendInviteWithRole = async () => {
+    if (!rolePendingProject) return;
+    const finalRole = selectedRole === 'Custom' ? customRole.trim() : selectedRole;
+    setRoleSending(true);
+    try {
+      const roleData = {};
+      if (finalRole) roleData.role_title = finalRole;
+      if (roleEquity) roleData.equity_pct = Number(roleEquity);
+      if (roleSalary) roleData.salary = Number(roleSalary);
+      await sendPartnerInvite(match.matchId, rolePendingProject.id, roleData);
+      setRolePickerVisible(false);
+      Alert.alert('Invite Sent', `Partner invite sent for "${rolePendingProject.title}". They must sign the NDA and accept to join.`);
+      await load();
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Failed to send invite.');
+    } finally {
+      setRoleSending(false);
+    }
+  };
+
+  const openCounterOffer = (item) => {
+    const meta = tryParseJson(item.metadata) || {};
+    setCounterItem(item);
+    setCounterRole(meta.roleTitle || '');
+    setCounterEquity(meta.equityPct != null ? String(meta.equityPct) : '');
+    setCounterSalary(meta.salary != null ? String(meta.salary) : '');
+    setCounterVisible(true);
+  };
+
+  const handleSendCounter = async () => {
+    if (!counterItem) return;
+    const meta = tryParseJson(counterItem.metadata) || {};
+    setCounterSending(true);
+    try {
+      const roleData = {};
+      if (counterRole.trim()) roleData.role_title = counterRole.trim();
+      if (counterEquity) roleData.equity_pct = Number(counterEquity);
+      if (counterSalary) roleData.salary = Number(counterSalary);
+      await sendPartnerInvite(match.matchId, meta.projectId, { ...roleData, counterOffer: true });
+      setCounterVisible(false);
+      await load();
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Failed to send counter offer.');
+    } finally {
+      setCounterSending(false);
+    }
+  };
+
   const renderSpecialMessage = (item, isOwn) => {
     const meta = tryParseJson(item.metadata) || {};
     const type = item.message_type;
@@ -364,13 +436,21 @@ export default function ChatScreen({ route, navigation }) {
         const mm = tryParseJson(m.metadata) || {};
         return mm.projectId === meta.projectId;
       });
+      const isCounter = meta.counterOffer === true;
       return (
         <View style={styles.actionCard}>
-          <Text style={styles.actionCardTitle}>Partner Invite</Text>
+          <Text style={styles.actionCardTitle}>{isCounter ? 'Counter Offer' : 'Partner Invite'}</Text>
           <Text style={styles.actionCardBody}>
-            Invited to join{'\n'}
+            {isCounter ? 'Counter offer for' : 'Invited to join'}{'\n'}
             <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
           </Text>
+          {(meta.roleTitle || meta.equityPct != null || meta.salary != null) && (
+            <View style={styles.roleDetails}>
+              {meta.roleTitle ? <Text style={styles.roleDetailText}>Role: {meta.roleTitle}</Text> : null}
+              {meta.equityPct != null ? <Text style={styles.roleDetailText}>Equity: {meta.equityPct}%</Text> : null}
+              {meta.salary != null ? <Text style={styles.roleDetailText}>Salary: ${meta.salary.toLocaleString()}/yr</Text> : null}
+            </View>
+          )}
           {!hasSignedNda && (
             <Text style={styles.actionCardNote}>
               Signing the NDA is required before accepting.
@@ -393,6 +473,13 @@ export default function ChatScreen({ route, navigation }) {
                 activeOpacity={0.85}
               >
                 <Text style={styles.actionBtnDeclineText}>Decline</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnCounter]}
+                onPress={() => openCounterOffer(item)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionBtnCounterText}>Counter</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -795,13 +882,26 @@ export default function ChatScreen({ route, navigation }) {
                   </TouchableOpacity>
                 )}
                 {user?.role === 'entrepreneur' && match.roleType === 'entrepreneur' && (
-                  <TouchableOpacity style={styles.sheetItem} onPress={() => { closeActionSheet(); setJobOfferVisible(true); }} activeOpacity={0.8}>
-                    <Text style={styles.sheetItemIcon}>💼</Text>
-                    <View>
-                      <Text style={styles.sheetItemLabel}>Propose Job</Text>
-                      <Text style={styles.sheetItemSub}>Send a job offer or collaboration proposal</Text>
-                    </View>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      style={styles.sheetItem}
+                      onPress={() => { closeActionSheet(); navigation.navigate('Projects', { screen: 'Projects', params: { startProject: true, coFounderMatchId: match.matchId, coFounderName: match.name } }); }}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.sheetItemIcon}>💡</Text>
+                      <View>
+                        <Text style={styles.sheetItemLabel}>Start a Project Together</Text>
+                        <Text style={styles.sheetItemSub}>Create a new project with {match.name} as co-founder</Text>
+                      </View>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.sheetItem} onPress={() => { closeActionSheet(); setJobOfferVisible(true); }} activeOpacity={0.8}>
+                      <Text style={styles.sheetItemIcon}>💼</Text>
+                      <View>
+                        <Text style={styles.sheetItemLabel}>Propose Job</Text>
+                        <Text style={styles.sheetItemSub}>Send a job offer or collaboration proposal</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
                 )}
                 <TouchableOpacity style={styles.sheetCancel} onPress={closeActionSheet} activeOpacity={0.8}>
                   <Text style={styles.sheetCancelText}>Cancel</Text>
@@ -1013,6 +1113,124 @@ export default function ChatScreen({ route, navigation }) {
                 }}
               >
                 <Text style={styles.ndaSignBtnText}>Sign NDA</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Role picker modal — shown after selecting a project for "invite" */}
+      <Modal visible={rolePickerVisible} transparent animationType="fade" onRequestClose={() => setRolePickerVisible(false)}>
+        <View style={styles.ndaOverlay}>
+          <View style={styles.ndaModal}>
+            <Text style={styles.ndaModalTitle}>Define the Role</Text>
+            <Text style={styles.ndaModalSub}>Optionally set role details for your partner invite</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Role</Text>
+            <View style={styles.roleChipRow}>
+              {ROLE_OPTIONS.map(r => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.roleChip, selectedRole === r && styles.roleChipSelected]}
+                  onPress={() => setSelectedRole(selectedRole === r ? '' : r)}
+                  activeOpacity={0.8}
+                >
+                  <Text style={[styles.roleChipText, selectedRole === r && styles.roleChipTextSelected]}>{r}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            {selectedRole === 'Custom' && (
+              <TextInput
+                style={styles.ndaInput}
+                placeholder="Enter custom role title"
+                placeholderTextColor={colors.textHint}
+                value={customRole}
+                onChangeText={setCustomRole}
+                maxLength={80}
+              />
+            )}
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Equity %</Text>
+            <TextInput
+              style={styles.ndaInput}
+              placeholder="e.g. 10"
+              placeholderTextColor={colors.textHint}
+              value={roleEquity}
+              onChangeText={setRoleEquity}
+              keyboardType="decimal-pad"
+              maxLength={6}
+            />
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Salary ($/yr, optional)</Text>
+            <TextInput
+              style={styles.ndaInput}
+              placeholder="e.g. 80000"
+              placeholderTextColor={colors.textHint}
+              value={roleSalary}
+              onChangeText={setRoleSalary}
+              keyboardType="number-pad"
+              maxLength={10}
+            />
+            <View style={[styles.ndaModalActions, { marginTop: 20 }]}>
+              <TouchableOpacity style={styles.ndaCancelBtn} onPress={() => setRolePickerVisible(false)} activeOpacity={0.8}>
+                <Text style={styles.ndaCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.ndaSignBtn, roleSending && { opacity: 0.6 }]}
+                onPress={handleSendInviteWithRole}
+                disabled={roleSending}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.ndaSignBtnText}>{roleSending ? 'Sending…' : 'Send Invite'}</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Counter-offer modal */}
+      <Modal visible={counterVisible} transparent animationType="fade" onRequestClose={() => setCounterVisible(false)}>
+        <View style={styles.ndaOverlay}>
+          <View style={styles.ndaModal}>
+            <Text style={styles.ndaModalTitle}>Counter Offer</Text>
+            <Text style={styles.ndaModalSub}>Edit the terms and send a counter proposal</Text>
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Role Title</Text>
+            <TextInput
+              style={styles.ndaInput}
+              placeholder="e.g. CTO"
+              placeholderTextColor={colors.textHint}
+              value={counterRole}
+              onChangeText={setCounterRole}
+              maxLength={80}
+            />
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Equity %</Text>
+            <TextInput
+              style={styles.ndaInput}
+              placeholder="e.g. 15"
+              placeholderTextColor={colors.textHint}
+              value={counterEquity}
+              onChangeText={setCounterEquity}
+              keyboardType="decimal-pad"
+              maxLength={6}
+            />
+            <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: colors.textPrimary }]}>Salary ($/yr, optional)</Text>
+            <TextInput
+              style={styles.ndaInput}
+              placeholder="e.g. 90000"
+              placeholderTextColor={colors.textHint}
+              value={counterSalary}
+              onChangeText={setCounterSalary}
+              keyboardType="number-pad"
+              maxLength={10}
+            />
+            <View style={[styles.ndaModalActions, { marginTop: 20 }]}>
+              <TouchableOpacity style={styles.ndaCancelBtn} onPress={() => setCounterVisible(false)} activeOpacity={0.8}>
+                <Text style={styles.ndaCancelBtnText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.ndaSignBtn, counterSending && { opacity: 0.6 }]}
+                onPress={handleSendCounter}
+                disabled={counterSending}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.ndaSignBtnText}>{counterSending ? 'Sending…' : 'Send Counter'}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -1525,6 +1743,65 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: '700',
     fontSize: 13,
+  },
+  actionBtnCounter: {
+    backgroundColor: '#FFF8E7',
+    borderWidth: 1,
+    borderColor: '#E8D5A3',
+  },
+  actionBtnCounterText: {
+    color: '#C4A84C',
+    fontWeight: '700',
+    fontSize: 13,
+  },
+  roleDetails: {
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.sm,
+    padding: 8,
+    marginTop: 8,
+    gap: 3,
+  },
+  roleDetailText: {
+    fontSize: 12,
+    color: colors.textSecondary,
+    fontWeight: '600',
+  },
+  roleChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 4,
+  },
+  roleChip: {
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    backgroundColor: colors.backgroundSoft,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  roleChipSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  roleChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.textSecondary,
+  },
+  roleChipTextSelected: {
+    color: '#fff',
+  },
+  ndaInput: {
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.md,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 14,
+    color: colors.textPrimary,
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    marginBottom: 4,
   },
 
   // NDA preview modal

@@ -1,6 +1,7 @@
 const { query } = require('../config/db');
 const Anthropic = require('@anthropic-ai/sdk');
 const { sendPushNotification } = require('../services/notification.service');
+const { emitNotification } = require('../controllers/notification.controller');
 
 // ---------------------------------------------------------------------------
 // Scoring helpers
@@ -321,8 +322,15 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
   if (matchId) {
     generateMatchSummary(matchId, swiperId, swipedId).catch(() => {});
     query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
-      sendPushNotification(swipedId, '🎉 New Match!', `You matched with ${rows[0]?.name}!`, { matchId });
+      const name = rows[0]?.name || 'Someone';
+      sendPushNotification(swipedId, '🎉 New Match!', `You matched with ${name}!`, { matchId });
+      emitNotification(swipedId, 'match', matchId, { matchId, name });
     }).catch(() => {});
+    if (isSuperLike) {
+      query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
+        emitNotification(swipedId, 'super_like', swiperId, { fromUserId: swiperId, name: rows[0]?.name || 'Someone' });
+      }).catch(() => {});
+    }
   }
 
   return { matched: true, matchId };

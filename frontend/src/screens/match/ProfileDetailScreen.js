@@ -67,6 +67,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
   const [compatibility, setCompatibility] = useState(null);
   const [compatibilityLoading, setCompatibilityLoading] = useState(true);
   const [ndaSigned, setNdaSigned] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
 
   useEffect(() => {
     if (!profile?.userId) { setCompatibilityLoading(false); return; }
@@ -82,6 +83,13 @@ export default function ProfileDetailScreen({ route, navigation }) {
       .then(r => setNdaSigned(r.data.signed))
       .catch(() => {});
   }, [matchId, profile?.projectId, user?.role]);
+
+  useEffect(() => {
+    if (!profile?.projectId) return;
+    api.get(`/projects/${profile.projectId}/partners`)
+      .then(r => setTeamMembers(r.data || []))
+      .catch(() => {});
+  }, [profile?.projectId]);
 
   const roleLabel = profile.role === 'investor'
     ? `Investor · ${profile.investmentDomain || 'Multi-sector'}`
@@ -180,6 +188,20 @@ export default function ProfileDetailScreen({ route, navigation }) {
                 </Section>
               ) : null}
             </>
+          )}
+
+          {/* Project team members (shown when viewing a project card) */}
+          {profile.projectId && teamMembers.length > 0 && (
+            <Section title="TEAM">
+              {teamMembers.map((m, i) => (
+                <View key={i} style={styles.teamRow}>
+                  <View style={[styles.teamAvatar, { backgroundColor: colors.primary }]}>
+                    <Text style={styles.teamAvatarText}>{m.name ? m.name[0].toUpperCase() : '?'}</Text>
+                  </View>
+                  <Text style={styles.teamName}>{m.name}</Text>
+                </View>
+              ))}
+            </Section>
           )}
 
           {/* Match score */}
@@ -375,6 +397,10 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
+  teamRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  teamAvatar: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+  teamAvatarText: { fontSize: 13, fontWeight: '800', color: '#fff' },
+  teamName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     backgroundColor: colors.surface,
