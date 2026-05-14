@@ -3,6 +3,7 @@ const UserModel = require('../models/user.model');
 const { query } = require('../config/db');
 const { uploadDoc: upload } = require('../middleware/upload');
 const { moderateText } = require('../services/moderation.service');
+const { cloudinary } = require('../config/cloudinary');
 
 // GET /api/profile/me
 async function getMyProfile(req, res, next) {
@@ -65,4 +66,19 @@ async function uploadIdDocument(req, res, next) {
   }
 }
 
-module.exports = { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload };
+// POST /api/profile/upload-cv  — CV/resume PDF upload
+async function uploadCv(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+    const result = await cloudinary.uploader.upload(
+      `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
+      { resource_type: 'raw', folder: 'bizmatch/cvs', public_id: `cv_${req.user.id}`, overwrite: true }
+    );
+    await query('UPDATE profiles SET cv_url = ? WHERE user_id = ?', [result.secure_url, req.user.id]);
+    res.json({ cv_url: result.secure_url });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv };

@@ -8,7 +8,8 @@ const ProfileModel = {
 
   async create(userId, data) {
     const { bio, skills, hobbies, role_type, venture_stage, funding_needs,
-            investment_domain, preferred_stage, max_investment } = data;
+            investment_domain, preferred_stage, max_investment,
+            portfolio_url, linkedin_url, experience, cv_url } = data;
     const nullIfEmpty = v => (v === '' || v === undefined ? null : v);
     const vals = [
       userId,
@@ -21,13 +22,18 @@ const ProfileModel = {
       nullIfEmpty(investment_domain),
       nullIfEmpty(preferred_stage),
       max_investment || null,
+      nullIfEmpty(portfolio_url),
+      nullIfEmpty(linkedin_url),
+      nullIfEmpty(experience),
+      nullIfEmpty(cv_url),
     ];
     const result = await query(
       `INSERT INTO profiles
         (user_id, bio, skills, hobbies, role_type,
          venture_stage, funding_needs,
-         investment_domain, preferred_stage, max_investment)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         investment_domain, preferred_stage, max_investment,
+         portfolio_url, linkedin_url, experience, cv_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          bio = VALUES(bio),
          skills = VALUES(skills),
@@ -37,7 +43,11 @@ const ProfileModel = {
          funding_needs = VALUES(funding_needs),
          investment_domain = VALUES(investment_domain),
          preferred_stage = VALUES(preferred_stage),
-         max_investment = VALUES(max_investment)`,
+         max_investment = VALUES(max_investment),
+         portfolio_url = VALUES(portfolio_url),
+         linkedin_url = VALUES(linkedin_url),
+         experience = VALUES(experience),
+         cv_url = VALUES(cv_url)`,
       vals
     );
     return { id: result.insertId, userId };
@@ -48,6 +58,7 @@ const ProfileModel = {
       'bio', 'skills', 'hobbies', 'role_type',
       'venture_stage', 'funding_needs',
       'investment_domain', 'preferred_stage', 'max_investment',
+      'portfolio_url', 'linkedin_url', 'experience', 'cv_url',
     ];
     const fields = [];
     const values = [];

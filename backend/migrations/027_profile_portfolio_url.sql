@@ -1,0 +1,1 @@
+ALTER TABLE profiles ADD COLUMN portfolio_url VARCHAR(500) NULL;

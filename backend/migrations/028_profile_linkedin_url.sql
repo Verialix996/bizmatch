@@ -1,0 +1,1 @@
+ALTER TABLE profiles ADD COLUMN linkedin_url VARCHAR(500) NULL;
