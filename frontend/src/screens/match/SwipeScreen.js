@@ -870,7 +870,8 @@ const styles = StyleSheet.create({
   card: {
     position: 'absolute',
     width: CARD_WIDTH,
-    borderRadius: 20,
+    height: CARD_HEIGHT,
+    borderRadius: 16,
     backgroundColor: colors.surface,
     overflow: 'hidden',
     borderWidth: 1,
