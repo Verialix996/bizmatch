@@ -145,7 +145,7 @@ const briefing = async (req, res, next) => {
     const [profileRows, projectRows] = await Promise.all([
       query(
         `SELECT u.name, u.role, p.bio, p.skills, p.hobbies, p.role_type,
-                p.venture_stage, p.funding_needs, p.investment_domain, p.preferred_stage, p.max_investment
+                p.investment_domain, p.preferred_stage, p.max_investment
          FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`,
         [otherId]
       ),
@@ -179,8 +179,6 @@ Person profile:
 - Role: ${other.role} (${other.role_type || other.role})
 - Bio: ${other.bio || 'Not provided'}
 - Skills: ${other.skills || 'Not provided'}
-- Venture stage: ${other.venture_stage || 'N/A'}
-- Funding needs: ${other.funding_needs ? '$' + Number(other.funding_needs).toLocaleString() : 'N/A'}
 - Investment domain: ${other.investment_domain || 'N/A'}
 - Preferred stage: ${other.preferred_stage || 'N/A'}
 - Max investment: ${other.max_investment ? '$' + Number(other.max_investment).toLocaleString() : 'N/A'}

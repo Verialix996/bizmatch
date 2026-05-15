@@ -187,16 +187,32 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   const roleFilter = (mode === 'partners' || userRole === 'investor') ? 'entrepreneur' : 'investor';
 
   const candidates = await query(
-    `SELECT u.id, u.name, u.photo_url, u.is_premium, u.premium_expires_at, p.*
+    `SELECT u.id, u.name, u.photo_url, u.is_premium, u.premium_expires_at, p.*,
+            proj.stage AS venture_stage, proj.funding_needed AS funding_needs
      FROM users u
      JOIN profiles p ON p.user_id = u.id
+     LEFT JOIN (
+       SELECT pr.user_id, pr.stage, pr.funding_needed
+       FROM projects pr
+       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+     ) proj ON proj.user_id = u.id
      WHERE u.role = ?
        AND u.deleted_at IS NULL
        AND u.id NOT IN (${placeholders})`,
     [roleFilter, ...excludeIds]
   );
 
-  const myProfileRows = await query('SELECT * FROM profiles WHERE user_id = ?', [userId]);
+  const myProfileRows = await query(
+    `SELECT p.*, proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+     FROM profiles p
+     LEFT JOIN (
+       SELECT pr.user_id, pr.stage, pr.funding_needed
+       FROM projects pr
+       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+     ) proj ON proj.user_id = p.user_id
+     WHERE p.user_id = ?`,
+    [userId]
+  );
   const myProfile = myProfileRows[0];
 
   // If a specific project was selected, load it for more accurate scoring
@@ -248,8 +264,8 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
         // Score investor against the selected project's specifics
         const projectProxy = {
           ...myProfile,
-          venture_stage: selectedProject.stage || myProfile.venture_stage,
-          funding_needs: selectedProject.funding_needed || myProfile.funding_needs,
+          venture_stage: selectedProject.stage,
+          funding_needs: selectedProject.funding_needed,
         };
         return scoreInvestorEntrepreneur(c, projectProxy, aiScore);
       }
@@ -340,12 +356,24 @@ async function generateMatchSummary(matchId, userAId, userBId) {
   if (!process.env.ANTHROPIC_API_KEY) return;
   try {
     const [rowsA, rowsB] = await Promise.all([
-      query(`SELECT u.name, u.role, p.bio, p.skills, p.venture_stage, p.funding_needs,
-                    p.investment_domain, p.preferred_stage, p.max_investment
-             FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`, [userAId]),
-      query(`SELECT u.name, u.role, p.bio, p.skills, p.venture_stage, p.funding_needs,
-                    p.investment_domain, p.preferred_stage, p.max_investment
-             FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`, [userBId]),
+      query(`SELECT u.name, u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+                    proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             LEFT JOIN (
+               SELECT pr.user_id, pr.stage, pr.funding_needed
+               FROM projects pr
+               INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+             ) proj ON proj.user_id = u.id
+             WHERE u.id = ?`, [userAId]),
+      query(`SELECT u.name, u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+                    proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             LEFT JOIN (
+               SELECT pr.user_id, pr.stage, pr.funding_needed
+               FROM projects pr
+               INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+             ) proj ON proj.user_id = u.id
+             WHERE u.id = ?`, [userBId]),
     ]);
     const a = rowsA[0]; const b = rowsB[0];
     if (!a || !b) return;
@@ -387,11 +415,16 @@ async function getMatches(userId) {
        u.role,
        p.bio,
        p.role_type AS roleType,
-       p.venture_stage AS ventureStage,
-       p.investment_domain AS investmentDomain
+       p.investment_domain AS investmentDomain,
+       proj.stage AS ventureStage
      FROM matches m
      JOIN users u ON u.id = CASE WHEN m.user1_id = ? THEN m.user2_id ELSE m.user1_id END
      LEFT JOIN profiles p ON p.user_id = u.id
+     LEFT JOIN (
+       SELECT pr.user_id, pr.stage
+       FROM projects pr
+       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+     ) proj ON proj.user_id = u.id
      WHERE (m.user1_id = ? OR m.user2_id = ?)
        AND u.deleted_at IS NULL
      ORDER BY m.created_at DESC`,

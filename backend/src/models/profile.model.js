@@ -7,7 +7,7 @@ const ProfileModel = {
   },
 
   async create(userId, data) {
-    const { bio, skills, hobbies, role_type, venture_stage, funding_needs,
+    const { bio, skills, hobbies, role_type,
             investment_domain, preferred_stage, max_investment,
             portfolio_url, linkedin_url, experience, cv_url } = data;
     const nullIfEmpty = v => (v === '' || v === undefined ? null : v);
@@ -17,8 +17,6 @@ const ProfileModel = {
       JSON.stringify(skills || []),
       JSON.stringify(hobbies || []),
       nullIfEmpty(role_type),
-      nullIfEmpty(venture_stage),
-      funding_needs || null,
       nullIfEmpty(investment_domain),
       nullIfEmpty(preferred_stage),
       max_investment || null,
@@ -30,17 +28,14 @@ const ProfileModel = {
     const result = await query(
       `INSERT INTO profiles
         (user_id, bio, skills, hobbies, role_type,
-         venture_stage, funding_needs,
          investment_domain, preferred_stage, max_investment,
          portfolio_url, linkedin_url, experience, cv_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON DUPLICATE KEY UPDATE
          bio = VALUES(bio),
          skills = VALUES(skills),
          hobbies = VALUES(hobbies),
          role_type = VALUES(role_type),
-         venture_stage = VALUES(venture_stage),
-         funding_needs = VALUES(funding_needs),
          investment_domain = VALUES(investment_domain),
          preferred_stage = VALUES(preferred_stage),
          max_investment = VALUES(max_investment),
@@ -56,14 +51,13 @@ const ProfileModel = {
   async update(userId, data) {
     const allowed = [
       'bio', 'skills', 'hobbies', 'role_type',
-      'venture_stage', 'funding_needs',
       'investment_domain', 'preferred_stage', 'max_investment',
       'portfolio_url', 'linkedin_url', 'experience', 'cv_url',
     ];
     const fields = [];
     const values = [];
     const nullIfEmpty = v => (v === '' || v === undefined ? null : v);
-    const CONSTRAINED = ['venture_stage', 'preferred_stage', 'role_type'];
+    const CONSTRAINED = ['preferred_stage', 'role_type'];
     for (const key of allowed) {
       if (data[key] !== undefined) {
         fields.push(`${key} = ?`);

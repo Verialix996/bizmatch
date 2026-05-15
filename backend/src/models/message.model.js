@@ -71,8 +71,8 @@ async function getConversations(userId) {
        u.photo_url AS photoUrl,
        p.role_type AS roleType,
        p.bio,
-       p.venture_stage AS ventureStage,
        p.investment_domain AS investmentDomain,
+       ent_proj.stage AS ventureStage,
        lm.body AS lastMessage,
        lm.created_at AS lastMessageAt,
        lm.sender_id AS lastMessageSenderId,
@@ -80,6 +80,11 @@ async function getConversations(userId) {
      FROM matches m
      JOIN users u ON u.id = IF(m.user1_id = ?, m.user2_id, m.user1_id)
      LEFT JOIN profiles p ON p.user_id = u.id
+     LEFT JOIN (
+       SELECT pr.user_id, pr.stage
+       FROM projects pr
+       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+     ) ent_proj ON ent_proj.user_id = u.id
      LEFT JOIN (
        SELECT match_id, MAX(id) AS max_id FROM messages GROUP BY match_id
      ) latest ON latest.match_id = m.id

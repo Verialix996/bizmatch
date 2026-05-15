@@ -86,8 +86,24 @@ const compatibility = async (req, res, next) => {
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI unavailable' });
 
     const [viewerRows, targetRows] = await Promise.all([
-      query('SELECT u.role, p.bio, p.skills, p.venture_stage, p.investment_domain, p.preferred_stage, p.max_investment, p.funding_needs FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?', [viewerId]),
-      query('SELECT u.role, p.bio, p.skills, p.venture_stage, p.investment_domain, p.preferred_stage, p.max_investment, p.funding_needs FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?', [targetId]),
+      query(`SELECT u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+                    proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             LEFT JOIN (
+               SELECT pr.user_id, pr.stage, pr.funding_needed
+               FROM projects pr
+               INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+             ) proj ON proj.user_id = u.id
+             WHERE u.id = ?`, [viewerId]),
+      query(`SELECT u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+                    proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             LEFT JOIN (
+               SELECT pr.user_id, pr.stage, pr.funding_needed
+               FROM projects pr
+               INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+             ) proj ON proj.user_id = u.id
+             WHERE u.id = ?`, [targetId]),
     ]);
 
     const v = viewerRows[0];

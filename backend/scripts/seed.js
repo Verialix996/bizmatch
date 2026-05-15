@@ -148,9 +148,9 @@ async function createInvestorProfile(conn, userId, inv) {
 
 async function createEntrepreneurProfile(conn, userId, ent) {
   await conn.query(
-    `INSERT INTO profiles (user_id, bio, role_type, venture_stage, funding_needs, skills, hobbies)
-     VALUES (?, ?, 'entrepreneur', ?, ?, ?, ?)`,
-    [userId, ent.bio, ent.stage, ent.needs, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies)]
+    `INSERT INTO profiles (user_id, bio, role_type, skills, hobbies)
+     VALUES (?, ?, 'entrepreneur', ?, ?)`,
+    [userId, ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies)]
   );
 }
 
