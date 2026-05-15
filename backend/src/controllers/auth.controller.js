@@ -363,7 +363,7 @@ async function login2FA(req, res, next) {
     const jwtToken = generateToken(user);
     res.json({
       token: jwtToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled },
     });
   } catch (err) {
     next(err);

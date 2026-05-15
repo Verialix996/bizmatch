@@ -53,7 +53,7 @@ function NewMatchBubble({ item, onPress, C, styles }) {
   );
 }
 
-function ConversationRow({ item, onPress, currentUserId, readTimestamps, C, styles }) {
+function ConversationRow({ item, onPress, currentUserId, readTimestamps, C, styles, showPersonName }) {
   const roleLabel = item.roleType === 'investor' ? 'INVESTOR' : 'ENTREPRENEUR';
   const domain = item.investmentDomain || item.ventureStage || '';
   const lastMsgTime = item.lastMessageAt
@@ -68,7 +68,7 @@ function ConversationRow({ item, onPress, currentUserId, readTimestamps, C, styl
       <View style={styles.convBody}>
         <View style={styles.convHeader}>
           <Text style={styles.convName}>
-            {item.projectName ? item.projectName : item.name}
+            {(!showPersonName && item.projectName) ? item.projectName : item.name}
           </Text>
           <Text style={styles.convTime}>{timeAgo(item.lastMessageAt || item.matchedAt)}</Text>
         </View>
@@ -346,6 +346,7 @@ export default function MatchesScreen({ navigation }) {
                           currentUserId={currentUser?.id}
                           readTimestamps={readTimestamps}
                           C={C} styles={styles}
+                          showPersonName
                           onPress={() => navigation.navigate('Chat', { match: item })}
                         />
                       ))}

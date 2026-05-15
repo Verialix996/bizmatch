@@ -176,6 +176,7 @@ export default function EditProfileScreen({ route, navigation }) {
     defaultValues: {
       bio: profileDefaults?.bio || '',
       skills: parseSkills(profileDefaults?.skills),
+      hobbies: parseSkills(profileDefaults?.hobbies),
       investment_domain: profileDefaults?.investment_domain || '',
       preferred_stage: profileDefaults?.preferred_stage || '',
       max_investment: profileDefaults?.max_investment ? String(profileDefaults.max_investment) : '',
@@ -222,6 +223,7 @@ export default function EditProfileScreen({ route, navigation }) {
     const payload = {
       ...data,
       skills: Array.isArray(data.skills) ? data.skills : [],
+      hobbies: Array.isArray(data.hobbies) ? data.hobbies : [],
       max_investment: data.max_investment ? Number(data.max_investment) : null,
       cv_url: cvUrl || null,
     };
@@ -357,6 +359,15 @@ export default function EditProfileScreen({ route, navigation }) {
         />
         {errors.skills && <Text style={styles.fieldError}>{errors.skills.message}</Text>}
 
+        {/* Hobbies */}
+        <FieldLabel>HOBBIES & INTERESTS</FieldLabel>
+        <Controller
+          control={control}
+          name="hobbies"
+          render={({ field: { onChange, value } }) => (
+            <SkillsInput value={value} onChange={onChange} styles={styles} C={C} />
+          )}
+        />
 
         {/* Investor fields */}
         {isInvestor && (
