@@ -342,10 +342,9 @@ export default function AccountSettingsScreen({ navigation }) {
                 style={[styles.btnPrimary, { marginBottom: 12 }]}
                 onPress={async () => {
                   const url = `googleauthenticator://legacy?account=${encodeURIComponent(user?.email || 'BizMatch')}&issuer=BizMatch&secret=${twoFactorSetup.secret}`;
-                  const supported = await Linking.canOpenURL(url);
-                  if (supported) {
-                    Linking.openURL(url);
-                  } else {
+                  try {
+                    await Linking.openURL(url);
+                  } catch {
                     await Clipboard.setStringAsync(twoFactorSetup.secret);
                     Alert.alert('Copied', 'Google Authenticator not found — setup key copied to clipboard.\n\nOpen Google Authenticator → tap "+" → "Enter a setup key" → paste.');
                   }
