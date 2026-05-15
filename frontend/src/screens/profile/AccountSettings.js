@@ -1,7 +1,8 @@
 import {
   View, Text, TextInput, TouchableOpacity, Switch,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert, Linking
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import api from '../../services/api';
 import { cancelPremium } from '../../services/auth.service';
@@ -338,22 +339,23 @@ export default function AccountSettingsScreen({ navigation }) {
           ) : twoFactorSetup ? (
             <>
               <Text style={styles.dangerText}>
-                Tap the button below to open your authenticator app automatically, or enter the setup key manually.
+                Open Google Authenticator → tap "+" → "Enter a setup key" → paste the key below.
               </Text>
-              {twoFactorSetup.otpauthUrl ? (
-                <TouchableOpacity
-                  style={[styles.btnPrimary, { marginBottom: 12 }]}
-                  onPress={() => Linking.openURL(twoFactorSetup.otpauthUrl)}
-                >
-                  <Text style={styles.btnPrimaryText}>Open in Authenticator App</Text>
-                </TouchableOpacity>
-              ) : null}
               <Text style={styles.fieldLabel}>SETUP KEY</Text>
-              <View style={[styles.input, styles.inputDisabled, { marginBottom: 16 }]}>
+              <TouchableOpacity
+                style={[styles.input, styles.inputDisabled, { marginBottom: 8 }]}
+                onPress={() => {
+                  Clipboard.setStringAsync(twoFactorSetup.secret);
+                  Alert.alert('Copied', 'Setup key copied to clipboard.');
+                }}
+              >
                 <Text style={{ color: colors.textPrimary, fontWeight: '700', letterSpacing: 2 }}>
                   {twoFactorSetup.secret}
                 </Text>
-              </View>
+              </TouchableOpacity>
+              <Text style={[styles.dangerText, { marginBottom: 16, fontSize: 12 }]}>
+                Tap the key to copy it
+              </Text>
               <Text style={styles.fieldLabel}>ENTER 6-DIGIT CODE TO ACTIVATE</Text>
               <TextInput
                 style={styles.input}
