@@ -353,6 +353,7 @@ export default function SwipeScreen() {
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
   const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null, aiSummary: null, isProjectMatch: false });
+  const [lastMatchSummary, setLastMatchSummary] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
 
@@ -425,6 +426,7 @@ export default function SwipeScreen() {
     const item = feed[currentIndex];
     if (!item) return;
 
+    setLastMatchSummary(null);
     setSwiping(true);
     const toX = direction === 'like' ? 500 : -500;
 
@@ -482,7 +484,10 @@ export default function SwipeScreen() {
       try {
         if (isEntrepreneur) {
           const res = await swipe(item.userId, direction, superLike);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null, aiSummary: res.data.aiSummary ?? null, isProjectMatch: false });
+          if (res.data.matched) {
+            setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null, aiSummary: res.data.aiSummary ?? null, isProjectMatch: false });
+            if (res.data.aiSummary) setLastMatchSummary(res.data.aiSummary);
+          }
         } else {
           const res = await swipeProject(item.projectId, direction);
           if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null, aiSummary: null, isProjectMatch: true });
@@ -662,6 +667,12 @@ export default function SwipeScreen() {
           >
             <Text style={styles.likeBtnText}>♥</Text>
           </TouchableOpacity>
+        </View>
+      )}
+
+      {!!lastMatchSummary && (
+        <View style={styles.matchSummaryBanner}>
+          <Text style={styles.matchSummaryText}>{lastMatchSummary}</Text>
         </View>
       )}
 
@@ -1090,6 +1101,22 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     lineHeight: 20,
     fontSize: 14,
+  },
+  matchSummaryBanner: {
+    marginHorizontal: 24,
+    marginTop: 12,
+    padding: 14,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceCard,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary,
+  },
+  matchSummaryText: {
+    color: colors.primary,
+    fontSize: 13,
+    fontStyle: 'italic',
+    lineHeight: 19,
+    textAlign: 'center',
   },
   modalAiSummary: {
     color: colors.primary,

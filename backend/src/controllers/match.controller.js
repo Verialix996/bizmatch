@@ -37,7 +37,7 @@ const swipe = async (req, res, next) => {
 
     if (!isPremium) {
       const countRows = await query(
-        "SELECT COUNT(*) AS cnt FROM swipes WHERE swiper_id = ? AND DATE(created_at) = CURDATE()",
+        "SELECT COUNT(*) AS cnt FROM swipes WHERE swiper_id = ? AND DATE(updated_at) = CURDATE()",
         [req.user.id]
       );
       if ((countRows[0]?.cnt ?? 0) >= DAILY_SWIPE_LIMIT) {

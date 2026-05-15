@@ -73,6 +73,7 @@ export default function WelcomeScreen({ navigation }) {
               is_premium: params.is_premium === '1' || params.is_premium === 'true' ? 1 : 0,
               premium_expires_at: params.premium_expires_at || null,
               photo_url: params.photo_url || null,
+              two_factor_enabled: params.two_factor_enabled === '1' ? 1 : 0,
             });
           } else {
             setGoogleError('Sign-in completed but no token received. Please try again.');
