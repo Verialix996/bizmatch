@@ -245,10 +245,21 @@ setInterval(() => {
 // OAuth callback — handles both mobile (bizmatch:// deep link) and web popup (polling)
 async function oauthCallback(req, res) {
   const user = req.user;
-  const token = generateToken(user);
   const oid = res.locals.oauthState;  // set by middleware in auth.routes.js
   const profile = await ProfileModel.findByUserId(user.id);
   const has_profile = !!profile;
+
+  // If 2FA is enabled, don't issue a token yet — require TOTP verification first
+  if (user.two_factor_enabled) {
+    if (oid) {
+      pendingAuths.set(oid, { requires2FA: true, userId: String(user.id), createdAt: Date.now() });
+      return res.send('<!DOCTYPE html><html><body><script>window.close();</script><p>Signed in! You may close this window.</p></body></html>');
+    }
+    const params = new URLSearchParams({ requires2FA: 'true', userId: String(user.id) });
+    return res.redirect(`bizmatch://auth?${params.toString()}`);
+  }
+
+  const token = generateToken(user);
 
   if (oid) {
     // Web popup flow: store result, close the popup, frontend polls /api/auth/poll/:oid
@@ -313,6 +324,10 @@ async function googleMobile(req, res, next) {
       name:       (profile.name || '').replace(/\+/g, ' ').trim(),
       photo:      profile.picture ?? null,
     });
+
+    if (user.two_factor_enabled) {
+      return res.json({ requires2FA: true, userId: user.id });
+    }
 
     const userProfile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);

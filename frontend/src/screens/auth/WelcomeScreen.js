@@ -33,7 +33,9 @@ export default function WelcomeScreen({ navigation }) {
               if (resp.status === 200) {
                 const data = await resp.json();
                 clearInterval(interval);
-                if (data.token) {
+                if (data.requires2FA) {
+                  navigation.navigate('Verify2FA', { userId: Number(data.userId) });
+                } else if (data.token) {
                   setAuth(data.token, {
                     id: Number(data.userId),
                     email: data.email,
@@ -59,7 +61,9 @@ export default function WelcomeScreen({ navigation }) {
             const [k, v] = p.split('=');
             return [k, decodeURIComponent((v || '').replace(/\+/g, ' '))];
           }));
-          if (params.token) {
+          if (params.requires2FA === 'true') {
+            navigation.navigate('Verify2FA', { userId: Number(params.userId) });
+          } else if (params.token) {
             setAuth(params.token, {
               id: Number(params.userId),
               email: params.email,
