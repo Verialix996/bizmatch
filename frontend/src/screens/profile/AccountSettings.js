@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, Switch,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert, Linking
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
@@ -338,14 +338,26 @@ export default function AccountSettingsScreen({ navigation }) {
             </>
           ) : twoFactorSetup ? (
             <>
-              <Text style={styles.dangerText}>
-                Open Google Authenticator → tap "+" → "Enter a setup key" → paste the key below.
-              </Text>
+              <TouchableOpacity
+                style={[styles.btnPrimary, { marginBottom: 12 }]}
+                onPress={async () => {
+                  const url = `googleauthenticator://legacy?account=${encodeURIComponent(user?.email || 'BizMatch')}&issuer=BizMatch&secret=${twoFactorSetup.secret}`;
+                  const supported = await Linking.canOpenURL(url);
+                  if (supported) {
+                    Linking.openURL(url);
+                  } else {
+                    await Clipboard.setStringAsync(twoFactorSetup.secret);
+                    Alert.alert('Copied', 'Google Authenticator not found — setup key copied to clipboard.\n\nOpen Google Authenticator → tap "+" → "Enter a setup key" → paste.');
+                  }
+                }}
+              >
+                <Text style={styles.btnPrimaryText}>Add to Google Authenticator</Text>
+              </TouchableOpacity>
               <Text style={styles.fieldLabel}>SETUP KEY</Text>
               <TouchableOpacity
-                style={[styles.input, styles.inputDisabled, { marginBottom: 8 }]}
-                onPress={() => {
-                  Clipboard.setStringAsync(twoFactorSetup.secret);
+                style={[styles.input, styles.inputDisabled, { marginBottom: 16 }]}
+                onPress={async () => {
+                  await Clipboard.setStringAsync(twoFactorSetup.secret);
                   Alert.alert('Copied', 'Setup key copied to clipboard.');
                 }}
               >
@@ -353,9 +365,6 @@ export default function AccountSettingsScreen({ navigation }) {
                   {twoFactorSetup.secret}
                 </Text>
               </TouchableOpacity>
-              <Text style={[styles.dangerText, { marginBottom: 16, fontSize: 12 }]}>
-                Tap the key to copy it
-              </Text>
               <Text style={styles.fieldLabel}>ENTER 6-DIGIT CODE TO ACTIVATE</Text>
               <TextInput
                 style={styles.input}

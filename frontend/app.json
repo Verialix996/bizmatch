@@ -7,7 +7,10 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.bizmatch.app"
+      "bundleIdentifier": "com.bizmatch.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": ["googleauthenticator"]
+      }
     },
     "android": {
       "package": "com.bizmatch.app"
