@@ -134,7 +134,8 @@ Provide 2-4 pros and 1-3 cons. Be specific and business-focused.`;
 
     let parsed;
     try {
-      parsed = JSON.parse(response.content[0].text.trim());
+      const raw = response.content[0].text.trim().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
+      parsed = JSON.parse(raw);
     } catch {
       return res.status(500).json({ error: 'AI response parse error' });
     }

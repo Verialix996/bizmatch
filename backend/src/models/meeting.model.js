@@ -1,11 +1,17 @@
 const { query } = require('../config/db');
 
+function toMysqlDatetime(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) throw new Error('Invalid date: ' + iso);
+  return d.toISOString().slice(0, 19).replace('T', ' ');
+}
+
 async function createMeeting(data) {
   const { matchId, proposerId, receiverId, title, scheduledAt, locationType, videoLink, address } = data;
   const result = await query(
     `INSERT INTO meetings (match_id, proposer_id, receiver_id, title, scheduled_at, location_type, video_link, address)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-    [matchId, proposerId, receiverId, title || null, scheduledAt, locationType,
+    [matchId, proposerId, receiverId, title || null, toMysqlDatetime(scheduledAt), locationType,
      videoLink || null, address || null]
   );
   return getMeetingById(result.insertId);
@@ -52,4 +58,4 @@ async function saveBriefing(id, briefing) {
   await query('UPDATE meetings SET ai_briefing = ? WHERE id = ?', [briefing, id]);
 }
 
-module.exports = { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, saveBriefing };
+module.exports = { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, saveBriefing, toMysqlDatetime };

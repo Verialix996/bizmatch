@@ -191,6 +191,30 @@ export default function ChatScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, [poll]);
 
+  // Full reload every 10s to pick up read_at changes on already-fetched messages
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      try {
+        const res = await getMessages(match.matchId);
+        setMessages(res.data);
+        if (res.data.length > 0) lastIdRef.current = res.data[res.data.length - 1].id;
+      } catch { /* silent */ }
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [match.matchId]);
+
+  // Poll other user's last_active_at every 30s
+  const [lastActiveAt, setLastActiveAt] = useState(match.lastActiveAt);
+  useEffect(() => {
+    if (!match.userId) return;
+    const fetch = () => api.get(`/users/${match.userId}`).then(r => {
+      if (r.data?.last_active_at) setLastActiveAt(r.data.last_active_at);
+    }).catch(() => {});
+    fetch();
+    const interval = setInterval(fetch, 30000);
+    return () => clearInterval(interval);
+  }, [match.userId]);
+
   const handleSend = async () => {
     const text = input.trim();
     if (!text || sending) return;
@@ -529,13 +553,21 @@ export default function ChatScreen({ route, navigation }) {
             <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
           </Text>
           {!isOwn && !alreadySigned && (
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.actionBtnAccept, { marginTop: 10 }]}
-              onPress={() => { setNdaPreviewItem(item); setNdaPreviewVisible(true); }}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.actionBtnAcceptText}>Sign NDA</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 10, gap: 6 }}>
+              <TouchableOpacity
+                onPress={() => { setNdaPreviewItem(item); setNdaPreviewVisible(true); }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.ndaViewLink}>View NDA Terms →</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnAccept]}
+                onPress={() => { setNdaPreviewItem(item); setNdaPreviewVisible(true); }}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionBtnAcceptText}>Sign NDA</Text>
+              </TouchableOpacity>
+            </View>
           )}
           {(isOwn || alreadySigned) && (
             <Text style={styles.actionCardStatus}>
@@ -779,7 +811,7 @@ export default function ChatScreen({ route, navigation }) {
           <Avatar photoUrl={match.photoUrl} name={match.name} size={38} styles={styles} C={C} />
           <View style={styles.headerInfo}>
             <Text style={styles.headerName}>{match.name}</Text>
-            <Text style={styles.headerStatus}>{formatLastSeen(match.lastActiveAt).toUpperCase()}</Text>
+            <Text style={styles.headerStatus}>{formatLastSeen(lastActiveAt).toUpperCase()}</Text>
           </View>
         </View>
 

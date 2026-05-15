@@ -19,9 +19,10 @@ export default function AppHeader({ showToggle = false }) {
   const insets = useSafeAreaInsets();
   const { investorMode, darkMode, openProjectPicker, exitInvestorMode } = useAppStore();
   const C = darkMode ? investorColors : colors;
-  // investorMode (entrepreneur toggling) uses dark-green + champagne, not full dark-navy
-  const headerBg = investorMode ? '#0B3321' : (C.background || '#fff');
-  const accentColor = (investorMode || darkMode) ? investorColors.primary : colors.primary;
+  // investorMode colors only apply on the Discover (SwipeScreen) tab — showToggle is true only there
+  const isInvestorSwipe = investorMode && showToggle;
+  const headerBg = isInvestorSwipe ? '#0B3321' : (C.background || '#fff');
+  const accentColor = (isInvestorSwipe || darkMode) ? investorColors.primary : colors.primary;
   const user = useAuthStore(s => s.user);
   const navigation = useNavigation();
 
@@ -45,14 +46,14 @@ export default function AppHeader({ showToggle = false }) {
   return (
     <View style={[
       styles.container,
-      { paddingTop: insets.top, backgroundColor: headerBg, borderBottomColor: investorMode ? '#1B5E34' : C.surfaceBorder },
+      { paddingTop: insets.top, backgroundColor: headerBg, borderBottomColor: isInvestorSwipe ? '#1B5E34' : C.surfaceBorder },
     ]}>
       <View style={styles.inner}>
         <LogoMark color={accentColor} />
         <Text style={[styles.wordmark, { color: accentColor }]}>BizMatch</Text>
 
         {showModeToggle ? (
-          <View style={[styles.modeToggleBar, { backgroundColor: investorMode ? 'rgba(255,255,255,0.1)' : C.surface, borderColor: investorMode ? 'rgba(232,213,163,0.3)' : C.surfaceBorder }]}>
+          <View style={[styles.modeToggleBar, { backgroundColor: isInvestorSwipe ? 'rgba(255,255,255,0.1)' : C.surface, borderColor: isInvestorSwipe ? 'rgba(232,213,163,0.3)' : C.surfaceBorder }]}>
             <TouchableOpacity
               style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
               onPress={() => handleToggle(false)}

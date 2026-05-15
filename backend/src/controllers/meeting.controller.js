@@ -1,4 +1,4 @@
-const { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, saveBriefing } = require('../models/meeting.model');
+const { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, saveBriefing, toMysqlDatetime } = require('../models/meeting.model');
 const { sendMessage } = require('../models/message.model');
 const { query } = require('../config/db');
 const Anthropic = require('@anthropic-ai/sdk');
@@ -228,7 +228,7 @@ const reschedule = async (req, res, next) => {
          receiver_id  = proposer_id,
          status       = 'proposed'
        WHERE id = ?`,
-      [scheduledAt, videoLink || null, address || null, meetingId]
+      [toMysqlDatetime(scheduledAt), videoLink || null, address || null, meetingId]
     );
 
     const updated = await getMeetingById(meetingId);
