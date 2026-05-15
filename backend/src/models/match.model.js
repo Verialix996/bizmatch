@@ -131,7 +131,7 @@ async function computeAiScores(userId, userRole, myProfile, candidates, selected
       if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
         return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
 Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myProfile.preferred_stage || 'N/A'}, max invest=$${myProfile.max_investment || 0}.
-Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
+Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, industry=${candidate.project_industry || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
       }
       if (userRole === 'entrepreneur' && candidate.role_type === 'investor') {
         const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
@@ -188,11 +188,11 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
 
   const candidates = await query(
     `SELECT u.id, u.name, u.photo_url, u.is_premium, u.premium_expires_at, p.*,
-            proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+            proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
      JOIN profiles p ON p.user_id = u.id
      LEFT JOIN (
-       SELECT pr.user_id, pr.stage, pr.funding_needed
+       SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
        FROM projects pr
        INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
      ) proj ON proj.user_id = u.id
