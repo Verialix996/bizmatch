@@ -244,7 +244,7 @@ export default function MatchesScreen({ navigation }) {
             )}
 
             {/* Who Liked Me — premium only */}
-            {currentUser?.is_premium && likedBy.length > 0 && (
+            {!!currentUser?.is_premium && likedBy.length > 0 && (
               <View style={styles.section}>
                 <View style={styles.sectionHeader}>
                   <Text style={styles.sectionLabel}>WHO LIKED YOU</Text>
