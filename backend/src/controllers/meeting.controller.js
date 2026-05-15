@@ -4,11 +4,11 @@ const { query } = require('../config/db');
 const Anthropic = require('@anthropic-ai/sdk');
 const { emitNotification } = require('./notification.controller');
 
-// POST /api/meetings  { matchId, title, scheduledAt, locationType, videoLink, address, lat, lng }
+// POST /api/meetings  { matchId, title, scheduledAt, locationType, videoLink, address }
 const propose = async (req, res, next) => {
   try {
     const proposerId = req.user.id;
-    const { matchId, title, scheduledAt, locationType, videoLink, address, lat, lng } = req.body;
+    const { matchId, title, scheduledAt, locationType, videoLink, address } = req.body;
 
     if (!matchId || !scheduledAt || !locationType) {
       return res.status(400).json({ error: 'matchId, scheduledAt, and locationType are required' });
@@ -45,7 +45,7 @@ const propose = async (req, res, next) => {
     const match = matchRows[0];
     const receiverId = match.user1_id === proposerId ? match.user2_id : match.user1_id;
 
-    const meeting = await createMeeting({ matchId, proposerId, receiverId, title, scheduledAt, locationType, videoLink, address, lat, lng });
+    const meeting = await createMeeting({ matchId, proposerId, receiverId, title, scheduledAt, locationType, videoLink, address });
 
     await sendMessage(matchId, proposerId, `Meeting proposed: ${title || 'Untitled'}`, 'meeting_proposal', {
       meetingId: meeting.id,

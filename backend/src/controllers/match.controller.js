@@ -135,11 +135,11 @@ Provide 2-4 pros and 1-3 cons. Be specific and business-focused.`;
 
 const getNdaStatus = async (req, res, next) => {
   try {
-    const { matchId, projectId } = req.query;
-    if (!matchId || !projectId) return res.status(400).json({ error: 'matchId and projectId required' });
+    const { projectId } = req.query;
+    if (!projectId) return res.status(400).json({ error: 'projectId required' });
     const rows = await query(
-      'SELECT id FROM project_ndas WHERE match_id = ? AND project_id = ?',
-      [Number(matchId), Number(projectId)]
+      'SELECT id FROM project_ndas WHERE user_id = ? AND project_id = ?',
+      [req.user.id, Number(projectId)]
     );
     res.json({ signed: !!rows[0] });
   } catch (err) {

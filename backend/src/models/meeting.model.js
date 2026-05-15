@@ -1,12 +1,12 @@
 const { query } = require('../config/db');
 
 async function createMeeting(data) {
-  const { matchId, proposerId, receiverId, title, scheduledAt, locationType, videoLink, address, lat, lng } = data;
+  const { matchId, proposerId, receiverId, title, scheduledAt, locationType, videoLink, address } = data;
   const result = await query(
-    `INSERT INTO meetings (match_id, proposer_id, receiver_id, title, scheduled_at, location_type, video_link, address, lat, lng)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO meetings (match_id, proposer_id, receiver_id, title, scheduled_at, location_type, video_link, address)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     [matchId, proposerId, receiverId, title || null, scheduledAt, locationType,
-     videoLink || null, address || null, lat || null, lng || null]
+     videoLink || null, address || null]
   );
   return getMeetingById(result.insertId);
 }
