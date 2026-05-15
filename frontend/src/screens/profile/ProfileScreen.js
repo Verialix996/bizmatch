@@ -110,6 +110,11 @@ export default function ProfileScreen({ navigation }) {
               <Text style={styles.premiumBadgeText}>✦ PREMIUM</Text>
             </View>
           )}
+          {user?.verification_status === 'verified' && (
+            <View style={styles.verifiedBadge}>
+              <Text style={styles.verifiedBadgeText}>✓ VERIFIED</Text>
+            </View>
+          )}
           <Text style={styles.heroRole}>{roleTitle}</Text>
         </View>
 
@@ -174,7 +179,7 @@ export default function ProfileScreen({ navigation }) {
           ) : null}
 
           {/* Links */}
-          {(profile?.portfolio_url || profile?.linkedin_url) ? (
+          {(profile?.portfolio_url || profile?.linkedin_url || profile?.cv_url) ? (
             <View style={styles.card}>
               <Text style={styles.sectionLabel}>LINKS</Text>
               {profile?.linkedin_url ? (
@@ -267,6 +272,11 @@ function makeStyles(C) {
       paddingHorizontal: 14, paddingVertical: 4, marginTop: 8,
     },
     premiumBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 1 },
+    verifiedBadge: {
+      backgroundColor: C.success, borderRadius: radius.pill,
+      paddingHorizontal: 14, paddingVertical: 4, marginTop: 6,
+    },
+    verifiedBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff', letterSpacing: 1 },
 
     body: { paddingHorizontal: 20 },
 

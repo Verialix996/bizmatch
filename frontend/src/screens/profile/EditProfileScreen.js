@@ -29,7 +29,7 @@ const ROLE_OPTIONS = [
 const STAGES = ['idea', 'mvp', 'growth', 'scale'];
 const STAGE_LABELS = { idea: 'Idea', mvp: 'MVP', growth: 'Growth', scale: 'Scale' };
 
-function RoleCard({ option, selected, onSelect }) {
+function RoleCard({ option, selected, onSelect, styles }) {
   return (
     <TouchableOpacity
       style={[styles.roleCard, selected && styles.roleCardSelected]}
@@ -50,10 +50,6 @@ function RoleCard({ option, selected, onSelect }) {
       )}
     </TouchableOpacity>
   );
-}
-
-function FieldLabel({ children }) {
-  return <Text style={styles.fieldLabel}>{children}</Text>;
 }
 
 function parseSkills(raw) {
@@ -128,6 +124,8 @@ export default function EditProfileScreen({ route, navigation }) {
   const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
   const C = (darkMode || investorMode) ? investorColors : colors;
   const styles = makeStyles(C);
+
+  const FieldLabel = ({ children }) => <Text style={styles.fieldLabel}>{children}</Text>;
 
   // forceStep='role' means the user is changing role — treat as an update (profile already exists)
   const isNew = forceStep === 'role' ? false : !existing?.bio;
@@ -234,6 +232,7 @@ export default function EditProfileScreen({ route, navigation }) {
         navigation.navigate('Onboarding');
       } else {
         await api.put('/profile', payload);
+        if (forceStep === 'role') updateUser({ role: selectedRole });
         navigation.goBack();
       }
     } catch (err) {
@@ -267,6 +266,7 @@ export default function EditProfileScreen({ route, navigation }) {
               option={opt}
               selected={selectedRole === opt.value}
               onSelect={setSelectedRole}
+              styles={styles}
             />
           ))}
 

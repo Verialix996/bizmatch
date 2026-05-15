@@ -24,6 +24,15 @@ async function createProfile(req, res, next) {
       const mod = await moderateText(req.body.bio);
       if (!mod.ok) return res.status(400).json({ error: `Bio flagged by moderation: ${mod.reason}` });
     }
+    if (req.body.experience) {
+      const mod = await moderateText(req.body.experience);
+      if (!mod.ok) return res.status(400).json({ error: `Experience flagged by moderation: ${mod.reason}` });
+    }
+    if (req.body.skills) {
+      const skillsText = Array.isArray(req.body.skills) ? req.body.skills.join(' ') : String(req.body.skills);
+      const mod = await moderateText(skillsText);
+      if (!mod.ok) return res.status(400).json({ error: `Skills flagged by moderation: ${mod.reason}` });
+    }
     const profile = await ProfileModel.create(req.user.id, {
       ...req.body,
       role_type: req.user.role,
@@ -40,6 +49,15 @@ async function updateProfile(req, res, next) {
     if (req.body.bio) {
       const mod = await moderateText(req.body.bio);
       if (!mod.ok) return res.status(400).json({ error: `Bio flagged by moderation: ${mod.reason}` });
+    }
+    if (req.body.experience) {
+      const mod = await moderateText(req.body.experience);
+      if (!mod.ok) return res.status(400).json({ error: `Experience flagged by moderation: ${mod.reason}` });
+    }
+    if (req.body.skills) {
+      const skillsText = Array.isArray(req.body.skills) ? req.body.skills.join(' ') : String(req.body.skills);
+      const mod = await moderateText(skillsText);
+      if (!mod.ok) return res.status(400).json({ error: `Skills flagged by moderation: ${mod.reason}` });
     }
     await ProfileModel.update(req.user.id, {
       ...req.body,
