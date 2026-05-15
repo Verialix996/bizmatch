@@ -84,22 +84,39 @@ async function uploadIdDocument(req, res, next) {
   }
 }
 
-// POST /api/profile/upload-cv  — CV/resume PDF upload
+// POST /api/profile/upload-cv  — stores CV bytes in DB as BLOB (Cloudinary free tier blocks raw file delivery)
 async function uploadCv(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const result = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'bizmatch/cvs', resource_type: 'raw', public_id: `cv_${req.user.id}.pdf`, overwrite: true },
-        (err, r) => err ? reject(err) : resolve(r)
-      );
-      stream.end(req.file.buffer);
-    });
-    await query('UPDATE profiles SET cv_url = ? WHERE user_id = ?', [result.secure_url, req.user.id]);
-    res.json({ cv_url: result.secure_url });
+    await query(
+      'UPDATE profiles SET cv_data = ?, cv_url = ? WHERE user_id = ?',
+      [req.file.buffer, 'stored', req.user.id]
+    );
+    res.json({ cv_url: 'stored' });
   } catch (err) {
     next(err);
   }
 }
 
-module.exports = { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv };
+// GET /api/profile/cv — serve CV PDF from DB (bypasses Cloudinary free-tier raw block)
+const jwt = require('jsonwebtoken');
+async function serveCv(req, res, next) {
+  try {
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    let decoded;
+    try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
+    const rows = await query('SELECT cv_data FROM profiles WHERE user_id = ?', [decoded.id]);
+    if (!rows[0]) return res.status(404).json({ error: 'Profile not found' });
+    const cvData = rows[0].cv_data;
+    if (!cvData || cvData.length === 0) return res.status(404).json({ error: 'No CV uploaded' });
+
+    const buffer = Buffer.isBuffer(cvData) ? cvData : Buffer.from(cvData);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="cv.pdf"');
+    res.send(buffer);
+  } catch (err) { next(err); }
+}
+
+module.exports = { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv, serveCv };
