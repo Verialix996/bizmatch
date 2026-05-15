@@ -341,7 +341,7 @@ export default function AccountSettingsScreen({ navigation }) {
               <TouchableOpacity
                 style={[styles.btnPrimary, { marginBottom: 12 }]}
                 onPress={async () => {
-                  const url = `googleauthenticator://legacy?account=${encodeURIComponent(user?.email || 'BizMatch')}&issuer=BizMatch&secret=${twoFactorSetup.secret}`;
+                  const url = twoFactorSetup.otpauthUrl.replace('otpauth://', 'googleauthenticator://');
                   try {
                     await Linking.openURL(url);
                   } catch {
