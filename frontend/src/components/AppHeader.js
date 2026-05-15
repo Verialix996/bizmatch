@@ -1,7 +1,9 @@
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, investorColors } from '../theme';
+import { useNavigation } from '@react-navigation/native';
+import { colors, investorColors, radius } from '../theme';
 import useAppStore from '../store/appStore';
+import useAuthStore from '../store/authStore';
 import NotificationBell from './NotificationBell';
 
 function LogoMark({ color }) {
@@ -13,10 +15,29 @@ function LogoMark({ color }) {
   );
 }
 
-export default function AppHeader() {
+export default function AppHeader({ showToggle = false }) {
   const insets = useSafeAreaInsets();
-  const { investorMode, darkMode } = useAppStore();
+  const { investorMode, darkMode, openProjectPicker, exitInvestorMode } = useAppStore();
   const C = (investorMode || darkMode) ? investorColors : colors;
+  const user = useAuthStore(s => s.user);
+  const navigation = useNavigation();
+
+  const isEntrepreneur = user?.role === 'entrepreneur';
+  const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
+  const showModeToggle = showToggle && isEntrepreneur;
+
+  const handleToggle = (toInvestor) => {
+    if (!toInvestor) { exitInvestorMode(); return; }
+    if (!isPremium) {
+      Alert.alert(
+        'Premium Required',
+        'Investor search mode is a Premium feature. Upgrade to find investors for your project.',
+        [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
+      );
+      return;
+    }
+    openProjectPicker();
+  };
 
   return (
     <View style={[
@@ -26,6 +47,32 @@ export default function AppHeader() {
       <View style={styles.inner}>
         <LogoMark color={C.primary} />
         <Text style={[styles.wordmark, { color: C.primary }]}>BizMatch</Text>
+
+        {showModeToggle ? (
+          <View style={[styles.modeToggleBar, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
+              onPress={() => handleToggle(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.modeToggleBtnText, { color: C.textHint }, !investorMode && styles.modeToggleBtnTextActive]}>
+                🤝 Partners
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
+              onPress={() => handleToggle(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.modeToggleBtnText, { color: C.textHint }, investorMode && styles.modeToggleBtnTextInvestorActive]}>
+                💼 Investors
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
+
         <View style={styles.rightActions}>
           <NotificationBell tintColor={C.primary} />
         </View>
@@ -74,6 +121,54 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800',
     letterSpacing: -0.5,
+  },
+
+  modeToggleBar: {
+    flex: 1,
+    flexDirection: 'row',
+    borderRadius: radius.lg,
+    padding: 3,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modeToggleBtn: {
+    flex: 1,
+    paddingVertical: 7,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modeToggleBtnActive: {
+    backgroundColor: colors.primary,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modeToggleBtnInvestorActive: {
+    backgroundColor: '#E8D5A3',
+    shadowColor: '#E8D5A3',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  modeToggleBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modeToggleBtnTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  modeToggleBtnTextInvestorActive: {
+    color: '#0A0F1E',
+    fontWeight: '700',
   },
 
   rightActions: {

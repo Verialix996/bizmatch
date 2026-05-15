@@ -344,20 +344,9 @@ export default function SwipeScreen() {
   const user = useAuthStore(s => s.user);
   const isEntrepreneur = user?.role === 'entrepreneur';
 
-  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, exitInvestorMode, openProjectPicker, darkMode } = useAppStore();
+  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, openProjectPicker, darkMode } = useAppStore();
   const mode = investorMode ? 'investors' : 'partners';
   const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
-
-  const handleModeToggle = (toInvestor) => {
-    if (!toInvestor) { exitInvestorMode(); return; }
-    if (!isPremium) {
-      Alert.alert('Premium Required', 'Investor search mode is a Premium feature. Upgrade to find investors for your project.',
-        [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
-      );
-      return;
-    }
-    openProjectPicker();
-  };
 
   const [myProjects, setMyProjects] = useState([]);
   const [feed, setFeed] = useState([]);
@@ -556,34 +545,6 @@ export default function SwipeScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: investorMode ? '#0B3321' : (C.backgroundSoft || C.background) }]}>
       <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
-
-      {/* Header: logo | mode toggle | bell */}
-      <View style={styles.headerRow}>
-        <Text style={[styles.logo, investorMode && styles.logoGreen]}>BizMatch</Text>
-        {isEntrepreneur ? (
-          <View style={styles.modeToggleBar}>
-            <TouchableOpacity
-              style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
-              onPress={() => handleModeToggle(false)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeToggleBtnText, !investorMode && styles.modeToggleBtnTextActive]}>🤝 Partners</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
-              onPress={() => handleModeToggle(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeToggleBtnText, investorMode && styles.modeToggleBtnTextInvestorActive]}>💼 Investors</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
-        <View style={styles.bellBtn}>
-          <Text style={styles.bellIcon}>🔔</Text>
-        </View>
-      </View>
 
       {/* Deck */}
       <View style={styles.deckArea}>
@@ -831,85 +792,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     color: colors.primaryDark,
     letterSpacing: -0.5,
-  },
-
-  headerRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingTop: 6,
-    paddingBottom: 6,
-    gap: 10,
-  },
-  logo: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: colors.primaryDark,
-    letterSpacing: -0.4,
-  },
-  logoGreen: {
-    color: '#4ADE80',
-  },
-  bellBtn: {
-    width: 36,
-    height: 36,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  bellIcon: {
-    fontSize: 20,
-  },
-  modeToggleBar: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: colors.surface,
-    borderRadius: radius.lg,
-    padding: 4,
-    borderWidth: 1,
-    borderColor: colors.surfaceBorder,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  modeToggleBtn: {
-    flex: 1,
-    paddingVertical: 11,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modeToggleBtnActive: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleBtnInvestorActive: {
-    backgroundColor: '#E8D5A3',
-    shadowColor: '#E8D5A3',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleBtnText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: colors.textHint,
-  },
-  modeToggleBtnTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  modeToggleBtnTextInvestorActive: {
-    color: '#0A0F1E',
-    fontWeight: '700',
-    fontSize: 14,
   },
 
   deckArea: {

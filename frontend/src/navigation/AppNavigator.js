@@ -85,7 +85,7 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        header: () => <AppHeader />,
+        header: () => <AppHeader showToggle={route.name === 'Discover'} />,
         tabBarStyle: {
           backgroundColor: TC.tabBarBackground,
           borderTopColor: TC.tabBarBorder,

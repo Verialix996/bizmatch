@@ -96,7 +96,9 @@ function moderateText(text) {
   if (!text?.trim()) return { ok: true };
   const lower = text.toLowerCase();
   for (const word of BANNED_WORDS) {
-    if (lower.includes(word)) {
+    const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const pattern = new RegExp('\\b' + escaped + '\\b');
+    if (pattern.test(lower)) {
       return { ok: false, reason: 'Content contains inappropriate language' };
     }
   }

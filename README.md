@@ -20,8 +20,9 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 ### Profiles
 - Role selection: Entrepreneur or Investor
-- Entrepreneur profile: bio, skills (bubble tags), hobbies, venture stage, funding needs
+- Entrepreneur profile: bio, skills (bubble tags), hobbies
 - Investor profile: bio, investment domain, preferred stage, max investment
+- Shared extended fields: portfolio URL, LinkedIn, experience, CV upload
 - Profile photo upload (stored on Cloudinary CDN)
 - **Profile completeness score** — progress bar (0–100%) with colour coding and inline hints
 - **One-click identity verification** — "Verify Account" button instantly marks account as verified (demo bypass)
@@ -131,18 +132,28 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 That's it — no backend setup needed for testing.
 
-### Test accounts (password: `Test1234!`)
+### Test accounts (password: `Demo1234!`)
 
-Run `node scripts/demo.js` from the Railway console to create these accounts (wipes DB and reseeds):
+Run from the repo root to reset and reseed:
 
-| Account | Email | Role |
-|---------|-------|------|
-| A | test.investor@bizmatch.app | Investor (Premium) |
-| B | test.entrepreneur@bizmatch.app | Entrepreneur |
-| C | test.entrepreneur2@bizmatch.app | Entrepreneur 2 |
-| D | test.investor2@bizmatch.app | Investor 2 (fresh) |
+```bash
+node backend/scripts/seed.js
+```
 
-See `DEMO_ACCOUNTS.md` for full details on what each account is used for (gitignored).
+| ID | Email | Role | Matched With |
+|----|-------|------|-------------|
+| A | sarah.chen@bizmatch.app | Investor | F |
+| B | marcus.webb@bizmatch.app | Investor | G |
+| C | lena.fischer@bizmatch.app | Investor | H |
+| D | david.okafor@bizmatch.app | Investor | J |
+| E | priya.nair@bizmatch.app | Investor | I |
+| F | alex.rivera@bizmatch.app | Entrepreneur — TeamSync | A |
+| G | mia.johnson@bizmatch.app | Entrepreneur — CashBridge | B |
+| H | jordan.lee@bizmatch.app | Entrepreneur — VitalBand | C |
+| I | zara.ahmed@bizmatch.app | Entrepreneur — LearnArc | E |
+| J | ethan.park@bizmatch.app | Entrepreneur — ArtisanRoute | D |
+
+See `docs/DEMO_ACCOUNTS.md` for full detail on what each account is used for (gitignored).
 
 ### Verify the backend is live
 
@@ -197,8 +208,8 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # MySQL schema files (001–019), auto-run on startup
-│   ├── scripts/           # seed.js (50 accounts) + demo.js (4 test accounts, wipes DB)
+│   ├── migrations/        # Single schema file (001_schema.sql), auto-run on startup
+│   ├── scripts/           # seed.js — wipes DB, reseeds 5 investors + 5 entrepreneurs
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
 │   │   ├── controllers/   # auth, user, profile, match, message, meeting, project
@@ -289,7 +300,7 @@ bizmatch/
 
 The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
 
-- **Database:** MySQL on Railway — migrations run automatically on startup (001–019)
+- **Database:** MySQL on Railway — single migration `001_schema.sql` runs automatically on startup
 - **File storage:** Cloudinary (photos, docs, videos, NDA PDFs); pitch deck PDFs stored as MySQL BLOB
 - **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match scoring, summaries, deck review, meeting briefings
 - **Content moderation:** local word-list (no API calls)
