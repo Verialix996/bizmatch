@@ -2,9 +2,9 @@
  * BizMatch — Railway MySQL seed script
  *
  * Wipes the DB and rebuilds with:
- *   25 investors  (sarah.chen@bizmatch.app, etc.)
- *   25 entrepreneurs (alex.rivera@bizmatch.app, etc.)
- *    6 pre-made mutual matches with chat histories
+ *   5 investors  (sarah.chen@bizmatch.app, etc.)
+ *   5 entrepreneurs (alex.rivera@bizmatch.app, etc.)
+ *   5 pre-made mutual matches with chat histories
  *
  * All passwords: Demo1234!
  *
@@ -118,16 +118,7 @@ async function runMigrations(conn) {
     .sort();
   for (const file of files) {
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
-    const statements = sql.split(';').map(s => s.trim()).filter(Boolean);
-    for (const stmt of statements) {
-      try {
-        await conn.query(stmt);
-      } catch (err) {
-        if (err.errno === 1060) { /* column already exists — skip */ }
-        else if (err.errno === 1091) { /* column/key doesn't exist to drop — skip */ }
-        else throw err;
-      }
-    }
+    await conn.query(sql);
     await conn.query('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);
     console.log(`  ✓ ${file}`);
   }
@@ -167,8 +158,9 @@ async function createMatch(conn, invId, entId) {
   await conn.query('INSERT IGNORE INTO swipes (swiper_id, swiped_id, direction) VALUES (?, ?, ?)', [invId, entId, 'like']);
   await conn.query('INSERT IGNORE INTO swipes (swiper_id, swiped_id, direction) VALUES (?, ?, ?)', [entId, invId, 'like']);
   await conn.query('INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)', [u1, u2]);
-  const [[match]] = await conn.query('SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?', [u1, u2]);
-  return match.id;
+  const [rows] = await conn.query('SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?', [u1, u2]);
+  if (!rows[0]) throw new Error(`Match insert failed for users ${u1} and ${u2}`);
+  return rows[0].id;
 }
 
 async function seedChat(conn, matchId, invId, entId, messages) {
@@ -186,7 +178,7 @@ async function seedChat(conn, matchId, invId, entId, messages) {
 // ---------------------------------------------------------------------------
 
 async function run() {
-  const conn = await mysql.createConnection(DATABASE_URL);
+  const conn = await mysql.createConnection({ uri: DATABASE_URL, multipleStatements: true });
   console.log('Connected to Railway MySQL.');
 
   await wipeDatabase(conn);

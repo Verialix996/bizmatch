@@ -1,3 +1,0 @@
-ALTER TABLE users ADD COLUMN is_premium BOOLEAN DEFAULT 0;
-ALTER TABLE users ADD COLUMN premium_expires_at DATETIME;
-ALTER TABLE swipes ADD COLUMN is_super_like BOOLEAN DEFAULT 0;
