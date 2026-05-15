@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const { authenticate, requireVerified } = require('../middleware/auth.middleware');
-const { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv } =
+const { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv, serveCv } =
   require('../controllers/profile.controller');
 const { uploadDocMemory: uploadCvMiddleware } = require('../middleware/upload');
 
@@ -19,5 +19,6 @@ router.post('/upload-cv',
   uploadCvMiddleware,
   uploadCv
 );
+router.get('/cv', serveCv);
 
 module.exports = router;

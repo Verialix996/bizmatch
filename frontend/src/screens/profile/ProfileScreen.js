@@ -5,6 +5,7 @@ import {
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import useAuthStore from '../../store/authStore';
+import { API_BASE_URL } from '../../config/constants';
 import useAppStore from '../../store/appStore';
 import api from '../../services/api';
 import { colors, investorColors, typography, radius, cardShadow } from '../../theme';
@@ -197,7 +198,14 @@ export default function ProfileScreen({ navigation }) {
                 </TouchableOpacity>
               ) : null}
               {profile?.cv_url ? (
-                <TouchableOpacity style={styles.linkRow} onPress={() => Linking.openURL(profile.cv_url)} activeOpacity={0.7}>
+                <TouchableOpacity
+                  style={styles.linkRow}
+                  onPress={() => {
+                    const token = useAuthStore.getState().token;
+                    Linking.openURL(`${API_BASE_URL}/profile/cv?token=${token}`);
+                  }}
+                  activeOpacity={0.7}
+                >
                   <Text style={styles.linkIcon}>📄</Text>
                   <Text style={styles.linkText}>Download CV / Resume</Text>
                   <Text style={styles.linkArrow}>→</Text>
