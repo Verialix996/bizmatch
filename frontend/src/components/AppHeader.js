@@ -18,7 +18,10 @@ function LogoMark({ color }) {
 export default function AppHeader({ showToggle = false }) {
   const insets = useSafeAreaInsets();
   const { investorMode, darkMode, openProjectPicker, exitInvestorMode } = useAppStore();
-  const C = (investorMode || darkMode) ? investorColors : colors;
+  const C = darkMode ? investorColors : colors;
+  // investorMode (entrepreneur toggling) uses dark-green + champagne, not full dark-navy
+  const headerBg = investorMode ? '#0B3321' : (C.background || '#fff');
+  const accentColor = (investorMode || darkMode) ? investorColors.primary : colors.primary;
   const user = useAuthStore(s => s.user);
   const navigation = useNavigation();
 
@@ -42,20 +45,20 @@ export default function AppHeader({ showToggle = false }) {
   return (
     <View style={[
       styles.container,
-      { paddingTop: insets.top, backgroundColor: C.background || '#fff', borderBottomColor: C.surfaceBorder },
+      { paddingTop: insets.top, backgroundColor: headerBg, borderBottomColor: investorMode ? '#1B5E34' : C.surfaceBorder },
     ]}>
       <View style={styles.inner}>
-        <LogoMark color={C.primary} />
-        <Text style={[styles.wordmark, { color: C.primary }]}>BizMatch</Text>
+        <LogoMark color={accentColor} />
+        <Text style={[styles.wordmark, { color: accentColor }]}>BizMatch</Text>
 
         {showModeToggle ? (
-          <View style={[styles.modeToggleBar, { backgroundColor: C.surface, borderColor: C.surfaceBorder }]}>
+          <View style={[styles.modeToggleBar, { backgroundColor: investorMode ? 'rgba(255,255,255,0.1)' : C.surface, borderColor: investorMode ? 'rgba(232,213,163,0.3)' : C.surfaceBorder }]}>
             <TouchableOpacity
               style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
               onPress={() => handleToggle(false)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.modeToggleBtnText, { color: C.textHint }, !investorMode && styles.modeToggleBtnTextActive]}>
+              <Text style={[styles.modeToggleBtnText, { color: investorMode ? 'rgba(232,213,163,0.6)' : C.textHint }, !investorMode && styles.modeToggleBtnTextActive]}>
                 🤝 Partners
               </Text>
             </TouchableOpacity>
@@ -64,7 +67,7 @@ export default function AppHeader({ showToggle = false }) {
               onPress={() => handleToggle(true)}
               activeOpacity={0.85}
             >
-              <Text style={[styles.modeToggleBtnText, { color: C.textHint }, investorMode && styles.modeToggleBtnTextInvestorActive]}>
+              <Text style={[styles.modeToggleBtnText, { color: investorMode ? 'rgba(232,213,163,0.6)' : C.textHint }, investorMode && styles.modeToggleBtnTextInvestorActive]}>
                 💼 Investors
               </Text>
             </TouchableOpacity>
@@ -74,7 +77,7 @@ export default function AppHeader({ showToggle = false }) {
         )}
 
         <View style={styles.rightActions}>
-          <NotificationBell tintColor={C.primary} />
+          <NotificationBell tintColor={accentColor} />
         </View>
       </View>
     </View>

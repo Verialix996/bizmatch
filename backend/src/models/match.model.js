@@ -343,9 +343,9 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
   );
   const matchId = matchRows[0]?.id ?? null;
 
-  // Generate AI match summary in the background (non-blocking)
+  let aiSummary = null;
   if (matchId) {
-    generateMatchSummary(matchId, swiperId, swipedId).catch(() => {});
+    // Push notifications — fire and forget
     query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
       const name = rows[0]?.name || 'Someone';
       sendPushNotification(swipedId, '🎉 New Match!', `You matched with ${name}!`, { matchId });
@@ -356,9 +356,16 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
         emitNotification(swipedId, 'super_like', swiperId, { fromUserId: swiperId, name: rows[0]?.name || 'Someone' });
       }).catch(() => {});
     }
+    // Await AI summary with a 4-second timeout so it can be returned in the response
+    try {
+      aiSummary = await Promise.race([
+        generateMatchSummary(matchId, swiperId, swipedId),
+        new Promise(resolve => setTimeout(() => resolve(null), 4000)),
+      ]);
+    } catch { /* non-critical */ }
   }
 
-  return { matched: true, matchId };
+  return { matched: true, matchId, aiSummary };
 }
 
 async function generateMatchSummary(matchId, userAId, userBId) {
@@ -402,10 +409,12 @@ User B: ${b.name}, ${b.role}. Bio: ${b.bio || 'N/A'}. Stage: ${b.venture_stage |
     const summary = response.content[0]?.text?.trim();
     if (summary) {
       await query('UPDATE matches SET ai_summary = ? WHERE id = ?', [summary, matchId]);
+      return summary;
     }
   } catch {
     // non-critical — silently skip if AI call fails
   }
+  return null;
 }
 
 // ---------------------------------------------------------------------------

@@ -240,12 +240,12 @@ export default function AccountSettingsScreen({ navigation }) {
               setError('');
             }}
             placeholder="Enter your full name"
-            placeholderTextColor={colors.textHint}
+            placeholderTextColor={C.textHint}
           />
 
           <Text style={styles.fieldLabel}>EMAIL ADDRESS</Text>
           <View style={[styles.input, styles.inputDisabled]}>
-            <Text style={{ color: colors.textSecondary }}>{user?.email}</Text>
+            <Text style={{ color: C.textSecondary }}>{user?.email}</Text>
           </View>
           <Text style={styles.helperText}>Your email address cannot be changed.</Text>
 
@@ -268,7 +268,7 @@ export default function AccountSettingsScreen({ navigation }) {
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>IDENTITY VERIFICATION</Text>
           {verificationStatus === 'verified' ? (
-            <Text style={[styles.dangerText, { color: colors.success }]}>
+            <Text style={[styles.dangerText, { color: C.success }]}>
               ✓ Your account is verified
             </Text>
           ) : (
@@ -295,7 +295,7 @@ export default function AccountSettingsScreen({ navigation }) {
           <Text style={styles.sectionLabel}>TWO-FACTOR AUTHENTICATION</Text>
           {twoFactorEnabled ? (
             <>
-              <Text style={[styles.dangerText, { color: colors.success }]}>
+              <Text style={[styles.dangerText, { color: C.success }]}>
                 ✓ Two-factor authentication is enabled
               </Text>
               {disable2FAStep ? (
@@ -304,7 +304,7 @@ export default function AccountSettingsScreen({ navigation }) {
                   <TextInput
                     style={styles.input}
                     placeholder="000000"
-                    placeholderTextColor={colors.textHint}
+                    placeholderTextColor={C.textHint}
                     keyboardType="number-pad"
                     maxLength={6}
                     value={disable2FACode}
@@ -363,7 +363,7 @@ export default function AccountSettingsScreen({ navigation }) {
                   Alert.alert('Copied', 'Setup key copied to clipboard.');
                 }}
               >
-                <Text style={{ color: colors.textPrimary, fontWeight: '700', letterSpacing: 2 }}>
+                <Text style={{ color: C.textPrimary, fontWeight: '700', letterSpacing: 2 }}>
                   {twoFactorSetup.secret}
                 </Text>
               </TouchableOpacity>
@@ -371,7 +371,7 @@ export default function AccountSettingsScreen({ navigation }) {
               <TextInput
                 style={styles.input}
                 placeholder="000000"
-                placeholderTextColor={colors.textHint}
+                placeholderTextColor={C.textHint}
                 keyboardType="number-pad"
                 maxLength={6}
                 value={twoFactorCode}
@@ -432,7 +432,7 @@ export default function AccountSettingsScreen({ navigation }) {
                 disabled={premiumLoading}
               >
                 {premiumLoading
-                  ? <ActivityIndicator color={colors.textSecondary} />
+                  ? <ActivityIndicator color={C.textSecondary} />
                   : <Text style={styles.btnCancelText}>Cancel Subscription</Text>
                 }
               </TouchableOpacity>
@@ -533,7 +533,7 @@ function makeStyles(C) { return StyleSheet.create({
   btnPrimary: { backgroundColor: C.buttonPrimary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: C.buttonPrimaryText, ...typography.labelLarge },
-  premiumCard: { borderWidth: 2, borderColor: '#D4AF37', backgroundColor: '#FFFDF0' },
+  premiumCard: { borderWidth: 2, borderColor: '#D4AF37', backgroundColor: C.surface },
   premiumTagRow: { marginBottom: 12 },
   premiumTag: {
     alignSelf: 'flex-start',
@@ -552,7 +552,7 @@ function makeStyles(C) { return StyleSheet.create({
     borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center',
   },
   btnCancelText: { color: C.textSecondary, ...typography.labelLarge },
-  dangerZone: { borderWidth: 1, borderColor: C.errorLight || '#FFCDD2', backgroundColor: '#FFFAFA' },
+  dangerZone: { borderWidth: 1, borderColor: C.errorLight || '#FFCDD2', backgroundColor: C.surface },
   dangerText: { ...typography.bodyMedium, color: C.textSecondary, marginBottom: 24 },
   btnDelete: { backgroundColor: C.errorLight || '#FFCDD2', borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDeleteText: { color: C.buttonDestructive || C.error, ...typography.labelLarge },

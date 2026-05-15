@@ -12,7 +12,7 @@ const CARD_HEIGHT = Math.round(SCREEN_HEIGHT * 0.68);
 const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.55);
 const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
-import { getFeed, swipe } from '../../services/match.service';
+import { getFeed, swipe, getCompatibility } from '../../services/match.service';
 import { getProjectFeed, swipeProject, getMyProjects } from '../../services/project.service';
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
@@ -49,7 +49,7 @@ function StageBadge({ stage }) {
 }
 
 
-function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop }) {
+function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop, onCompatibility }) {
   const animatedStyle = isTop ? {
     transform: [
       { translateX: position.x },
@@ -141,6 +141,12 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
             Invests up to ${profile.maxInvestment.toLocaleString()}
           </Text>
         ) : null}
+
+        {isTop && onCompatibility && (
+          <TouchableOpacity style={styles.compatBtn} onPress={onCompatibility} activeOpacity={0.8}>
+            <Text style={styles.compatBtnText}>🔍 Compatibility</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </Animated.View>
   );
@@ -282,6 +288,48 @@ function MatchModal({ visible, matchedName, aiSummary, isProjectMatch, onClose, 
   );
 }
 
+function CompatibilityModal({ visible, loading, score, pros, cons, onClose }) {
+  return (
+    <Modal transparent visible={visible} animationType="fade">
+      <View style={styles.modalBackdrop}>
+        <View style={[styles.modalBox, { alignItems: 'stretch' }]}>
+          <TouchableOpacity style={styles.compatModalClose} onPress={onClose}>
+            <Text style={styles.compatModalCloseText}>✕</Text>
+          </TouchableOpacity>
+          <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Compatibility</Text>
+          {loading ? (
+            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 24 }} />
+          ) : score !== null ? (
+            <>
+              <View style={styles.compatScoreRow}>
+                <Text style={styles.compatScore}>{score}</Text>
+                <Text style={styles.compatScoreLabel}>/100</Text>
+              </View>
+              {pros.length > 0 && (
+                <>
+                  <Text style={styles.compatSectionTitle}>✓ Strengths</Text>
+                  {pros.map((p, i) => <Text key={i} style={styles.compatItem}>• {p}</Text>)}
+                </>
+              )}
+              {cons.length > 0 && (
+                <>
+                  <Text style={styles.compatSectionTitle}>⚠ Watch out</Text>
+                  {cons.map((c, i) => <Text key={i} style={styles.compatItem}>• {c}</Text>)}
+                </>
+              )}
+            </>
+          ) : (
+            <Text style={[styles.modalSub, { textAlign: 'center', marginVertical: 16 }]}>Could not load compatibility score.</Text>
+          )}
+          <TouchableOpacity style={[styles.modalBtn, { marginTop: 20 }]} onPress={onClose}>
+            <Text style={styles.modalBtnText}>CLOSE</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 function VideoPlayerModal({ visible, player, onClose }) {
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
@@ -356,6 +404,7 @@ export default function SwipeScreen() {
   const [lastMatchSummary, setLastMatchSummary] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
+  const [compatModal, setCompatModal] = useState({ visible: false, loading: false, score: null, pros: [], cons: [] });
 
   const C = (investorMode || darkMode) ? investorColors : colors;
 
@@ -420,6 +469,16 @@ export default function SwipeScreen() {
       loadFeed(mode);
     }
   }, [mode, selectedProject, loadFeed, isEntrepreneur]);
+
+  const handleCompatibility = useCallback(async (targetUserId) => {
+    setCompatModal({ visible: true, loading: true, score: null, pros: [], cons: [] });
+    try {
+      const res = await getCompatibility(targetUserId);
+      setCompatModal({ visible: true, loading: false, score: res.data.score ?? null, pros: res.data.pros || [], cons: res.data.cons || [] });
+    } catch {
+      setCompatModal({ visible: true, loading: false, score: null, pros: [], cons: [] });
+    }
+  }, []);
 
   const sendSwipe = useCallback(async (direction, superLike = false) => {
     if (swiping) return;
@@ -613,6 +672,7 @@ export default function SwipeScreen() {
                 likeOpacity={likeOpacity}
                 passOpacity={passOpacity}
                 cardRotation={cardRotation}
+                onCompatibility={() => handleCompatibility(visibleCards[0].userId)}
               />
             ) : (
               <ProjectCard
@@ -635,17 +695,17 @@ export default function SwipeScreen() {
       {!loading && visibleCards.length > 0 && !(isEntrepreneur && mode === 'investors' && !selectedProject) && (
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.passBtn]}
+            style={[styles.actionBtn, styles.passBtn, (investorMode || darkMode) && { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
             onPress={() => sendSwipe('pass')}
             disabled={swiping}
             activeOpacity={0.8}
           >
-            <Text style={styles.passBtnText}>✕</Text>
+            <Text style={[styles.passBtnText, (investorMode || darkMode) && { color: C.error }]}>✕</Text>
           </TouchableOpacity>
 
           <Animated.View style={{ transform: [{ scale: superStarScale }] }}>
             <TouchableOpacity
-              style={[styles.actionBtn, styles.starBtn]}
+              style={[styles.actionBtn, styles.starBtn, (investorMode || darkMode) && { borderColor: C.primary, backgroundColor: C.surface }]}
               onPress={() => {
                 if (!isPremium) {
                   Alert.alert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
@@ -658,17 +718,17 @@ export default function SwipeScreen() {
               disabled={swiping}
               activeOpacity={0.8}
             >
-              <Text style={styles.starBtnText}>★</Text>
+              <Text style={[styles.starBtnText, (investorMode || darkMode) && { color: C.primary }]}>★</Text>
             </TouchableOpacity>
           </Animated.View>
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.likeBtn]}
+            style={[styles.actionBtn, styles.likeBtn, (investorMode || darkMode) && { backgroundColor: C.primary, borderColor: C.primary }]}
             onPress={() => sendSwipe('like')}
             disabled={swiping}
             activeOpacity={0.8}
           >
-            <Text style={styles.likeBtnText}>♥</Text>
+            <Text style={[styles.likeBtnText, (investorMode || darkMode) && { color: C.textOnPrimary || '#0A0F1E' }]}>♥</Text>
           </TouchableOpacity>
         </View>
       )}
@@ -692,6 +752,15 @@ export default function SwipeScreen() {
             match: { matchId, name, photoUrl: photo },
           });
         }}
+      />
+
+      <CompatibilityModal
+        visible={compatModal.visible}
+        loading={compatModal.loading}
+        score={compatModal.score}
+        pros={compatModal.pros}
+        cons={compatModal.cons}
+        onClose={() => setCompatModal({ visible: false, loading: false, score: null, pros: [], cons: [] })}
       />
 
       <VideoPlayerModal
@@ -1294,6 +1363,70 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: colors.textSecondary,
     fontSize: 14,
+  },
+
+  // Compatibility button (inside profile card)
+  compatBtn: {
+    marginTop: 10,
+    backgroundColor: colors.backgroundSoft,
+    borderRadius: radius.pill,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    alignSelf: 'flex-start',
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+  },
+  compatBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: colors.primary,
+  },
+
+  // Compatibility modal
+  compatModalClose: {
+    alignSelf: 'flex-end',
+    padding: 4,
+    marginBottom: 4,
+  },
+  compatModalCloseText: {
+    fontSize: 16,
+    color: colors.textHint,
+    fontWeight: '600',
+  },
+  compatScoreRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    marginVertical: 12,
+  },
+  compatScore: {
+    fontSize: 52,
+    fontWeight: '900',
+    color: colors.primary,
+    letterSpacing: -2,
+    lineHeight: 56,
+  },
+  compatScoreLabel: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.textHint,
+    marginBottom: 8,
+    marginLeft: 4,
+  },
+  compatSectionTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: colors.textSecondary,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  compatItem: {
+    fontSize: 13,
+    color: colors.textHint,
+    lineHeight: 19,
+    marginBottom: 4,
   },
 
   // Video player modal
