@@ -175,8 +175,25 @@ export default function MatchesScreen({ navigation }) {
 
   const newMatches = conversations.filter(c => !c.lastMessage);
   const withMessages = conversations.filter(c => c.lastMessage);
-  const projectConvs = withMessages.filter(c => c.projectName);
-  const peopleConvs = withMessages.filter(c => !c.projectName);
+  const isInvestor = currentUser?.role === 'investor';
+
+  // Investor: project chats = matches where investor swiped on a project
+  const projectConvs = withMessages.filter(c => c.projectName && c.projectInvestorId === currentUser?.id);
+  // Investor: all other convs (regular profile swipes)
+  const peopleConvs = withMessages.filter(c => !c.projectName || c.projectInvestorId !== currentUser?.id);
+
+  // Entrepreneur: partner chats = non-project matches (looking for co-founders)
+  const partnerConvs = withMessages.filter(c => !c.projectName);
+  // Entrepreneur: group investor convs by project
+  const investorConvsByProject = withMessages
+    .filter(c => c.projectName && c.projectInvestorId !== currentUser?.id)
+    .reduce((acc, conv) => {
+      const key = String(conv.projectId);
+      if (!acc[key]) acc[key] = { name: conv.projectName, convs: [] };
+      acc[key].convs.push(conv);
+      return acc;
+    }, {});
+  const projectGroups = Object.values(investorConvsByProject);
 
   if (loading) {
     return (
@@ -264,49 +281,98 @@ export default function MatchesScreen({ navigation }) {
               </View>
             )}
 
-            {/* Project Conversations */}
-            {projectConvs.length > 0 && (
-              <View style={styles.section}>
-                <View style={styles.sectionHeader}>
-                  <Text style={styles.sectionLabel}>PROJECT CHATS</Text>
-                  <View style={[styles.badge, styles.badgeProject]}>
-                    <Text style={styles.badgeText}>📁 {projectConvs.length}</Text>
+            {isInvestor ? (
+              <>
+                {/* Investor: PROJECT CHATS — matches via project swipe */}
+                {projectConvs.length > 0 && (
+                  <View style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionLabel}>PROJECT CHATS</Text>
+                      <View style={[styles.badge, styles.badgeProject]}>
+                        <Text style={styles.badgeText}>📁 {projectConvs.length}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.convList}>
+                      {projectConvs.map((item) => (
+                        <ConversationRow
+                          key={String(item.matchId)}
+                          item={item}
+                          currentUserId={currentUser?.id}
+                          readTimestamps={readTimestamps}
+                          C={C} styles={styles}
+                          onPress={() => navigation.navigate('Chat', { match: item })}
+                        />
+                      ))}
+                    </View>
                   </View>
-                </View>
-                <View style={styles.convList}>
-                  {projectConvs.map((item) => (
-                    <ConversationRow
-                      key={String(item.matchId)}
-                      item={item}
-                      currentUserId={currentUser?.id}
-                      readTimestamps={readTimestamps}
-                      C={C} styles={styles}
-                      onPress={() => navigation.navigate('Chat', { match: item })}
-                    />
-                  ))}
-                </View>
-              </View>
-            )}
-
-            {/* People Conversations */}
-            {(peopleConvs.length > 0 || projectConvs.length === 0) && (
-              <View style={styles.section}>
-                <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
-                  {projectConvs.length > 0 ? 'PEOPLE CHATS' : 'ALL CONVERSATIONS'}
-                </Text>
-                <View style={styles.convList}>
-                  {(peopleConvs.length > 0 ? peopleConvs : withMessages).map((item) => (
-                    <ConversationRow
-                      key={String(item.matchId)}
-                      item={item}
-                      currentUserId={currentUser?.id}
-                      readTimestamps={readTimestamps}
-                      C={C} styles={styles}
-                      onPress={() => navigation.navigate('Chat', { match: item })}
-                    />
-                  ))}
-                </View>
-              </View>
+                )}
+                {/* Investor: ALL CONVERSATIONS — regular profile swipes */}
+                {(peopleConvs.length > 0 || projectConvs.length === 0) && (
+                  <View style={styles.section}>
+                    <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
+                      {projectConvs.length > 0 ? 'ALL CONVERSATIONS' : 'ALL CONVERSATIONS'}
+                    </Text>
+                    <View style={styles.convList}>
+                      {(peopleConvs.length > 0 ? peopleConvs : withMessages).map((item) => (
+                        <ConversationRow
+                          key={String(item.matchId)}
+                          item={item}
+                          currentUserId={currentUser?.id}
+                          readTimestamps={readTimestamps}
+                          C={C} styles={styles}
+                          onPress={() => navigation.navigate('Chat', { match: item })}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
+            ) : (
+              <>
+                {/* Entrepreneur: one section per project with investor convs */}
+                {projectGroups.map(group => (
+                  <View key={group.name} style={styles.section}>
+                    <View style={styles.sectionHeader}>
+                      <Text style={styles.sectionLabel}>📁 {group.name.toUpperCase()}</Text>
+                      <View style={[styles.badge, styles.badgeProject]}>
+                        <Text style={styles.badgeText}>{group.convs.length} INVESTOR{group.convs.length !== 1 ? 'S' : ''}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.convList}>
+                      {group.convs.map((item) => (
+                        <ConversationRow
+                          key={String(item.matchId)}
+                          item={item}
+                          currentUserId={currentUser?.id}
+                          readTimestamps={readTimestamps}
+                          C={C} styles={styles}
+                          onPress={() => navigation.navigate('Chat', { match: item })}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                ))}
+                {/* Entrepreneur: PARTNER CHATS — non-project matches */}
+                {(partnerConvs.length > 0 || projectGroups.length === 0) && (
+                  <View style={styles.section}>
+                    <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
+                      {projectGroups.length > 0 ? 'PARTNER CHATS' : 'ALL CONVERSATIONS'}
+                    </Text>
+                    <View style={styles.convList}>
+                      {(partnerConvs.length > 0 ? partnerConvs : withMessages).map((item) => (
+                        <ConversationRow
+                          key={String(item.matchId)}
+                          item={item}
+                          currentUserId={currentUser?.id}
+                          readTimestamps={readTimestamps}
+                          C={C} styles={styles}
+                          onPress={() => navigation.navigate('Chat', { match: item })}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
+              </>
             )}
           </>
         )}
