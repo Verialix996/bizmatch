@@ -56,6 +56,8 @@ const matches = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
+const DAILY_SWIPE_LIMIT = 20;
+
 // POST /api/projects/swipe
 const swipe = async (req, res, next) => {
   try {
@@ -66,6 +68,29 @@ const swipe = async (req, res, next) => {
     if (!projectId || !['like', 'pass'].includes(direction)) {
       return res.status(400).json({ error: 'projectId and direction (like|pass) required' });
     }
+
+    const userRows = await query(
+      `SELECT is_premium, premium_expires_at,
+              IF(swipe_count_date = CURDATE(), swipe_count, 0) AS today_count
+       FROM users WHERE id = ?`,
+      [req.user.id]
+    );
+    const u = userRows[0];
+    const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
+
+    if (!isPremium) {
+      if ((u?.today_count ?? 0) >= DAILY_SWIPE_LIMIT) {
+        return res.status(429).json({ error: 'Daily swipe limit reached', upgradeRequired: true });
+      }
+      await query(
+        `UPDATE users SET
+           swipe_count = IF(swipe_count_date = CURDATE(), swipe_count + 1, 1),
+           swipe_count_date = CURDATE()
+         WHERE id = ?`,
+        [req.user.id]
+      );
+    }
+
     const result = await swipeProject(req.user.id, Number(projectId), direction);
     if (result.error) return res.status(400).json({ error: result.error });
     res.json(result);
