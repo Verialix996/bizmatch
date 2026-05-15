@@ -309,16 +309,18 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
     [swipedId, swiperId]
   );
 
+  let projectMatchRow = null;
   if (!theirSwipe[0]) {
     // No mutual profile swipe — check if the swiped investor already liked one of this entrepreneur's projects
     const projectLike = await query(
-      `SELECT ps.id FROM project_swipes ps
+      `SELECT ps.project_id FROM project_swipes ps
        JOIN projects p ON p.id = ps.project_id
        WHERE ps.investor_id = ? AND p.user_id = ? AND p.is_active = 1 AND ps.direction = 'like'
        LIMIT 1`,
       [swipedId, swiperId]
     );
     if (!projectLike[0]) return { matched: false };
+    projectMatchRow = { investorId: swipedId, projectId: projectLike[0].project_id, entrepreneurId: swiperId };
   }
 
   const [u1, u2] = swiperId < swipedId ? [swiperId, swipedId] : [swipedId, swiperId];
@@ -327,6 +329,13 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
     'INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)',
     [u1, u2]
   );
+
+  if (projectMatchRow) {
+    await query(
+      'INSERT IGNORE INTO project_matches (investor_id, project_id, user_id) VALUES (?, ?, ?)',
+      [projectMatchRow.investorId, projectMatchRow.projectId, projectMatchRow.entrepreneurId]
+    );
+  }
 
   const matchRows = await query(
     'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
