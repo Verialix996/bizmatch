@@ -75,7 +75,8 @@ async function getConversations(userId) {
        p.investment_domain AS investmentDomain,
        lm.body AS lastMessage,
        lm.created_at AS lastMessageAt,
-       lm.sender_id AS lastMessageSenderId
+       lm.sender_id AS lastMessageSenderId,
+       proj.projectName
      FROM matches m
      JOIN users u ON u.id = IF(m.user1_id = ?, m.user2_id, m.user1_id)
      LEFT JOIN profiles p ON p.user_id = u.id
@@ -83,6 +84,16 @@ async function getConversations(userId) {
        SELECT match_id, MAX(id) AS max_id FROM messages GROUP BY match_id
      ) latest ON latest.match_id = m.id
      LEFT JOIN messages lm ON lm.id = latest.max_id
+     LEFT JOIN (
+       SELECT ps.match_id, JSON_UNQUOTE(JSON_EXTRACT(ps.metadata, '$.title')) AS projectName
+       FROM messages ps
+       INNER JOIN (
+         SELECT match_id, MAX(id) AS max_id
+         FROM messages
+         WHERE message_type = 'project_shared'
+         GROUP BY match_id
+       ) latest_ps ON ps.id = latest_ps.max_id
+     ) proj ON proj.match_id = m.id
      WHERE (m.user1_id = ? OR m.user2_id = ?)
        AND u.deleted_at IS NULL
      ORDER BY COALESCE(lm.created_at, m.created_at) DESC`,

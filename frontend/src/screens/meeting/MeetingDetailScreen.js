@@ -152,7 +152,26 @@ export default function MeetingDetailScreen({ route, navigation }) {
           onPress={() => respond('cancelled')}
           disabled={loadingAction}
         >
-          <Text style={styles.actionBtnText}>Cancel Meeting</Text>
+          {loadingAction ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.actionBtnText}>Cancel Meeting</Text>}
+        </TouchableOpacity>
+      )}
+
+      {(isProposer || isReceiver) && meeting.status === 'confirmed' && (
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.error, alignSelf: 'stretch' }]}
+          onPress={() =>
+            Alert.alert(
+              'Cancel Meeting',
+              'Are you sure you want to cancel this confirmed meeting?',
+              [
+                { text: 'Keep Meeting' },
+                { text: 'Cancel Meeting', style: 'destructive', onPress: () => respond('cancelled') },
+              ]
+            )
+          }
+          disabled={loadingAction}
+        >
+          {loadingAction ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.actionBtnText}>Cancel Meeting</Text>}
         </TouchableOpacity>
       )}
 

@@ -81,8 +81,12 @@ const respond = async (req, res, next) => {
     if (meeting.receiver_id !== userId && meeting.proposer_id !== userId) {
       return res.status(403).json({ error: 'Not part of this meeting' });
     }
-    if (status === 'cancelled' && meeting.proposer_id !== userId) {
-      return res.status(403).json({ error: 'Only the proposer can cancel' });
+    if (status === 'cancelled') {
+      const isProposer = meeting.proposer_id === userId;
+      const isReceiverCancellingConfirmed = meeting.receiver_id === userId && meeting.status === 'confirmed';
+      if (!isProposer && !isReceiverCancellingConfirmed) {
+        return res.status(403).json({ error: 'You cannot cancel this meeting' });
+      }
     }
     if (['confirmed', 'declined'].includes(status) && meeting.receiver_id !== userId) {
       return res.status(403).json({ error: 'Only the receiver can confirm or decline' });
