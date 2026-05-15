@@ -23,6 +23,7 @@ const path = require('path');
 const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
 
 const DROP_ORDER = [
+  'notifications', 'ai_compatibility_breakdowns',
   'messages', 'meetings', 'project_ndas', 'partner_invitations',
   'project_partners', 'project_matches', 'project_swipes',
   'ai_match_scores', 'swipes', 'matches', 'projects', 'profiles',
@@ -165,7 +166,12 @@ async function runMigrations(conn) {
     const sql = fs.readFileSync(path.join(MIGRATIONS_DIR, file), 'utf8');
     const statements = sql.split(';').map(s => s.trim()).filter(Boolean);
     for (const stmt of statements) {
-      await conn.query(stmt);
+      try {
+        await conn.query(stmt);
+      } catch (err) {
+        if (err.errno === 1060) { /* column already exists in base table — skip */ }
+        else throw err;
+      }
     }
     await conn.query('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);
     console.log(`  ✓ ${file}`);
