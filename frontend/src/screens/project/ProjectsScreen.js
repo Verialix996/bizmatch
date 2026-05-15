@@ -353,6 +353,8 @@ function ProjectForm({ initial, onSave, onCancel, styles, C }) {
     title: initial?.title || '',
     description: initial?.description || '',
     industry: initial?.industry || '',
+    stage: initial?.stage || '',
+    funding_needed: initial?.funding_needed ? String(initial.funding_needed) : '',
     visibility: initial?.visibility || 'public',
     deck_url: initial?.deck_url || '',
     video_url: initial?.video_url || '',
@@ -404,6 +406,32 @@ function ProjectForm({ initial, onSave, onCancel, styles, C }) {
         onChangeText={v => setForm(f => ({ ...f, industry: v }))}
         placeholder="e.g. FinTech, HealthTech, SaaS"
         placeholderTextColor={C.textHint}
+      />
+
+      <Text style={styles.fieldLabel}>STAGE</Text>
+      <View style={styles.stageRow}>
+        {['idea', 'mvp', 'growth', 'scale'].map(v => (
+          <TouchableOpacity
+            key={v}
+            style={[styles.stageChip, form.stage === v && styles.stageChipActive]}
+            onPress={() => setForm(f => ({ ...f, stage: v }))}
+            activeOpacity={0.8}
+          >
+            <Text style={[styles.stageChipText, form.stage === v && styles.stageChipTextActive]}>
+              {STAGE_LABELS[v]}
+            </Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+
+      <Text style={styles.fieldLabel}>FUNDING NEEDED ($)</Text>
+      <TextInput
+        style={styles.input}
+        value={form.funding_needed}
+        onChangeText={v => setForm(f => ({ ...f, funding_needed: v }))}
+        placeholder="e.g. 400000"
+        placeholderTextColor={C.textHint}
+        keyboardType="numeric"
       />
 
       <Text style={styles.fieldLabel}>VISIBILITY</Text>

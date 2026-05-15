@@ -74,8 +74,8 @@ function ConversationRow({ item, onPress, currentUserId, readTimestamps, C, styl
         </View>
         <View style={styles.convChipRow}>
           {item.projectName ? (
-            <View style={[styles.convChip, styles.convChipProject]}>
-              <Text style={[styles.convChipText, styles.convChipTextProject]}>📁 {item.name}</Text>
+            <View style={styles.convChip}>
+              <Text style={styles.convChipText}>📁 {item.projectName}</Text>
             </View>
           ) : (
             <View style={styles.convChip}>
@@ -300,6 +300,7 @@ export default function MatchesScreen({ navigation }) {
                           currentUserId={currentUser?.id}
                           readTimestamps={readTimestamps}
                           C={C} styles={styles}
+                          showPersonName
                           onPress={() => navigation.navigate('Chat', { match: item })}
                         />
                       ))}
