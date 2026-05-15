@@ -297,7 +297,7 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
   await query(
     `INSERT INTO swipes (swiper_id, swiped_id, direction, is_super_like)
      VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE direction = VALUES(direction), is_super_like = VALUES(is_super_like)`,
+     ON DUPLICATE KEY UPDATE direction = VALUES(direction), is_super_like = VALUES(is_super_like), created_at = NOW()`,
     [swiperId, swipedId, direction, isSuperLike ? 1 : 0]
   );
 
