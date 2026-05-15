@@ -121,8 +121,8 @@ export default function MatchesScreen({ navigation }) {
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser = useAuthStore(s => s.user);
   const readTimestamps = useAuthStore(s => s.readTimestamps);
-  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
-  const C = (darkMode || investorMode) ? investorColors : colors;
+  const darkMode = useAppStore(s => s.darkMode);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
   const load = useCallback(async () => {
@@ -198,7 +198,7 @@ export default function MatchesScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={darkMode || investorMode ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={C.primary} />
         </View>
@@ -208,7 +208,7 @@ export default function MatchesScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode || investorMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}

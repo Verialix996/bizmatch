@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, Switch,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert, Linking
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert, Linking, StatusBar
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
@@ -8,7 +8,7 @@ import api from '../../services/api';
 import { cancelPremium } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, typography, radius, cardShadow } from '../../theme';
+import { colors, investorColors, typography, radius, cardShadow } from '../../theme';
 
 export default function AccountSettingsScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
@@ -16,6 +16,8 @@ export default function AccountSettingsScreen({ navigation }) {
   const logout = useAuthStore(s => s.logout);
   const darkMode = useAppStore(s => s.darkMode);
   const setDarkMode = useAppStore(s => s.setDarkMode);
+  const C = darkMode ? investorColors : colors;
+  const styles = makeStyles(C);
 
   const [name, setName] = useState(user?.name || '');
   const [loading, setLoading] = useState(false);
@@ -165,6 +167,7 @@ export default function AccountSettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
       {/* ── Confirm Delete Modal ── */}
       <Modal visible={showConfirmModal} transparent animationType="fade">
@@ -321,7 +324,7 @@ export default function AccountSettingsScreen({ navigation }) {
                       disabled={disable2FALoading}
                     >
                       {disable2FALoading
-                        ? <ActivityIndicator color={colors.error} />
+                        ? <ActivityIndicator color={C.error} />
                         : <Text style={styles.btnDeleteText}>Confirm Disable</Text>
                       }
                     </TouchableOpacity>
@@ -465,7 +468,7 @@ export default function AccountSettingsScreen({ navigation }) {
         </View>
 
         <View style={[styles.card, styles.dangerZone]}>
-          <Text style={[styles.sectionLabel, { color: colors.error }]}>DANGER ZONE</Text>
+          <Text style={[styles.sectionLabel, { color: C.error }]}>DANGER ZONE</Text>
           <Text style={styles.dangerText}>
             Deleting your account will permanently erase all your data.
           </Text>
@@ -483,57 +486,53 @@ export default function AccountSettingsScreen({ navigation }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.backgroundSoft },
+function makeStyles(C) { return StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.backgroundSoft },
 
-  // Header
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceBorder,
+    borderBottomColor: C.surfaceBorder,
   },
   backBtn: { flex: 1 },
-  backText: { color: colors.primary, ...typography.labelLarge },
-  headerTitle: { ...typography.titleLarge, color: colors.textPrimary, flex: 2, textAlign: 'center' },
+  backText: { color: C.primary, ...typography.labelLarge },
+  headerTitle: { ...typography.titleLarge, color: C.textPrimary, flex: 2, textAlign: 'center' },
 
-  // Scroll
   scrollContent: { padding: 20 },
 
-  // Card
   card: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.lg,
     padding: 20,
     marginBottom: 20,
     ...cardShadow,
   },
-  sectionLabel: { ...typography.labelSmall, color: colors.textHint, marginBottom: 20 },
-  fieldLabel: { ...typography.labelLarge, color: colors.textSecondary, marginBottom: 8 },
+  sectionLabel: { ...typography.labelSmall, color: C.textHint, marginBottom: 20 },
+  fieldLabel: { ...typography.labelLarge, color: C.textSecondary, marginBottom: 8 },
   input: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.md,
     paddingHorizontal: 16,
     paddingVertical: 14,
     ...typography.bodyLarge,
-    color: colors.textPrimary,
+    color: C.textPrimary,
     marginBottom: 16,
   },
-  inputDisabled: { backgroundColor: '#ECEEF2', justifyContent: 'center' },
-  helperText: { ...typography.caption, color: colors.textHint, marginTop: -8, marginBottom: 20 },
+  inputDisabled: { backgroundColor: C.surfaceElevated || C.backgroundSoft, justifyContent: 'center' },
+  helperText: { ...typography.caption, color: C.textHint, marginTop: -8, marginBottom: 20 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  switchLabel: { ...typography.bodyLarge, color: colors.textPrimary, fontWeight: '600' },
-  switchSub: { ...typography.bodySmall, color: colors.textSecondary, marginTop: 2 },
-  errorText: { color: colors.error, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
-  successText: { color: colors.success, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
+  switchLabel: { ...typography.bodyLarge, color: C.textPrimary, fontWeight: '600' },
+  switchSub: { ...typography.bodySmall, color: C.textSecondary, marginTop: 2 },
+  errorText: { color: C.error, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
+  successText: { color: C.success, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
 
-  // Buttons
-  btnPrimary: { backgroundColor: colors.buttonPrimary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
+  btnPrimary: { backgroundColor: C.buttonPrimary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.7 },
-  btnPrimaryText: { color: colors.buttonPrimaryText, ...typography.labelLarge },
+  btnPrimaryText: { color: C.buttonPrimaryText, ...typography.labelLarge },
   premiumCard: { borderWidth: 2, borderColor: '#D4AF37', backgroundColor: '#FFFDF0' },
   premiumTagRow: { marginBottom: 12 },
   premiumTag: {
@@ -547,18 +546,17 @@ const styles = StyleSheet.create({
   premiumBadgeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
   premiumCrown: { fontSize: 22 },
   premiumBadgeText: { ...typography.titleSmall, color: '#B8860B', fontWeight: '700' },
-  premiumExpiry: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: 20 },
+  premiumExpiry: { ...typography.bodySmall, color: C.textSecondary, marginBottom: 20 },
   btnCancel: {
-    borderWidth: 1, borderColor: colors.surfaceBorder,
+    borderWidth: 1, borderColor: C.surfaceBorder,
     borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center',
   },
-  btnCancelText: { color: colors.textSecondary, ...typography.labelLarge },
-  dangerZone: { borderWidth: 1, borderColor: colors.errorLight, backgroundColor: '#FFFAFA' },
-  dangerText: { ...typography.bodyMedium, color: colors.textSecondary, marginBottom: 24 },
-  btnDelete: { backgroundColor: colors.errorLight, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
-  btnDeleteText: { color: colors.buttonDestructive, ...typography.labelLarge },
+  btnCancelText: { color: C.textSecondary, ...typography.labelLarge },
+  dangerZone: { borderWidth: 1, borderColor: C.errorLight || '#FFCDD2', backgroundColor: '#FFFAFA' },
+  dangerText: { ...typography.bodyMedium, color: C.textSecondary, marginBottom: 24 },
+  btnDelete: { backgroundColor: C.errorLight || '#FFCDD2', borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
+  btnDeleteText: { color: C.buttonDestructive || C.error, ...typography.labelLarge },
 
-  // Modal
   overlay: {
     flex: 1,
     backgroundColor: 'rgba(2, 36, 102, 0.5)',
@@ -567,32 +565,32 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   modal: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.xl,
     padding: 28,
     width: '100%',
     maxWidth: 400,
     ...cardShadow,
   },
-  modalTitle: { ...typography.titleMedium, color: colors.textPrimary, textAlign: 'center', marginBottom: 12 },
-  modalBody: { ...typography.bodyMedium, color: colors.textSecondary, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
+  modalTitle: { ...typography.titleMedium, color: C.textPrimary, textAlign: 'center', marginBottom: 12 },
+  modalBody: { ...typography.bodyMedium, color: C.textSecondary, textAlign: 'center', marginBottom: 28, lineHeight: 22 },
   successIcon: { fontSize: 40, textAlign: 'center', marginBottom: 12 },
   modalActions: { flexDirection: 'row', gap: 12 },
-  btnCancel: {
+  modalBtnCancel: {
     flex: 1,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
   },
-  btnCancelText: { color: colors.textSecondary, ...typography.labelLarge },
+  modalBtnCancelText: { color: C.textSecondary, ...typography.labelLarge },
   btnConfirmDelete: {
     flex: 1,
-    backgroundColor: colors.error,
+    backgroundColor: C.error,
     borderRadius: radius.pill,
     paddingVertical: 14,
     alignItems: 'center',
   },
   btnConfirmDeleteText: { color: '#fff', ...typography.labelLarge },
-});
+}); }

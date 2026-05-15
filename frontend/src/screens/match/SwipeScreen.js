@@ -494,6 +494,8 @@ export default function SwipeScreen() {
         }
       } catch (e) {
         if (e.response?.status === 429 && e.response?.data?.upgradeRequired) {
+          Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+          setSwiping(false);
           Alert.alert(
             'Daily Limit Reached',
             "You've used all 20 free swipes today. Upgrade to Premium for unlimited swipes!",
@@ -502,6 +504,7 @@ export default function SwipeScreen() {
               { text: 'Go Premium', onPress: () => navigation.navigate('Premium') },
             ]
           );
+          return;
         }
       }
       setCurrentIndex(i => i + 1);

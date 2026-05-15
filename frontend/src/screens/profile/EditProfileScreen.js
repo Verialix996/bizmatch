@@ -121,8 +121,8 @@ export default function EditProfileScreen({ route, navigation }) {
   const forceStep = route.params?.forceStep;
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
-  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
-  const C = (darkMode || investorMode) ? investorColors : colors;
+  const darkMode = useAppStore(s => s.darkMode);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
   const FieldLabel = ({ children }) => <Text style={styles.fieldLabel}>{children}</Text>;

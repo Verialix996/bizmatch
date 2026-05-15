@@ -445,8 +445,8 @@ function ProjectForm({ initial, onSave, onCancel, styles, C }) {
 }
 
 export default function ProjectsScreen({ route }) {
-  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
-  const C = (darkMode || investorMode) ? investorColors : colors;
+  const darkMode = useAppStore(s => s.darkMode);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
   const [projects, setProjects] = useState([]);
@@ -586,7 +586,7 @@ export default function ProjectsScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode || investorMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}

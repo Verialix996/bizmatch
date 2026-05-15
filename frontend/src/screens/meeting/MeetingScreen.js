@@ -55,8 +55,8 @@ function MeetingCard({ meeting, currentUserId, onPress, C, styles }) {
 
 export default function MeetingScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
-  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
-  const C = (darkMode || investorMode) ? investorColors : colors;
+  const darkMode = useAppStore(s => s.darkMode);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);

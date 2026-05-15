@@ -94,8 +94,8 @@ export default function ChatScreen({ route, navigation }) {
   const { match } = route.params;
   const user = useAuthStore(s => s.user);
   const markMatchRead = useAuthStore(s => s.markMatchRead);
-  const { darkMode, investorMode } = useAppStore(s => ({ darkMode: s.darkMode, investorMode: s.investorMode }));
-  const C = (darkMode || investorMode) ? investorColors : colors;
+  const darkMode = useAppStore(s => s.darkMode);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
   const [messages, setMessages] = useState([]);
@@ -764,7 +764,7 @@ export default function ChatScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode || investorMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>
