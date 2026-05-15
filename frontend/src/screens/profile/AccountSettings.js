@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, Switch,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert, Linking
 } from 'react-native';
 import { useState } from 'react';
 import api from '../../services/api';
@@ -338,8 +338,16 @@ export default function AccountSettingsScreen({ navigation }) {
           ) : twoFactorSetup ? (
             <>
               <Text style={styles.dangerText}>
-                Open Google Authenticator or Authy → tap "+" → "Enter a setup key" → paste the key below.
+                Tap the button below to open your authenticator app automatically, or enter the setup key manually.
               </Text>
+              {twoFactorSetup.otpauthUrl ? (
+                <TouchableOpacity
+                  style={[styles.btnPrimary, { marginBottom: 12 }]}
+                  onPress={() => Linking.openURL(twoFactorSetup.otpauthUrl)}
+                >
+                  <Text style={styles.btnPrimaryText}>Open in Authenticator App</Text>
+                </TouchableOpacity>
+              ) : null}
               <Text style={styles.fieldLabel}>SETUP KEY</Text>
               <View style={[styles.input, styles.inputDisabled, { marginBottom: 16 }]}>
                 <Text style={{ color: colors.textPrimary, fontWeight: '700', letterSpacing: 2 }}>

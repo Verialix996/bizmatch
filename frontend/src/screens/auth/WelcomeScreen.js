@@ -57,7 +57,7 @@ export default function WelcomeScreen({ navigation }) {
           const qs = result.url.split('?')[1] || '';
           const params = Object.fromEntries(qs.split('&').map(p => {
             const [k, v] = p.split('=');
-            return [k, decodeURIComponent(v || '')];
+            return [k, decodeURIComponent((v || '').replace(/\+/g, ' '))];
           }));
           if (params.token) {
             setAuth(params.token, {
