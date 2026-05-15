@@ -88,10 +88,13 @@ async function uploadIdDocument(req, res, next) {
 async function uploadCv(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const result = await cloudinary.uploader.upload(
-      `data:${req.file.mimetype};base64,${req.file.buffer.toString('base64')}`,
-      { resource_type: 'raw', folder: 'bizmatch/cvs', public_id: `cv_${req.user.id}`, format: 'pdf', overwrite: true }
-    );
+    const result = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        { folder: 'bizmatch/cvs', resource_type: 'raw', format: 'pdf', public_id: `cv_${req.user.id}`, overwrite: true },
+        (err, r) => err ? reject(err) : resolve(r)
+      );
+      stream.end(req.file.buffer);
+    });
     await query('UPDATE profiles SET cv_url = ? WHERE user_id = ?', [result.secure_url, req.user.id]);
     res.json({ cv_url: result.secure_url });
   } catch (err) {
