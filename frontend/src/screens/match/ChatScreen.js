@@ -8,6 +8,7 @@ import {
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { getMessages, sendMessage, markRead, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
+import api from '../../services/api';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
