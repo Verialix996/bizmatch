@@ -1,6 +1,25 @@
 // Word-list based content moderation — no external API calls, instant response.
-// Categories: hate speech, sexual content, threats, spam triggers.
+// Categories: common profanity, hate speech, sexual content, threats, spam triggers.
 const BANNED_WORDS = [
+  // Common profanity
+  'fuck', 'fucking', 'fucker', 'fucks', 'fucked',
+  'shit', 'shitting', 'shitty',
+  'bitch', 'bitches', 'bitching',
+  'cunt', 'cunts',
+  'asshole', 'assholes', 'arsehole',
+  'bastard', 'bastards',
+  'cock', 'cocks', 'cocksucker',
+  'dick', 'dicks',
+  'pussy', 'pussies',
+  'motherfucker', 'motherfucking',
+  'bullshit',
+  'whore', 'whores',
+  'slut', 'sluts',
+  'prick', 'pricks',
+  'wanker', 'wankers',
+  'twat', 'twats',
+  'dumbass', 'jackass',
+  'dipshit',
   // Hate speech / slurs (representative set)
   'nigger', 'nigga', 'kike', 'spic', 'chink', 'gook', 'wetback', 'faggot', 'tranny',
   // Sexual content
