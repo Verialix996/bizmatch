@@ -29,19 +29,25 @@ const swipe = async (req, res, next) => {
 
     // Premium check + daily swipe limit
     const userRows = await query(
-      'SELECT is_premium, premium_expires_at FROM users WHERE id = ?',
+      'SELECT is_premium, premium_expires_at, swipe_count, swipe_count_date FROM users WHERE id = ?',
       [req.user.id]
     );
     const u = userRows[0];
     const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
 
     if (!isPremium) {
-      const countRows = await query(
-        "SELECT COUNT(*) AS cnt FROM swipes WHERE swiper_id = ? AND DATE(created_at) = CURDATE()",
-        [req.user.id]
-      );
-      if ((countRows[0]?.cnt ?? 0) >= DAILY_SWIPE_LIMIT) {
+      const today = new Date().toISOString().slice(0, 10);
+      const countDate = u?.swipe_count_date ? String(u.swipe_count_date).slice(0, 10) : null;
+      const todayCount = countDate === today ? (u?.swipe_count ?? 0) : 0;
+
+      if (todayCount >= DAILY_SWIPE_LIMIT) {
         return res.status(429).json({ error: 'Daily swipe limit reached', upgradeRequired: true });
+      }
+
+      if (countDate !== today) {
+        await query('UPDATE users SET swipe_count = 1, swipe_count_date = CURDATE() WHERE id = ?', [req.user.id]);
+      } else {
+        await query('UPDATE users SET swipe_count = swipe_count + 1 WHERE id = ?', [req.user.id]);
       }
     }
 

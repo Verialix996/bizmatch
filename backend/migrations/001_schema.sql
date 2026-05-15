@@ -25,6 +25,8 @@ CREATE TABLE IF NOT EXISTS users (
   login_attempts       INT DEFAULT 0,
   locked_until         DATETIME NULL,
   last_active_at       DATETIME NULL DEFAULT NULL,
+  swipe_count          INT DEFAULT 0,
+  swipe_count_date     DATE NULL,
   created_at           DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at           DATETIME DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
