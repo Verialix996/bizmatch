@@ -40,24 +40,10 @@ function PartnerAvatar({ name, photoUrl, size = 36, styles, C }) {
   );
 }
 
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, styles, C }) {
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onReviewDeck, styles, C }) {
   const [partners, setPartners] = useState([]);
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
-  const [showDeckReview, setShowDeckReview] = useState(false);
-  const [deckFeedback, setDeckFeedback] = useState(null);
-  const [deckReviewLoading, setDeckReviewLoading] = useState(false);
-
-  const handleDeckReview = async () => {
-    setDeckReviewLoading(true);
-    try {
-      const { data } = await reviewDeck(project.id);
-      setDeckFeedback(data);
-    } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Could not get AI feedback.');
-    }
-    setDeckReviewLoading(false);
-  };
 
   useFocusEffect(useCallback(() => {
     getPartners(project.id)
@@ -194,47 +180,10 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
 
       {/* AI Deck Review — only if deck uploaded */}
       {project.deck_url ? (
-        <TouchableOpacity style={styles.aiFeedbackBtn} onPress={() => { setShowDeckReview(true); setDeckFeedback(null); }}>
+        <TouchableOpacity style={styles.aiFeedbackBtn} onPress={() => onReviewDeck(project.id)}>
           <Text style={styles.aiFeedbackBtnText}>✦ Get AI Deck Feedback</Text>
         </TouchableOpacity>
       ) : null}
-
-      {/* AI Deck Review Modal */}
-      <Modal visible={showDeckReview} transparent animationType="slide">
-        <View style={styles.deckReviewOverlay}>
-          <View style={styles.deckReviewSheet}>
-            <Text style={styles.deckReviewTitle}>AI Pitch Deck Review</Text>
-            {!deckFeedback ? (
-              <>
-                <Text style={styles.deckReviewHint}>Claude will read your uploaded PDF and provide structured feedback.</Text>
-                <View style={styles.deckReviewActions}>
-                  <TouchableOpacity onPress={() => setShowDeckReview(false)} style={styles.deckReviewCancel}>
-                    <Text style={{ color: C.textHint }}>Cancel</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity onPress={handleDeckReview} style={styles.deckReviewSubmit} disabled={deckReviewLoading}>
-                    {deckReviewLoading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Analyse</Text>}
-                  </TouchableOpacity>
-                </View>
-              </>
-            ) : (
-              <ScrollView style={{ maxHeight: 380 }}>
-                <Text style={styles.deckFeedbackScore}>Overall Score: {deckFeedback.overallScore}/10</Text>
-                {[['Strengths', deckFeedback.strengths], ['Weaknesses', deckFeedback.weaknesses], ['Suggestions', deckFeedback.suggestions]].map(([label, items]) =>
-                  items?.length ? (
-                    <View key={label} style={{ marginBottom: 12 }}>
-                      <Text style={styles.deckFeedbackLabel}>{label}</Text>
-                      {items.map((item, i) => <Text key={i} style={styles.deckFeedbackItem}>• {item}</Text>)}
-                    </View>
-                  ) : null
-                )}
-                <TouchableOpacity onPress={() => setShowDeckReview(false)} style={[styles.deckReviewSubmit, { marginTop: 8 }]}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Close</Text>
-                </TouchableOpacity>
-              </ScrollView>
-            )}
-          </View>
-        </View>
-      </Modal>
 
       {/* Remove partner confirmation modal */}
       <Modal visible={!!removeConfirm} transparent animationType="fade">
@@ -507,6 +456,7 @@ export default function ProjectsScreen({ route }) {
   const [editingProject, setEditingProject] = useState(null);
   const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null });
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
+  const [deckReview, setDeckReview] = useState({ visible: false, projectId: null, feedback: null, loading: false });
 
   const coFounderMatchId = route?.params?.coFounderMatchId ?? null;
   const coFounderName    = route?.params?.coFounderName ?? null;
@@ -589,6 +539,21 @@ export default function ProjectsScreen({ route }) {
     }
   };
 
+  const handleReviewDeck = async (projectId) => {
+    setDeckReview({ visible: true, projectId, feedback: null, loading: false });
+  };
+
+  const runDeckReview = async () => {
+    setDeckReview(d => ({ ...d, loading: true }));
+    try {
+      const { data } = await reviewDeck(deckReview.projectId);
+      setDeckReview(d => ({ ...d, feedback: data, loading: false }));
+    } catch (err) {
+      setDeckReview(d => ({ ...d, loading: false }));
+      Alert.alert('Error', err.response?.data?.error || 'Could not get AI feedback.');
+    }
+  };
+
   const handleUploadVideo = async (projectId) => {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
@@ -639,17 +604,6 @@ export default function ProjectsScreen({ route }) {
           </TouchableOpacity>
         </View>
 
-        {/* Form */}
-        {showForm && (
-          <ProjectForm
-            initial={editingProject}
-            onSave={handleSave}
-            onCancel={() => { setShowForm(false); setEditingProject(null); }}
-            styles={styles}
-            C={C}
-          />
-        )}
-
         {/* My Projects */}
         {projects.length === 0 && !showForm ? (
           <View style={styles.emptyState}>
@@ -671,6 +625,7 @@ export default function ProjectsScreen({ route }) {
               onUploadDeck={handleUploadDeck}
               onUploadVideo={handleUploadVideo}
               onManagePartners={handleManagePartners}
+              onReviewDeck={handleReviewDeck}
               styles={styles}
               C={C}
             />
@@ -698,6 +653,67 @@ export default function ProjectsScreen({ route }) {
         styles={styles}
         C={C}
       />
+
+      {/* New / Edit project — full-screen modal */}
+      <Modal visible={showForm} animationType="slide">
+        <SafeAreaView style={styles.container}>
+          <View style={styles.formModalHeader}>
+            <TouchableOpacity onPress={() => { setShowForm(false); setEditingProject(null); }}>
+              <Text style={styles.formModalBack}>✕</Text>
+            </TouchableOpacity>
+            <Text style={styles.formModalTitle}>{editingProject ? 'Edit Project' : 'New Project'}</Text>
+            <View style={{ width: 28 }} />
+          </View>
+          <ScrollView keyboardShouldPersistTaps="handled">
+            <ProjectForm
+              initial={editingProject}
+              onSave={handleSave}
+              onCancel={() => { setShowForm(false); setEditingProject(null); }}
+              styles={styles}
+              C={C}
+            />
+          </ScrollView>
+        </SafeAreaView>
+      </Modal>
+
+      {/* AI Deck Review modal — shared across all project cards */}
+      <Modal visible={deckReview.visible} transparent animationType="slide">
+        <View style={styles.deckReviewOverlay}>
+          <View style={styles.deckReviewSheet}>
+            <View style={styles.deckReviewHeader}>
+              <Text style={styles.deckReviewTitle}>AI Pitch Deck Review</Text>
+              <TouchableOpacity onPress={() => setDeckReview({ visible: false, projectId: null, feedback: null, loading: false })} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={styles.deckReviewClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            {!deckReview.feedback ? (
+              <>
+                <Text style={styles.deckReviewHint}>Claude will read your uploaded PDF and provide structured feedback.</Text>
+                <View style={styles.deckReviewActions}>
+                  <TouchableOpacity onPress={() => setDeckReview({ visible: false, projectId: null, feedback: null, loading: false })} style={styles.deckReviewCancel}>
+                    <Text style={{ color: C.textHint }}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={runDeckReview} style={styles.deckReviewSubmit} disabled={deckReview.loading}>
+                    {deckReview.loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={{ color: '#fff', fontWeight: '700' }}>Analyse</Text>}
+                  </TouchableOpacity>
+                </View>
+              </>
+            ) : (
+              <ScrollView style={{ maxHeight: 380 }}>
+                <Text style={styles.deckFeedbackScore}>Overall Score: {deckReview.feedback.overallScore}/10</Text>
+                {[['Strengths', deckReview.feedback.strengths], ['Weaknesses', deckReview.feedback.weaknesses], ['Suggestions', deckReview.feedback.suggestions]].map(([label, items]) =>
+                  items?.length ? (
+                    <View key={label} style={{ marginBottom: 12 }}>
+                      <Text style={styles.deckFeedbackLabel}>{label}</Text>
+                      {items.map((item, i) => <Text key={i} style={styles.deckFeedbackItem}>• {item}</Text>)}
+                    </View>
+                  ) : null
+                )}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
 
       {/* Delete confirmation modal */}
       <Modal visible={deleteModal.visible} transparent animationType="fade">
@@ -907,8 +923,22 @@ function makeStyles(C) {
   aiFeedbackBtnText: { color: C.primary, fontWeight: '700', fontSize: 13 },
   deckReviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
   deckReviewSheet: { backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 24, paddingBottom: 40 },
-  deckReviewTitle: { fontSize: 17, fontWeight: '800', color: C.primaryDark, marginBottom: 10 },
+  deckReviewHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
+  deckReviewTitle: { fontSize: 17, fontWeight: '800', color: C.primaryDark },
+  deckReviewClose: { fontSize: 20, color: C.textHint, fontWeight: '600', paddingLeft: 16 },
   deckReviewHint: { fontSize: 13, color: C.textHint, marginBottom: 10 },
+  formModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: C.surfaceBorder,
+    backgroundColor: C.surface,
+  },
+  formModalBack: { fontSize: 20, color: C.textSecondary, fontWeight: '600' },
+  formModalTitle: { fontSize: 17, fontWeight: '800', color: C.primaryDark },
   deckReviewInput: { borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, padding: 12, minHeight: 110, textAlignVertical: 'top', color: C.textPrimary, fontSize: 14, marginBottom: 12 },
   deckReviewActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
   deckReviewCancel: { paddingVertical: 10, paddingHorizontal: 16 },

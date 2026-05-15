@@ -554,28 +554,36 @@ export default function SwipeScreen() {
   const visibleCards = feed.slice(currentIndex, currentIndex + 2);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: investorMode ? '#0B3321' : (C.backgroundSoft || C.background) }]}>
       <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
 
-      {/* Mode toggle — entrepreneurs only */}
-      {isEntrepreneur && (
-        <View style={styles.modeToggleBar}>
-          <TouchableOpacity
-            style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
-            onPress={() => handleModeToggle(false)}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.modeToggleBtnText, !investorMode && styles.modeToggleBtnTextActive]}>🤝 Partners</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
-            onPress={() => handleModeToggle(true)}
-            activeOpacity={0.85}
-          >
-            <Text style={[styles.modeToggleBtnText, investorMode && styles.modeToggleBtnTextInvestorActive]}>💼 Investors</Text>
-          </TouchableOpacity>
+      {/* Header: logo | mode toggle | bell */}
+      <View style={styles.headerRow}>
+        <Text style={[styles.logo, investorMode && styles.logoGreen]}>BizMatch</Text>
+        {isEntrepreneur ? (
+          <View style={styles.modeToggleBar}>
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
+              onPress={() => handleModeToggle(false)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.modeToggleBtnText, !investorMode && styles.modeToggleBtnTextActive]}>🤝 Partners</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
+              onPress={() => handleModeToggle(true)}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.modeToggleBtnText, investorMode && styles.modeToggleBtnTextInvestorActive]}>💼 Investors</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={{ flex: 1 }} />
+        )}
+        <View style={styles.bellBtn}>
+          <Text style={styles.bellIcon}>🔔</Text>
         </View>
-      )}
+      </View>
 
       {/* Deck */}
       <View style={styles.deckArea}>
@@ -825,11 +833,35 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
 
-  modeToggleBar: {
+  headerRow: {
     flexDirection: 'row',
-    marginHorizontal: 16,
-    marginBottom: 10,
-    marginTop: 6,
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 6,
+    gap: 10,
+  },
+  logo: {
+    fontSize: 18,
+    fontWeight: '800',
+    color: colors.primaryDark,
+    letterSpacing: -0.4,
+  },
+  logoGreen: {
+    color: '#4ADE80',
+  },
+  bellBtn: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bellIcon: {
+    fontSize: 20,
+  },
+  modeToggleBar: {
+    flex: 1,
+    flexDirection: 'row',
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     padding: 4,
