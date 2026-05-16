@@ -6,6 +6,7 @@ const pool = mysql.createPool({
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
   waitForConnections: true,
   connectionLimit: 10,
+  timezone: '+00:00', // treat all DATETIME values as UTC
 });
 
 async function query(sql, params = []) {

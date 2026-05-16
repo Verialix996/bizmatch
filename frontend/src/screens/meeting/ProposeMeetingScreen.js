@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator, Alert, Platform,
+  StyleSheet, ActivityIndicator, Alert, Platform, FlatList,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, radius, typography } from '../../theme';
@@ -10,6 +11,7 @@ import api from '../../services/api';
 
 export default function ProposeMeetingScreen({ route, navigation }) {
   const { matchId, rescheduleId, prefill } = route.params;
+  const insets = useSafeAreaInsets();
 
   const [title, setTitle] = useState(prefill?.title || '');
   const [locationType, setLocationType] = useState(prefill?.locationType || 'virtual');
@@ -20,11 +22,39 @@ export default function ProposeMeetingScreen({ route, navigation }) {
   const [pickerMode, setPickerMode] = useState('date');
   const [loading, setLoading] = useState(false);
 
+  // Address autocomplete
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const debounceRef = useRef(null);
+
   const openPicker = (mode) => { setPickerMode(mode); setShowPicker(true); };
 
   const onDateChange = (_event, selected) => {
     if (Platform.OS === 'android') setShowPicker(false);
     if (selected) setDate(selected);
+  };
+
+  const onAddressChange = (text) => {
+    setAddress(text);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (text.length < 3) { setSuggestions([]); setShowSuggestions(false); return; }
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(text)}&format=json&limit=5&addressdetails=1`,
+          { headers: { 'Accept-Language': 'en', 'User-Agent': 'BizMatch/1.0' } }
+        );
+        const data = await res.json();
+        setSuggestions(data.map(p => p.display_name));
+        setShowSuggestions(data.length > 0);
+      } catch { /* silent */ }
+    }, 500);
+  };
+
+  const pickSuggestion = (s) => {
+    setAddress(s);
+    setSuggestions([]);
+    setShowSuggestions(false);
   };
 
   const submit = async () => {
@@ -61,7 +91,11 @@ export default function ProposeMeetingScreen({ route, navigation }) {
   const formattedTime = date.toLocaleTimeString('en-IL', { timeStyle: 'short' });
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={{ padding: 20, paddingTop: insets.top + 12, paddingBottom: 40 }}
+      keyboardShouldPersistTaps="handled"
+    >
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={20} color={colors.primary} />
         <Text style={styles.backText}>Back</Text>
@@ -140,10 +174,25 @@ export default function ProposeMeetingScreen({ route, navigation }) {
           <TextInput
             style={styles.input}
             value={address}
-            onChangeText={setAddress}
-            placeholder="e.g. 123 Startup St, Tel Aviv"
+            onChangeText={onAddressChange}
+            placeholder="Start typing an address…"
             placeholderTextColor={colors.textHint}
           />
+          {showSuggestions && (
+            <View style={styles.suggestionBox}>
+              {suggestions.map((s, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.suggestionItem, i < suggestions.length - 1 && styles.suggestionBorder]}
+                  onPress={() => pickSuggestion(s)}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="location-outline" size={14} color={colors.textHint} style={{ marginRight: 8 }} />
+                  <Text style={styles.suggestionText} numberOfLines={2}>{s}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
         </>
       )}
 
@@ -184,4 +233,29 @@ const styles = StyleSheet.create({
   toggleBtnTextActive: { color: '#fff' },
   submitBtn:       { backgroundColor: colors.primary, borderRadius: radius.pill, paddingVertical: 15, alignItems: 'center', marginTop: 32 },
   submitBtnText:   { ...typography.titleSmall, color: '#fff' },
+
+  suggestionBox: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: colors.surfaceBorder,
+    borderRadius: radius.md,
+    marginTop: 4,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 11,
+  },
+  suggestionBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: colors.backgroundSoft,
+  },
+  suggestionText: {
+    flex: 1,
+    fontSize: 13,
+    color: colors.textPrimary,
+    lineHeight: 18,
+  },
 });

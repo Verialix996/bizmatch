@@ -33,13 +33,7 @@ const propose = async (req, res, next) => {
     const u = userRows[0];
     const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
     if (!isPremium) {
-      const countRows = await query(
-        "SELECT COUNT(*) AS cnt FROM meetings WHERE proposer_id = ? AND status = 'proposed'",
-        [proposerId]
-      );
-      if ((countRows[0]?.cnt ?? 0) >= 3) {
-        return res.status(429).json({ error: 'Meeting limit reached. Upgrade to Premium for unlimited meetings.', upgradeRequired: true });
-      }
+      return res.status(403).json({ error: 'Meeting proposals are a Premium feature. Upgrade to send meeting invites.', upgradeRequired: true });
     }
 
     const match = matchRows[0];
@@ -191,7 +185,7 @@ Person profile:
       messages: [{ role: 'user', content: prompt }],
     });
 
-    const raw = response.content[0]?.text?.trim() || '{}';
+    const raw = (response.content[0]?.text?.trim() || '{}').replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '');
     const briefingData = JSON.parse(raw);
 
     await saveBriefing(id, JSON.stringify(briefingData));

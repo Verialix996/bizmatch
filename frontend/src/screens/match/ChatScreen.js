@@ -7,6 +7,7 @@ import {
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { VideoView, useVideoPlayer } from 'expo-video';
+import * as WebBrowser from 'expo-web-browser';
 import { getMessages, sendMessage, markRead, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
 import api from '../../services/api';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
@@ -192,7 +193,7 @@ export default function ChatScreen({ route, navigation }) {
     return () => clearInterval(interval);
   }, [poll]);
 
-  // Full reload every 10s to pick up read_at changes on already-fetched messages
+  // Full reload every 4s to pick up read_at changes on already-fetched messages
   useEffect(() => {
     const interval = setInterval(async () => {
       try {
@@ -200,7 +201,7 @@ export default function ChatScreen({ route, navigation }) {
         setMessages(res.data);
         if (res.data.length > 0) lastIdRef.current = res.data[res.data.length - 1].id;
       } catch { /* silent */ }
-    }, 10000);
+    }, 4000);
     return () => clearInterval(interval);
   }, [match.matchId]);
 
@@ -586,7 +587,7 @@ export default function ChatScreen({ route, navigation }) {
           <Text style={styles.actionCardTitle}>NDA Signed ✅</Text>
           <Text style={styles.actionCardBody}>Full project details are now accessible.</Text>
           {meta.documentUrl ? (
-            <TouchableOpacity onPress={() => Linking.openURL(meta.documentUrl)}>
+            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(meta.documentUrl)}>
               <Text style={styles.ndaViewLink}>View NDA Document →</Text>
             </TouchableOpacity>
           ) : null}
@@ -818,7 +819,17 @@ export default function ChatScreen({ route, navigation }) {
 
         <TouchableOpacity
           style={styles.headerActionBtn}
-          onPress={() => navigation.navigate('ProposeMeeting', { matchId: match.matchId })}
+          onPress={() => {
+            const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
+            if (!isPremium) {
+              Alert.alert('Premium Required', 'Meeting proposals are a Premium feature.', [
+                { text: 'Not now', style: 'cancel' },
+                { text: 'Upgrade', onPress: () => navigation.navigate('Premium') },
+              ]);
+              return;
+            }
+            navigation.navigate('ProposeMeeting', { matchId: match.matchId });
+          }}
         >
           <Text style={styles.headerActionIcon}>📅</Text>
         </TouchableOpacity>
