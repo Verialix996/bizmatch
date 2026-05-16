@@ -276,4 +276,32 @@ const serveDeck = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck, serveDeck };
+// GET /api/projects/:id/nda — serve signed NDA PDF from DB (signer or project owner)
+const serveNda = async (req, res, next) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+    if (!token) return res.status(401).json({ error: 'Unauthorized' });
+    let decoded;
+    try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
+
+    const projectId = Number(req.params.id);
+    const userId = decoded.id;
+
+    let rows = await query('SELECT pdf_data FROM project_ndas WHERE project_id = ? AND user_id = ?', [projectId, userId]);
+
+    if (!rows[0]) {
+      const ownerCheck = await query('SELECT id FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+      if (!ownerCheck[0]) return res.status(403).json({ error: 'Not authorized' });
+      rows = await query('SELECT pdf_data FROM project_ndas WHERE project_id = ? LIMIT 1', [projectId]);
+    }
+
+    if (!rows[0]?.pdf_data) return res.status(404).json({ error: 'NDA not found' });
+
+    const buffer = Buffer.isBuffer(rows[0].pdf_data) ? rows[0].pdf_data : Buffer.from(rows[0].pdf_data);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', 'inline; filename="nda.pdf"');
+    res.send(buffer);
+  } catch (err) { next(err); }
+};
+
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck, serveDeck, serveNda };

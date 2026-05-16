@@ -586,8 +586,11 @@ export default function ChatScreen({ route, navigation }) {
         <View style={[styles.actionCard, styles.actionCardResponse]}>
           <Text style={styles.actionCardTitle}>NDA Signed ✅</Text>
           <Text style={styles.actionCardBody}>Full project details are now accessible.</Text>
-          {meta.documentUrl ? (
-            <TouchableOpacity onPress={() => WebBrowser.openBrowserAsync(meta.documentUrl)}>
+          {meta.projectId ? (
+            <TouchableOpacity onPress={() => {
+              const token = useAuthStore.getState().token;
+              Linking.openURL(`${BACKEND_BASE_URL}/api/projects/${meta.projectId}/nda?token=${token}`);
+            }}>
               <Text style={styles.ndaViewLink}>View NDA Document →</Text>
             </TouchableOpacity>
           ) : null}

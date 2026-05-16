@@ -1,7 +1,6 @@
 const { sendMessage, getMessages, getConversations, markMessagesRead } = require('../models/message.model');
 const { query } = require('../config/db');
 const PDFDocument = require('pdfkit');
-const { cloudinary } = require('../config/cloudinary');
 const { moderateText } = require('../services/moderation.service');
 const { emitNotification } = require('./notification.controller');
 
@@ -326,31 +325,21 @@ const signNda = async (req, res, next) => {
     const ownerName  = ownerRows[0]?.name  || 'Unknown';
     const signedAt   = new Date().toISOString().split('T')[0];
 
-    // Generate PDF and upload to Cloudinary
+    // Generate PDF and store as BLOB in DB
     const pdfBuffer = await generateNdaPdf(signerName, ownerName, project.title, signedAt);
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        { folder: 'bizmatch/ndas', resource_type: 'raw', format: 'pdf',
-          public_id: `nda-${projectId}-${userId}-${Date.now()}` },
-        (err, result) => err ? reject(err) : resolve(result)
-      );
-      stream.end(pdfBuffer);
-    });
-    const documentUrl = uploadResult.secure_url;
 
-    // Record the NDA signature with document URL (INSERT IGNORE handles duplicates)
     await query(
-      `INSERT INTO project_ndas (project_id, user_id, document_url)
+      `INSERT INTO project_ndas (project_id, user_id, pdf_data)
        VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE document_url = VALUES(document_url)`,
-      [projectId, userId, documentUrl]
+       ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
+      [projectId, userId, pdfBuffer]
     );
 
     const msg = await sendMessage(
       matchId, userId,
       'NDA signed. You now have access to the full project details.',
       'nda_signed',
-      { projectId, documentUrl }
+      { projectId }
     );
 
     // If the signer is NOT the project owner, the owner wanted to share — auto-send project details

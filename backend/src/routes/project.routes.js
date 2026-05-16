@@ -19,5 +19,6 @@ router.post('/:id/partners',             authenticate, requireVerified, ctrl.add
 router.delete('/:id/partners/:userId',   authenticate, requireVerified, ctrl.removePartner);
 router.post('/:id/deck-review',          authenticate, requireVerified, ctrl.reviewDeck);
 router.get('/:id/deck',                 ctrl.serveDeck);
+router.get('/:id/nda',                  ctrl.serveNda);
 
 module.exports = router;
