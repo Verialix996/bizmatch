@@ -60,14 +60,15 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 ### NDA System
 - Entrepreneur requests NDA via chat
 - Investor signs NDA → backend generates a real PDF (pdfkit) with names, project title, standard clauses, and date
-- PDF uploaded to Cloudinary; "View NDA Document →" link appears in chat
+- PDF stored as `LONGBLOB` in MySQL; served via `GET /api/projects/:id/nda?token=JWT`; "View NDA Document →" link appears in chat
 - After signing, full project details are automatically shared in chat
 
 ### Meeting System
-- Either party can propose a meeting from any chat (📅 button)
-- Meeting types: Virtual (video link) or In-Person (address + Google Maps link)
+- **Premium-only** — meeting proposals require an active premium subscription
+- Meeting types: Virtual (video link) or In-Person (address with autocomplete via Nominatim/OpenStreetMap)
 - Proposal appears as a card in chat; receiver can confirm, decline, or suggest a new time
 - **Meeting rescheduling** — "Suggest New Time" pre-fills the proposal form with original details; new proposal sent with roles swapped
+- Both proposer and receiver can cancel; receiver can cancel only after meeting is confirmed
 - Meetings tab shows all upcoming meetings with status badges
 - **AI Due Diligence Briefing** — Claude Haiku generates a 5-section prep report (person summary, match rationale, talking points, questions to ask, watch out for); cached per meeting; daily usage limit enforced
 
@@ -94,8 +95,8 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Inappropriate content rejected with a user-facing reason
 
 ### File Storage
-- Profile photos, ID docs, demo videos, and NDA PDFs stored on Cloudinary — survives Railway redeploys
-- **Pitch decks (PDF)** stored as `LONGBLOB` in MySQL — Cloudinary free tier blocks raw file CDN delivery; backend proxy serves PDF bytes inline to the browser
+- Profile photos, ID docs, and demo videos stored on Cloudinary — survives Railway redeploys
+- **Pitch decks and NDA PDFs** stored as `LONGBLOB` in MySQL — Cloudinary free tier blocks raw file delivery on mobile; backend proxy endpoints serve PDF bytes inline (`?token=JWT`)
 
 ---
 
@@ -103,10 +104,10 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 ### What you need
 - [Node.js](https://nodejs.org) v18 or higher
-- [Expo Go](https://expo.dev/go) installed on your phone (Android or iOS)
+- [Expo Go](https://expo.dev/go) on your phone **or** a dev build (see below)
 - Any WiFi or mobile data — **no need to be on the same network as the backend**
 
-### Steps
+### Option A — Expo Go (quick, limited)
 
 1. **Clone the repo**
    ```bash
@@ -126,9 +127,20 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
    npx expo start --clear
    ```
 
-4. **Open in Expo Go**
-   - Scan the QR code shown in the terminal with the Expo Go app
-   - The app connects to the live Railway backend automatically
+4. **Open in Expo Go** — scan the QR code with the Expo Go app
+
+> Expo Go doesn't support all native modules. Push notifications and video upload require a dev build.
+
+### Option B — Dev Build (recommended for full testing)
+
+```bash
+npm install -g eas-cli
+cd frontend
+eas login          # log in with your Expo account
+eas build --profile development --platform ios    # or android
+```
+
+EAS builds the app in the cloud and sends a download link to your phone. Once installed, use `eas update` to push JS changes without rebuilding.
 
 That's it — no backend setup needed for testing.
 
@@ -287,8 +299,9 @@ bizmatch/
 | POST | `/api/projects/:id/swipe` | Swipe on a project |
 | POST | `/api/projects/:id/upload-deck` | Upload pitch deck PDF (stored in MySQL BLOB) |
 | GET | `/api/projects/:id/deck` | Serve pitch deck PDF inline (`?token=JWT`) |
+| GET | `/api/projects/:id/nda` | Serve signed NDA PDF inline (`?token=JWT`) |
 | POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck (reads from MySQL BLOB) |
-| POST | `/api/meetings` | Propose a meeting |
+| POST | `/api/meetings` | Propose a meeting (Premium only) |
 | GET | `/api/meetings` | List my meetings |
 | PUT | `/api/meetings/:id` | Confirm / decline meeting |
 | PATCH | `/api/meetings/:id/reschedule` | Suggest a new meeting time |
@@ -301,7 +314,7 @@ bizmatch/
 The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
 
 - **Database:** MySQL on Railway — single migration `001_schema.sql` runs automatically on startup
-- **File storage:** Cloudinary (photos, docs, videos, NDA PDFs); pitch deck PDFs stored as MySQL BLOB
+- **File storage:** Cloudinary (photos, docs, videos); pitch decks and NDA PDFs stored as MySQL BLOB
 - **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match scoring, summaries, deck review, meeting briefings
 - **Content moderation:** local word-list (no API calls)
 - **Node.js service:** root directory `backend/`, start command `node server.js`
