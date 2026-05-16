@@ -2,6 +2,7 @@
   "expo": {
     "name": "BizMatch",
     "slug": "bizmatch",
+    "owner": "verialix996",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -9,7 +10,13 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.bizmatch.app",
       "infoPlist": {
-        "LSApplicationQueriesSchemes": ["googleauthenticator"]
+        "LSApplicationQueriesSchemes": [
+          "googleauthenticator",
+          "googleauthenticator",
+          "googleauthenticator",
+          "googleauthenticator"
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -24,6 +31,17 @@
       "expo-web-browser",
       "@react-native-community/datetimepicker",
       "expo-video"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "b98249e7-ad5b-4a30-85d0-b90b85da71ef"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/b98249e7-ad5b-4a30-85d0-b90b85da71ef"
+    }
   }
 }
