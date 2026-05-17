@@ -3,6 +3,7 @@ import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
   ActivityIndicator, Linking, Alert,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../../store/authStore';
 import { colors, radius, typography, cardShadow } from '../../theme';
@@ -62,6 +63,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
   };
 
   return (
+    <SafeAreaView style={styles.safeArea}>
     <ScrollView style={styles.container} contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
       <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
         <Ionicons name="arrow-back" size={20} color={colors.primary} />
@@ -218,11 +220,13 @@ export default function MeetingDetailScreen({ route, navigation }) {
         </View>
       )}
     </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container:    { flex: 1, backgroundColor: colors.backgroundSoft },
+  safeArea:     { flex: 1, backgroundColor: colors.backgroundSoft },
+  container:    { flex: 1 },
   backBtn:      { flexDirection: 'row', alignItems: 'center', gap: 4, marginBottom: 16 },
   backText:     { ...typography.bodyMedium, color: colors.primary },
   card:         { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, marginBottom: 16, ...cardShadow },

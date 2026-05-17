@@ -8,9 +8,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
 import { login } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, brandGradient, radius } from '../../theme';
 
 export default function LoginScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { control, handleSubmit } = useForm();
   const setAuth = useAuthStore(s => s.setAuth);
   const [error, setError] = useState('');
@@ -57,7 +59,7 @@ export default function LoginScreen({ navigation }) {
             showsVerticalScrollIndicator={false}
           >
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
               <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                 <Text style={styles.backText}>←</Text>
               </TouchableOpacity>
@@ -146,7 +148,6 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingBottom: 40 },
 
   header: {
-    paddingTop: 56,
     paddingHorizontal: 24,
     marginBottom: 8,
   },

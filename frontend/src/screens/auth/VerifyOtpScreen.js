@@ -6,9 +6,11 @@ import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { verifyEmail, resendOtp } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brandGradient, radius } from '../../theme';
 
 export default function VerifyOtpScreen({ route, navigation }) {
+  const insets = useSafeAreaInsets();
   const { email } = route.params;
   const [code, setCode] = useState('');
   const [error, setError] = useState('');
@@ -61,7 +63,7 @@ export default function VerifyOtpScreen({ route, navigation }) {
           style={styles.flex}
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         >
-          <View style={styles.header}>
+          <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
             <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
               <Text style={styles.backText}>←</Text>
             </TouchableOpacity>
@@ -126,7 +128,6 @@ const styles = StyleSheet.create({
   gradient: { flex: 1 },
 
   header: {
-    paddingTop: 56,
     paddingHorizontal: 24,
     marginBottom: 8,
   },

@@ -7,9 +7,11 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
 import { register } from '../../services/auth.service';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, brandGradient, radius } from '../../theme';
 
 export default function RegisterScreen({ navigation }) {
+  const insets = useSafeAreaInsets();
   const { control, handleSubmit, formState: { errors } } = useForm();
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -78,7 +80,7 @@ export default function RegisterScreen({ navigation }) {
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + 16 }]}>
               <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
                 <Text style={styles.backText}>←</Text>
               </TouchableOpacity>
@@ -160,7 +162,6 @@ const styles = StyleSheet.create({
   scroll: { flexGrow: 1, paddingBottom: 40 },
 
   header: {
-    paddingTop: 56,
     paddingHorizontal: 24,
     marginBottom: 8,
   },
