@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
@@ -17,7 +17,7 @@ import { getProjectFeed, swipeProject, getMyProjects } from '../../services/proj
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, cardShadow, radius } from '../../theme';
+import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
@@ -38,6 +38,10 @@ const ROTATION_FACTOR = 12;
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
 };
+
+// Module-level styles used by sub-components (ProfileCard, ProjectCard, modals).
+// makeStyles is a function declaration so it is hoisted — this call is valid.
+const styles = makeStyles(colors);
 
 function StageBadge({ stage }) {
   if (!stage) return null;
@@ -392,7 +396,7 @@ export default function SwipeScreen() {
   const user = useAuthStore(s => s.user);
   const isEntrepreneur = user?.role === 'entrepreneur';
 
-  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, openProjectPicker, darkMode } = useAppStore();
+  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, openProjectPicker, darkMode, isInvestorTheme } = useAppStore();
   const mode = investorMode ? 'investors' : 'partners';
   const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
 
@@ -406,7 +410,11 @@ export default function SwipeScreen() {
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
   const [compatModal, setCompatModal] = useState({ visible: false, loading: false, score: null, pros: [], cons: [] });
 
-  const C = (investorMode || darkMode) ? investorColors : colors;
+  const C = darkMode ? investorColors
+          : isInvestorTheme ? investorThemeColors
+          : investorMode ? investorColors
+          : colors;
+  const styles = useMemo(() => makeStyles(C), [C]);
 
   const videoPlayer = useVideoPlayer(videoModal.url || '', p => { p.loop = false; });
   useEffect(() => {
@@ -419,8 +427,10 @@ export default function SwipeScreen() {
   const superFlashOpacity = useRef(new Animated.Value(0)).current;
   const superBadgeScale = useRef(new Animated.Value(0.5)).current;
   const superBadgeOpacity = useRef(new Animated.Value(0)).current;
+  const superRingScale = useRef(new Animated.Value(1)).current;
+  const superRingOpacity = useRef(new Animated.Value(0)).current;
   const superParticles = useRef(
-    Array.from({ length: 8 }, () => ({
+    Array.from({ length: 16 }, () => ({
       x: new Animated.Value(0),
       y: new Animated.Value(0),
       opacity: new Animated.Value(0),
@@ -496,6 +506,16 @@ export default function SwipeScreen() {
           Animated.timing(superStarScale, { toValue: 2.2, duration: 180, useNativeDriver: true }),
           Animated.timing(superStarScale, { toValue: 1, duration: 120, useNativeDriver: true }),
         ]).start();
+        // Glow ring pulse expanding from the button
+        superRingScale.setValue(1);
+        superRingOpacity.setValue(0);
+        Animated.parallel([
+          Animated.timing(superRingScale, { toValue: 3, duration: 400, useNativeDriver: true }),
+          Animated.sequence([
+            Animated.timing(superRingOpacity, { toValue: 0.8, duration: 80, useNativeDriver: true }),
+            Animated.timing(superRingOpacity, { toValue: 0, duration: 320, useNativeDriver: true }),
+          ]),
+        ]).start();
         // Deeper gold flash overlay (0.75 opacity, 600ms fade)
         Animated.sequence([
           Animated.timing(superFlashOpacity, { toValue: 0.75, duration: 150, useNativeDriver: true }),
@@ -510,26 +530,31 @@ export default function SwipeScreen() {
             Animated.spring(superBadgeScale, { toValue: 1.1, friction: 4, useNativeDriver: true }),
           ]),
           Animated.timing(superBadgeScale, { toValue: 1, duration: 100, useNativeDriver: true }),
-          Animated.delay(400),
+          Animated.delay(700),
           Animated.timing(superBadgeOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
         ]).start();
-        // 8 particle stars radiating outward
-        const ANGLES = [0, 45, 90, 135, 180, 225, 270, 315];
+        // 16 particles in 2 rings radiating outward with staggered delay
+        const ANGLES_16 = Array.from({ length: 16 }, (_, i) => i * 22.5);
         superParticles.forEach((p, i) => {
           p.x.setValue(0); p.y.setValue(0); p.opacity.setValue(0);
-          const rad = (ANGLES[i] * Math.PI) / 180;
-          const dist = 80 + Math.random() * 40;
-          Animated.parallel([
-            Animated.timing(p.opacity, { toValue: 1, duration: 100, useNativeDriver: true }),
-            Animated.timing(p.x, { toValue: Math.cos(rad) * dist, duration: 500, useNativeDriver: true }),
-            Animated.timing(p.y, { toValue: Math.sin(rad) * dist, duration: 500, useNativeDriver: true }),
+          const rad = (ANGLES_16[i] * Math.PI) / 180;
+          const isOuter = i >= 8;
+          const dist = isOuter ? 130 + Math.random() * 30 : 80 + Math.random() * 20;
+          const delay = isOuter ? 80 : 0;
+          Animated.sequence([
+            Animated.delay(delay),
+            Animated.parallel([
+              Animated.timing(p.opacity, { toValue: 1, duration: 100, useNativeDriver: true }),
+              Animated.timing(p.x, { toValue: Math.cos(rad) * dist, duration: 500, useNativeDriver: true }),
+              Animated.timing(p.y, { toValue: Math.sin(rad) * dist, duration: 500, useNativeDriver: true }),
+            ]),
           ]).start(() => {
             Animated.timing(p.opacity, { toValue: 0, duration: 200, useNativeDriver: true }).start();
           });
         });
         // Card flies up-right with rotation (use position Y to go up)
         Animated.timing(position, {
-          toValue: { x: toX, y: -300 }, duration: 350, useNativeDriver: false,
+          toValue: { x: toX, y: -300 }, duration: 400, useNativeDriver: false,
         }).start(callback);
       } else {
         Animated.timing(position, {
@@ -569,7 +594,7 @@ export default function SwipeScreen() {
       setCurrentIndex(i => i + 1);
       setSwiping(false);
     });
-  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, isEntrepreneur, navigation]);
+  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, superRingScale, superRingOpacity, isEntrepreneur, navigation]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
@@ -610,8 +635,8 @@ export default function SwipeScreen() {
   const visibleCards = feed.slice(currentIndex, currentIndex + 2);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: investorMode ? '#0B3321' : (C.backgroundSoft || C.background) }]}>
-      <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
+    <SafeAreaView style={[styles.container, { backgroundColor: (investorMode && !isInvestorTheme) ? '#0B3321' : (C.backgroundSoft || C.background) }]}>
+      <StatusBar barStyle={(investorMode || darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
 
       {/* Deck */}
       <View style={styles.deckArea}>
@@ -703,24 +728,36 @@ export default function SwipeScreen() {
             <Text style={[styles.passBtnText, (investorMode || darkMode) && { color: C.error }]}>✕</Text>
           </TouchableOpacity>
 
-          <Animated.View style={{ transform: [{ scale: superStarScale }] }}>
-            <TouchableOpacity
-              style={[styles.actionBtn, styles.starBtn, (investorMode || darkMode) && { borderColor: C.primary, backgroundColor: C.surface }]}
-              onPress={() => {
-                if (!isPremium) {
-                  Alert.alert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
-                    [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
-                  );
-                  return;
-                }
-                sendSwipe('like', true);
+          <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+            <Animated.View
+              pointerEvents="none"
+              style={{
+                position: 'absolute',
+                width: 48, height: 48, borderRadius: 24,
+                borderWidth: 2, borderColor: '#FFD700',
+                opacity: superRingOpacity,
+                transform: [{ scale: superRingScale }],
               }}
-              disabled={swiping}
-              activeOpacity={0.8}
-            >
-              <Text style={[styles.starBtnText, (investorMode || darkMode) && { color: C.primary }]}>★</Text>
-            </TouchableOpacity>
-          </Animated.View>
+            />
+            <Animated.View style={{ transform: [{ scale: superStarScale }] }}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.starBtn, (investorMode || darkMode) && { borderColor: C.primary, backgroundColor: C.surface }]}
+                onPress={() => {
+                  if (!isPremium) {
+                    Alert.alert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
+                      [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
+                    );
+                    return;
+                  }
+                  sendSwipe('like', true);
+                }}
+                disabled={swiping}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.starBtnText, (investorMode || darkMode) && { color: C.primary }]}>★</Text>
+              </TouchableOpacity>
+            </Animated.View>
+          </View>
 
           <TouchableOpacity
             style={[styles.actionBtn, styles.likeBtn, (investorMode || darkMode) && { backgroundColor: C.primary, borderColor: C.primary }]}
@@ -800,17 +837,17 @@ export default function SwipeScreen() {
             { opacity: p.opacity, transform: [{ translateX: p.x }, { translateY: p.y }] },
           ]}
         >
-          <Text style={styles.superParticleText}>★</Text>
+          <Text style={styles.superParticleText}>{['★', '✨', '💫', '✦', '⭐'][i % 5]}</Text>
         </Animated.View>
       ))}
     </SafeAreaView>
   );
 }
 
-const styles = StyleSheet.create({
+function makeStyles(C) { return StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
   },
   superFlash: {
     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
@@ -824,11 +861,15 @@ const styles = StyleSheet.create({
     zIndex: 100,
     backgroundColor: '#FFD700',
     borderRadius: 24,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    shadowColor: '#FFD700',
+    shadowOpacity: 0.9,
+    shadowRadius: 20,
+    elevation: 20,
   },
   superBadgeText: {
-    fontSize: 22,
+    fontSize: 28,
     fontWeight: '900',
     color: '#0A0F1E',
     letterSpacing: 1,
@@ -855,7 +896,7 @@ const styles = StyleSheet.create({
   logo: {
     fontSize: 20,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     letterSpacing: -0.4,
   },
   titleBlock: {
@@ -865,7 +906,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     letterSpacing: 1.2,
     textTransform: 'uppercase',
     marginBottom: 2,
@@ -873,7 +914,7 @@ const styles = StyleSheet.create({
   pageTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     letterSpacing: -0.5,
   },
 
@@ -895,10 +936,10 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     borderRadius: 16,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     ...cardShadow,
   },
   cardBack: {
@@ -918,7 +959,7 @@ const styles = StyleSheet.create({
   photoPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -988,7 +1029,7 @@ const styles = StyleSheet.create({
     left: 16,
     backgroundColor: 'rgba(0,77,186,0.15)',
     borderWidth: 2,
-    borderColor: colors.primary,
+    borderColor: C.primary,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -996,7 +1037,7 @@ const styles = StyleSheet.create({
   overlayLikeText: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.primary,
+    color: C.primary,
   },
   overlayPass: {
     position: 'absolute',
@@ -1004,7 +1045,7 @@ const styles = StyleSheet.create({
     right: 16,
     backgroundColor: 'rgba(192,57,43,0.15)',
     borderWidth: 2,
-    borderColor: colors.error,
+    borderColor: C.error,
     borderRadius: radius.sm,
     paddingHorizontal: 12,
     paddingVertical: 6,
@@ -1012,7 +1053,7 @@ const styles = StyleSheet.create({
   overlayPassText: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.error,
+    color: C.error,
   },
 
   cardBody: {
@@ -1021,7 +1062,7 @@ const styles = StyleSheet.create({
   roleLabel: {
     fontSize: 10,
     fontWeight: '700',
-    color: colors.primary,
+    color: C.primary,
     letterSpacing: 0.8,
     textTransform: 'uppercase',
     flex: 1,
@@ -1033,27 +1074,27 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   chip: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.pill,
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   chipText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.textSecondary,
+    color: C.textSecondary,
   },
   bioQuote: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     fontStyle: 'italic',
     lineHeight: 19,
   },
   metaLine: {
     fontSize: 12,
-    color: colors.textSecondary,
+    color: C.textSecondary,
     marginTop: 6,
     fontWeight: '600',
   },
@@ -1063,17 +1104,17 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   linkBtn: {
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.pill,
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   linkBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
+    color: C.primary,
   },
 
   actionRow: {
@@ -1088,21 +1129,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderRadius: radius.pill,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     ...cardShadow,
     shadowOpacity: 0.04,
   },
   passBtn: { width: 56, height: 56 },
-  passBtnText: { fontSize: 22, color: colors.error },
+  passBtnText: { fontSize: 22, color: C.error },
   starBtn: { width: 48, height: 48 },
-  starBtnText: { fontSize: 20, color: colors.primary },
+  starBtnText: { fontSize: 20, color: C.primary },
   likeBtn: {
     width: 64,
     height: 64,
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
+    backgroundColor: C.primary,
+    borderColor: C.primary,
   },
   likeBtnText: { fontSize: 26, color: '#fff' },
 
@@ -1113,16 +1154,16 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 8,
   },
   emptySub: {
-    color: colors.textHint,
+    color: C.textHint,
     marginBottom: 24,
     fontSize: 14,
   },
   refreshBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.md,
     paddingHorizontal: 28,
     paddingVertical: 13,
@@ -1140,7 +1181,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalBox: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.xl,
     padding: 32,
     alignItems: 'center',
@@ -1151,7 +1192,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -1163,12 +1204,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 26,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     letterSpacing: -0.5,
     marginBottom: 8,
   },
   modalSub: {
-    color: colors.textSecondary,
+    color: C.textSecondary,
     textAlign: 'center',
     marginBottom: 12,
     lineHeight: 20,
@@ -1179,19 +1220,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     padding: 14,
     borderRadius: 12,
-    backgroundColor: colors.surfaceCard,
+    backgroundColor: C.surface,
     borderLeftWidth: 3,
-    borderLeftColor: colors.primary,
+    borderLeftColor: C.primary,
   },
   matchSummaryText: {
-    color: colors.primary,
+    color: C.primary,
     fontSize: 13,
     fontStyle: 'italic',
     lineHeight: 19,
     textAlign: 'center',
   },
   modalAiSummary: {
-    color: colors.primary,
+    color: C.primary,
     textAlign: 'center',
     fontSize: 13,
     fontStyle: 'italic',
@@ -1200,7 +1241,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   modalBtn: {
-    backgroundColor: colors.primary,
+    backgroundColor: C.primary,
     borderRadius: radius.md,
     paddingHorizontal: 32,
     paddingVertical: 14,
@@ -1222,7 +1263,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   modalBtnSecondaryText: {
-    color: colors.textHint,
+    color: C.textHint,
     fontWeight: '700',
     fontSize: 13,
     letterSpacing: 1,
@@ -1246,7 +1287,7 @@ const styles = StyleSheet.create({
   scoreBadgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
 
   // Project pill (selected project label)
@@ -1256,24 +1297,24 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     marginHorizontal: 24,
     marginBottom: 8,
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 7,
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   projectPillText: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     flex: 1,
     marginRight: 8,
   },
   projectPillChange: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.primary,
+    color: C.primary,
   },
 
   // Pick project placeholder
@@ -1282,21 +1323,21 @@ const styles = StyleSheet.create({
     padding: 40,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
     borderStyle: 'dashed',
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     width: '90%',
   },
   pickProjectIcon: { fontSize: 40, marginBottom: 12 },
   pickProjectTitle: {
     fontSize: 18,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 6,
   },
   pickProjectSub: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     textAlign: 'center',
     lineHeight: 18,
   },
@@ -1308,7 +1349,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   pickerSheet: {
-    backgroundColor: colors.surface,
+    backgroundColor: C.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
@@ -1317,13 +1358,13 @@ const styles = StyleSheet.create({
   pickerTitle: {
     fontSize: 17,
     fontWeight: '800',
-    color: colors.primaryDark,
+    color: C.primaryDark,
     marginBottom: 16,
     textAlign: 'center',
   },
   pickerEmpty: { paddingVertical: 24, alignItems: 'center' },
   pickerEmptyText: {
-    color: colors.textHint,
+    color: C.textHint,
     textAlign: 'center',
     lineHeight: 20,
     fontSize: 14,
@@ -1337,49 +1378,49 @@ const styles = StyleSheet.create({
   pickerRowTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: colors.primaryDark,
+    color: C.primaryDark,
   },
   pickerRowSub: {
     fontSize: 12,
-    color: colors.textHint,
+    color: C.textHint,
     marginTop: 2,
   },
   pickerRowArrow: {
     fontSize: 22,
-    color: colors.primary,
+    color: C.primary,
   },
   pickerSep: {
     height: 1,
-    backgroundColor: colors.surfaceBorder,
+    backgroundColor: C.surfaceBorder,
   },
   pickerCancel: {
     marginTop: 16,
     paddingVertical: 14,
     alignItems: 'center',
     borderRadius: radius.md,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
   },
   pickerCancelText: {
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: C.textSecondary,
     fontSize: 14,
   },
 
   // Compatibility button (inside profile card)
   compatBtn: {
     marginTop: 10,
-    backgroundColor: colors.backgroundSoft,
+    backgroundColor: C.backgroundSoft,
     borderRadius: radius.pill,
     paddingHorizontal: 14,
     paddingVertical: 7,
     alignSelf: 'flex-start',
     borderWidth: 1,
-    borderColor: colors.surfaceBorder,
+    borderColor: C.surfaceBorder,
   },
   compatBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: colors.primary,
+    color: C.primary,
   },
 
   // Compatibility modal
@@ -1390,7 +1431,7 @@ const styles = StyleSheet.create({
   },
   compatModalCloseText: {
     fontSize: 16,
-    color: colors.textHint,
+    color: C.textHint,
     fontWeight: '600',
   },
   compatScoreRow: {
@@ -1402,21 +1443,21 @@ const styles = StyleSheet.create({
   compatScore: {
     fontSize: 52,
     fontWeight: '900',
-    color: colors.primary,
+    color: C.primary,
     letterSpacing: -2,
     lineHeight: 56,
   },
   compatScoreLabel: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.textHint,
+    color: C.textHint,
     marginBottom: 8,
     marginLeft: 4,
   },
   compatSectionTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: colors.textSecondary,
+    color: C.textSecondary,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
     marginTop: 12,
@@ -1424,7 +1465,7 @@ const styles = StyleSheet.create({
   },
   compatItem: {
     fontSize: 13,
-    color: colors.textHint,
+    color: C.textHint,
     lineHeight: 19,
     marginBottom: 4,
   },
@@ -1438,4 +1479,4 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-});
+}); }

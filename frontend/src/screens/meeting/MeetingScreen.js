@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, typography, cardShadow } from '../../theme';
+import { colors, investorColors, investorThemeColors, radius, typography, cardShadow } from '../../theme';
 import api from '../../services/api';
 
 function MeetingCard({ meeting, currentUserId, onPress, C, styles }) {
@@ -56,7 +56,8 @@ function MeetingCard({ meeting, currentUserId, onPress, C, styles }) {
 export default function MeetingScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
   const darkMode = useAppStore(s => s.darkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
   const [meetings, setMeetings] = useState([]);
   const [loading, setLoading] = useState(true);

@@ -10,9 +10,9 @@ const useAuthStore = create((set, get) => ({
   isRestoring: true,
 
   setAuth: async (token, user) => {
-    // Users with no profile haven't seen onboarding yet — don't inherit a previous account's flag
-    let hasSeenOnboarding = false;
-    if (user.has_profile) {
+    // If user already has a profile they've been through onboarding — don't show it again
+    let hasSeenOnboarding = !!(user.has_profile);
+    if (!hasSeenOnboarding) {
       try {
         hasSeenOnboarding = (await SecureStore.getItemAsync('has_seen_onboarding')) === 'true';
       } catch { /* SecureStore unavailable on web */ }
@@ -38,8 +38,8 @@ const useAuthStore = create((set, get) => ({
       const userStr = await SecureStore.getItemAsync('auth_user');
       const seenStr = await SecureStore.getItemAsync('has_seen_onboarding');
       const user = userStr ? JSON.parse(userStr) : null;
-      // Don't restore the onboarding flag for users with no profile — they need to see it
-      const hasSeenOnboarding = user?.has_profile ? seenStr === 'true' : false;
+      // A profile is definitive proof they've been through onboarding; fall back to stored flag
+      const hasSeenOnboarding = !!(user?.has_profile) || seenStr === 'true';
       if (token && user) set({ token, user, hasSeenOnboarding, isRestoring: false });
       else set({ hasSeenOnboarding, isRestoring: false });
     } catch { set({ isRestoring: false }); }

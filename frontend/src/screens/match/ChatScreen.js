@@ -14,7 +14,7 @@ import api from '../../services/api';
 import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, cardShadow, radius } from '../../theme';
+import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
@@ -98,7 +98,8 @@ export default function ChatScreen({ route, navigation }) {
   const user = useAuthStore(s => s.user);
   const markMatchRead = useAuthStore(s => s.markMatchRead);
   const darkMode = useAppStore(s => s.darkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 
   const [messages, setMessages] = useState([]);
@@ -802,7 +803,7 @@ export default function ChatScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>

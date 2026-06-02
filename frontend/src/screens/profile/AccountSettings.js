@@ -8,7 +8,7 @@ import api from '../../services/api';
 import { cancelPremium } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, typography, radius, cardShadow } from '../../theme';
+import { colors, investorColors, investorThemeColors, typography, radius, cardShadow } from '../../theme';
 
 export default function AccountSettingsScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
@@ -16,7 +16,8 @@ export default function AccountSettingsScreen({ navigation }) {
   const logout = useAuthStore(s => s.logout);
   const darkMode = useAppStore(s => s.darkMode);
   const setDarkMode = useAppStore(s => s.setDarkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 
   const [name, setName] = useState(user?.name || '');
@@ -167,7 +168,7 @@ export default function AccountSettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
 
       {/* ── Confirm Delete Modal ── */}
       <Modal visible={showConfirmModal} transparent animationType="fade">

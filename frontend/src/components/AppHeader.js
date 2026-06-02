@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, investorColors, radius } from '../theme';
+import { colors, investorColors, investorThemeColors, radius } from '../theme';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import NotificationBell from './NotificationBell';
@@ -17,12 +17,12 @@ function LogoMark({ color }) {
 
 export default function AppHeader({ showToggle = false }) {
   const insets = useSafeAreaInsets();
-  const { investorMode, darkMode, openProjectPicker, exitInvestorMode } = useAppStore();
-  const C = darkMode ? investorColors : colors;
+  const { investorMode, darkMode, isInvestorTheme, openProjectPicker, exitInvestorMode } = useAppStore();
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   // investorMode colors only apply on the Discover (SwipeScreen) tab — showToggle is true only there
-  const isInvestorSwipe = investorMode && showToggle;
+  const isInvestorSwipe = investorMode && showToggle && !isInvestorTheme;
   const headerBg = isInvestorSwipe ? '#0B3321' : (C.background || '#fff');
-  const accentColor = (isInvestorSwipe || darkMode) ? investorColors.primary : colors.primary;
+  const accentColor = isInvestorTheme && !darkMode ? investorThemeColors.primary : (isInvestorSwipe || darkMode) ? investorColors.primary : colors.primary;
   const user = useAuthStore(s => s.user);
   const navigation = useNavigation();
 

@@ -9,7 +9,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, cardShadow } from '../../theme';
+import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
 
 const ROLE_OPTIONS = [
   {
@@ -122,7 +122,8 @@ export default function EditProfileScreen({ route, navigation }) {
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
   const darkMode = useAppStore(s => s.darkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 
   const FieldLabel = ({ children }) => <Text style={styles.fieldLabel}>{children}</Text>;
@@ -248,7 +249,7 @@ export default function EditProfileScreen({ route, navigation }) {
   if (step === 'role') {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle="dark-content" />
+        <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
         <ScrollView
           contentContainerStyle={styles.scrollInner}
           showsVerticalScrollIndicator={false}
@@ -291,7 +292,7 @@ export default function EditProfileScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="dark-content" />
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
       <ScrollView
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}

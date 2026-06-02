@@ -38,11 +38,17 @@ export default function App() {
   const setAuth = useAuthStore(s => s.setAuth);
 
   const initDarkMode = useAppStore(s => s.initDarkMode);
+  const setInvestorTheme = useAppStore(s => s.setInvestorTheme);
+  const userRole = useAuthStore(s => s.user?.role);
 
   useEffect(() => {
     restoreAuth();
     initDarkMode();
   }, []);
+
+  useEffect(() => {
+    setInvestorTheme(userRole === 'investor');
+  }, [userRole]);
 
   useEffect(() => {
     if (token) registerForPushNotifications();

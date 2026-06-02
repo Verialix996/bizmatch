@@ -15,7 +15,7 @@ import {
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import api from '../../services/api';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, cardShadow } from '../../theme';
+import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
 
@@ -474,7 +474,8 @@ function ProjectForm({ initial, onSave, onCancel, styles, C }) {
 
 export default function ProjectsScreen({ route }) {
   const darkMode = useAppStore(s => s.darkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 
   const [projects, setProjects] = useState([]);
@@ -614,7 +615,7 @@ export default function ProjectsScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}

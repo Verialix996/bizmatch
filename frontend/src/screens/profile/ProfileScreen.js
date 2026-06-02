@@ -8,7 +8,7 @@ import useAuthStore from '../../store/authStore';
 import { API_BASE_URL } from '../../config/constants';
 import useAppStore from '../../store/appStore';
 import api from '../../services/api';
-import { colors, investorColors, typography, radius, cardShadow } from '../../theme';
+import { colors, investorColors, investorThemeColors, typography, radius, cardShadow } from '../../theme';
 
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
@@ -45,7 +45,8 @@ export default function ProfileScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
   const logout = useAuthStore(s => s.logout);
   const darkMode = useAppStore(s => s.darkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -64,7 +65,7 @@ export default function ProfileScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={C.primary} />
         </View>
@@ -99,7 +100,7 @@ export default function ProfileScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
 
         {/* Hero */}

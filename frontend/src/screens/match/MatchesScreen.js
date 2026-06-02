@@ -7,7 +7,7 @@ import {
 import { useFocusEffect } from '@react-navigation/native';
 import { getConversations, whoLikedMe } from '../../services/match.service';
 import api from '../../services/api';
-import { colors, investorColors, cardShadow, radius } from '../../theme';
+import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 
@@ -122,7 +122,8 @@ export default function MatchesScreen({ navigation }) {
   const currentUser = useAuthStore(s => s.user);
   const readTimestamps = useAuthStore(s => s.readTimestamps);
   const darkMode = useAppStore(s => s.darkMode);
-  const C = darkMode ? investorColors : colors;
+  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 
   const load = useCallback(async () => {
@@ -198,7 +199,7 @@ export default function MatchesScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
         <View style={styles.centered}>
           <ActivityIndicator size="large" color={C.primary} />
         </View>
@@ -208,7 +209,7 @@ export default function MatchesScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}

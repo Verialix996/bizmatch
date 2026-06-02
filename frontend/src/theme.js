@@ -85,6 +85,45 @@ export const investorColors = {
   tabBarInactive:       '#6B7A99',
 };
 
+// Investor account palette — deep obsidian + teal (modern, high-end, distinct)
+export const investorThemeColors = {
+  primary:              '#14B8A6',   // Teal — buttons, active tabs
+  primaryDark:          '#0D9488',   // Dark teal
+  primaryLight:         '#2DD4BF',   // Light teal highlights
+
+  background:           '#080D10',   // Deep obsidian (near-black, slight teal tint)
+  backgroundSoft:       '#0C1318',
+  surface:              '#101C20',
+  surfaceElevated:      '#162428',
+  surfaceBorder:        '#1E3540',
+
+  textPrimary:          '#E8F4F4',   // Cool white
+  textSecondary:        '#8BB8B8',   // Muted teal-gray
+  textHint:             '#4A7070',   // Dim teal
+  textOnPrimary:        '#050E0E',   // Near-black on teal buttons
+
+  success:              '#4ADE80',
+  successLight:         '#052e16',
+  error:                '#F87171',
+  errorLight:           '#450a0a',
+  warning:              '#FCD34D',
+  warningLight:         '#422006',
+
+  buttonPrimary:        '#14B8A6',
+  buttonPrimaryText:    '#050E0E',
+  buttonOutlineBorder:  '#14B8A6',
+  buttonOutlineText:    '#14B8A6',
+  buttonDestructive:    '#F87171',
+
+  swipeLike:            '#4ADE80',
+  swipePass:            '#F87171',
+
+  tabBarBackground:     '#080D10',
+  tabBarBorder:         '#1E3540',
+  tabBarActive:         '#14B8A6',
+  tabBarInactive:       '#4A7070',
+};
+
 // Auth screens / splash — use as a LinearGradient from top to bottom
 export const brandGradient = {
   start:    '#0070F0',   // Top — Bright Azure

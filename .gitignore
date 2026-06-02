@@ -58,6 +58,11 @@ upcoming.txt
 *.zip
 stitch_match_messaging_chat/
 current bugs.txt
+# ── Tools ────────────────────────────────────────────────────────────────────
+.understand-anything/
+dashboard.sh
+hermes-pi4-setup.md
+
 # ── Misc ─────────────────────────────────────────────────────────────────────
 coverage/
 *.tgz

@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
-import { colors, investorColors } from '../theme';
+import { colors, investorColors, investorThemeColors } from '../theme';
 import AppHeader from '../components/AppHeader';
 import { getConversations } from '../services/match.service';
 
@@ -53,9 +53,10 @@ function MainTabs() {
   const newMatchCount  = useAuthStore(s => s.newMatchCount);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser    = useAuthStore(s => s.user);
-  const investorMode   = useAppStore(s => s.investorMode);
-  const darkMode       = useAppStore(s => s.darkMode);
-  const TC = darkMode ? investorColors : colors;
+  const investorMode      = useAppStore(s => s.investorMode);
+  const darkMode          = useAppStore(s => s.darkMode);
+  const isInvestorTheme   = useAppStore(s => s.isInvestorTheme);
+  const TC = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
 
   useEffect(() => {
     const pollBadge = async () => {
