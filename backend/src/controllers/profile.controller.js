@@ -33,9 +33,11 @@ async function createProfile(req, res, next) {
       const mod = await moderateText(skillsText);
       if (!mod.ok) return res.status(400).json({ error: `Skills flagged by moderation: ${mod.reason}` });
     }
+    const userRows = await query('SELECT role FROM users WHERE id = ?', [req.user.id]);
+    const roleType = userRows[0]?.role || req.user.role;
     const profile = await ProfileModel.create(req.user.id, {
       ...req.body,
-      role_type: req.user.role,
+      role_type: roleType,
     });
     res.status(201).json(profile);
   } catch (err) {
@@ -89,8 +91,10 @@ async function uploadCv(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
     await query(
-      'UPDATE profiles SET cv_data = ?, cv_url = ? WHERE user_id = ?',
-      [req.file.buffer, 'stored', req.user.id]
+      `INSERT INTO profiles (user_id, cv_data, cv_url)
+       VALUES (?, ?, 'stored')
+       ON DUPLICATE KEY UPDATE cv_data = VALUES(cv_data), cv_url = VALUES(cv_url)`,
+      [req.user.id, req.file.buffer]
     );
     res.json({ cv_url: 'stored' });
   } catch (err) {

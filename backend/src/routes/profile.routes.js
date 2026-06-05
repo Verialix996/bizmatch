@@ -2,7 +2,7 @@ const router = require('express').Router();
 const { authenticate, requireVerified } = require('../middleware/auth.middleware');
 const { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv, serveCv } =
   require('../controllers/profile.controller');
-const { uploadDocMemory: uploadCvMiddleware } = require('../middleware/upload');
+const { uploadCvMemory: uploadCvMiddleware } = require('../middleware/upload');
 
 router.get('/',         authenticate, requireVerified, getMyProfile);
 router.post('/',        authenticate, requireVerified, createProfile);

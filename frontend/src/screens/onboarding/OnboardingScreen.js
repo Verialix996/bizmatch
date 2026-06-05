@@ -33,12 +33,15 @@ const SLIDES = [
   },
 ];
 
-export default function OnboardingScreen() {
+export default function OnboardingScreen({ navigation }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const listRef = useRef(null);
   const setHasSeenOnboarding = useAuthStore(s => s.setHasSeenOnboarding);
 
-  const finish = () => setHasSeenOnboarding();
+  const finish = () => {
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
+    setHasSeenOnboarding();
+  };
 
   const next = () => {
     if (currentIndex < SLIDES.length - 1) {

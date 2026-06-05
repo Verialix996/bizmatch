@@ -13,7 +13,7 @@ import { colors, brandGradient, radius } from '../../theme';
 
 export default function LoginScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { control, handleSubmit } = useForm();
+  const { control, handleSubmit } = useForm({ defaultValues: { email: '', password: '' } });
   const setAuth = useAuthStore(s => s.setAuth);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);

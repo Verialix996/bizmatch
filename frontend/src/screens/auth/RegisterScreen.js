@@ -12,7 +12,7 @@ import { colors, brandGradient, radius } from '../../theme';
 
 export default function RegisterScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const { control, handleSubmit, formState: { errors } } = useForm();
+  const { control, handleSubmit, formState: { errors } } = useForm({ defaultValues: { name: '', email: '', password: '' } });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);

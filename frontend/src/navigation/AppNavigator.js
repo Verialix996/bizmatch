@@ -146,14 +146,16 @@ export default function AppNavigator() {
           <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
         </>
       ) : !hasSeenOnboarding ? (
-        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+        <>
+          <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          <Stack.Screen name="Main"       component={MainTabs} />
+        </>
       ) : (
         <>
           <Stack.Screen name="Main"             component={MainTabs} />
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
           <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
-          <Stack.Screen name="Onboarding"       component={OnboardingScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
           <Stack.Screen name="Meetings"         component={MeetingScreen} />
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />

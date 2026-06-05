@@ -194,7 +194,7 @@ export default function EditProfileScreen({ route, navigation }) {
       const asset = result.assets[0];
       setCvUploading(true);
       const formData = new FormData();
-      formData.append('document', { uri: asset.uri, name: asset.name || 'cv.pdf', type: asset.mimeType || 'application/pdf' });
+      formData.append('cv', { uri: asset.uri, name: asset.name || 'cv.pdf', type: asset.mimeType || 'application/pdf' });
       const { data } = await api.post('/profile/upload-cv', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setCvUrl(data.cv_url);
     } catch (err) {
@@ -231,8 +231,8 @@ export default function EditProfileScreen({ route, navigation }) {
     try {
       if (isNew) {
         await api.post('/profile', payload);
+        navigation.navigate('Onboarding');
         updateUser({ role: selectedRole, has_profile: true });
-        // AppNavigator reacts to has_profile:true and routes to Onboarding automatically
       } else {
         await api.put('/profile', payload);
         if (forceStep === 'role') updateUser({ role: selectedRole });

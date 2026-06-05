@@ -13,6 +13,9 @@ const uploadDocMemory = multer({ storage: multer.memoryStorage(), limits: { file
 // Deck stored in DB as BLOB — bypass Cloudinary raw-file delivery restrictions
 const uploadDeckMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * MB } }).single('deck');
 
+// CV stored in DB as BLOB — same approach as deck
+const uploadCvMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * MB } }).single('cv');
+
 const uploadVideo = multer({ storage: videoStorage, limits: { fileSize: 100 * MB } }).single('video');
 
-module.exports = { uploadPhoto, uploadDoc, uploadDocMemory, uploadDeckMemory, uploadVideo };
+module.exports = { uploadPhoto, uploadDoc, uploadDocMemory, uploadDeckMemory, uploadCvMemory, uploadVideo };
