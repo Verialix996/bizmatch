@@ -199,7 +199,14 @@ export default function ProfileDetailScreen({ route, navigation }) {
                   <View style={[styles.teamAvatar, { backgroundColor: colors.primary }]}>
                     <Text style={styles.teamAvatarText}>{m.name ? m.name[0].toUpperCase() : '?'}</Text>
                   </View>
-                  <Text style={styles.teamName}>{m.name}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.teamName}>{m.name}</Text>
+                    {m.role ? (
+                      <Text style={styles.teamRole}>
+                        {m.isOwner ? 'Owner' : m.role}
+                      </Text>
+                    ) : null}
+                  </View>
                 </View>
               ))}
             </Section>
@@ -403,10 +410,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  teamRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  teamRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
   teamAvatar: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
   teamAvatarText: { fontSize: 13, fontWeight: '800', color: '#fff' },
   teamName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
+  teamRole: { fontSize: 11, color: colors.primary, fontWeight: '600', textTransform: 'capitalize', marginTop: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     backgroundColor: colors.surface,

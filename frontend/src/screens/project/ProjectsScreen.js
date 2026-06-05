@@ -4,7 +4,7 @@ import {
   Modal, FlatList, Image, StatusBar,
 } from 'react-native';
 import { useState, useCallback, useEffect } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -15,6 +15,7 @@ import {
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import api from '../../services/api';
 import useAppStore from '../../store/appStore';
+import useAuthStore from '../../store/authStore';
 import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
@@ -40,7 +41,7 @@ function PartnerAvatar({ name, photoUrl, size = 36, styles, C }) {
   );
 }
 
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onReviewDeck, styles, C }) {
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onReviewDeck, onViewDetail, styles, C }) {
   const [partners, setPartners] = useState([]);
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
@@ -86,7 +87,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
+        <TouchableOpacity style={{ flex: 1 }} onPress={() => onViewDetail?.(project)} activeOpacity={0.7}>
           <Text style={styles.cardTitle}>{project.title}</Text>
           {project.stage ? (
             <View style={styles.stagePill}>
@@ -95,7 +96,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
               </Text>
             </View>
           ) : null}
-        </View>
+        </TouchableOpacity>
         <View style={styles.cardActions}>
           <TouchableOpacity
             onPress={() => onEdit(project)}
@@ -161,14 +162,22 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           <View style={styles.partnerList}>
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={30} styles={styles} C={C} />
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={32} styles={styles} C={C} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                  {!p.isOwner && (
-                    <TouchableOpacity onPress={() => openRoleEdit(p)} activeOpacity={0.7} hitSlop={{ top: 4, bottom: 4 }}>
-                      <Text style={styles.partnerRole}>{p.role || 'member'}</Text>
-                    </TouchableOpacity>
-                  )}
+                  <View style={styles.roleChipRow}>
+                    {p.isOwner ? (
+                      <View style={[styles.roleChip, styles.roleChipOwner]}>
+                        <Text style={[styles.roleChipText, styles.roleChipOwnerText]}>Owner</Text>
+                      </View>
+                    ) : (
+                      <TouchableOpacity onPress={() => openRoleEdit(p)} activeOpacity={0.7}>
+                        <View style={styles.roleChip}>
+                          <Text style={styles.roleChipText}>{p.role || 'member'}</Text>
+                        </View>
+                      </TouchableOpacity>
+                    )}
+                  </View>
                 </View>
                 {!p.isOwner && (
                   <TouchableOpacity
@@ -368,7 +377,7 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
   );
 }
 
-function JoinedProjectCard({ project, styles, C }) {
+function JoinedProjectCard({ project, onViewDetail, styles, C }) {
   const [partners, setPartners] = useState([]);
   useFocusEffect(useCallback(() => {
     getPartners(project.id).then(res => setPartners(res.data)).catch(() => {});
@@ -377,14 +386,14 @@ function JoinedProjectCard({ project, styles, C }) {
   return (
     <View style={[styles.card, styles.joinedCard]}>
       <View style={styles.cardHeader}>
-        <View style={{ flex: 1 }}>
+        <TouchableOpacity style={{ flex: 1 }} onPress={() => onViewDetail?.(project)} activeOpacity={0.7}>
           <Text style={styles.cardTitle}>{project.title}</Text>
           {project.stage ? (
             <View style={styles.stagePill}>
               <Text style={styles.stagePillText}>{STAGE_LABELS[project.stage] || project.stage}</Text>
             </View>
           ) : null}
-        </View>
+        </TouchableOpacity>
         <View style={styles.joinedOwnerTag}>
           <Text style={styles.joinedOwnerText}>by {project.owner_name}</Text>
         </View>
@@ -414,12 +423,16 @@ function JoinedProjectCard({ project, styles, C }) {
           <View style={[styles.partnerList, { marginTop: 8 }]}>
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} styles={styles} C={C} />
+                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={32} styles={styles} C={C} />
                 <View style={{ flex: 1 }}>
                   <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                  {p.role && !p.isOwner && (
-                    <Text style={styles.partnerRole}>{p.role}</Text>
-                  )}
+                  <View style={styles.roleChipRow}>
+                    <View style={[styles.roleChip, p.isOwner && styles.roleChipOwner]}>
+                      <Text style={[styles.roleChipText, p.isOwner && styles.roleChipOwnerText]}>
+                        {p.isOwner ? 'Owner' : (p.role || 'member')}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             ))}
@@ -555,6 +568,8 @@ function ProjectForm({ initial, onSave, onCancel, styles, C }) {
 }
 
 export default function ProjectsScreen({ route }) {
+  const navigation = useNavigation();
+  const currentUser = useAuthStore(s => s.user);
   const darkMode = useAppStore(s => s.darkMode);
   const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
@@ -625,6 +640,26 @@ export default function ProjectsScreen({ route }) {
   const handleEdit = (project) => {
     setEditingProject(project);
     setShowForm(true);
+  };
+
+  const handleViewProject = (project, ownerOverride = null) => {
+    const ownerName  = ownerOverride?.name  ?? currentUser?.name;
+    const ownerPhoto = ownerOverride?.photo ?? currentUser?.photo_url;
+    const ownerUserId = ownerOverride?.userId ?? currentUser?.id;
+    const profile = {
+      userId: ownerUserId,
+      name: ownerName,
+      photoUrl: ownerPhoto,
+      role: 'entrepreneur',
+      isPremium: !!(currentUser?.is_premium),
+      bio: project.description,
+      projectId: project.id,
+      title: project.title,
+      ventureStage: project.stage,
+      fundingNeeds: project.funding_needed,
+      industry: project.industry,
+    };
+    navigation.navigate('ProfileDetail', { profile, matchId: null });
   };
 
   const handleManagePartners = (projectId) => {
@@ -737,6 +772,7 @@ export default function ProjectsScreen({ route }) {
               onUploadVideo={handleUploadVideo}
               onManagePartners={handleManagePartners}
               onReviewDeck={handleReviewDeck}
+              onViewDetail={handleViewProject}
               styles={styles}
               C={C}
             />
@@ -750,7 +786,13 @@ export default function ProjectsScreen({ route }) {
               <Text style={styles.sectionDividerLabel}>PROJECTS I'VE JOINED</Text>
             </View>
             {joinedProjects.map(p => (
-              <JoinedProjectCard key={p.id} project={p} styles={styles} C={C} />
+              <JoinedProjectCard
+                key={p.id}
+                project={p}
+                onViewDetail={(proj) => handleViewProject(proj, { name: proj.owner_name, photo: proj.owner_photo, userId: proj.user_id })}
+                styles={styles}
+                C={C}
+              />
             ))}
           </>
         )}
@@ -1023,6 +1065,33 @@ function makeStyles(C) {
     fontSize: 11,
     color: C.primary,
     marginTop: 1,
+  },
+  roleChipRow: {
+    flexDirection: 'row',
+    marginTop: 3,
+  },
+  roleChip: {
+    borderRadius: radius.pill,
+    backgroundColor: C.primary + '1A',
+    borderWidth: 1,
+    borderColor: C.primary + '40',
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    alignSelf: 'flex-start',
+  },
+  roleChipOwner: {
+    backgroundColor: C.textHint + '18',
+    borderColor: C.textHint + '40',
+  },
+  roleChipText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: C.primary,
+    textTransform: 'capitalize',
+    letterSpacing: 0.3,
+  },
+  roleChipOwnerText: {
+    color: C.textHint,
   },
   roleInputRow: {
     width: '100%',
