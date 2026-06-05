@@ -641,11 +641,13 @@ export default function SwipeScreen() {
       {/* Deck */}
       <View style={styles.deckArea}>
         {isEntrepreneur && mode === 'investors' && !selectedProject ? (
-          <TouchableOpacity style={styles.pickProjectBtn} onPress={() => useAppStore.getState().openProjectPicker()} activeOpacity={0.85}>
-            <Text style={styles.pickProjectIcon}>📁</Text>
-            <Text style={styles.pickProjectTitle}>Select a project</Text>
-            <Text style={styles.pickProjectSub}>Choose which project to find investors for</Text>
-          </TouchableOpacity>
+          <View style={styles.pickProjectCenter}>
+            <TouchableOpacity style={styles.pickProjectBtn} onPress={() => useAppStore.getState().openProjectPicker()} activeOpacity={0.85}>
+              <Text style={styles.pickProjectIcon}>📁</Text>
+              <Text style={styles.pickProjectTitle}>Select a project</Text>
+              <Text style={styles.pickProjectSub}>Choose which project to find investors for</Text>
+            </TouchableOpacity>
+          </View>
         ) : loading ? (
           <ActivityIndicator size="large" color={C.primary} />
         ) : visibleCards.length === 0 ? (
@@ -1318,6 +1320,12 @@ function makeStyles(C) { return StyleSheet.create({
   },
 
   // Pick project placeholder
+  pickProjectCenter: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    width: '100%',
+  },
   pickProjectBtn: {
     alignItems: 'center',
     padding: 40,
