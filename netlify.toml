@@ -1,0 +1,30 @@
+# ─── BizMatch — Netlify configuration ────────────────────────────────────────
+# Place this file at the repo ROOT so Netlify picks it up automatically
+# on every push to GitHub — no dashboard config needed.
+
+[build]
+  # Run all build commands from the frontend folder
+  base    = "frontend"
+  command = "npx expo export -p web"
+  publish = "dist"
+
+# ─── Environment variables ───────────────────────────────────────────────────
+# Non-secret build-time variables.
+# Secret values (EXPO_TOKEN etc.) must be set in the Netlify dashboard.
+[build.environment]
+  NODE_VERSION = "18"
+
+# ─── SPA routing ─────────────────────────────────────────────────────────────
+# All paths fall back to index.html so React Navigation handles routing.
+[[redirects]]
+  from   = "/*"
+  to     = "/index.html"
+  status = 200
+
+# ─── Security headers (applied to every response) ────────────────────────────
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options        = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy        = "strict-origin-when-cross-origin"

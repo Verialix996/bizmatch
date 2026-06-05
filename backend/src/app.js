@@ -24,6 +24,7 @@ app.set('trust proxy', 1);
 
 // Security & parsing
 app.use(helmet());
+const NETLIFY_SITE = 'strong-fenglisu-a83822.netlify.app';
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
   : [];
@@ -32,7 +33,10 @@ app.use(cors({
   origin: process.env.NODE_ENV === 'development'
     ? true
     : (origin, cb) => {
-        if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
+        if (!origin) return cb(null, true);
+        const isNetlify = origin === `https://${NETLIFY_SITE}` ||
+                          origin.endsWith(`--${NETLIFY_SITE}`);
+        if (isNetlify || allowedOrigins.includes(origin)) return cb(null, true);
         cb(new Error('Not allowed by CORS'));
       },
   credentials: true,
