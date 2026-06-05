@@ -12,7 +12,7 @@
 # Non-secret build-time variables.
 # Secret values (EXPO_TOKEN etc.) must be set in the Netlify dashboard.
 [build.environment]
-  NODE_VERSION = "18"
+  NODE_VERSION = "20"
 
 # ─── SPA routing ─────────────────────────────────────────────────────────────
 # All paths fall back to index.html so React Navigation handles routing.
