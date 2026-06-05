@@ -299,9 +299,9 @@ export default function MatchesScreen({ navigation }) {
                       </View>
                     </View>
                     <View style={styles.convList}>
-                      {projectConvs.map((item) => (
+                      {projectConvs.map((item, idx) => (
                         <ConversationRow
-                          key={String(item.matchId)}
+                          key={`pc-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
                           readTimestamps={readTimestamps}
@@ -320,9 +320,9 @@ export default function MatchesScreen({ navigation }) {
                       {projectConvs.length > 0 ? 'ALL CONVERSATIONS' : 'ALL CONVERSATIONS'}
                     </Text>
                     <View style={styles.convList}>
-                      {(peopleConvs.length > 0 ? peopleConvs : withMessages).map((item) => (
+                      {(peopleConvs.length > 0 ? peopleConvs : withMessages).map((item, idx) => (
                         <ConversationRow
-                          key={String(item.matchId)}
+                          key={`ac-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
                           readTimestamps={readTimestamps}
@@ -346,9 +346,9 @@ export default function MatchesScreen({ navigation }) {
                       </View>
                     </View>
                     <View style={styles.convList}>
-                      {group.convs.map((item) => (
+                      {group.convs.map((item, idx) => (
                         <ConversationRow
-                          key={String(item.matchId)}
+                          key={`gc-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
                           readTimestamps={readTimestamps}
@@ -367,9 +367,9 @@ export default function MatchesScreen({ navigation }) {
                       {projectGroups.length > 0 ? 'PARTNER CHATS' : 'ALL CONVERSATIONS'}
                     </Text>
                     <View style={styles.convList}>
-                      {(partnerConvs.length > 0 ? partnerConvs : withMessages).map((item) => (
+                      {(partnerConvs.length > 0 ? partnerConvs : withMessages).map((item, idx) => (
                         <ConversationRow
-                          key={String(item.matchId)}
+                          key={`ec-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
                           readTimestamps={readTimestamps}
