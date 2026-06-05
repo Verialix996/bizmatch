@@ -635,7 +635,7 @@ export default function SwipeScreen() {
   const visibleCards = feed.slice(currentIndex, currentIndex + 2);
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: (investorMode && !isInvestorTheme) ? '#0B3321' : (C.backgroundSoft || C.background) }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
       <StatusBar barStyle={(investorMode || darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
 
       {/* Deck */}

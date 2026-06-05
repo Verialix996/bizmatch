@@ -46,8 +46,47 @@ export const colors = {
   tabBarInactive:       '#8A96AE',
 };
 
-// Investor mode palette — deep navy + champagne (high-end, luxury feel)
+// Dark mode palette — pure obsidian + blue accent (matches BizMatch web demo)
 export const investorColors = {
+  primary:              '#3B82F6',   // Blue — buttons, active tabs, icons
+  primaryDark:          '#2563EB',   // Darker blue — hover states
+  primaryLight:         '#60A5FA',   // Light blue — highlights
+
+  background:           '#0A0A0A',   // Pure near-black
+  backgroundSoft:       '#0F0F0F',   // Slightly lifted near-black
+  surface:              '#141414',   // Card surfaces
+  surfaceElevated:      '#1A1A1A',   // Elevated cards, modals
+  surfaceBorder:        '#2A2A2A',   // Subtle border
+
+  textPrimary:          '#FFFFFF',   // Pure white — main body text
+  textSecondary:        '#9CA3AF',   // Gray-400 — secondary text
+  textHint:             '#6B7280',   // Gray-500 — placeholders, hints
+  textOnPrimary:        '#FFFFFF',   // White on blue buttons
+
+  success:              '#10B981',   // Emerald green
+  successLight:         '#022C22',
+  error:                '#EF4444',   // Red
+  errorLight:           '#450A0A',
+  warning:              '#F59E0B',   // Amber/gold
+  warningLight:         '#422006',
+
+  buttonPrimary:        '#3B82F6',
+  buttonPrimaryText:    '#FFFFFF',
+  buttonOutlineBorder:  '#3B82F6',
+  buttonOutlineText:    '#3B82F6',
+  buttonDestructive:    '#EF4444',
+
+  swipeLike:            '#10B981',
+  swipePass:            '#EF4444',
+
+  tabBarBackground:     '#0A0A0A',
+  tabBarBorder:         '#2A2A2A',
+  tabBarActive:         '#3B82F6',
+  tabBarInactive:       '#6B7280',
+};
+
+// Investor account palette — deep navy + champagne (high-end, luxury feel)
+export const investorThemeColors = {
   primary:              '#E8D5A3',   // Champagne — buttons, active tabs
   primaryDark:          '#C4AD78',   // Dark champagne — text on dark
   primaryLight:         '#F0E4BC',   // Light champagne — highlights
@@ -64,9 +103,9 @@ export const investorColors = {
   textOnPrimary:        '#0A0F1E',   // Dark on champagne
 
   success:              '#4ADE80',
-  successLight:         '#052e16',
+  successLight:         '#052E16',
   error:                '#F87171',
-  errorLight:           '#450a0a',
+  errorLight:           '#450A0A',
   warning:              '#FCD34D',
   warningLight:         '#422006',
 
@@ -83,45 +122,6 @@ export const investorColors = {
   tabBarBorder:         '#2A3550',
   tabBarActive:         '#E8D5A3',
   tabBarInactive:       '#6B7A99',
-};
-
-// Investor account palette — deep obsidian + teal (modern, high-end, distinct)
-export const investorThemeColors = {
-  primary:              '#14B8A6',   // Teal — buttons, active tabs
-  primaryDark:          '#0D9488',   // Dark teal
-  primaryLight:         '#2DD4BF',   // Light teal highlights
-
-  background:           '#080D10',   // Deep obsidian (near-black, slight teal tint)
-  backgroundSoft:       '#0C1318',
-  surface:              '#101C20',
-  surfaceElevated:      '#162428',
-  surfaceBorder:        '#1E3540',
-
-  textPrimary:          '#E8F4F4',   // Cool white
-  textSecondary:        '#8BB8B8',   // Muted teal-gray
-  textHint:             '#4A7070',   // Dim teal
-  textOnPrimary:        '#050E0E',   // Near-black on teal buttons
-
-  success:              '#4ADE80',
-  successLight:         '#052e16',
-  error:                '#F87171',
-  errorLight:           '#450a0a',
-  warning:              '#FCD34D',
-  warningLight:         '#422006',
-
-  buttonPrimary:        '#14B8A6',
-  buttonPrimaryText:    '#050E0E',
-  buttonOutlineBorder:  '#14B8A6',
-  buttonOutlineText:    '#14B8A6',
-  buttonDestructive:    '#F87171',
-
-  swipeLike:            '#4ADE80',
-  swipePass:            '#F87171',
-
-  tabBarBackground:     '#080D10',
-  tabBarBorder:         '#1E3540',
-  tabBarActive:         '#14B8A6',
-  tabBarInactive:       '#4A7070',
 };
 
 // Auth screens / splash — use as a LinearGradient from top to bottom
