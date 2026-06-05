@@ -1,10 +1,8 @@
 import { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, FlatList, Dimensions, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useAuthStore from '../../store/authStore';
 import { colors } from '../../theme';
-
-const { width } = Dimensions.get('window');
 
 const SLIDES = [
   {
@@ -34,6 +32,7 @@ const SLIDES = [
 ];
 
 export default function OnboardingScreen({ navigation }) {
+  const { width } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
   const listRef = useRef(null);
   const setHasSeenOnboarding = useAuthStore(s => s.setHasSeenOnboarding);
