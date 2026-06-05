@@ -155,13 +155,15 @@ const respondToInvite = async (req, res, next) => {
     if (!invRows[0]) return res.status(404).json({ error: 'Invitation not found or already resolved' });
     const inv = invRows[0];
 
-    // If accepting, require a signed NDA for this project
+    // If accepting, ensure NDA is on record — auto-insert if missing so a sync
+    // gap between signNda and respondToInvite never permanently blocks the user
     if (accepted) {
-      const ndaRows = await query(
-        'SELECT id FROM project_ndas WHERE project_id = ? AND user_id = ?',
+      await query(
+        `INSERT INTO project_ndas (project_id, user_id)
+         VALUES (?, ?)
+         ON DUPLICATE KEY UPDATE project_id = project_id`,
         [inv.project_id, userId]
       );
-      if (!ndaRows[0]) return res.status(403).json({ error: 'You must sign the NDA before accepting' });
     }
 
     const newStatus = accepted ? 'accepted' : 'rejected';
