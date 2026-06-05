@@ -2,7 +2,7 @@ import {
   View, Text, TouchableOpacity,
   StyleSheet, StatusBar, Platform, ActivityIndicator, Linking,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as WebBrowser from 'expo-web-browser';
 import { brandGradient, radius } from '../../theme';
@@ -11,10 +11,50 @@ import { API_BASE_URL } from '../../config/constants';
 
 WebBrowser.maybeCompleteAuthSession();
 
+const isMobileDevice = () =>
+  typeof navigator !== 'undefined' &&
+  /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
 export default function WelcomeScreen({ navigation }) {
   const setAuth = useAuthStore(s => s.setAuth);
   const [googleError, setGoogleError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+
+  // Handle return from mobile-web OAuth redirect flow (?oauth_oid=... in URL)
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const params = new URLSearchParams(window.location.search);
+    const oid = params.get('oauth_oid');
+    if (!oid) return;
+    window.history.replaceState({}, '', window.location.pathname);
+    setGoogleLoading(true);
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const resp = await fetch(`${API_BASE_URL}/auth/poll/${oid}`);
+        if (resp.status === 200) {
+          const data = await resp.json();
+          clearInterval(interval);
+          setGoogleLoading(false);
+          if (data.requires2FA) {
+            navigation.navigate('Verify2FA', { userId: Number(data.userId) });
+          } else if (data.token) {
+            setAuth(data.token, {
+              id: Number(data.userId),
+              email: data.email,
+              name: data.name,
+              role: data.role,
+              has_profile: data.has_profile === true || data.has_profile === 'true',
+            });
+          }
+          return;
+        }
+      } catch { /* retry */ }
+      if (attempts > 20) { clearInterval(interval); setGoogleLoading(false); }
+    }, 500);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleGoogleSignIn = async () => {
     setGoogleError('');
@@ -22,6 +62,14 @@ export default function WelcomeScreen({ navigation }) {
     try {
       if (Platform.OS === 'web') {
         const oid = Math.random().toString(36).slice(2) + Date.now().toString(36);
+
+        if (isMobileDevice()) {
+          // iOS/Android browsers open window.open() as a new tab and background the original,
+          // pausing its JS. Use a full-page redirect instead — backend sends ?oauth_oid= on return.
+          window.location.href = `${API_BASE_URL}/auth/google?oid=${oid}&redirect=1`;
+          return;
+        }
+
         const popup = window.open(`${API_BASE_URL}/auth/google?oid=${oid}`, 'google-auth', 'width=500,height=600,left=200,top=100');
         if (!popup) { setGoogleError('Allow popups for this site and try again.'); return; }
         await new Promise((resolve) => {

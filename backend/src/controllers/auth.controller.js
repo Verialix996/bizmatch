@@ -250,10 +250,15 @@ async function oauthCallback(req, res) {
   const profile = await ProfileModel.findByUserId(user.id);
   const has_profile = !!profile;
 
+  const primaryFrontend = (process.env.FRONTEND_URL || '').split(',')[0].trim() || 'http://localhost:8081';
+
   // If 2FA is enabled, don't issue a token yet — require TOTP verification first
   if (user.two_factor_enabled) {
     if (oid) {
       pendingAuths.set(oid, { requires2FA: true, userId: String(user.id), createdAt: Date.now() });
+      if (res.locals.isRedirectFlow) {
+        return res.redirect(`${primaryFrontend}?oauth_oid=${oid}`);
+      }
       return res.send('<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f9fc;font-family:sans-serif;color:#aaa;font-size:14px;}</style></head><body><script>try{if(window.opener&&!window.opener.closed){window.opener.postMessage("bizmatch-oauth-done","*");}}catch(e){}window.close();</script></body></html>');
     }
     const params = new URLSearchParams({ requires2FA: 'true', userId: String(user.id) });
@@ -263,7 +268,7 @@ async function oauthCallback(req, res) {
   const token = generateToken(user);
 
   if (oid) {
-    // Web popup flow: store result, close the popup, frontend polls /api/auth/poll/:oid
+    // Web flow: store result so the frontend can poll for it
     pendingAuths.set(oid, {
       token,
       userId: String(user.id),
@@ -277,6 +282,11 @@ async function oauthCallback(req, res) {
       two_factor_enabled: user.two_factor_enabled ? 1 : 0,
       createdAt: Date.now(),
     });
+    if (res.locals.isRedirectFlow) {
+      // Mobile web: redirect back to the frontend with oid in URL; frontend polls on mount
+      return res.redirect(`${primaryFrontend}?oauth_oid=${oid}`);
+    }
+    // Desktop popup: signal the opener and close the popup
     return res.send('<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f9fc;font-family:sans-serif;color:#aaa;font-size:14px;}</style></head><body><script>try{if(window.opener&&!window.opener.closed){window.opener.postMessage("bizmatch-oauth-done","*");}}catch(e){}window.close();</script></body></html>');
   }
 

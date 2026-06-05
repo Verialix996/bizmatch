@@ -51,16 +51,23 @@ router.get('/google', (req, res, next) => {
     );
   }
   const oid = (req.query.oid || '').replace(/[^a-z0-9]/gi, '');
+  // Mobile web browsers use a full-page redirect instead of a popup.
+  // Append '_r' to the state so the callback knows to redirect back rather than window.close().
+  const isRedirect = req.query.redirect === '1';
+  const state = oid ? (isRedirect ? oid + '_r' : oid) : undefined;
   passport.authenticate('google', {
     scope: ['profile', 'email'],
     session: false,
-    ...(oid ? { state: oid } : {}),
+    ...(state ? { state } : {}),
   })(req, res, next);
 });
 router.get('/google/callback',
   (req, res, next) => {
-    // Capture state before Passport processes it so oauthCallback can read it
-    res.locals.oauthState = (req.query.state || '').replace(/[^a-z0-9]/gi, '');
+    const rawState = req.query.state || '';
+    const isRedirect = rawState.endsWith('_r');
+    const oid = (isRedirect ? rawState.slice(0, -2) : rawState).replace(/[^a-z0-9]/gi, '');
+    res.locals.oauthState = oid;
+    res.locals.isRedirectFlow = isRedirect;
     next();
   },
   passport.authenticate('google', { session: false, failureRedirect: '/login' }),
