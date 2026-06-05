@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
   inner: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 22,
     paddingVertical: 10,
     gap: 8,
   },

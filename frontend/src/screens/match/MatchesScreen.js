@@ -415,7 +415,7 @@ function makeStyles(C) { return StyleSheet.create({
     paddingTop: 4,
   },
   pageTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: '800',
     color: C.textPrimary,
     letterSpacing: -0.5,
@@ -435,7 +435,7 @@ function makeStyles(C) { return StyleSheet.create({
     gap: 8,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     color: C.textHint,
     letterSpacing: 1.2,

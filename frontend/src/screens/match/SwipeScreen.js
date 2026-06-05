@@ -904,7 +904,7 @@ function makeStyles(C) { return StyleSheet.create({
     paddingBottom: 12,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     color: C.textHint,
     letterSpacing: 1.2,
@@ -912,7 +912,7 @@ function makeStyles(C) { return StyleSheet.create({
     marginBottom: 2,
   },
   pageTitle: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '800',
     color: C.primaryDark,
     letterSpacing: -0.5,

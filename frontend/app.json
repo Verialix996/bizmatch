@@ -6,9 +6,11 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
+    "icon": "./assets/icon.png",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.bizmatch.app",
+      "icon": "./assets/icon.png",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "googleauthenticator",
@@ -20,7 +22,12 @@
       }
     },
     "android": {
-      "package": "com.bizmatch.app"
+      "package": "com.bizmatch.app",
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0A1628"
+      }
     },
     "scheme": "bizmatch",
     "web": {

@@ -1,7 +1,7 @@
 const {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
-  getProjectPartners, addProjectPartner, removeProjectPartner,
+  getProjectPartners, addProjectPartner, removeProjectPartner, updatePartnerRole,
   getJoinedProjects, getProjectsByOwner,
 } = require('../models/project.model');
 const { query } = require('../config/db');
@@ -163,12 +163,23 @@ const listPartners = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/projects/:id/partners  { partnerUserId }
+// POST /api/projects/:id/partners  { partnerUserId, role? }
 const addPartner = async (req, res, next) => {
   try {
-    const { partnerUserId } = req.body;
+    const { partnerUserId, role } = req.body;
     if (!partnerUserId) return res.status(400).json({ error: 'partnerUserId required' });
-    const result = await addProjectPartner(Number(req.params.id), req.user.id, Number(partnerUserId));
+    const result = await addProjectPartner(Number(req.params.id), req.user.id, Number(partnerUserId), role);
+    if (result.error) return res.status(400).json({ error: result.error });
+    res.json(result);
+  } catch (err) { next(err); }
+};
+
+// PUT /api/projects/:id/partners/:userId/role  { role }
+const patchPartnerRole = async (req, res, next) => {
+  try {
+    const { role } = req.body;
+    if (!role || !role.trim()) return res.status(400).json({ error: 'role required' });
+    const result = await updatePartnerRole(Number(req.params.id), req.user.id, Number(req.params.userId), role);
     if (result.error) return res.status(400).json({ error: result.error });
     res.json(result);
   } catch (err) { next(err); }
@@ -304,4 +315,4 @@ const serveNda = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, reviewDeck, serveDeck, serveNda };
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, patchPartnerRole, reviewDeck, serveDeck, serveNda };

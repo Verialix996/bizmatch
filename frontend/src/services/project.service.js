@@ -37,9 +37,10 @@ export const uploadVideo = (projectId, fileUri) =>
     xhr.send(formData);
   });
 
-export const getPartners       = (projectId)              => api.get(`/projects/${projectId}/partners`);
-export const addPartner        = (projectId, partnerUserId) => api.post(`/projects/${projectId}/partners`, { partnerUserId });
-export const removePartner     = (projectId, partnerUserId) => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
+export const getPartners         = (projectId)                     => api.get(`/projects/${projectId}/partners`);
+export const addPartner          = (projectId, partnerUserId, role) => api.post(`/projects/${projectId}/partners`, { partnerUserId, role });
+export const removePartner       = (projectId, partnerUserId)       => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
+export const updatePartnerRole   = (projectId, partnerUserId, role) => api.put(`/projects/${projectId}/partners/${partnerUserId}/role`, { role });
 export const getJoinedProjects = ()                         => api.get('/projects/joined');
 export const getProjectsByOwner = (userId)                  => api.get(`/projects/owner/${userId}`);
 export const reviewDeck         = (projectId)               => api.post(`/projects/${projectId}/deck-review`);

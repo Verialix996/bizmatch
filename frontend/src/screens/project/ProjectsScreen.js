@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
   uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
-  reviewDeck,
+  reviewDeck, updatePartnerRole,
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import api from '../../services/api';
@@ -44,6 +44,9 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   const [partners, setPartners] = useState([]);
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
+  const [roleEdit, setRoleEdit] = useState(null); // { userId, name, currentRole }
+  const [roleInput, setRoleInput] = useState('');
+  const [roleSaving, setRoleSaving] = useState(false);
 
   useFocusEffect(useCallback(() => {
     getPartners(project.id)
@@ -60,6 +63,24 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
     } catch { /* silent */ }
     setRemoving(false);
     setRemoveConfirm(null);
+  };
+
+  const openRoleEdit = (partner) => {
+    setRoleInput(partner.role || 'member');
+    setRoleEdit({ userId: partner.userId, name: partner.name });
+  };
+
+  const saveRole = async () => {
+    if (!roleEdit || roleSaving || !roleInput.trim()) return;
+    setRoleSaving(true);
+    try {
+      await updatePartnerRole(project.id, roleEdit.userId, roleInput.trim());
+      setPartners(prev => prev.map(p =>
+        p.userId === roleEdit.userId ? { ...p, role: roleInput.trim() } : p
+      ));
+      setRoleEdit(null);
+    } catch { /* silent */ }
+    setRoleSaving(false);
   };
 
   return (
@@ -141,15 +162,24 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
                 <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={30} styles={styles} C={C} />
-                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                <TouchableOpacity
-                  onPress={() => setRemoveConfirm({ userId: p.userId, name: p.name })}
-                  style={styles.removePartnerBtn}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  activeOpacity={0.6}
-                >
-                  <Text style={styles.removePartnerBtnText}>×</Text>
-                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
+                  {!p.isOwner && (
+                    <TouchableOpacity onPress={() => openRoleEdit(p)} activeOpacity={0.7} hitSlop={{ top: 4, bottom: 4 }}>
+                      <Text style={styles.partnerRole}>{p.role || 'member'}</Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+                {!p.isOwner && (
+                  <TouchableOpacity
+                    onPress={() => setRemoveConfirm({ userId: p.userId, name: p.name })}
+                    style={styles.removePartnerBtn}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.6}
+                  >
+                    <Text style={styles.removePartnerBtnText}>×</Text>
+                  </TouchableOpacity>
+                )}
               </View>
             ))}
           </View>
@@ -213,6 +243,40 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           </View>
         </View>
       </Modal>
+
+      {/* Edit partner role modal */}
+      <Modal visible={!!roleEdit} transparent animationType="fade">
+        <View style={styles.deleteOverlay}>
+          <View style={styles.deleteModal}>
+            <Text style={styles.deleteModalTitle}>Edit Role</Text>
+            <Text style={styles.deleteModalBody}>{roleEdit?.name}</Text>
+            <TextInput
+              style={styles.roleEditInput}
+              value={roleInput}
+              onChangeText={setRoleInput}
+              placeholder="e.g. CTO, Advisor, Member"
+              autoFocus
+            />
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={styles.deleteBtnCancel}
+                onPress={() => setRoleEdit(null)}
+              >
+                <Text style={styles.deleteBtnCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteBtnConfirm, (!roleInput.trim() || roleSaving) && { opacity: 0.5 }]}
+                onPress={saveRole}
+                disabled={!roleInput.trim() || roleSaving}
+              >
+                <Text style={styles.deleteBtnConfirmText}>
+                  {roleSaving ? 'Saving...' : 'Save'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -221,9 +285,11 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [roleForInvite, setRoleForInvite] = useState('Member');
 
   useEffect(() => {
     if (!visible || !projectId) return;
+    setRoleForInvite('Member');
     setLoading(true);
     Promise.all([getMatches(), getPartners(projectId)])
       .then(([matchRes, partnerRes]) => {
@@ -235,9 +301,10 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
   }, [visible, projectId]);
 
   const handleAdd = async (matchId) => {
+    if (!roleForInvite.trim()) return;
     setSending(true);
     try {
-      await onAdd(matchId, projectId);
+      await onAdd(matchId, projectId, roleForInvite.trim());
     } finally {
       setSending(false);
     }
@@ -248,7 +315,17 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
       <View style={styles.modalBackdrop}>
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Add Partner</Text>
-          <Text style={styles.modalSub}>Pick from your matched connections</Text>
+          <Text style={styles.modalSub}>Assign a role, then pick a connection</Text>
+          <View style={styles.roleInputRow}>
+            <Text style={styles.roleInputLabel}>Role in project</Text>
+            <TextInput
+              style={styles.roleInputField}
+              value={roleForInvite}
+              onChangeText={setRoleForInvite}
+              placeholder="e.g. CTO, Advisor, Member"
+              placeholderTextColor={C.textHint}
+            />
+          </View>
           {loading ? (
             <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
           ) : matches.length === 0 ? (
@@ -259,13 +336,13 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
             <FlatList
               data={matches}
               keyExtractor={item => String(item.userId)}
-              style={{ maxHeight: 320, width: '100%' }}
+              style={{ maxHeight: 280, width: '100%' }}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={styles.matchPickerItem}
+                  style={[styles.matchPickerItem, (!roleForInvite.trim() || sending) && { opacity: 0.5 }]}
                   onPress={() => handleAdd(item.matchId)}
                   activeOpacity={0.7}
-                  disabled={sending}
+                  disabled={!roleForInvite.trim() || sending}
                 >
                   <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} styles={styles} C={C} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -338,7 +415,12 @@ function JoinedProjectCard({ project, styles, C }) {
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
                 <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={36} styles={styles} C={C} />
-                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
+                  {p.role && !p.isOwner && (
+                    <Text style={styles.partnerRole}>{p.role}</Text>
+                  )}
+                </View>
               </View>
             ))}
           </View>
@@ -549,8 +631,8 @@ export default function ProjectsScreen({ route }) {
     setPartnerModal({ visible: true, projectId });
   };
 
-  const handleAddPartner = async (matchId, projectId) => {
-    await sendPartnerInvite(matchId, projectId);
+  const handleAddPartner = async (matchId, projectId, role = 'Member') => {
+    await sendPartnerInvite(matchId, projectId, { role_title: role });
     setPartnerModal({ visible: false, projectId: null });
   };
 
@@ -787,7 +869,7 @@ function makeStyles(C) {
     paddingBottom: 16,
   },
   sectionLabel: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     color: C.textHint,
     letterSpacing: 1.2,
@@ -795,7 +877,7 @@ function makeStyles(C) {
     marginBottom: 2,
   },
   pageTitle: {
-    fontSize: 24,
+    fontSize: 30,
     fontWeight: '800',
     color: C.primaryDark,
     letterSpacing: -0.4,
@@ -897,7 +979,7 @@ function makeStyles(C) {
     marginBottom: 10,
   },
   partnersSectionLabel: {
-    fontSize: 10,
+    fontSize: 13,
     fontWeight: '700',
     color: C.textHint,
     letterSpacing: 1.2,
@@ -933,9 +1015,48 @@ function makeStyles(C) {
     lineHeight: 16,
   },
   partnerName: {
-    flex: 1,
     fontSize: 13,
+    fontWeight: '600',
     color: C.textSecondary,
+  },
+  partnerRole: {
+    fontSize: 11,
+    color: C.primary,
+    marginTop: 1,
+  },
+  roleInputRow: {
+    width: '100%',
+    marginBottom: 12,
+  },
+  roleInputLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: C.textHint,
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+  },
+  roleInputField: {
+    borderWidth: 1,
+    borderColor: C.surfaceBorder,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: C.textPrimary,
+    backgroundColor: C.backgroundSoft,
+  },
+  roleEditInput: {
+    borderWidth: 1,
+    borderColor: C.surfaceBorder,
+    borderRadius: radius.md,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: C.textPrimary,
+    backgroundColor: C.backgroundSoft,
+    width: '100%',
+    marginBottom: 16,
   },
   partnerAvatarPlaceholder: {
     backgroundColor: C.primary,

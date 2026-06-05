@@ -263,11 +263,12 @@ async function getProjectMatches(userId, role) {
 
 async function getProjectPartners(projectId) {
   const rows = await query(
-    `SELECT team.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills, team.is_owner
+    `SELECT team.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills,
+            team.is_owner, team.role AS project_role
      FROM (
-       SELECT user_id AS user_id, 1 AS is_owner FROM projects WHERE id = ?
+       SELECT user_id AS user_id, 1 AS is_owner, 'owner' AS role FROM projects WHERE id = ?
        UNION
-       SELECT pp.user_id, 0 AS is_owner FROM project_partners pp WHERE pp.project_id = ?
+       SELECT pp.user_id, 0 AS is_owner, pp.role FROM project_partners pp WHERE pp.project_id = ?
      ) AS team
      JOIN users u ON u.id = team.user_id
      LEFT JOIN profiles pr ON pr.user_id = team.user_id
@@ -280,21 +281,37 @@ async function getProjectPartners(projectId) {
     photoUrl: r.photo_url,
     bio: r.bio,
     roleType: r.role_type,
+    role: r.project_role,
     skills: safeParseArray(r.skills),
     isOwner: !!r.is_owner,
   }));
 }
 
-async function addProjectPartner(projectId, ownerUserId, partnerUserId) {
+async function addProjectPartner(projectId, ownerUserId, partnerUserId, role = 'member') {
   const rows = await query(
     `SELECT ${PROJECT_COLS} FROM projects WHERE id = ? AND user_id = ?`,
     [projectId, ownerUserId]
   );
   if (!rows[0]) return { error: 'Project not found or not yours' };
   if (partnerUserId === ownerUserId) return { error: 'Cannot add yourself as partner' };
+  const safeRole = (role || 'member').trim().slice(0, 100);
   await query(
-    'INSERT IGNORE INTO project_partners (project_id, user_id) VALUES (?, ?)',
-    [projectId, partnerUserId]
+    'INSERT IGNORE INTO project_partners (project_id, user_id, role) VALUES (?, ?, ?)',
+    [projectId, partnerUserId, safeRole]
+  );
+  return { ok: true };
+}
+
+async function updatePartnerRole(projectId, ownerUserId, partnerUserId, role) {
+  const rows = await query(
+    `SELECT ${PROJECT_COLS} FROM projects WHERE id = ? AND user_id = ?`,
+    [projectId, ownerUserId]
+  );
+  if (!rows[0]) return { error: 'Project not found or not yours' };
+  const safeRole = (role || 'member').trim().slice(0, 100);
+  await query(
+    'UPDATE project_partners SET role = ? WHERE project_id = ? AND user_id = ?',
+    [safeRole, projectId, partnerUserId]
   );
   return { ok: true };
 }
@@ -345,6 +362,6 @@ async function getProjectsByOwner(ownerId) {
 module.exports = {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
-  getProjectPartners, addProjectPartner, removeProjectPartner,
+  getProjectPartners, addProjectPartner, removeProjectPartner, updatePartnerRole,
   getJoinedProjects, getProjectsByOwner,
 };

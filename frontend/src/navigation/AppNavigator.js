@@ -90,12 +90,13 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: TC.tabBarBackground,
           borderTopColor: TC.tabBarBorder,
-          height: 60,
-          paddingBottom: 8,
+          height: 66,
+          paddingBottom: 10,
+          paddingHorizontal: 10,
         },
         tabBarActiveTintColor: TC.tabBarActive,
         tabBarInactiveTintColor: TC.tabBarInactive,
-        tabBarLabelStyle: { fontSize: 11, fontWeight: '600', letterSpacing: 0.3 },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: '600', letterSpacing: 0.3 },
         tabBarIcon: ({ focused, color }) => {
           const [filled, outline] = TAB_ICONS[route.name];
           return <Ionicons name={focused ? filled : outline} size={24} color={color} />;

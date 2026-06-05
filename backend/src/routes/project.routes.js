@@ -14,9 +14,10 @@ router.put('/:id',                        authenticate, requireVerified, ctrl.up
 router.delete('/:id',                     authenticate, requireVerified, ctrl.remove);
 router.post('/:id/upload-deck',           authenticate, requireVerified, ...ctrl.uploadDeck);
 router.post('/:id/upload-video',          authenticate, requireVerified, ...ctrl.uploadVideo);
-router.get('/:id/partners',              authenticate, ctrl.listPartners);
-router.post('/:id/partners',             authenticate, requireVerified, ctrl.addPartner);
-router.delete('/:id/partners/:userId',   authenticate, requireVerified, ctrl.removePartner);
+router.get('/:id/partners',                    authenticate, ctrl.listPartners);
+router.post('/:id/partners',                   authenticate, requireVerified, ctrl.addPartner);
+router.delete('/:id/partners/:userId',         authenticate, requireVerified, ctrl.removePartner);
+router.put('/:id/partners/:userId/role',       authenticate, requireVerified, ctrl.patchPartnerRole);
 router.post('/:id/deck-review',          authenticate, requireVerified, ctrl.reviewDeck);
 router.get('/:id/deck',                 ctrl.serveDeck);
 router.get('/:id/nda',                  ctrl.serveNda);

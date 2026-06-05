@@ -169,10 +169,11 @@ const respondToInvite = async (req, res, next) => {
 
     let msg;
     if (accepted) {
-      // Add to project partners
+      // Add to project partners, carrying the role from the invitation (default 'member')
+      const partnerRole = (inv.role_title || 'member').trim().slice(0, 100);
       await query(
-        'INSERT IGNORE INTO project_partners (project_id, user_id) VALUES (?, ?)',
-        [inv.project_id, userId]
+        'INSERT INTO project_partners (project_id, user_id, role) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE role = VALUES(role)',
+        [inv.project_id, userId, partnerRole]
       );
       msg = await sendMessage(
         matchId, userId,
