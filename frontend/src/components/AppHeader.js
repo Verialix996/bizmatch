@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { colors, investorColors, investorThemeColors, radius } from '../theme';
+import { colors, investorColors, investorSwipeColors, investorThemeColors, radius } from '../theme';
 import useAppStore from '../store/appStore';
 import useAuthStore from '../store/authStore';
 import NotificationBell from './NotificationBell';
@@ -21,7 +21,7 @@ export default function AppHeader({ showToggle = false }) {
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   // investorMode colors only apply on the Discover (SwipeScreen) tab — showToggle is true only there
   const isInvestorSwipe = investorMode && showToggle && !isInvestorTheme;
-  const IC = investorThemeColors;
+  const IC = investorSwipeColors;
   const headerBg = isInvestorSwipe ? IC.background : (C.background || '#fff');
   const accentColor = isInvestorSwipe ? IC.primary : C.primary;
   const user = useAuthStore(s => s.user);
@@ -156,7 +156,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   modeToggleBtnInvestorActive: {
-    backgroundColor: '#E8D5A3',
+    backgroundColor: '#E8D5A3',   // champagne — investorSwipeColors.primary
     shadowColor: '#E8D5A3',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,

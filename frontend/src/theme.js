@@ -63,11 +63,11 @@ export const investorColors = {
   textHint:             '#6B7280',   // Gray-500 — placeholders, hints
   textOnPrimary:        '#FFFFFF',   // White on blue buttons
 
-  success:              '#10B981',   // Emerald green
+  success:              '#10B981',
   successLight:         '#022C22',
-  error:                '#EF4444',   // Red
+  error:                '#EF4444',
   errorLight:           '#450A0A',
-  warning:              '#F59E0B',   // Amber/gold
+  warning:              '#F59E0B',
   warningLight:         '#422006',
 
   buttonPrimary:        '#3B82F6',
@@ -85,22 +85,22 @@ export const investorColors = {
   tabBarInactive:       '#6B7280',
 };
 
-// Investor account palette — deep navy + champagne (high-end, luxury feel)
-export const investorThemeColors = {
-  primary:              '#E8D5A3',   // Champagne — buttons, active tabs
-  primaryDark:          '#C4AD78',   // Dark champagne — text on dark
-  primaryLight:         '#F0E4BC',   // Light champagne — highlights
+// Investor swipe mode palette — dark forest green + champagne (original premium feel)
+export const investorSwipeColors = {
+  primary:              '#E8D5A3',   // Champagne — active elements
+  primaryDark:          '#C4AD78',
+  primaryLight:         '#F0E4BC',
 
-  background:           '#0A0F1E',   // Deep navy — main background
-  backgroundSoft:       '#0D1426',   // Slightly lighter navy
-  surface:              '#111827',   // Card surfaces
-  surfaceElevated:      '#1A2340',   // Elevated cards
-  surfaceBorder:        '#2A3550',   // Subtle border
+  background:           '#0B3321',   // Dark forest green
+  backgroundSoft:       '#0D3D26',
+  surface:              '#112E1E',   // Card surfaces
+  surfaceElevated:      '#164030',   // Elevated cards
+  surfaceBorder:        '#1B5E34',   // Subtle green border
 
-  textPrimary:          '#F0EDE8',   // Cream — main body text
-  textSecondary:        '#B8C0D4',   // Muted blue-gray
-  textHint:             '#6B7A99',   // Dim text
-  textOnPrimary:        '#0A0F1E',   // Dark on champagne
+  textPrimary:          '#F0EDE8',   // Cream
+  textSecondary:        '#B8CDB8',   // Muted green-cream
+  textHint:             '#7A9E80',   // Dim green-tinted hint
+  textOnPrimary:        '#0A1A0C',   // Near-black on champagne
 
   success:              '#4ADE80',
   successLight:         '#052E16',
@@ -110,7 +110,7 @@ export const investorThemeColors = {
   warningLight:         '#422006',
 
   buttonPrimary:        '#E8D5A3',
-  buttonPrimaryText:    '#0A0F1E',
+  buttonPrimaryText:    '#0A1A0C',
   buttonOutlineBorder:  '#E8D5A3',
   buttonOutlineText:    '#E8D5A3',
   buttonDestructive:    '#F87171',
@@ -118,10 +118,49 @@ export const investorThemeColors = {
   swipeLike:            '#4ADE80',
   swipePass:            '#F87171',
 
-  tabBarBackground:     '#0A0F1E',
-  tabBarBorder:         '#2A3550',
+  tabBarBackground:     '#0B3321',
+  tabBarBorder:         '#1B5E34',
   tabBarActive:         '#E8D5A3',
-  tabBarInactive:       '#6B7A99',
+  tabBarInactive:       '#5A8A65',
+};
+
+// Investor account palette — medium indigo + warm gold (lighter, premium, distinct)
+export const investorThemeColors = {
+  primary:              '#C9A84C',   // Warm antique gold — buttons, active tabs
+  primaryDark:          '#A8872E',
+  primaryLight:         '#E2C870',
+
+  background:           '#1A1F40',   // Medium-dark indigo — clearly lighter than black
+  backgroundSoft:       '#1F2448',
+  surface:              '#272D58',   // Card surfaces
+  surfaceElevated:      '#303865',   // Elevated cards
+  surfaceBorder:        '#3E4880',   // Indigo border
+
+  textPrimary:          '#F0EEFF',   // Cool near-white with purple tint
+  textSecondary:        '#9898C8',   // Muted indigo-gray
+  textHint:             '#6060A0',   // Dim indigo
+  textOnPrimary:        '#0D1225',   // Near-black on gold
+
+  success:              '#4ADE80',
+  successLight:         '#052E16',
+  error:                '#F87171',
+  errorLight:           '#450A0A',
+  warning:              '#FCD34D',
+  warningLight:         '#422006',
+
+  buttonPrimary:        '#C9A84C',
+  buttonPrimaryText:    '#0D1225',
+  buttonOutlineBorder:  '#C9A84C',
+  buttonOutlineText:    '#C9A84C',
+  buttonDestructive:    '#F87171',
+
+  swipeLike:            '#4ADE80',
+  swipePass:            '#F87171',
+
+  tabBarBackground:     '#1A1F40',
+  tabBarBorder:         '#3E4880',
+  tabBarActive:         '#C9A84C',
+  tabBarInactive:       '#6060A0',
 };
 
 // Auth screens / splash — use as a LinearGradient from top to bottom

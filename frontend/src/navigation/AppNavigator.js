@@ -4,7 +4,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
-import { colors, investorColors, investorThemeColors } from '../theme';
+import { colors, investorColors, investorSwipeColors, investorThemeColors } from '../theme';
 import AppHeader from '../components/AppHeader';
 import { getConversations } from '../services/match.service';
 
@@ -55,7 +55,7 @@ function MainTabs() {
   const investorMode      = useAppStore(s => s.investorMode);
   const darkMode          = useAppStore(s => s.darkMode);
   const isInvestorTheme   = useAppStore(s => s.isInvestorTheme);
-  const TC = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : (investorMode ? investorThemeColors : colors));
+  const TC = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : (investorMode ? investorSwipeColors : colors));
 
   useEffect(() => {
     const pollBadge = async () => {

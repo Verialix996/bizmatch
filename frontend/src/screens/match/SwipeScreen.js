@@ -17,7 +17,7 @@ import { getProjectFeed, swipeProject, getMyProjects } from '../../services/proj
 import { Linking } from 'react-native';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
+import { colors, investorColors, investorSwipeColors, investorThemeColors, cardShadow, radius } from '../../theme';
 import { BACKEND_BASE_URL } from '../../config/constants';
 
 const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
@@ -412,7 +412,7 @@ export default function SwipeScreen() {
 
   const C = darkMode ? investorColors
           : isInvestorTheme ? investorThemeColors
-          : investorMode ? investorThemeColors
+          : investorMode ? investorSwipeColors
           : colors;
   const styles = useMemo(() => makeStyles(C), [C]);
 
