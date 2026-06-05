@@ -638,17 +638,20 @@ export default function SwipeScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
       <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
 
+      {/* Pick-project prompt — shown fullscreen centered before any project is chosen */}
+      {isEntrepreneur && mode === 'investors' && !selectedProject ? (
+        <View style={styles.pickProjectCenter}>
+          <TouchableOpacity style={styles.pickProjectBtn} onPress={() => useAppStore.getState().openProjectPicker()} activeOpacity={0.85}>
+            <Text style={styles.pickProjectIcon}>📁</Text>
+            <Text style={styles.pickProjectTitle}>Select a project</Text>
+            <Text style={styles.pickProjectSub}>Choose which project to find investors for</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+      <>
       {/* Deck */}
       <View style={styles.deckArea}>
-        {isEntrepreneur && mode === 'investors' && !selectedProject ? (
-          <View style={styles.pickProjectCenter}>
-            <TouchableOpacity style={styles.pickProjectBtn} onPress={() => useAppStore.getState().openProjectPicker()} activeOpacity={0.85}>
-              <Text style={styles.pickProjectIcon}>📁</Text>
-              <Text style={styles.pickProjectTitle}>Select a project</Text>
-              <Text style={styles.pickProjectSub}>Choose which project to find investors for</Text>
-            </TouchableOpacity>
-          </View>
-        ) : loading ? (
+        {loading ? (
           <ActivityIndicator size="large" color={C.primary} />
         ) : visibleCards.length === 0 ? (
           <View style={styles.emptyState}>
@@ -719,7 +722,7 @@ export default function SwipeScreen() {
       </View>
 
       {/* Action buttons */}
-      {!loading && visibleCards.length > 0 && !(isEntrepreneur && mode === 'investors' && !selectedProject) && (
+      {!loading && visibleCards.length > 0 && (
         <View style={styles.actionRow}>
           <TouchableOpacity
             style={[styles.actionBtn, styles.passBtn, (investorMode || darkMode) && { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
@@ -776,6 +779,8 @@ export default function SwipeScreen() {
         <View style={styles.matchSummaryBanner}>
           <Text style={styles.matchSummaryText}>{lastMatchSummary}</Text>
         </View>
+      )}
+      </>
       )}
 
       <MatchModal
@@ -1324,7 +1329,7 @@ function makeStyles(C) { return StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    width: '100%',
+    paddingHorizontal: 24,
   },
   pickProjectBtn: {
     alignItems: 'center',
