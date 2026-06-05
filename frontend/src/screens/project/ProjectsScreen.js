@@ -51,9 +51,14 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   const [roleSaving, setRoleSaving] = useState(false);
 
   useFocusEffect(useCallback(() => {
-    getPartners(project.id)
-      .then(res => setPartners(res.data))
-      .catch(() => {});
+    const fetchPartners = () => {
+      getPartners(project.id)
+        .then(res => setPartners(res.data))
+        .catch(() => {});
+    };
+    fetchPartners();
+    const interval = setInterval(fetchPartners, 15000);
+    return () => clearInterval(interval);
   }, [project.id]));
 
   const confirmRemove = async () => {
