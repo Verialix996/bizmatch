@@ -275,18 +275,11 @@ export default function ChatScreen({ route, navigation }) {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
     try {
-      let ndaMsg = null;
-      try {
-        // Sign the NDA; if already signed, swallow the error and continue to accept
-        const ndaRes = await signNda(match.matchId, meta.projectId);
-        ndaMsg = ndaRes.data;
-      } catch {
-        // NDA was already signed — proceed straight to acceptance
-      }
+      const ndaRes = await signNda(match.matchId, meta.projectId);
       const acceptRes = await respondToInvite(match.matchId, meta.invitationId, true);
       const responseMsg = acceptRes.data.message;
       if (responseMsg) lastIdRef.current = responseMsg.id;
-      appendMessages(...[ndaMsg, responseMsg].filter(Boolean));
+      appendMessages(...[ndaRes.data, responseMsg].filter(Boolean));
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
     }
