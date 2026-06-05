@@ -254,7 +254,7 @@ async function oauthCallback(req, res) {
   if (user.two_factor_enabled) {
     if (oid) {
       pendingAuths.set(oid, { requires2FA: true, userId: String(user.id), createdAt: Date.now() });
-      return res.send('<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f9fc;font-family:sans-serif;color:#aaa;font-size:14px;}</style></head><body><script>window.close();</script></body></html>');
+      return res.send('<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f9fc;font-family:sans-serif;color:#aaa;font-size:14px;}</style></head><body><script>try{if(window.opener&&!window.opener.closed){window.opener.postMessage("bizmatch-oauth-done","*");}}catch(e){}window.close();</script></body></html>');
     }
     const params = new URLSearchParams({ requires2FA: 'true', userId: String(user.id) });
     return res.redirect(`bizmatch://auth?${params.toString()}`);
@@ -277,7 +277,7 @@ async function oauthCallback(req, res) {
       two_factor_enabled: user.two_factor_enabled ? 1 : 0,
       createdAt: Date.now(),
     });
-    return res.send('<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f9fc;font-family:sans-serif;color:#aaa;font-size:14px;}</style></head><body><script>window.close();</script></body></html>');
+    return res.send('<!DOCTYPE html><html><head><style>body{margin:0;display:flex;align-items:center;justify-content:center;height:100vh;background:#f8f9fc;font-family:sans-serif;color:#aaa;font-size:14px;}</style></head><body><script>try{if(window.opener&&!window.opener.closed){window.opener.postMessage("bizmatch-oauth-done","*");}}catch(e){}window.close();</script></body></html>');
   }
 
   // Mobile flow: HTTP 302 redirect to bizmatch:// deep link (intercepted by WebBrowser.openAuthSessionAsync)

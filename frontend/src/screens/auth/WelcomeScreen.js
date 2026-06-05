@@ -26,6 +26,16 @@ export default function WelcomeScreen({ navigation }) {
         if (!popup) { setGoogleError('Allow popups for this site and try again.'); return; }
         await new Promise((resolve) => {
           let attempts = 0;
+
+          // Force-close the popup from the opener when the backend signals done.
+          // This is more reliable than window.close() called cross-origin inside the popup.
+          const onMessage = (e) => {
+            if (e.data === 'bizmatch-oauth-done') {
+              try { popup.close(); } catch (_) {}
+            }
+          };
+          window.addEventListener('message', onMessage);
+
           const interval = setInterval(async () => {
             attempts++;
             try {
@@ -33,6 +43,8 @@ export default function WelcomeScreen({ navigation }) {
               if (resp.status === 200) {
                 const data = await resp.json();
                 clearInterval(interval);
+                window.removeEventListener('message', onMessage);
+                try { popup.close(); } catch (_) {}
                 if (data.requires2FA) {
                   navigation.navigate('Verify2FA', { userId: Number(data.userId) });
                 } else if (data.token) {
@@ -47,7 +59,11 @@ export default function WelcomeScreen({ navigation }) {
                 return resolve();
               }
             } catch { /* keep polling */ }
-            if (popup.closed || attempts > 150) { clearInterval(interval); resolve(); }
+            if (popup.closed || attempts > 150) {
+              clearInterval(interval);
+              window.removeEventListener('message', onMessage);
+              resolve();
+            }
           }, 1000);
         });
       } else {
