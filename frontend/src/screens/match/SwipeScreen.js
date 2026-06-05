@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
@@ -448,11 +449,12 @@ export default function SwipeScreen() {
     outputRange: [`-${ROTATION_FACTOR}deg`, '0deg', `${ROTATION_FACTOR}deg`],
   });
 
-  // Load entrepreneur's own projects once so they can pick one for the investor feed
-  useEffect(() => {
+  // Re-fetch entrepreneur's own projects every time the Discover tab gains focus,
+  // so projects created in the Projects tab are immediately available in the picker.
+  useFocusEffect(useCallback(() => {
     if (!isEntrepreneur) return;
     getMyProjects().then(res => setMyProjects(res.data || [])).catch(() => {});
-  }, [isEntrepreneur]);
+  }, [isEntrepreneur]));
 
   const loadFeed = useCallback(async (feedMode, projectId = null) => {
     setLoading(true);
