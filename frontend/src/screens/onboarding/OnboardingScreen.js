@@ -71,7 +71,7 @@ export default function OnboardingScreen({ navigation }) {
         scrollEnabled={false}
         keyExtractor={item => item.key}
         renderItem={({ item }) => (
-          <View style={styles.slide}>
+          <View style={[styles.slide, { width }]}>
             <Text style={styles.emoji}>{item.emoji}</Text>
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.subtitle}>{item.subtitle}</Text>
@@ -111,7 +111,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   slide: {
-    width,
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
