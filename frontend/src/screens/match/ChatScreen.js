@@ -275,14 +275,18 @@ export default function ChatScreen({ route, navigation }) {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
     try {
-      // Sign the NDA first (creates nda_signed + project_shared messages on backend)
-      const ndaRes = await signNda(match.matchId, meta.projectId);
-      // Then accept the invite (creates partner_invite_response message)
+      let ndaMsg = null;
+      try {
+        // Sign the NDA; if already signed, swallow the error and continue to accept
+        const ndaRes = await signNda(match.matchId, meta.projectId);
+        ndaMsg = ndaRes.data;
+      } catch {
+        // NDA was already signed — proceed straight to acceptance
+      }
       const acceptRes = await respondToInvite(match.matchId, meta.invitationId, true);
       const responseMsg = acceptRes.data.message;
       if (responseMsg) lastIdRef.current = responseMsg.id;
-      // Add nda_signed + response messages; project_shared arrives via next poll
-      appendMessages(ndaRes.data, responseMsg);
+      appendMessages(...[ndaMsg, responseMsg].filter(Boolean));
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
     }
@@ -480,7 +484,7 @@ export default function ChatScreen({ route, navigation }) {
       const hasSignedNda = messages.some(m => {
         if (m.message_type !== 'nda_signed') return false;
         const mm = tryParseJson(m.metadata) || {};
-        return mm.projectId === meta.projectId;
+        return String(mm.projectId) === String(meta.projectId);
       });
       const isCounter = meta.counterOffer === true;
       return (
