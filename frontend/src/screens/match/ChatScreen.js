@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
-  TouchableOpacity, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Image, StatusBar, Alert, Modal, Linking, Dimensions,
+  TouchableOpacity, TouchableWithoutFeedback, KeyboardAvoidingView, Platform,
+  ActivityIndicator, Image, StatusBar, Alert, Modal, Linking, Dimensions, Keyboard,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -415,6 +415,7 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const handleSendInviteWithRole = async () => {
+    Keyboard.dismiss();
     if (!rolePendingProject) return;
     const finalRole = selectedRole === 'Custom' ? customRole.trim() : selectedRole;
     setRoleSending(true);
@@ -444,6 +445,7 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const handleSendCounter = async () => {
+    Keyboard.dismiss();
     if (!counterItem) return;
     const meta = tryParseJson(counterItem.metadata) || {};
     setCounterSending(true);
@@ -1248,7 +1250,9 @@ export default function ChatScreen({ route, navigation }) {
 
       {/* Role picker modal — shown after selecting a project for "invite" */}
       <Modal visible={rolePickerVisible} transparent animationType="fade" onRequestClose={() => setRolePickerVisible(false)}>
-        <View style={styles.ndaOverlay}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.ndaOverlay}>
+        <TouchableWithoutFeedback>
           <View style={styles.ndaModal}>
             <Text style={styles.ndaModalTitle}>Define the Role</Text>
             <Text style={styles.ndaModalSub}>Optionally set role details for your partner invite</Text>
@@ -1283,6 +1287,9 @@ export default function ChatScreen({ route, navigation }) {
               value={roleEquity}
               onChangeText={setRoleEquity}
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
               maxLength={6}
             />
             <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Salary ($/yr, optional)</Text>
@@ -1293,6 +1300,9 @@ export default function ChatScreen({ route, navigation }) {
               value={roleSalary}
               onChangeText={setRoleSalary}
               keyboardType="number-pad"
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
               maxLength={10}
             />
             <View style={[styles.ndaModalActions, { marginTop: 20 }]}>
@@ -1309,12 +1319,16 @@ export default function ChatScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
 
       {/* Counter-offer modal */}
       <Modal visible={counterVisible} transparent animationType="fade" onRequestClose={() => setCounterVisible(false)}>
-        <View style={styles.ndaOverlay}>
+        <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+          <View style={styles.ndaOverlay}>
+        <TouchableWithoutFeedback>
           <View style={styles.ndaModal}>
             <Text style={styles.ndaModalTitle}>Counter Offer</Text>
             <Text style={styles.ndaModalSub}>Edit the terms and send a counter proposal</Text>
@@ -1335,6 +1349,9 @@ export default function ChatScreen({ route, navigation }) {
               value={counterEquity}
               onChangeText={setCounterEquity}
               keyboardType="decimal-pad"
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
               maxLength={6}
             />
             <Text style={[styles.ndaModalSub, { marginTop: 12, marginBottom: 6, fontWeight: '700', color: C.textPrimary }]}>Salary ($/yr, optional)</Text>
@@ -1345,6 +1362,9 @@ export default function ChatScreen({ route, navigation }) {
               value={counterSalary}
               onChangeText={setCounterSalary}
               keyboardType="number-pad"
+              returnKeyType="done"
+              blurOnSubmit
+              onSubmitEditing={Keyboard.dismiss}
               maxLength={10}
             />
             <View style={[styles.ndaModalActions, { marginTop: 20 }]}>
@@ -1361,7 +1381,9 @@ export default function ChatScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </TouchableWithoutFeedback>
+          </View>
+        </TouchableWithoutFeedback>
       </Modal>
     </SafeAreaView>
   );
