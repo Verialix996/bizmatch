@@ -49,11 +49,19 @@ export default function AppHeader({ showToggle = false }) {
       styles.container,
       { paddingTop: insets.top, backgroundColor: headerBg, borderBottomColor: isInvestorSwipe ? IC.surfaceBorder : C.surfaceBorder },
     ]}>
+      {/* Row 1: logo + wordmark + bell */}
       <View style={styles.inner}>
         <LogoMark color={accentColor} />
         <Text style={[styles.wordmark, { color: accentColor }]}>BizMatch</Text>
+        <View style={{ flex: 1 }} />
+        <View style={styles.rightActions}>
+          <NotificationBell tintColor={accentColor} />
+        </View>
+      </View>
 
-        {showModeToggle ? (
+      {/* Row 2: Partners / Investors toggle — only on Discover for entrepreneurs */}
+      {showModeToggle && (
+        <View style={styles.toggleRow}>
           <View style={[styles.modeToggleBar, { backgroundColor: isInvestorSwipe ? IC.surface : C.surface, borderColor: isInvestorSwipe ? IC.surfaceBorder : C.surfaceBorder }]}>
             <TouchableOpacity
               style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
@@ -74,14 +82,8 @@ export default function AppHeader({ showToggle = false }) {
               </Text>
             </TouchableOpacity>
           </View>
-        ) : (
-          <View style={{ flex: 1 }} />
-        )}
-
-        <View style={styles.rightActions}>
-          <NotificationBell tintColor={accentColor} />
         </View>
-      </View>
+      )}
     </View>
   );
 }
@@ -128,8 +130,11 @@ const styles = StyleSheet.create({
     letterSpacing: -0.5,
   },
 
+  toggleRow: {
+    paddingHorizontal: 16,
+    paddingBottom: 10,
+  },
   modeToggleBar: {
-    flex: 1,
     flexDirection: 'row',
     borderRadius: radius.lg,
     padding: 3,

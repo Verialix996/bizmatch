@@ -358,7 +358,7 @@ function VideoPlayerModal({ visible, player, onClose }) {
 
 function ProjectPickerModal({ visible, projects, onSelect, onClose }) {
   return (
-    <Modal transparent visible={visible} animationType="slide">
+    <Modal transparent visible={visible} animationType="fade">
       <View style={styles.pickerBackdrop}>
         <View style={styles.pickerSheet}>
           <Text style={styles.pickerTitle}>Find investors for which project?</Text>
@@ -1363,14 +1363,16 @@ function makeStyles(C) { return StyleSheet.create({
   // Project picker modal (bottom sheet style)
   pickerBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(2,36,102,0.45)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(2,36,102,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
   },
   pickerSheet: {
     backgroundColor: C.surface,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderRadius: 24,
     padding: 24,
+    width: '100%',
     maxHeight: '70%',
   },
   pickerTitle: {

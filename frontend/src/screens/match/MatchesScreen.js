@@ -119,6 +119,9 @@ export default function MatchesScreen({ navigation }) {
   const [conversations, setConversations] = useState([]);
   const [likedBy, setLikedBy] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('messages');
+  const [meetings, setMeetings] = useState([]);
+  const [meetingsLoading, setMeetingsLoading] = useState(false);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser = useAuthStore(s => s.user);
   const readTimestamps = useAuthStore(s => s.readTimestamps);
@@ -213,22 +216,85 @@ export default function MatchesScreen({ navigation }) {
       <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Title */}
+        {/* Title + toggle */}
         <View style={styles.titleBlock}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.pageTitle}>Messages</Text>
-            <Text style={styles.pageSub}>Nurture your professional nexus.</Text>
+          <Text style={styles.pageTitle}>{activeTab === 'messages' ? 'Messages' : 'Meetings'}</Text>
+          <View style={styles.viewToggle}>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, activeTab === 'messages' && styles.viewToggleBtnActive]}
+              onPress={() => setActiveTab('messages')}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.viewToggleBtnText, activeTab === 'messages' && styles.viewToggleBtnTextActive]}>
+                💬 Messages
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.viewToggleBtn, activeTab === 'meetings' && styles.viewToggleBtnActive]}
+              onPress={async () => {
+                setActiveTab('meetings');
+                if (meetings.length === 0) {
+                  setMeetingsLoading(true);
+                  try { const r = await api.get('/meetings'); setMeetings(r.data || []); } catch {}
+                  setMeetingsLoading(false);
+                }
+              }}
+              activeOpacity={0.85}
+            >
+              <Text style={[styles.viewToggleBtnText, activeTab === 'meetings' && styles.viewToggleBtnTextActive]}>
+                📅 Meetings
+              </Text>
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity
-            style={styles.meetingsBtn}
-            onPress={() => navigation.navigate('Meetings')}
-          >
-            <Ionicons name="calendar-outline" size={18} color={C.primary} />
-            <Text style={styles.meetingsBtnText}>Meetings</Text>
-          </TouchableOpacity>
         </View>
 
-        {conversations.length === 0 ? (
+        {activeTab === 'meetings' ? (
+          meetingsLoading ? (
+            <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
+          ) : meetings.length === 0 ? (
+            <View style={styles.emptyState}>
+              <View style={styles.emptyIconCircle}><Text style={styles.emptyIcon}>📅</Text></View>
+              <Text style={styles.emptyTitle}>No meetings yet</Text>
+              <Text style={styles.emptySub}>Propose a meeting from any chat conversation.</Text>
+            </View>
+          ) : (
+            <View style={{ paddingHorizontal: 16, paddingTop: 8 }}>
+              {meetings.map(m => {
+                const STATUS_COLOR = { proposed: C.warning, confirmed: C.success, declined: C.error, cancelled: C.textHint };
+                const isProposer = m.proposer_id === currentUser?.id;
+                const otherName = isProposer ? m.receiver_name : m.proposer_name;
+                const date = new Date(m.scheduled_at).toLocaleString('en-IL', { dateStyle: 'medium', timeStyle: 'short' });
+                return (
+                  <TouchableOpacity
+                    key={String(m.id)}
+                    style={styles.meetingCard}
+                    onPress={() => navigation.navigate('MeetingDetail', { meeting: m })}
+                    activeOpacity={0.85}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.meetingCardTitle}>{m.title || 'Meeting'}</Text>
+                      <Text style={styles.meetingCardWith}>with {otherName}</Text>
+                      <Text style={styles.meetingCardDate}>{date}</Text>
+                    </View>
+                    <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                      <View style={[styles.meetingBadge, { backgroundColor: m.location_type === 'virtual' ? C.surfaceElevated : '#FFF3E0' }]}>
+                        <Ionicons name={m.location_type === 'virtual' ? 'videocam' : 'location'} size={11} color={m.location_type === 'virtual' ? C.primary : C.warning} />
+                        <Text style={[styles.meetingBadgeText, { color: m.location_type === 'virtual' ? C.primary : C.warning }]}>
+                          {m.location_type === 'virtual' ? 'Virtual' : 'In Person'}
+                        </Text>
+                      </View>
+                      <View style={[styles.meetingBadge, { backgroundColor: (STATUS_COLOR[m.status] || C.textHint) + '22' }]}>
+                        <Text style={[styles.meetingBadgeText, { color: STATUS_COLOR[m.status] || C.textHint }]}>
+                          {m.status.charAt(0).toUpperCase() + m.status.slice(1)}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )
+        ) : conversations.length === 0 ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconCircle}>
               <Text style={styles.emptyIcon}>💬</Text>
@@ -389,6 +455,7 @@ export default function MatchesScreen({ navigation }) {
   );
 }
 
+
 function makeStyles(C) { return StyleSheet.create({
   container: {
     flex: 1,
@@ -401,11 +468,10 @@ function makeStyles(C) { return StyleSheet.create({
   },
 
   titleBlock: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: 24,
-    paddingBottom: 16,
+    paddingBottom: 12,
     paddingTop: 8,
+    gap: 10,
   },
   pageTitle: {
     fontSize: 32,
@@ -413,27 +479,50 @@ function makeStyles(C) { return StyleSheet.create({
     color: C.textPrimary,
     letterSpacing: -0.5,
   },
-  pageSub: {
-    fontSize: 13,
-    color: C.textHint,
-    marginTop: 2,
-  },
-  meetingsBtn: {
+  viewToggle: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    backgroundColor: C.cardBackground,
-    borderRadius: 20,
-    paddingVertical: 7,
-    paddingHorizontal: 13,
+    backgroundColor: C.surface,
+    borderRadius: radius.lg,
+    padding: 3,
     borderWidth: 1,
-    borderColor: C.border,
+    borderColor: C.surfaceBorder,
   },
-  meetingsBtnText: {
+  viewToggleBtn: {
+    flex: 1,
+    paddingVertical: 8,
+    borderRadius: radius.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewToggleBtnActive: {
+    backgroundColor: C.primary,
+  },
+  viewToggleBtnText: {
     fontSize: 13,
     fontWeight: '600',
-    color: C.primary,
+    color: C.textHint,
   },
+  viewToggleBtnTextActive: {
+    color: '#fff',
+    fontWeight: '700',
+  },
+  meetingCard: {
+    backgroundColor: C.surface,
+    borderRadius: radius.lg,
+    padding: 16,
+    marginBottom: 12,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    ...cardShadow,
+  },
+  meetingCardTitle: { fontSize: 15, fontWeight: '700', color: C.textPrimary, marginBottom: 2 },
+  meetingCardWith:  { fontSize: 13, color: C.textSecondary, marginBottom: 4 },
+  meetingCardDate:  { fontSize: 13, color: C.primary, fontWeight: '600' },
+  meetingBadge: {
+    flexDirection: 'row', alignItems: 'center', borderRadius: radius.pill,
+    paddingHorizontal: 8, paddingVertical: 3, gap: 3,
+  },
+  meetingBadgeText: { fontSize: 11, fontWeight: '600' },
 
   section: { marginBottom: 8 },
   sectionHeader: {
