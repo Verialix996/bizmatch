@@ -82,11 +82,11 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
     if (!roleEdit || roleSaving || !roleInput) return;
     setRoleSaving(true);
     try {
-      await proposeRoleChange(project.id, roleEdit.userId, roleInput);
+      await updatePartnerRole(project.id, roleEdit.userId, roleInput);
+      setPartners(prev => prev.map(p => p.userId === roleEdit.userId ? { ...p, role: roleInput } : p));
       setRoleEdit(null);
-      Alert.alert('Request Sent', `A role change request has been sent to ${roleEdit.name} for approval.`);
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.error || 'Could not send role change request.');
+      Alert.alert('Error', err?.response?.data?.error || 'Could not update role.');
     }
     setRoleSaving(false);
   };
@@ -170,22 +170,18 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
                 <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={32} styles={styles} C={C} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                  <View style={styles.roleChipRow}>
-                    {p.isOwner ? (
-                      <View style={[styles.roleChip, styles.roleChipOwner]}>
-                        <Text style={[styles.roleChipText, styles.roleChipOwnerText]}>Owner</Text>
-                      </View>
-                    ) : (
-                      <TouchableOpacity onPress={() => openRoleEdit(p)} activeOpacity={0.7}>
-                        <View style={styles.roleChip}>
-                          <Text style={styles.roleChipText}>{p.role || 'member'}</Text>
-                        </View>
-                      </TouchableOpacity>
-                    )}
+                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
+                {p.isOwner ? (
+                  <View style={[styles.roleChip, styles.roleChipCEO]}>
+                    <Text style={[styles.roleChipText, styles.roleChipCEOText]}>CEO</Text>
                   </View>
-                </View>
+                ) : (
+                  <TouchableOpacity onPress={() => openRoleEdit(p)} activeOpacity={0.7}>
+                    <View style={styles.roleChip}>
+                      <Text style={styles.roleChipText}>{p.role || 'Member'}</Text>
+                    </View>
+                  </TouchableOpacity>
+                )}
                 {!p.isOwner && (
                   <TouchableOpacity
                     onPress={() => setRemoveConfirm({ userId: p.userId, name: p.name })}
@@ -264,7 +260,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
       <Modal visible={!!roleEdit} transparent animationType="fade">
         <View style={styles.deleteOverlay}>
           <View style={styles.deleteModal}>
-            <Text style={styles.deleteModalTitle}>Propose Role Change</Text>
+            <Text style={styles.deleteModalTitle}>Change Role</Text>
             <Text style={styles.deleteModalBody}>{roleEdit?.name}</Text>
             <View style={styles.rolePickerSection}>
               <Text style={styles.roleInputLabel}>New role</Text>
@@ -299,7 +295,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
                 disabled={!roleInput || roleSaving}
               >
                 <Text style={styles.deleteBtnConfirmText}>
-                  {roleSaving ? 'Sending...' : 'Propose'}
+                  {roleSaving ? 'Saving...' : 'Save'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -424,8 +420,8 @@ function JoinedProjectCard({ project, onViewDetail, styles, C }) {
             </View>
           ) : null}
         </TouchableOpacity>
-        <View style={styles.joinedOwnerTag}>
-          <Text style={styles.joinedOwnerText}>by {project.owner_name}</Text>
+        <View style={styles.joinedCEOTag}>
+          <Text style={styles.joinedCEOText}>by {project.owner_name}</Text>
         </View>
       </View>
 
@@ -454,15 +450,11 @@ function JoinedProjectCard({ project, onViewDetail, styles, C }) {
             {partners.map(p => (
               <View key={p.userId} style={styles.partnerItem}>
                 <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={32} styles={styles} C={C} />
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                  <View style={styles.roleChipRow}>
-                    <View style={[styles.roleChip, p.isOwner && styles.roleChipOwner]}>
-                      <Text style={[styles.roleChipText, p.isOwner && styles.roleChipOwnerText]}>
-                        {p.isOwner ? 'Owner' : (p.role || 'member')}
-                      </Text>
-                    </View>
-                  </View>
+                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
+                <View style={[styles.roleChip, p.isOwner && styles.roleChipCEO]}>
+                  <Text style={[styles.roleChipText, p.isOwner && styles.roleChipCEOText]}>
+                    {p.isOwner ? 'CEO' : (p.role || 'Member')}
+                  </Text>
                 </View>
               </View>
             ))}
@@ -1087,29 +1079,20 @@ function makeStyles(C) {
     lineHeight: 16,
   },
   partnerName: {
+    flex: 1,
     fontSize: 13,
     fontWeight: '600',
     color: C.textSecondary,
-  },
-  partnerRole: {
-    fontSize: 11,
-    color: C.primary,
-    marginTop: 1,
-  },
-  roleChipRow: {
-    flexDirection: 'row',
-    marginTop: 3,
   },
   roleChip: {
     borderRadius: radius.pill,
     backgroundColor: C.primary + '1A',
     borderWidth: 1,
     borderColor: C.primary + '40',
-    paddingHorizontal: 7,
-    paddingVertical: 2,
-    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  roleChipOwner: {
+  roleChipCEO: {
     backgroundColor: C.textHint + '18',
     borderColor: C.textHint + '40',
   },
@@ -1120,7 +1103,7 @@ function makeStyles(C) {
     textTransform: 'capitalize',
     letterSpacing: 0.3,
   },
-  roleChipOwnerText: {
+  roleChipCEOText: {
     color: C.textHint,
   },
   roleInputLabel: {
@@ -1398,7 +1381,7 @@ function makeStyles(C) {
     borderLeftWidth: 3,
     borderLeftColor: C.primary,
   },
-  joinedOwnerTag: {
+  joinedCEOTag: {
     paddingHorizontal: 10,
     paddingVertical: 4,
     backgroundColor: C.surfaceElevated,
@@ -1406,7 +1389,7 @@ function makeStyles(C) {
     borderWidth: 1,
     borderColor: C.surfaceBorder,
   },
-  joinedOwnerText: {
+  joinedCEOText: {
     fontSize: 11,
     color: C.textSecondary,
     fontWeight: '600',

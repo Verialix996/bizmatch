@@ -44,7 +44,6 @@ export const linking = {
 const TAB_ICONS = {
   Discover:  ['compass',       'compass-outline'],
   Matches:   ['chatbubbles',   'chatbubbles-outline'],
-  Meetings:  ['calendar',      'calendar-outline'],
   Projects:  ['folder',        'folder-outline'],
   Profile:   ['person-circle', 'person-circle-outline'],
 };
@@ -104,8 +103,7 @@ function MainTabs() {
       })}
     >
       <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
-      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Matches', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
-      <Tab.Screen name="Meetings"  component={MeetingScreen}  options={{ tabBarLabel: 'Meetings' }} />
+      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Messages', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
       <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
       <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
@@ -138,6 +136,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
+          <Stack.Screen name="Meetings"         component={MeetingScreen} />
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
           <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
         </>
@@ -150,6 +149,7 @@ export default function AppNavigator() {
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
           <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
+          <Stack.Screen name="Meetings"         component={MeetingScreen} />
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
           <Stack.Screen name="ProposeMeeting"   component={ProposeMeetingScreen} />
           <Stack.Screen name="Premium"          component={PremiumScreen} />

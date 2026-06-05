@@ -4,6 +4,7 @@ import {
   ActivityIndicator, TouchableOpacity, Image,
   ScrollView, SafeAreaView, StatusBar, Alert,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { getConversations, whoLikedMe } from '../../services/match.service';
 import api from '../../services/api';
@@ -212,15 +213,19 @@ export default function MatchesScreen({ navigation }) {
       <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.logo}>BizMatch</Text>
-        </View>
-
         {/* Title */}
         <View style={styles.titleBlock}>
-          <Text style={styles.pageTitle}>Matches</Text>
-          <Text style={styles.pageSub}>Nurture your professional nexus.</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.pageTitle}>Messages</Text>
+            <Text style={styles.pageSub}>Nurture your professional nexus.</Text>
+          </View>
+          <TouchableOpacity
+            style={styles.meetingsBtn}
+            onPress={() => navigation.navigate('Meetings')}
+          >
+            <Ionicons name="calendar-outline" size={18} color={C.primary} />
+            <Text style={styles.meetingsBtnText}>Meetings</Text>
+          </TouchableOpacity>
         </View>
 
         {conversations.length === 0 ? (
@@ -395,24 +400,12 @@ function makeStyles(C) { return StyleSheet.create({
     alignItems: 'center',
   },
 
-  header: {
+  titleBlock: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 4,
-  },
-  logo: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: C.textPrimary,
-    letterSpacing: -0.4,
-  },
-  titleBlock: {
-    paddingHorizontal: 24,
     paddingBottom: 16,
-    paddingTop: 4,
+    paddingTop: 8,
   },
   pageTitle: {
     fontSize: 32,
@@ -424,6 +417,22 @@ function makeStyles(C) { return StyleSheet.create({
     fontSize: 13,
     color: C.textHint,
     marginTop: 2,
+  },
+  meetingsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: C.cardBackground,
+    borderRadius: 20,
+    paddingVertical: 7,
+    paddingHorizontal: 13,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  meetingsBtnText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: C.primary,
   },
 
   section: { marginBottom: 8 },

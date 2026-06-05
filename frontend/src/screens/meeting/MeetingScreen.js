@@ -1,8 +1,9 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, RefreshControl,
+  ActivityIndicator, RefreshControl, StatusBar,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../../store/authStore';
@@ -79,11 +80,27 @@ export default function MeetingScreen({ navigation }) {
   }, []));
 
   if (loading) {
-    return <View style={styles.center}><ActivityIndicator size="large" color={C.primary} /></View>;
+    return (
+      <SafeAreaView style={styles.container}>
+        <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+        <View style={styles.center}><ActivityIndicator size="large" color={C.primary} /></View>
+      </SafeAreaView>
+    );
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
+      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+
+      {/* Header */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+          <Ionicons name="chevron-back" size={24} color={C.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Meetings</Text>
+        <View style={{ width: 40 }} />
+      </View>
+
       <FlatList
         data={meetings}
         keyExtractor={m => String(m.id)}
@@ -105,13 +122,25 @@ export default function MeetingScreen({ navigation }) {
         }
         contentContainerStyle={meetings.length === 0 ? { flex: 1 } : { padding: 16 }}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
 function makeStyles(C) { return StyleSheet.create({
   container: { flex: 1, backgroundColor: C.backgroundSoft },
   center:    { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: C.surface,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: C.border,
+  },
+  backBtn:     { padding: 4, width: 40 },
+  headerTitle: { ...typography.titleSmall, color: C.textPrimary, fontWeight: '700', fontSize: 18 },
   card: {
     backgroundColor: C.surface,
     borderRadius: radius.lg,
