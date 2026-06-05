@@ -24,7 +24,7 @@ app.set('trust proxy', 1);
 
 // Security & parsing
 app.use(helmet());
-const NETLIFY_SITE = 'strong-fenglisu-a83822.netlify.app';
+const NETLIFY_SITE = 'bizmatchapp.netlify.app';
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(o => o.trim())
   : [];
