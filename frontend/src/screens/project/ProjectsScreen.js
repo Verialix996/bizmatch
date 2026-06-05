@@ -19,6 +19,7 @@ import useAuthStore from '../../store/authStore';
 import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
+const PARTNER_ROLES = ['Co-Founder', 'CTO', 'CMO', 'Advisor', 'Member'];
 
 function PartnerAvatar({ name, photoUrl, size = 36, styles, C }) {
   if (photoUrl) {
@@ -294,11 +295,11 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
   const [matches, setMatches] = useState([]);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
-  const [roleForInvite, setRoleForInvite] = useState('Member');
+  const [roleForInvite, setRoleForInvite] = useState(null);
 
   useEffect(() => {
     if (!visible || !projectId) return;
-    setRoleForInvite('Member');
+    setRoleForInvite(null);
     setLoading(true);
     Promise.all([getMatches(), getPartners(projectId)])
       .then(([matchRes, partnerRes]) => {
@@ -310,10 +311,10 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
   }, [visible, projectId]);
 
   const handleAdd = async (matchId) => {
-    if (!roleForInvite.trim()) return;
+    if (!roleForInvite) return;
     setSending(true);
     try {
-      await onAdd(matchId, projectId, roleForInvite.trim());
+      await onAdd(matchId, projectId, roleForInvite);
     } finally {
       setSending(false);
     }
@@ -324,16 +325,26 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
       <View style={styles.modalBackdrop}>
         <View style={styles.modalBox}>
           <Text style={styles.modalTitle}>Add Partner</Text>
-          <Text style={styles.modalSub}>Assign a role, then pick a connection</Text>
-          <View style={styles.roleInputRow}>
+          <Text style={styles.modalSub}>Select a role, then pick a connection</Text>
+          <View style={styles.rolePickerSection}>
             <Text style={styles.roleInputLabel}>Role in project</Text>
-            <TextInput
-              style={styles.roleInputField}
-              value={roleForInvite}
-              onChangeText={setRoleForInvite}
-              placeholder="e.g. CTO, Advisor, Member"
-              placeholderTextColor={C.textHint}
-            />
+            <View style={styles.rolePickerRow}>
+              {PARTNER_ROLES.map(r => {
+                const selected = roleForInvite === r;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    style={[styles.rolePickerChip, selected && styles.rolePickerChipSelected]}
+                    onPress={() => setRoleForInvite(r)}
+                    activeOpacity={0.75}
+                  >
+                    <Text style={[styles.rolePickerChipText, selected && styles.rolePickerChipTextSelected]}>
+                      {r}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
           {loading ? (
             <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
@@ -348,10 +359,10 @@ function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
               style={{ maxHeight: 280, width: '100%' }}
               renderItem={({ item }) => (
                 <TouchableOpacity
-                  style={[styles.matchPickerItem, (!roleForInvite.trim() || sending) && { opacity: 0.5 }]}
+                  style={[styles.matchPickerItem, (!roleForInvite || sending) && { opacity: 0.5 }]}
                   onPress={() => handleAdd(item.matchId)}
                   activeOpacity={0.7}
-                  disabled={!roleForInvite.trim() || sending}
+                  disabled={!roleForInvite || sending}
                 >
                   <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} styles={styles} C={C} />
                   <View style={{ flex: 1, marginLeft: 12 }}>
@@ -1093,27 +1104,42 @@ function makeStyles(C) {
   roleChipOwnerText: {
     color: C.textHint,
   },
-  roleInputRow: {
-    width: '100%',
-    marginBottom: 12,
-  },
   roleInputLabel: {
     fontSize: 12,
     fontWeight: '600',
     color: C.textHint,
-    marginBottom: 4,
+    marginBottom: 8,
     textTransform: 'uppercase',
     letterSpacing: 0.8,
   },
-  roleInputField: {
-    borderWidth: 1,
+  rolePickerSection: {
+    width: '100%',
+    marginBottom: 14,
+  },
+  rolePickerRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  rolePickerChip: {
+    borderRadius: radius.pill,
+    borderWidth: 1.5,
     borderColor: C.surfaceBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: C.textPrimary,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     backgroundColor: C.backgroundSoft,
+  },
+  rolePickerChipSelected: {
+    borderColor: C.primary,
+    backgroundColor: C.primary + '18',
+  },
+  rolePickerChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: C.textSecondary,
+  },
+  rolePickerChipTextSelected: {
+    color: C.primary,
   },
   roleEditInput: {
     borderWidth: 1,
