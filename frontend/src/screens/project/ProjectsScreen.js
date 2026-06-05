@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
   uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
-  reviewDeck, updatePartnerRole,
+  reviewDeck, updatePartnerRole, proposeRoleChange,
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import api from '../../services/api';
@@ -68,20 +68,21 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   };
 
   const openRoleEdit = (partner) => {
-    setRoleInput(partner.role || 'member');
+    const preset = PARTNER_ROLES.find(r => r.toLowerCase() === (partner.role || '').toLowerCase()) || null;
+    setRoleInput(preset);
     setRoleEdit({ userId: partner.userId, name: partner.name });
   };
 
   const saveRole = async () => {
-    if (!roleEdit || roleSaving || !roleInput.trim()) return;
+    if (!roleEdit || roleSaving || !roleInput) return;
     setRoleSaving(true);
     try {
-      await updatePartnerRole(project.id, roleEdit.userId, roleInput.trim());
-      setPartners(prev => prev.map(p =>
-        p.userId === roleEdit.userId ? { ...p, role: roleInput.trim() } : p
-      ));
+      await proposeRoleChange(project.id, roleEdit.userId, roleInput);
       setRoleEdit(null);
-    } catch { /* silent */ }
+      Alert.alert('Request Sent', `A role change request has been sent to ${roleEdit.name} for approval.`);
+    } catch (err) {
+      Alert.alert('Error', err?.response?.data?.error || 'Could not send role change request.');
+    }
     setRoleSaving(false);
   };
 
@@ -254,19 +255,32 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
         </View>
       </Modal>
 
-      {/* Edit partner role modal */}
+      {/* Propose role change modal */}
       <Modal visible={!!roleEdit} transparent animationType="fade">
         <View style={styles.deleteOverlay}>
           <View style={styles.deleteModal}>
-            <Text style={styles.deleteModalTitle}>Edit Role</Text>
+            <Text style={styles.deleteModalTitle}>Propose Role Change</Text>
             <Text style={styles.deleteModalBody}>{roleEdit?.name}</Text>
-            <TextInput
-              style={styles.roleEditInput}
-              value={roleInput}
-              onChangeText={setRoleInput}
-              placeholder="e.g. CTO, Advisor, Member"
-              autoFocus
-            />
+            <View style={styles.rolePickerSection}>
+              <Text style={styles.roleInputLabel}>New role</Text>
+              <View style={styles.rolePickerRow}>
+                {PARTNER_ROLES.map(r => {
+                  const selected = roleInput === r;
+                  return (
+                    <TouchableOpacity
+                      key={r}
+                      style={[styles.rolePickerChip, selected && styles.rolePickerChipSelected]}
+                      onPress={() => setRoleInput(r)}
+                      activeOpacity={0.75}
+                    >
+                      <Text style={[styles.rolePickerChipText, selected && styles.rolePickerChipTextSelected]}>
+                        {r}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
             <View style={styles.deleteModalActions}>
               <TouchableOpacity
                 style={styles.deleteBtnCancel}
@@ -275,12 +289,12 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
                 <Text style={styles.deleteBtnCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={[styles.deleteBtnConfirm, (!roleInput.trim() || roleSaving) && { opacity: 0.5 }]}
+                style={[styles.deleteBtnConfirm, (!roleInput || roleSaving) && { opacity: 0.5 }]}
                 onPress={saveRole}
-                disabled={!roleInput.trim() || roleSaving}
+                disabled={!roleInput || roleSaving}
               >
                 <Text style={styles.deleteBtnConfirmText}>
-                  {roleSaving ? 'Saving...' : 'Save'}
+                  {roleSaving ? 'Sending...' : 'Propose'}
                 </Text>
               </TouchableOpacity>
             </View>

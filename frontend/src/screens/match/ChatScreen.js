@@ -11,7 +11,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import * as WebBrowser from 'expo-web-browser';
 import { getMessages, sendMessage, markRead, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
 import api from '../../services/api';
-import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
+import { getMyProjects, getProjectsByOwner, respondToRoleChange } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
@@ -301,6 +301,18 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
+  const handleRespondToRoleChange = async (item, accepted) => {
+    const meta = tryParseJson(item.metadata);
+    if (!meta) return;
+    try {
+      const res = await respondToRoleChange(meta.projectId, meta.requestId, accepted);
+      if (res.data?.message) { lastIdRef.current = res.data.message.id; appendMessages(res.data.message); }
+      else { load(); }
+    } catch (e) {
+      Alert.alert('Error', e.response?.data?.error || 'Could not respond to role change.');
+    }
+  };
+
   const handleSignNda = async (item) => {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
@@ -536,6 +548,66 @@ export default function ChatScreen({ route, navigation }) {
             {accepted
               ? 'Partner has joined the project.'
               : 'Partner declined the invitation.'}
+          </Text>
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'role_change_request') {
+      const alreadyResponded = messages.some(m => {
+        if (m.message_type !== 'role_change_response') return false;
+        const mm = tryParseJson(m.metadata) || {};
+        return mm.requestId === meta.requestId && new Date(m.created_at) >= new Date(item.created_at);
+      });
+      return (
+        <View style={styles.actionCard}>
+          <Text style={styles.actionCardTitle}>Role Change Request</Text>
+          <Text style={styles.actionCardBody}>
+            {'Project: '}
+            <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
+          </Text>
+          <View style={styles.roleDetails}>
+            <Text style={styles.roleDetailText}>New role: {meta.newRole}</Text>
+          </View>
+          {!isOwn && !alreadyResponded && (
+            <View style={styles.actionCardBtns}>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnAccept]}
+                onPress={() => handleRespondToRoleChange(item, true)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionBtnAcceptText}>Accept</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.actionBtn, styles.actionBtnDecline]}
+                onPress={() => handleRespondToRoleChange(item, false)}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.actionBtnDeclineText}>Decline</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+          {(isOwn || alreadyResponded) && (
+            <Text style={styles.actionCardStatus}>
+              {alreadyResponded ? 'Responded' : 'Awaiting approval'}
+            </Text>
+          )}
+          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
+        </View>
+      );
+    }
+
+    if (type === 'role_change_response') {
+      return (
+        <View style={[styles.actionCard, styles.actionCardResponse]}>
+          <Text style={styles.actionCardTitle}>
+            {meta.accepted ? 'Role Change Accepted' : 'Role Change Declined'}
+          </Text>
+          <Text style={styles.actionCardBody}>
+            {meta.accepted
+              ? `New role: ${meta.newRole}`
+              : 'The role change was declined.'}
           </Text>
           <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
         </View>

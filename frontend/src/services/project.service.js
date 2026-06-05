@@ -41,6 +41,8 @@ export const getPartners         = (projectId)                     => api.get(`/
 export const addPartner          = (projectId, partnerUserId, role) => api.post(`/projects/${projectId}/partners`, { partnerUserId, role });
 export const removePartner       = (projectId, partnerUserId)       => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
 export const updatePartnerRole   = (projectId, partnerUserId, role) => api.put(`/projects/${projectId}/partners/${partnerUserId}/role`, { role });
+export const proposeRoleChange   = (projectId, partnerUserId, newRole) => api.post(`/projects/${projectId}/partners/${partnerUserId}/role-request`, { newRole });
+export const respondToRoleChange = (projectId, requestId, accepted)    => api.post(`/projects/${projectId}/role-request/${requestId}/respond`, { accepted });
 export const getJoinedProjects = ()                         => api.get('/projects/joined');
 export const getProjectsByOwner = (userId)                  => api.get(`/projects/owner/${userId}`);
 export const reviewDeck         = (projectId)               => api.post(`/projects/${projectId}/deck-review`);
