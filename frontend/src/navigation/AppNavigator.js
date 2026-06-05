@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -55,7 +55,12 @@ function MainTabs() {
   const investorMode      = useAppStore(s => s.investorMode);
   const darkMode          = useAppStore(s => s.darkMode);
   const isInvestorTheme   = useAppStore(s => s.isInvestorTheme);
-  const TC = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : (investorMode ? investorSwipeColors : colors));
+  const [activeTab, setActiveTab] = useState('Discover');
+  const onDiscover = activeTab === 'Discover';
+  const TC = darkMode ? investorColors
+           : isInvestorTheme ? investorThemeColors
+           : (investorMode && onDiscover) ? investorSwipeColors
+           : colors;
 
   useEffect(() => {
     const pollBadge = async () => {
@@ -102,10 +107,10 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
-      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Messages', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
-      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
-      <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
+      <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }}  listeners={{ focus: () => setActiveTab('Discover') }} />
+      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Messages', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} listeners={{ focus: () => setActiveTab('Matches') }} />
+      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} listeners={{ focus: () => setActiveTab('Projects') }} />
+      <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }}  listeners={{ focus: () => setActiveTab('Profile') }} />
     </Tab.Navigator>
   );
 }
