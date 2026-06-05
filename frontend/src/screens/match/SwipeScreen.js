@@ -636,7 +636,7 @@ export default function SwipeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
-      <StatusBar barStyle={(investorMode || darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
 
       {/* Deck */}
       <View style={styles.deckArea}>

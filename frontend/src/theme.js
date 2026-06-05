@@ -124,43 +124,43 @@ export const investorSwipeColors = {
   tabBarInactive:       '#5A8A65',
 };
 
-// Investor account palette — medium indigo + warm gold (lighter, premium, distinct)
+// Investor account palette — warm parchment + rich gold (light luxury theme)
 export const investorThemeColors = {
-  primary:              '#C9A84C',   // Warm antique gold — buttons, active tabs
-  primaryDark:          '#A8872E',
-  primaryLight:         '#E2C870',
+  primary:              '#A87820',   // Rich gold — buttons, active tabs, icons
+  primaryDark:          '#856010',   // Deep gold — pressed/hover
+  primaryLight:         '#C49830',   // Light gold — highlights
 
-  background:           '#1A1F40',   // Medium-dark indigo — clearly lighter than black
-  backgroundSoft:       '#1F2448',
-  surface:              '#272D58',   // Card surfaces
-  surfaceElevated:      '#303865',   // Elevated cards
-  surfaceBorder:        '#3E4880',   // Indigo border
+  background:           '#F7F3EC',   // Warm parchment — main background
+  backgroundSoft:       '#EFE8D8',   // Deeper parchment — secondary surfaces
+  surface:              '#FFFFFF',   // Card surfaces
+  surfaceElevated:      '#FFF8ED',   // Cream — elevated cards, modals
+  surfaceBorder:        '#DDD0B8',   // Warm tan border
 
-  textPrimary:          '#F0EEFF',   // Cool near-white with purple tint
-  textSecondary:        '#9898C8',   // Muted indigo-gray
-  textHint:             '#6060A0',   // Dim indigo
-  textOnPrimary:        '#0D1225',   // Near-black on gold
+  textPrimary:          '#1A1208',   // Deep warm near-black — main body text
+  textSecondary:        '#5A4A2A',   // Warm dark brown — secondary text
+  textHint:             '#8A7A5A',   // Muted warm tan — placeholders, hints
+  textOnPrimary:        '#FFFFFF',   // White on gold buttons
 
-  success:              '#4ADE80',
-  successLight:         '#052E16',
-  error:                '#F87171',
-  errorLight:           '#450A0A',
-  warning:              '#FCD34D',
-  warningLight:         '#422006',
+  success:              '#1A7A4A',   // Deep green
+  successLight:         '#E8F5EE',
+  error:                '#B03020',   // Deep red
+  errorLight:           '#FDECEA',
+  warning:              '#C47A10',   // Dark amber
+  warningLight:         '#FEF3DC',
 
-  buttonPrimary:        '#C9A84C',
-  buttonPrimaryText:    '#0D1225',
-  buttonOutlineBorder:  '#C9A84C',
-  buttonOutlineText:    '#C9A84C',
-  buttonDestructive:    '#F87171',
+  buttonPrimary:        '#A87820',
+  buttonPrimaryText:    '#FFFFFF',
+  buttonOutlineBorder:  '#A87820',
+  buttonOutlineText:    '#A87820',
+  buttonDestructive:    '#B03020',
 
-  swipeLike:            '#4ADE80',
-  swipePass:            '#F87171',
+  swipeLike:            '#1A7A4A',
+  swipePass:            '#B03020',
 
-  tabBarBackground:     '#1A1F40',
-  tabBarBorder:         '#3E4880',
-  tabBarActive:         '#C9A84C',
-  tabBarInactive:       '#6060A0',
+  tabBarBackground:     '#FFFFFF',
+  tabBarBorder:         '#DDD0B8',
+  tabBarActive:         '#A87820',
+  tabBarInactive:       '#8A7A5A',
 };
 
 // Auth screens / splash — use as a LinearGradient from top to bottom

@@ -82,7 +82,7 @@ export default function MeetingScreen({ navigation }) {
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
         <View style={styles.center}><ActivityIndicator size="large" color={C.primary} /></View>
       </SafeAreaView>
     );
@@ -90,7 +90,7 @@ export default function MeetingScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
       {/* Header */}
       <View style={styles.header}>

@@ -249,7 +249,7 @@ export default function EditProfileScreen({ route, navigation }) {
   if (step === 'role') {
     return (
       <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+        <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
         <ScrollView
           contentContainerStyle={styles.scrollInner}
           showsVerticalScrollIndicator={false}
@@ -292,7 +292,7 @@ export default function EditProfileScreen({ route, navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
       <ScrollView
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}

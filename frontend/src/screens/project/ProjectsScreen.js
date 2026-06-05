@@ -754,7 +754,7 @@ export default function ProjectsScreen({ route }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
       <ScrollView showsVerticalScrollIndicator={false}>
 
         {/* Header */}

@@ -168,7 +168,7 @@ export default function AccountSettingsScreen({ navigation }) {
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={(darkMode || isInvestorTheme) ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
       {/* ── Confirm Delete Modal ── */}
       <Modal visible={showConfirmModal} transparent animationType="fade">
