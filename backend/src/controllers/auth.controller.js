@@ -152,7 +152,8 @@ async function forgotPassword(req, res, next) {
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
     await UserModel.setResetToken(user.id, token, expiresAt);
 
-    const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${token}`;
+    const primaryFrontend = (process.env.FRONTEND_URL || '').split(',')[0].trim();
+    const resetUrl = `${primaryFrontend}/reset-password?token=${token}`;
     res.json({ message: 'If that email exists, a reset link was sent.' });
 
     sendPasswordReset(email, resetUrl).catch(err => logger.error(`Reset email failed for ${email}: ${err.message}`));
