@@ -55,7 +55,7 @@ function MainTabs() {
   const investorMode      = useAppStore(s => s.investorMode);
   const darkMode          = useAppStore(s => s.darkMode);
   const isInvestorTheme   = useAppStore(s => s.isInvestorTheme);
-  const TC = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : (investorMode ? investorColors : colors));
+  const TC = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : (investorMode ? investorThemeColors : colors));
 
   useEffect(() => {
     const pollBadge = async () => {

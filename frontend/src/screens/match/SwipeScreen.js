@@ -412,7 +412,7 @@ export default function SwipeScreen() {
 
   const C = darkMode ? investorColors
           : isInvestorTheme ? investorThemeColors
-          : investorMode ? investorColors
+          : investorMode ? investorThemeColors
           : colors;
   const styles = useMemo(() => makeStyles(C), [C]);
 

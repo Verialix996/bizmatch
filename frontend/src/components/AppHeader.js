@@ -21,9 +21,9 @@ export default function AppHeader({ showToggle = false }) {
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   // investorMode colors only apply on the Discover (SwipeScreen) tab — showToggle is true only there
   const isInvestorSwipe = investorMode && showToggle && !isInvestorTheme;
-  const IC = investorColors;
+  const IC = investorThemeColors;
   const headerBg = isInvestorSwipe ? IC.background : (C.background || '#fff');
-  const accentColor = isInvestorTheme && !darkMode ? investorThemeColors.primary : (isInvestorSwipe || darkMode) ? IC.primary : colors.primary;
+  const accentColor = isInvestorSwipe ? IC.primary : C.primary;
   const user = useAuthStore(s => s.user);
   const navigation = useNavigation();
 
@@ -156,8 +156,8 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   modeToggleBtnInvestorActive: {
-    backgroundColor: '#3B82F6',
-    shadowColor: '#3B82F6',
+    backgroundColor: '#E8D5A3',
+    shadowColor: '#E8D5A3',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
     shadowRadius: 4,
@@ -172,7 +172,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modeToggleBtnTextInvestorActive: {
-    color: '#FFFFFF',
+    color: '#0A0F1E',
     fontWeight: '700',
   },
 
