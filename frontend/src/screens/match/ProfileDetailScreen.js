@@ -221,14 +221,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
             </Section>
           )}
 
-          {/* Match score — prefer AI score when available */}
-          {(profile.aiScore != null ? profile.aiScore : profile.score) > 0 && (
-            <View style={styles.scoreRow}>
-              <Text style={styles.scoreLabel}>Match Score</Text>
-              <Text style={styles.scoreValue}>{profile.aiScore ?? profile.score}%</Text>
-            </View>
-          )}
-
           {/* AI compatibility breakdown */}
           {compatibilityLoading ? (
             <View style={styles.compatCard}>
@@ -237,7 +229,7 @@ export default function ProfileDetailScreen({ route, navigation }) {
           ) : compatibility && compatibilityVisible ? (
             <View style={styles.compatCard}>
               <View style={styles.compatHeader}>
-                <Text style={styles.compatTitle}>AI COMPATIBILITY</Text>
+                <Text style={styles.compatTitle}>{profile.name ? `${profile.name}'s Compatibility` : 'AI COMPATIBILITY'}</Text>
                 <TouchableOpacity onPress={() => setCompatibilityVisible(false)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                   <Text style={styles.compatClose}>✕</Text>
                 </TouchableOpacity>

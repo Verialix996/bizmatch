@@ -110,11 +110,6 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
       <View style={styles.cardBody}>
         <View style={styles.roleLabelRow}>
           <Text style={styles.roleLabel}>{roleLabel}</Text>
-          {(profile.aiScore != null ? profile.aiScore : profile.score) > 0 && (
-            <View style={[styles.scoreBadge, (profile.aiScore ?? profile.score) >= 70 ? styles.scoreHigh : (profile.aiScore ?? profile.score) >= 40 ? styles.scoreMid : styles.scoreLow]}>
-              <Text style={styles.scoreBadgeText}>{profile.aiScore ?? profile.score}% match</Text>
-            </View>
-          )}
         </View>
 
         {profile.skills?.length > 0 && (
@@ -209,11 +204,6 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
           <Text style={styles.roleLabel}>
             {project.industry ? project.industry.toUpperCase() : 'VENTURE'} · SEEKING INVESTMENT
           </Text>
-          {project.score > 0 && (
-            <View style={[styles.scoreBadge, project.score >= 70 ? styles.scoreHigh : project.score >= 40 ? styles.scoreMid : styles.scoreLow]}>
-              <Text style={styles.scoreBadgeText}>{Math.min(100, project.score)}% match</Text>
-            </View>
-          )}
         </View>
 
         {project.ownerSkills?.length > 0 && (
@@ -293,7 +283,7 @@ function MatchModal({ visible, matchedName, aiSummary, isProjectMatch, onClose, 
   );
 }
 
-function CompatibilityModal({ visible, loading, score, pros, cons, onClose }) {
+function CompatibilityModal({ visible, loading, score, pros, cons, name, onClose }) {
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
@@ -301,7 +291,7 @@ function CompatibilityModal({ visible, loading, score, pros, cons, onClose }) {
           <TouchableOpacity style={styles.compatModalClose} onPress={onClose}>
             <Text style={styles.compatModalCloseText}>✕</Text>
           </TouchableOpacity>
-          <Text style={[styles.modalTitle, { textAlign: 'center' }]}>Compatibility</Text>
+          <Text style={[styles.modalTitle, { textAlign: 'center' }]}>{name ? `${name}'s Compatibility` : 'Compatibility'}</Text>
           {loading ? (
             <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 24 }} />
           ) : score !== null ? (
@@ -482,13 +472,13 @@ export default function SwipeScreen() {
     }
   }, [mode, selectedProject, loadFeed, isEntrepreneur]);
 
-  const handleCompatibility = useCallback(async (targetUserId) => {
-    setCompatModal({ visible: true, loading: true, score: null, pros: [], cons: [] });
+  const handleCompatibility = useCallback(async (targetUserId, name) => {
+    setCompatModal({ visible: true, loading: true, score: null, pros: [], cons: [], name: name ?? '' });
     try {
       const res = await getCompatibility(targetUserId);
-      setCompatModal({ visible: true, loading: false, score: res.data.score ?? null, pros: res.data.pros || [], cons: res.data.cons || [] });
+      setCompatModal({ visible: true, loading: false, score: res.data.score ?? null, pros: res.data.pros || [], cons: res.data.cons || [], name: name ?? '' });
     } catch {
-      setCompatModal({ visible: true, loading: false, score: null, pros: [], cons: [] });
+      setCompatModal({ visible: true, loading: false, score: null, pros: [], cons: [], name: name ?? '' });
     }
   }, []);
 
@@ -704,7 +694,7 @@ export default function SwipeScreen() {
                 likeOpacity={likeOpacity}
                 passOpacity={passOpacity}
                 cardRotation={cardRotation}
-                onCompatibility={() => handleCompatibility(visibleCards[0].userId)}
+                onCompatibility={() => handleCompatibility(visibleCards[0].userId, visibleCards[0].name)}
               />
             ) : (
               <ProjectCard
@@ -806,7 +796,8 @@ export default function SwipeScreen() {
         score={compatModal.score}
         pros={compatModal.pros}
         cons={compatModal.cons}
-        onClose={() => setCompatModal({ visible: false, loading: false, score: null, pros: [], cons: [] })}
+        name={compatModal.name}
+        onClose={() => setCompatModal({ visible: false, loading: false, score: null, pros: [], cons: [], name: '' })}
       />
 
       <VideoPlayerModal
