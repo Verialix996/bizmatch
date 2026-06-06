@@ -42,7 +42,7 @@ function PartnerAvatar({ name, photoUrl, size = 36, styles, C }) {
   );
 }
 
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onReviewDeck, onViewDetail, styles, C }) {
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onReviewDeck, onViewDetail, videoUploadProgress, styles, C }) {
   const [partners, setPartners] = useState([]);
   const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
   const [removing, setRemoving] = useState(false);
@@ -210,15 +210,20 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.uploadBtn}
-          onPress={() => onUploadVideo(project.id)}
+          style={[styles.uploadBtn, videoUploadProgress != null && { opacity: 0.6 }]}
+          onPress={() => { if (videoUploadProgress == null) onUploadVideo(project.id); }}
           activeOpacity={0.8}
         >
           <Text style={styles.uploadBtnText}>
-            🎬 {project.video_url ? 'Replace Video' : 'Upload Video'}
+            🎬 {videoUploadProgress != null ? `Uploading ${videoUploadProgress}%` : project.video_url ? 'Replace Video' : 'Upload Video'}
           </Text>
         </TouchableOpacity>
       </View>
+      {videoUploadProgress != null && (
+        <View style={styles.videoProgressBar}>
+          <View style={[styles.videoProgressFill, { width: `${videoUploadProgress}%` }]} />
+        </View>
+      )}
 
       {/* AI Deck Review — only if deck uploaded */}
       {project.deck_url ? (
@@ -605,6 +610,8 @@ export default function ProjectsScreen({ route }) {
   const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null });
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
   const [deckReview, setDeckReview] = useState({ visible: false, projectId: null, feedback: null, loading: false });
+  const [projectDetail, setProjectDetail] = useState(null);
+  const [videoUpload, setVideoUpload] = useState({ projectId: null, progress: 0 });
 
   const coFounderMatchId = route?.params?.coFounderMatchId ?? null;
   const coFounderName    = route?.params?.coFounderName ?? null;
@@ -665,23 +672,10 @@ export default function ProjectsScreen({ route }) {
   };
 
   const handleViewProject = (project, ownerOverride = null) => {
-    const ownerName  = ownerOverride?.name  ?? currentUser?.name;
-    const ownerPhoto = ownerOverride?.photo ?? currentUser?.photo_url;
-    const ownerUserId = ownerOverride?.userId ?? currentUser?.id;
-    const profile = {
-      userId: ownerUserId,
-      name: ownerName,
-      photoUrl: ownerPhoto,
-      role: 'entrepreneur',
-      isPremium: !!(currentUser?.is_premium),
-      bio: project.description,
-      projectId: project.id,
-      title: project.title,
-      ventureStage: project.stage,
-      fundingNeeds: project.funding_needed,
-      industry: project.industry,
-    };
-    navigation.navigate('ProfileDetail', { profile, matchId: null });
+    setProjectDetail({
+      ...project,
+      ownerName: ownerOverride?.name ?? currentUser?.name,
+    });
   };
 
   const handleManagePartners = (projectId) => {
@@ -735,9 +729,14 @@ export default function ProjectsScreen({ route }) {
         quality: 1,
       });
       if (result.canceled || !result.assets?.[0]) return;
-      await uploadVideo(projectId, result.assets[0].uri);
+      setVideoUpload({ projectId, progress: 0 });
+      await uploadVideo(projectId, result.assets[0].uri, (pct) => {
+        setVideoUpload({ projectId, progress: pct });
+      });
+      setVideoUpload({ projectId: null, progress: 0 });
       load();
     } catch {
+      setVideoUpload({ projectId: null, progress: 0 });
       Alert.alert('Upload Failed', 'Could not upload video. Please try again.');
     }
   };
@@ -795,6 +794,7 @@ export default function ProjectsScreen({ route }) {
               onManagePartners={handleManagePartners}
               onReviewDeck={handleReviewDeck}
               onViewDetail={handleViewProject}
+              videoUploadProgress={videoUpload.projectId === p.id ? videoUpload.progress : null}
               styles={styles}
               C={C}
             />
@@ -912,6 +912,45 @@ export default function ProjectsScreen({ route }) {
                 <Text style={styles.deleteBtnConfirmText}>Delete</Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Project Detail Modal */}
+      <Modal visible={!!projectDetail} transparent animationType="fade" onRequestClose={() => setProjectDetail(null)}>
+        <View style={styles.deleteOverlay}>
+          <View style={[styles.deleteModal, { maxWidth: 380, width: '92%' }]}>
+            <Text style={[styles.deleteModalTitle, { fontSize: 18, marginBottom: 4 }]}>{projectDetail?.title}</Text>
+            {projectDetail?.ownerName ? (
+              <Text style={{ fontSize: 13, color: C.textHint, marginBottom: 10 }}>by {projectDetail.ownerName}</Text>
+            ) : null}
+            {(projectDetail?.stage || projectDetail?.industry) ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                {projectDetail?.stage ? (
+                  <View style={styles.stagePill}><Text style={styles.stagePillText}>{STAGE_LABELS[projectDetail.stage] || projectDetail.stage}</Text></View>
+                ) : null}
+                {projectDetail?.industry ? (
+                  <View style={styles.metaChip}><Text style={styles.metaChipText}>{projectDetail.industry}</Text></View>
+                ) : null}
+              </View>
+            ) : null}
+            {projectDetail?.description ? (
+              <Text style={{ fontSize: 14, color: C.textSecondary, lineHeight: 20, marginBottom: 12 }}>{projectDetail.description}</Text>
+            ) : null}
+            {projectDetail?.funding_needed ? (
+              <Text style={{ fontSize: 14, color: C.primary, fontWeight: '700', marginBottom: 10 }}>
+                💰 Seeking ${Number(projectDetail.funding_needed).toLocaleString()}
+              </Text>
+            ) : null}
+            {(projectDetail?.deck_url || projectDetail?.video_url) ? (
+              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
+                {projectDetail?.deck_url ? <View style={styles.metaChip}><Text style={styles.metaChipText}>📄 Deck attached</Text></View> : null}
+                {projectDetail?.video_url ? <View style={styles.metaChip}><Text style={styles.metaChipText}>🎬 Video attached</Text></View> : null}
+              </View>
+            ) : null}
+            <TouchableOpacity style={styles.deleteBtnCancel} onPress={() => setProjectDetail(null)}>
+              <Text style={styles.deleteBtnCancelText}>Close</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -1209,6 +1248,18 @@ function makeStyles(C) {
     fontSize: 12,
     fontWeight: '600',
     color: C.primary,
+  },
+  videoProgressBar: {
+    height: 4,
+    backgroundColor: C.surfaceBorder,
+    borderRadius: 2,
+    marginTop: 6,
+    overflow: 'hidden',
+  },
+  videoProgressFill: {
+    height: 4,
+    backgroundColor: C.primary,
+    borderRadius: 2,
   },
 
   // Form panel

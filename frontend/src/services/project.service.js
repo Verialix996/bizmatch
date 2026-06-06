@@ -18,7 +18,7 @@ export const uploadDeck = (projectId, fileUri, fileName) => {
   });
 };
 
-export const uploadVideo = (projectId, fileUri) =>
+export const uploadVideo = (projectId, fileUri, onProgress) =>
   new Promise((resolve, reject) => {
     const token = useAuthStore.getState().token;
     const formData = new FormData();
@@ -26,6 +26,11 @@ export const uploadVideo = (projectId, fileUri) =>
     const xhr = new XMLHttpRequest();
     xhr.open('POST', `${API_BASE_URL}/projects/${projectId}/upload-video`);
     if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+    if (onProgress) {
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+    }
     xhr.onreadystatechange = () => {
       if (xhr.readyState !== 4) return;
       try {

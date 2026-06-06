@@ -706,7 +706,9 @@ export default function ChatScreen({ route, navigation }) {
       return (
         <View style={[styles.actionCard, styles.projectSharedCard]}>
           <Text style={styles.actionCardTitle}>📁 Project Shared</Text>
-          <Text style={styles.projectSharedTitle}>{meta.title || 'Untitled Project'}</Text>
+          <TouchableOpacity onPress={() => setDetailProject(meta)} activeOpacity={0.7}>
+            <Text style={[styles.projectSharedTitle, { textDecorationLine: 'underline' }]}>{meta.title || 'Untitled Project'}</Text>
+          </TouchableOpacity>
           {meta.industry || meta.stage ? (
             <Text style={styles.projectSharedMeta}>
               {[meta.stage, meta.industry].filter(Boolean).join(' · ')}

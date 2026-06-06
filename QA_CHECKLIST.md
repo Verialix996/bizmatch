@@ -43,37 +43,9 @@
 
 ## ✅ Flow 5 — Mutual Match — Complete
 ## ✅ Flow 6 — Chat & Messaging — Complete
-
----
-
-## Flow 7 — NDA in Chat
-**Accounts:** `sarah.chen@bizmatch.app` (investor) **sends** NDA request → `alex.rivera@bizmatch.app` (entrepreneur) **receives and agrees**
-
-- [ ] Investor taps "Request NDA" → picks project → NDA terms modal appears with "Sign & Send Request" button
-- [ ] After investor signs: chat shows "You've signed. Waiting for Alex Rivera to agree." (no Download PDF link, no action buttons)
-- [ ] Entrepreneur receives NDA card with inline terms (Confidentiality, Non-Use, Duration, Governing Law) and "I Agree" button — no Download PDF link shown
-- [ ] After entrepreneur taps "I Agree": AI generates the NDA contract, "NDA Agreed" card appears for both parties
-- [ ] "View NDA Document →" link on the signed card opens the AI-generated PDF for both investor and entrepreneur
----
-
-## Flow 8 — Project Sharing in Chat
-**Accounts:** `sarah.chen@bizmatch.app` (investor) ↔ `alex.rivera@bizmatch.app` (has **TeamSync** project)
-
-- [ ] Share project action visible in chat
-- [ ] Project selection list loads (TeamSync should appear for Alex)
-- [ ] Selected project appears as a card in chat
-- [ ] Investor side can view the project card
-
----
-
-## Flow 9 — Partner Invite in Chat
-**Accounts:** Any matched entrepreneur pair, e.g. `alex.rivera@bizmatch.app` inviting `ethan.park@bizmatch.app` — requires them to be matched first
-
-- [ ] "Invite as Partner" action visible
-- [ ] Project selection for invite works
-- [ ] Invite message appears in chat
-- [ ] Receiver can accept the invite
-- [ ] Accepted partner appears in the project's partner list
+## ✅ Flow 7 — NDA in Chat — Complete
+## ✅ Flow 8 — Project Sharing in Chat — Complete
+## ✅ Flow 9 — Partner Invite in Chat — Complete
 
 ---
 
@@ -81,18 +53,12 @@
 **Accounts:** `alex.rivera@bizmatch.app` (has **TeamSync** project pre-seeded)
 *(Also test with `mia.johnson` → CashBridge, `jordan.lee` → VitalBand, `zara.ahmed` → LearnArc, `ethan.park` → ArtisanRoute)*
 
-- [ ] Projects tab loads "My Projects" and "Joined Projects" sections
-- [ ] TeamSync project appears in "My Projects"
 - [ ] Create new project: name, description, stage → saves correctly
-- [ ] Newly created project appears in list
-- [ ] Edit project: changes save and display correctly
-- [ ] Delete project: confirmation dialog → removed from list
-- [ ] Upload pitch deck (PDF): progress shown, saved with version number
-- [ ] Upload pitch video: progress shown, playable after upload
+- [ ] Upload pitch video: progress bar shown during upload, video playable after upload
+- [ ] Tapping a project card opens project detail popup (not owner profile)
 - [ ] Manage partners: list shows all partners with roles
 - [ ] Change partner role: dropdown works and saves
 - [ ] AI feedback on deck displays (requires investor to have reviewed the deck)
-
 ---
 
 ## Flow 11 — Meetings
