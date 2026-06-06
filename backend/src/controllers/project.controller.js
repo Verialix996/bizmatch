@@ -2,26 +2,26 @@ const {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
   getProjectPartners, addProjectPartner, removeProjectPartner, updatePartnerRole,
-  getJoinedProjects, getProjectsByOwner,
+  getJoinedProjects, getProjectsByOwner, preScoreProject,
 } = require('../models/project.model');
 const { query } = require('../config/db');
 const { sendMessage } = require('../models/message.model');
-const { uploadDeckMemory: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
+const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 const Anthropic = require('@anthropic-ai/sdk');
 const { moderateText } = require('../services/moderation.service');
 
-// POST /api/projects/:id/upload-deck — stores PDF bytes in DB (avoids Cloudinary raw-file restrictions)
+// POST /api/projects/:id/upload-deck — uploads to Cloudinary, stores URL
 const uploadDeck = [
   deckUpload,
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      if (req.file.mimetype !== 'application/pdf') return res.status(400).json({ error: 'Only PDF files are allowed' });
+      const url = req.file.path; // Cloudinary secure URL
       await query(
-        'UPDATE projects SET deck_data = ?, deck_url = ? WHERE id = ? AND user_id = ?',
-        [req.file.buffer, 'stored', Number(req.params.id), req.user.id]
+        'UPDATE projects SET deck_url = ? WHERE id = ? AND user_id = ?',
+        [url, Number(req.params.id), req.user.id]
       );
-      res.json({ deck_url: 'stored' });
+      res.json({ deck_url: url });
     } catch (err) { next(err); }
   },
 ];
@@ -130,6 +130,7 @@ const create = async (req, res, next) => {
     }
     const project = await createProject(req.user.id, req.body);
     res.status(201).json(project);
+    preScoreProject(project.id).catch(() => {});
   } catch (err) { next(err); }
 };
 
@@ -146,6 +147,7 @@ const update = async (req, res, next) => {
     }
     const project = await updateProject(Number(req.params.id), req.user.id, req.body);
     res.json(project);
+    preScoreProject(Number(req.params.id)).catch(() => {});
   } catch (err) { next(err); }
 };
 
@@ -221,11 +223,12 @@ const reviewDeck = async (req, res, next) => {
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
-    // Fetch deck bytes from DB (stored as BLOB)
-    const deckRows = await query('SELECT deck_data FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
-    const deckData = deckRows[0]?.deck_data;
-    if (!deckData || deckData.length === 0) return res.status(400).json({ error: 'Pitch deck not found. Please re-upload the PDF.' });
-    const base64 = Buffer.isBuffer(deckData) ? deckData.toString('base64') : Buffer.from(deckData).toString('base64');
+    // Fetch deck from Cloudinary URL
+    const deckUrl = rows[0].deck_url;
+    if (!deckUrl) return res.status(400).json({ error: 'Pitch deck not found. Please re-upload the PDF.' });
+    const pdfRes = await fetch(deckUrl);
+    if (!pdfRes.ok) return res.status(502).json({ error: 'Failed to fetch pitch deck from storage' });
+    const base64 = Buffer.from(await pdfRes.arrayBuffer()).toString('base64');
 
     const client = new Anthropic();
     const response = await client.messages.create({
@@ -267,24 +270,25 @@ Respond ONLY with valid JSON, no markdown:
   }
 };
 
-// GET /api/projects/:id/deck — proxy the PDF through the backend (bypasses Cloudinary free-tier block)
+// GET /api/projects/:id/deck — proxy from Cloudinary with correct Content-Type
 const jwt = require('jsonwebtoken');
 const serveDeck = async (req, res, next) => {
   try {
-    // Accept JWT from Authorization header or ?token= query param (for browser navigation)
     const token = req.headers.authorization?.split(' ')[1] || req.query.token;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
     try { jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
 
-    const rows = await query('SELECT deck_data, deck_url FROM projects WHERE id = ?', [Number(req.params.id)]);
+    const rows = await query('SELECT deck_url FROM projects WHERE id = ?', [Number(req.params.id)]);
     if (!rows[0]) return res.status(404).json({ error: 'Project not found' });
-    const deckData = rows[0].deck_data;
-    if (!deckData || deckData.length === 0) return res.status(404).json({ error: 'No pitch deck uploaded' });
+    const deckUrl = rows[0].deck_url;
+    if (!deckUrl) return res.status(404).json({ error: 'No pitch deck uploaded' });
 
-    const buffer = Buffer.isBuffer(deckData) ? deckData : Buffer.from(deckData);
+    const response = await fetch(deckUrl);
+    if (!response.ok) return res.status(502).json({ error: 'Failed to fetch deck from storage' });
+    const buf = Buffer.from(await response.arrayBuffer());
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="pitch-deck.pdf"');
-    res.send(buffer);
+    res.send(buf);
   } catch (err) { next(err); }
 };
 
@@ -316,89 +320,4 @@ const serveNda = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// POST /api/projects/:id/partners/:userId/role-request  { newRole }
-// Owner proposes a role change — sends a chat message for the member to approve
-const proposeRoleChange = async (req, res, next) => {
-  try {
-    const projectId    = Number(req.params.id);
-    const targetUserId = Number(req.params.userId);
-    const requesterId  = req.user.id;
-    const newRole      = req.body.newRole ? String(req.body.newRole).trim() : null;
-
-    if (!newRole) return res.status(400).json({ error: 'newRole required' });
-
-    const projectRows = await query('SELECT id, title FROM projects WHERE id = ? AND user_id = ?', [projectId, requesterId]);
-    if (!projectRows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
-
-    const partnerRows = await query('SELECT role FROM project_partners WHERE project_id = ? AND user_id = ?', [projectId, targetUserId]);
-    if (!partnerRows[0]) return res.status(404).json({ error: 'User is not a partner of this project' });
-
-    const matchRows = await query(
-      'SELECT id FROM matches WHERE (user1_id = ? AND user2_id = ?) OR (user1_id = ? AND user2_id = ?)',
-      [requesterId, targetUserId, targetUserId, requesterId]
-    );
-    if (!matchRows[0]) return res.status(404).json({ error: 'No chat found with this user' });
-    const matchId = matchRows[0].id;
-
-    const pendingRows = await query(
-      "SELECT id FROM role_change_requests WHERE project_id = ? AND target_user_id = ? AND status = 'pending'",
-      [projectId, targetUserId]
-    );
-    if (pendingRows[0]) return res.status(409).json({ error: 'A role change request is already pending for this member' });
-
-    const insert = await query(
-      'INSERT INTO role_change_requests (project_id, match_id, requester_id, target_user_id, new_role) VALUES (?, ?, ?, ?, ?)',
-      [projectId, matchId, requesterId, targetUserId, newRole]
-    );
-    const requestId = insert.insertId;
-
-    await sendMessage(
-      matchId, requesterId,
-      `Role change proposed for ${projectRows[0].title}: new role → ${newRole}`,
-      'role_change_request',
-      { requestId, projectId, projectTitle: projectRows[0].title, newRole, targetUserId }
-    );
-
-    res.json({ ok: true, requestId });
-  } catch (err) { next(err); }
-};
-
-// POST /api/projects/:id/role-request/:requestId/respond  { accepted: bool }
-// Member approves or rejects the role change
-const respondToRoleChange = async (req, res, next) => {
-  try {
-    const projectId = Number(req.params.id);
-    const requestId = Number(req.params.requestId);
-    const userId    = req.user.id;
-    const accepted  = req.body.accepted === true || req.body.accepted === 'true';
-
-    const rows = await query(
-      "SELECT * FROM role_change_requests WHERE id = ? AND target_user_id = ? AND status = 'pending'",
-      [requestId, userId]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'Request not found or already resolved' });
-    const rcr = rows[0];
-
-    const newStatus = accepted ? 'accepted' : 'rejected';
-    await query('UPDATE role_change_requests SET status = ? WHERE id = ?', [newStatus, requestId]);
-
-    if (accepted) {
-      await query(
-        'UPDATE project_partners SET role = ? WHERE project_id = ? AND user_id = ?',
-        [rcr.new_role, rcr.project_id, userId]
-      );
-    }
-
-    const projectRows = await query('SELECT title FROM projects WHERE id = ?', [rcr.project_id]);
-    const msg = await sendMessage(
-      rcr.match_id, userId,
-      accepted ? `Role change accepted: ${rcr.new_role}` : 'Role change declined.',
-      'role_change_response',
-      { requestId, projectId: rcr.project_id, projectTitle: projectRows[0]?.title, newRole: rcr.new_role, accepted }
-    );
-
-    res.json({ ok: true, status: newStatus, message: msg });
-  } catch (err) { next(err); }
-};
-
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, patchPartnerRole, proposeRoleChange, respondToRoleChange, reviewDeck, serveDeck, serveNda };
+module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, patchPartnerRole, reviewDeck, serveDeck, serveNda };

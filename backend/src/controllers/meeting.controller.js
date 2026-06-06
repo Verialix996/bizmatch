@@ -128,19 +128,13 @@ const briefing = async (req, res, next) => {
       return res.status(503).json({ error: 'AI briefing not configured' });
     }
 
-    const MAX_DAILY = parseInt(process.env.MAX_DAILY_BRIEFINGS || '50', 10);
-    const usageRows = await query('SELECT briefing_count FROM api_usage WHERE date = CURDATE()');
-    if ((usageRows[0]?.briefing_count ?? 0) >= MAX_DAILY) {
-      return res.status(429).json({ error: 'Daily AI briefing limit reached. Try again tomorrow.' });
-    }
-
     const otherId = meeting.proposer_id === userId ? meeting.receiver_id : meeting.proposer_id;
 
     const [profileRows, projectRows] = await Promise.all([
       query(
-        `SELECT u.name, u.role, p.bio, p.skills, p.hobbies, p.role_type,
-                p.investment_domain, p.preferred_stage, p.max_investment
-         FROM users u LEFT JOIN profiles p ON p.user_id = u.id WHERE u.id = ?`,
+        `SELECT name, role, bio, skills, hobbies, role_type,
+                investment_domain, preferred_stage, max_investment
+         FROM users WHERE id = ?`,
         [otherId]
       ),
       query(
@@ -189,10 +183,6 @@ Person profile:
     const briefingData = JSON.parse(raw);
 
     await saveBriefing(id, JSON.stringify(briefingData));
-    await query(
-      `INSERT INTO api_usage (date, briefing_count) VALUES (CURDATE(), 1)
-       ON DUPLICATE KEY UPDATE briefing_count = briefing_count + 1`
-    );
     res.json(briefingData);
   } catch (err) {
     next(err);

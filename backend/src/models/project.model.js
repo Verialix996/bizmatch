@@ -1,5 +1,6 @@
 const { query } = require('../config/db');
 const { sendPushNotification } = require('../services/notification.service');
+const Anthropic = require('@anthropic-ai/sdk');
 
 function safeParseArray(value) {
   if (!value) return [];
@@ -84,6 +85,85 @@ async function deleteProject(id, userId) {
   await query('UPDATE projects SET is_active = 0 WHERE id = ? AND user_id = ?', [id, userId]);
 }
 
+// ── AI project scoring ────────────────────────────────────────────────────────
+
+async function ensureAiProjectScores(investorId, investorProfile, projects) {
+  if (!process.env.ANTHROPIC_API_KEY || !investorProfile || !projects.length) return;
+
+  const projectIds = projects.map(p => p.id);
+  const placeholders = projectIds.map(() => '?').join(',');
+  const cached = await query(
+    `SELECT project_id FROM ai_project_scores WHERE investor_id = ? AND project_id IN (${placeholders})`,
+    [investorId, ...projectIds]
+  );
+  const cachedSet = new Set(cached.map(r => r.project_id));
+  const uncached = projects.filter(p => !cachedSet.has(p.id)).slice(0, 10);
+  if (!uncached.length) return;
+
+  const client = new Anthropic();
+  await Promise.allSettled(uncached.map(async (p) => {
+    const prompt = `Rate investor-project fit 0-100. Reply with ONLY a number.
+Investor: domain=${investorProfile.investment_domain || 'N/A'}, preferred stage=${investorProfile.preferred_stage || 'N/A'}, max invest=$${investorProfile.max_investment || 0}.
+Project: industry=${p.industry || 'N/A'}, stage=${p.stage || 'N/A'}, funding needed=$${p.funding_needed || 0}, description=${(p.description || '').slice(0, 200)}, owner skills=${safeParseArray(p.owner_skills).join(', ') || 'N/A'}.`;
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 5,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    const raw = response.content[0]?.text?.trim();
+    const score = parseInt(raw, 10);
+    if (isNaN(score)) return;
+    const clamped = Math.max(0, Math.min(100, score));
+    await query(
+      'INSERT IGNORE INTO ai_project_scores (investor_id, project_id, score) VALUES (?, ?, ?)',
+      [investorId, p.id, clamped]
+    );
+  }));
+}
+
+async function preScoreProject(projectId) {
+  if (!process.env.ANTHROPIC_API_KEY) return;
+
+  const projRows = await query(
+    `SELECT p.id, p.industry, p.stage, p.funding_needed, p.description, u.skills AS owner_skills
+     FROM projects p JOIN users u ON u.id = p.user_id WHERE p.id = ? AND p.is_active = 1`,
+    [projectId]
+  );
+  const project = projRows[0];
+  if (!project) return;
+
+  const investors = await query(
+    'SELECT id, investment_domain, preferred_stage, max_investment FROM users WHERE role = ? AND deleted_at IS NULL',
+    ['investor']
+  );
+  if (!investors.length) return;
+
+  await query('DELETE FROM ai_project_scores WHERE project_id = ?', [projectId]);
+
+  const client = new Anthropic();
+  for (let i = 0; i < investors.length; i += 10) {
+    const batch = investors.slice(i, i + 10);
+    await Promise.allSettled(batch.map(async (inv) => {
+      const prompt = `Rate investor-project fit 0-100. Reply with ONLY a number.
+Investor: domain=${inv.investment_domain || 'N/A'}, preferred stage=${inv.preferred_stage || 'N/A'}, max invest=$${inv.max_investment || 0}.
+Project: industry=${project.industry || 'N/A'}, stage=${project.stage || 'N/A'}, funding needed=$${project.funding_needed || 0}, description=${(project.description || '').slice(0, 200)}, owner skills=${safeParseArray(project.owner_skills).join(', ') || 'N/A'}.`;
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 5,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      const raw = response.content[0]?.text?.trim();
+      const score = parseInt(raw, 10);
+      if (isNaN(score)) return;
+      const clamped = Math.max(0, Math.min(100, score));
+      await query(
+        'INSERT IGNORE INTO ai_project_scores (investor_id, project_id, score) VALUES (?, ?, ?)',
+        [inv.id, projectId, clamped]
+      );
+    }));
+  }
+}
+
 // ── Feed for investors ────────────────────────────────────────────────────────
 
 async function getProjectFeed(investorId, limit = 20) {
@@ -93,7 +173,7 @@ async function getProjectFeed(investorId, limit = 20) {
   );
   const swiped = swipedRows.map(r => r.project_id);
 
-  const investorProfileRows = await query('SELECT * FROM profiles WHERE user_id = ?', [investorId]);
+  const investorProfileRows = await query('SELECT * FROM users WHERE id = ?', [investorId]);
   const investorProfile = investorProfileRows[0];
 
   const swipedClause = swiped.length > 0
@@ -106,10 +186,9 @@ async function getProjectFeed(investorId, limit = 20) {
             p.created_at, p.updated_at,
             u.name AS owner_name, u.photo_url AS owner_photo,
             u.is_premium AS owner_is_premium, u.premium_expires_at AS owner_premium_expires_at,
-            pr.bio AS owner_bio, pr.skills AS owner_skills
+            u.bio AS owner_bio, u.skills AS owner_skills
      FROM projects p
      JOIN users u ON u.id = p.user_id
-     LEFT JOIN profiles pr ON pr.user_id = p.user_id
      WHERE p.is_active = 1
        AND p.visibility = 'public'
        AND u.role = 'entrepreneur'
@@ -124,16 +203,37 @@ async function getProjectFeed(investorId, limit = 20) {
     [investorId, investorId, investorId, investorId, ...swiped]
   );
 
+  // Ensure AI scores exist for up to 10 uncached projects (5s timeout fallback)
+  await Promise.race([
+    ensureAiProjectScores(investorId, investorProfile, projects),
+    new Promise(resolve => setTimeout(resolve, 5000)),
+  ]).catch(() => {});
+
+  // Load cached AI scores in one query
+  const aiScoreMap = new Map();
+  if (projects.length > 0) {
+    const pIds = projects.map(p => p.id);
+    const pPlaceholders = pIds.map(() => '?').join(',');
+    const aiRows = await query(
+      `SELECT project_id, score FROM ai_project_scores WHERE investor_id = ? AND project_id IN (${pPlaceholders})`,
+      [investorId, ...pIds]
+    );
+    aiRows.forEach(r => aiScoreMap.set(r.project_id, r.score));
+  }
+
   const scored = projects.map(p => {
     let score = 0;
-    if (investorProfile) {
+    const aiScore = aiScoreMap.get(p.id) ?? null;
+    if (aiScore != null) {
+      score += Math.round(aiScore / 100 * 60);
+      score += Math.round(stageScore(investorProfile?.preferred_stage, p.stage) / 40 * 20);
+      score += Math.round(budgetScore(investorProfile?.max_investment, p.funding_needed) / 30 * 10);
+      if (p.deck_url)  score += 5;
+      if (p.video_url) score += 5;
+    } else if (investorProfile) {
       score += stageScore(investorProfile.preferred_stage, p.stage);
       score += budgetScore(investorProfile.max_investment, p.funding_needed);
-      const entText = [
-        p.industry || '',
-        ...(safeParseArray(p.owner_skills)),
-        p.owner_bio || '',
-      ].join(' ');
+      const entText = [p.industry || '', ...safeParseArray(p.owner_skills), p.owner_bio || ''].join(' ');
       score += jaccardScore(investorProfile.investment_domain || '', entText, 30);
       if (p.deck_url)  score += 10;
       if (p.video_url) score += 10;
@@ -153,6 +253,7 @@ async function getProjectFeed(investorId, limit = 20) {
       industry: p.industry,
       deckUrl: p.deck_url,
       videoUrl: p.video_url,
+      aiScore,
       score,
     };
   });
@@ -253,11 +354,10 @@ async function getProjectMatches(userId, role) {
   return await query(
     `SELECT pm.*, p.title, p.description,
             u.name AS investor_name, u.photo_url AS investor_photo,
-            pr.bio AS investor_bio, pr.investment_domain
+            u.bio AS investor_bio, u.investment_domain
      FROM project_matches pm
      JOIN projects p ON p.id = pm.project_id
      JOIN users u ON u.id = pm.investor_id
-     LEFT JOIN profiles pr ON pr.user_id = pm.investor_id
      WHERE p.user_id = ?
      ORDER BY pm.created_at DESC`,
     [userId]
@@ -268,7 +368,7 @@ async function getProjectMatches(userId, role) {
 
 async function getProjectPartners(projectId) {
   const rows = await query(
-    `SELECT team.user_id, u.name, u.photo_url, pr.bio, pr.role_type, pr.skills,
+    `SELECT team.user_id, u.name, u.photo_url, u.bio, u.role_type, u.skills,
             team.is_owner, team.role AS project_role
      FROM (
        SELECT user_id AS user_id, 1 AS is_owner, 'owner' AS role FROM projects WHERE id = ?
@@ -276,7 +376,6 @@ async function getProjectPartners(projectId) {
        SELECT pp.user_id, 0 AS is_owner, pp.role FROM project_partners pp WHERE pp.project_id = ?
      ) AS team
      JOIN users u ON u.id = team.user_id
-     LEFT JOIN profiles pr ON pr.user_id = team.user_id
      ORDER BY team.is_owner DESC`,
     [projectId, projectId]
   );
@@ -368,5 +467,5 @@ module.exports = {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
   getProjectFeed, swipeProject, getProjectMatches,
   getProjectPartners, addProjectPartner, removeProjectPartner, updatePartnerRole,
-  getJoinedProjects, getProjectsByOwner,
+  getJoinedProjects, getProjectsByOwner, preScoreProject,
 };

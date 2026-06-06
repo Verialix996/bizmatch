@@ -69,9 +69,9 @@ async function getConversations(userId) {
        u.id AS userId,
        u.name,
        u.photo_url AS photoUrl,
-       p.role_type AS roleType,
-       p.bio,
-       p.investment_domain AS investmentDomain,
+       u.role_type AS roleType,
+       u.bio,
+       u.investment_domain AS investmentDomain,
        ent_proj.stage AS ventureStage,
        lm.body AS lastMessage,
        lm.created_at AS lastMessageAt,
@@ -81,7 +81,6 @@ async function getConversations(userId) {
        pm.investor_id AS projectInvestorId
      FROM matches m
      JOIN users u ON u.id = IF(m.user1_id = ?, m.user2_id, m.user1_id)
-     LEFT JOIN profiles p ON p.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage
        FROM projects pr

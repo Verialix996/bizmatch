@@ -1,21 +1,14 @@
 const multer = require('multer');
-const { photoStorage, docStorage, videoStorage } = require('../config/cloudinary');
+const { photoStorage, cvStorage, deckStorage, videoStorage } = require('../config/cloudinary');
 
 const MB = 1024 * 1024;
 
 const uploadPhoto = multer({ storage: photoStorage, limits: { fileSize: 5 * MB } }).single('photo');
 
-const uploadDoc = multer({ storage: docStorage, limits: { fileSize: 20 * MB } }).single('document');
-
-// Memory-based document upload — gives req.file.buffer for manual Cloudinary upload
-const uploadDocMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * MB } }).single('document');
-
-// Deck stored in DB as BLOB — bypass Cloudinary raw-file delivery restrictions
-const uploadDeckMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * MB } }).single('deck');
-
-// CV stored in DB as BLOB — same approach as deck
-const uploadCvMemory = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * MB } }).single('cv');
+// CV and deck go to Cloudinary (raw); backend proxy fixes Content-Type on serve
+const uploadCv   = multer({ storage: cvStorage,   limits: { fileSize: 20 * MB } }).single('cv');
+const uploadDeck = multer({ storage: deckStorage,  limits: { fileSize: 20 * MB } }).single('deck');
 
 const uploadVideo = multer({ storage: videoStorage, limits: { fileSize: 100 * MB } }).single('video');
 
-module.exports = { uploadPhoto, uploadDoc, uploadDocMemory, uploadDeckMemory, uploadCvMemory, uploadVideo };
+module.exports = { uploadPhoto, uploadCv, uploadDeck, uploadVideo };

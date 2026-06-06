@@ -4,6 +4,7 @@ const { query } = require('../config/db');
 const { uploadDoc: upload } = require('../middleware/upload');
 const { moderateText } = require('../services/moderation.service');
 const { cloudinary } = require('../config/cloudinary');
+const { preScoreUser } = require('../models/match.model');
 
 // GET /api/profile/public/:userId
 async function getPublicProfile(req, res, next) {
@@ -13,11 +14,10 @@ async function getPublicProfile(req, res, next) {
 
     const rows = await query(
       `SELECT u.id, u.name, u.photo_url, u.role, u.is_premium, u.premium_expires_at,
-              p.bio, p.role_type, p.skills, p.hobbies, p.investment_domain,
-              p.preferred_stage, p.max_investment,
+              u.bio, u.role_type, u.skills, u.hobbies, u.investment_domain,
+              u.preferred_stage, u.max_investment,
               proj.stage AS venture_stage, proj.funding_needed AS funding_needs
        FROM users u
-       LEFT JOIN profiles p ON p.user_id = u.id
        LEFT JOIN (
          SELECT pr.user_id, pr.stage, pr.funding_needed
          FROM projects pr
@@ -55,9 +55,7 @@ async function getPublicProfile(req, res, next) {
 async function getMyProfile(req, res, next) {
   try {
     const profile = await ProfileModel.findByUserId(req.user.id);
-    const userRows = await query('SELECT photo_url FROM users WHERE id = ?', [req.user.id]);
-    const photoUrl = userRows[0]?.photo_url || null;
-    res.json(profile ? { ...profile, photo_url: photoUrl } : { photo_url: photoUrl });
+    res.json(profile || {});
   } catch (err) {
     next(err);
   }
@@ -86,6 +84,7 @@ async function createProfile(req, res, next) {
       role_type: roleType,
     });
     res.status(201).json(profile);
+    preScoreUser(req.user.id).catch(() => {});
   } catch (err) {
     return res.status(500).json({ error: `[diag] ${err.errno || ''} ${err.sqlMessage || err.message}` });
   }
@@ -113,9 +112,9 @@ async function updateProfile(req, res, next) {
     });
     // Re-enter user into the match pool by clearing pass swipes targeting them
     await query("DELETE FROM swipes WHERE swiped_id = ? AND direction = 'pass'", [req.user.id]);
-    // Invalidate cached AI scores so fresh ones are computed on next feed load
-    query('DELETE FROM ai_match_scores WHERE user_id = ? OR candidate_id = ?', [req.user.id, req.user.id]).catch(() => {});
     res.json({ message: 'Profile updated' });
+    // Re-score against all candidates in background (clears old scores internally)
+    preScoreUser(req.user.id).catch(() => {});
   } catch (err) {
     next(err);
   }
@@ -132,23 +131,19 @@ async function uploadIdDocument(req, res, next) {
   }
 }
 
-// POST /api/profile/upload-cv  — stores CV bytes in DB as BLOB (Cloudinary free tier blocks raw file delivery)
+// POST /api/profile/upload-cv  — uploads to Cloudinary, stores URL
 async function uploadCv(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    await query(
-      `INSERT INTO profiles (user_id, cv_data, cv_url)
-       VALUES (?, ?, 'stored')
-       ON DUPLICATE KEY UPDATE cv_data = VALUES(cv_data), cv_url = VALUES(cv_url)`,
-      [req.user.id, req.file.buffer]
-    );
-    res.json({ cv_url: 'stored' });
+    const url = req.file.path; // Cloudinary secure URL
+    await query('UPDATE users SET cv_url = ? WHERE id = ?', [url, req.user.id]);
+    res.json({ cv_url: url });
   } catch (err) {
     next(err);
   }
 }
 
-// GET /api/profile/cv — serve CV PDF from DB (bypasses Cloudinary free-tier raw block)
+// GET /api/profile/cv — proxy from Cloudinary with correct Content-Type (fixes octet-stream delivery)
 const jwt = require('jsonwebtoken');
 async function serveCv(req, res, next) {
   try {
@@ -157,15 +152,16 @@ async function serveCv(req, res, next) {
     let decoded;
     try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
 
-    const rows = await query('SELECT cv_data FROM profiles WHERE user_id = ?', [decoded.id]);
-    if (!rows[0]) return res.status(404).json({ error: 'Profile not found' });
-    const cvData = rows[0].cv_data;
-    if (!cvData || cvData.length === 0) return res.status(404).json({ error: 'No CV uploaded' });
+    const rows = await query('SELECT cv_url FROM users WHERE id = ?', [decoded.id]);
+    const cvUrl = rows[0]?.cv_url;
+    if (!cvUrl) return res.status(404).json({ error: 'No CV uploaded' });
 
-    const buffer = Buffer.isBuffer(cvData) ? cvData : Buffer.from(cvData);
+    const response = await fetch(cvUrl);
+    if (!response.ok) return res.status(502).json({ error: 'Failed to fetch CV from storage' });
+    const buf = Buffer.from(await response.arrayBuffer());
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', 'inline; filename="cv.pdf"');
-    res.send(buffer);
+    res.send(buf);
   } catch (err) { next(err); }
 }
 

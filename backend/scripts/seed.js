@@ -23,11 +23,11 @@ const path = require('path');
 const MIGRATIONS_DIR = path.join(__dirname, '../migrations');
 
 const DROP_ORDER = [
-  'notifications', 'ai_compatibility_breakdowns',
+  'notifications',
   'messages', 'meetings', 'project_ndas', 'partner_invitations',
   'project_partners', 'project_matches', 'project_swipes',
-  'ai_match_scores', 'role_change_requests', 'swipes', 'matches', 'projects', 'profiles',
-  'api_usage', 'users', 'schema_migrations',
+  'ai_project_scores', 'ai_match_scores', 'swipes', 'matches', 'projects',
+  'users', 'schema_migrations',
 ];
 
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -131,17 +131,15 @@ async function createUser(conn, { name, email, role }) {
 
 async function createInvestorProfile(conn, userId, inv) {
   await conn.query(
-    `INSERT INTO profiles (user_id, bio, role_type, investment_domain, preferred_stage, max_investment, skills)
-     VALUES (?, ?, 'investor', ?, ?, ?, ?)`,
-    [userId, inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills)]
+    `UPDATE users SET bio = ?, role_type = 'investor', investment_domain = ?, preferred_stage = ?, max_investment = ?, skills = ? WHERE id = ?`,
+    [inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills), userId]
   );
 }
 
 async function createEntrepreneurProfile(conn, userId, ent) {
   await conn.query(
-    `INSERT INTO profiles (user_id, bio, role_type, skills, hobbies)
-     VALUES (?, ?, 'entrepreneur', ?, ?)`,
-    [userId, ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies)]
+    `UPDATE users SET bio = ?, role_type = 'entrepreneur', skills = ?, hobbies = ? WHERE id = ?`,
+    [ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies), userId]
   );
 }
 
@@ -281,7 +279,7 @@ async function confirm(question) {
 }
 
 async function main() {
-  console.log('\n⚠️  WARNING: This will DROP all 15 tables. All existing data will be permanently deleted.\n');
+  console.log('\n⚠️  WARNING: This will DROP all 14 tables. All existing data will be permanently deleted.\n');
   const answer = await confirm('Type "yes" to drop all tables: ');
   if (answer !== 'yes') {
     console.log('Aborted.');

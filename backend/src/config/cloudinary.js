@@ -12,13 +12,23 @@ const photoStorage = new CloudinaryStorage({
   params: { folder: 'bizmatch/photos', allowed_formats: ['jpg', 'jpeg', 'png'], resource_type: 'image' },
 });
 
-const docStorage = new CloudinaryStorage({
+const cvStorage = new CloudinaryStorage({
   cloudinary,
-  params: async (_req, _file) => ({
-    folder: 'bizmatch/docs',
-    allowed_formats: ['pdf'],
+  params: async () => ({
+    folder: 'bizmatch/cvs',
     resource_type: 'raw',
-    public_id: `deck_${Date.now()}.pdf`,
+    public_id: `cv_${Date.now()}`,
+    format: 'pdf',
+  }),
+});
+
+const deckStorage = new CloudinaryStorage({
+  cloudinary,
+  params: async () => ({
+    folder: 'bizmatch/decks',
+    resource_type: 'raw',
+    public_id: `deck_${Date.now()}`,
+    format: 'pdf',
   }),
 });
 
@@ -27,4 +37,4 @@ const videoStorage = new CloudinaryStorage({
   params: { folder: 'bizmatch/videos', allowed_formats: ['mp4', 'mov'], resource_type: 'video' },
 });
 
-module.exports = { cloudinary, photoStorage, docStorage, videoStorage };
+module.exports = { cloudinary, photoStorage, cvStorage, deckStorage, videoStorage };

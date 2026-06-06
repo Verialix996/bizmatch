@@ -72,37 +72,21 @@ const compatibility = async (req, res, next) => {
     const targetId = Number(req.params.targetUserId);
     if (!targetId) return res.status(400).json({ error: 'targetUserId required' });
 
-    // Check cache (7-day TTL)
-    const cached = await query(
-      'SELECT score, pros, cons, created_at FROM ai_compatibility_breakdowns WHERE viewer_id = ? AND target_id = ?',
-      [viewerId, targetId]
-    );
-    if (cached[0]) {
-      const age = Date.now() - new Date(cached[0].created_at).getTime();
-      if (age < 7 * 24 * 60 * 60 * 1000) {
-        return res.json({
-          score: cached[0].score,
-          pros: typeof cached[0].pros === 'string' ? JSON.parse(cached[0].pros) : cached[0].pros,
-          cons: typeof cached[0].cons === 'string' ? JSON.parse(cached[0].cons) : cached[0].cons,
-        });
-      }
-    }
-
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI unavailable' });
 
     const [viewerRows, targetRows] = await Promise.all([
-      query(`SELECT u.name, u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
                     proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             FROM users u
              LEFT JOIN (
                SELECT pr.user_id, pr.stage, pr.funding_needed
                FROM projects pr
                INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
              ) proj ON proj.user_id = u.id
              WHERE u.id = ?`, [viewerId]),
-      query(`SELECT u.name, u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
                     proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             FROM users u
              LEFT JOIN (
                SELECT pr.user_id, pr.stage, pr.funding_needed
                FROM projects pr
@@ -143,11 +127,6 @@ Provide 2-4 pros and 1-3 cons. Be specific and business-focused.`;
     const score = Math.max(0, Math.min(100, Number(parsed.score) || 0));
     const pros = Array.isArray(parsed.pros) ? parsed.pros : [];
     const cons = Array.isArray(parsed.cons) ? parsed.cons : [];
-
-    await query(
-      'INSERT INTO ai_compatibility_breakdowns (viewer_id, target_id, score, pros, cons) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE score = VALUES(score), pros = VALUES(pros), cons = VALUES(cons), created_at = NOW()',
-      [viewerId, targetId, score, JSON.stringify(pros), JSON.stringify(cons)]
-    );
 
     res.json({ score, pros, cons });
   } catch (err) {

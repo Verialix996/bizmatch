@@ -18,8 +18,6 @@ router.get('/:id/partners',                    authenticate, ctrl.listPartners);
 router.post('/:id/partners',                   authenticate, requireVerified, ctrl.addPartner);
 router.delete('/:id/partners/:userId',         authenticate, requireVerified, ctrl.removePartner);
 router.put('/:id/partners/:userId/role',           authenticate, requireVerified, ctrl.patchPartnerRole);
-router.post('/:id/partners/:userId/role-request',  authenticate, requireVerified, ctrl.proposeRoleChange);
-router.post('/:id/role-request/:requestId/respond', authenticate, requireVerified, ctrl.respondToRoleChange);
 router.post('/:id/deck-review',          authenticate, requireVerified, ctrl.reviewDeck);
 router.get('/:id/deck',                 ctrl.serveDeck);
 router.get('/:id/nda',                  ctrl.serveNda);

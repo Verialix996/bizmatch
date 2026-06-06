@@ -106,6 +106,29 @@ function safeParseArray(value) {
 }
 
 // ---------------------------------------------------------------------------
+// AI scoring helpers
+// ---------------------------------------------------------------------------
+
+function buildPersonPrompt(myRole, myProfile, candidate, selectedProject = null) {
+  if (myRole === 'investor') {
+    return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
+Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myProfile.preferred_stage || 'N/A'}, max invest=$${myProfile.max_investment || 0}.
+Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, industry=${candidate.project_industry || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
+  }
+  if (myRole === 'entrepreneur') {
+    const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
+    const needs = selectedProject?.funding_needed || myProfile.funding_needs || 0;
+    const projectDesc = selectedProject ? `, project="${selectedProject.title || ''} - ${selectedProject.description || ''}"` : '';
+    return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
+Investor: domain=${candidate.investment_domain || 'N/A'}, preferred stage=${candidate.preferred_stage || 'N/A'}, max invest=$${candidate.max_investment || 0}.
+Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${stage}, needs=$${needs}${projectDesc}.`;
+  }
+  return `Rate collaboration potential 0-100. Reply with ONLY a number.
+Person A: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(myProfile.hobbies).join(', ') || 'N/A'}.
+Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(candidate.hobbies).join(', ') || 'N/A'}.`;
+}
+
+// ---------------------------------------------------------------------------
 // AI scoring — synchronous with timeout, max N candidates
 // ---------------------------------------------------------------------------
 
@@ -125,31 +148,12 @@ async function ensureAiScores(userId, userRole, myProfile, candidates, selectedP
 
   const client = new Anthropic();
 
-  const buildPrompt = (candidate) => {
-    if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
-      return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
-Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myProfile.preferred_stage || 'N/A'}, max invest=$${myProfile.max_investment || 0}.
-Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, industry=${candidate.project_industry || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
-    }
-    if (userRole === 'entrepreneur' && candidate.role_type === 'investor') {
-      const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
-      const needs = selectedProject?.funding_needed || myProfile.funding_needs || 0;
-      const projectDesc = selectedProject ? `, project="${selectedProject.title || ''} - ${selectedProject.description || ''}"` : '';
-      return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
-Investor: domain=${candidate.investment_domain || 'N/A'}, preferred stage=${candidate.preferred_stage || 'N/A'}, max invest=$${candidate.max_investment || 0}.
-Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${stage}, needs=$${needs}${projectDesc}.`;
-    }
-    return `Rate collaboration potential 0-100. Reply with ONLY a number.
-Person A: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(myProfile.hobbies).join(', ') || 'N/A'}.
-Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(candidate.hobbies).join(', ') || 'N/A'}.`;
-  };
-
   await Promise.allSettled(
     uncached.map(async (candidate) => {
       const response = await client.messages.create({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 5,
-        messages: [{ role: 'user', content: buildPrompt(candidate) }],
+        messages: [{ role: 'user', content: buildPersonPrompt(userRole, myProfile, candidate, selectedProject) }],
       });
       const raw = response.content[0]?.text?.trim();
       const score = parseInt(raw, 10);
@@ -161,6 +165,67 @@ Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skill
       );
     })
   );
+}
+
+// ---------------------------------------------------------------------------
+// Eager pre-scoring — called fire-and-forget on profile create/update
+// ---------------------------------------------------------------------------
+
+async function preScoreUser(userId) {
+  if (!process.env.ANTHROPIC_API_KEY) return;
+
+  const meRows = await query(
+    `SELECT u.role, u.bio, u.skills, u.hobbies, u.investment_domain, u.preferred_stage, u.max_investment,
+            proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+     FROM users u
+     LEFT JOIN (
+       SELECT pr.user_id, pr.stage, pr.funding_needed
+       FROM projects pr
+       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+     ) proj ON proj.user_id = u.id
+     WHERE u.id = ?`,
+    [userId]
+  );
+  const me = meRows[0];
+  if (!me) return;
+
+  const opposingRole = me.role === 'investor' ? 'entrepreneur' : 'investor';
+  const candidates = await query(
+    `SELECT u.id AS user_id, u.bio, u.skills, u.hobbies, u.role AS role_type,
+            u.investment_domain, u.preferred_stage, u.max_investment,
+            proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
+     FROM users u
+     LEFT JOIN (
+       SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
+       FROM projects pr
+       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+     ) proj ON proj.user_id = u.id
+     WHERE u.role = ? AND u.deleted_at IS NULL AND u.id != ?`,
+    [opposingRole, userId]
+  );
+  if (!candidates.length) return;
+
+  await query('DELETE FROM ai_match_scores WHERE user_id = ?', [userId]);
+
+  const client = new Anthropic();
+  for (let i = 0; i < candidates.length; i += 10) {
+    const batch = candidates.slice(i, i + 10);
+    await Promise.allSettled(batch.map(async (candidate) => {
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 5,
+        messages: [{ role: 'user', content: buildPersonPrompt(me.role, me, candidate) }],
+      });
+      const raw = response.content[0]?.text?.trim();
+      const score = parseInt(raw, 10);
+      if (isNaN(score)) return;
+      const clamped = Math.max(0, Math.min(100, score));
+      await query(
+        'INSERT IGNORE INTO ai_match_scores (user_id, candidate_id, score) VALUES (?, ?, ?)',
+        [userId, candidate.user_id, clamped]
+      );
+    }));
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -181,10 +246,10 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   const roleFilter = (mode === 'partners' || userRole === 'investor') ? 'entrepreneur' : 'investor';
 
   const candidates = await query(
-    `SELECT u.id, u.name, u.photo_url, u.is_premium, u.premium_expires_at, p.*,
+    `SELECT u.id AS user_id, u.name, u.photo_url, u.is_premium, u.premium_expires_at,
+            u.bio, u.skills, u.hobbies, u.role_type, u.investment_domain, u.preferred_stage, u.max_investment,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
-     JOIN profiles p ON p.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
        FROM projects pr
@@ -197,14 +262,14 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   );
 
   const myProfileRows = await query(
-    `SELECT p.*, proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-     FROM profiles p
+    `SELECT u.*, proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+     FROM users u
      LEFT JOIN (
        SELECT pr.user_id, pr.stage, pr.funding_needed
        FROM projects pr
        INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-     ) proj ON proj.user_id = p.user_id
-     WHERE p.user_id = ?`,
+     ) proj ON proj.user_id = u.id
+     WHERE u.id = ?`,
     [userId]
   );
   const myProfile = myProfileRows[0];
@@ -368,18 +433,18 @@ async function generateMatchSummary(matchId, userAId, userBId) {
   if (!process.env.ANTHROPIC_API_KEY) return;
   try {
     const [rowsA, rowsB] = await Promise.all([
-      query(`SELECT u.name, u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
                     proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             FROM users u
              LEFT JOIN (
                SELECT pr.user_id, pr.stage, pr.funding_needed
                FROM projects pr
                INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
              ) proj ON proj.user_id = u.id
              WHERE u.id = ?`, [userAId]),
-      query(`SELECT u.name, u.role, p.bio, p.skills, p.investment_domain, p.preferred_stage, p.max_investment,
+      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
                     proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-             FROM users u LEFT JOIN profiles p ON p.user_id = u.id
+             FROM users u
              LEFT JOIN (
                SELECT pr.user_id, pr.stage, pr.funding_needed
                FROM projects pr
@@ -427,13 +492,12 @@ async function getMatches(userId) {
        u.name,
        u.photo_url AS photoUrl,
        u.role,
-       p.bio,
-       p.role_type AS roleType,
-       p.investment_domain AS investmentDomain,
+       u.bio,
+       u.role_type AS roleType,
+       u.investment_domain AS investmentDomain,
        proj.stage AS ventureStage
      FROM matches m
      JOIN users u ON u.id = CASE WHEN m.user1_id = ? THEN m.user2_id ELSE m.user1_id END
-     LEFT JOIN profiles p ON p.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage
        FROM projects pr
@@ -446,4 +510,4 @@ async function getMatches(userId) {
   );
 }
 
-module.exports = { getFeed, recordSwipe, getMatches };
+module.exports = { getFeed, recordSwipe, getMatches, preScoreUser };
