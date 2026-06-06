@@ -45,6 +45,7 @@ Thumbs.db
 .claude
 CLAUDE.md
 # ── Test / debug artefacts ───────────────────────────────────────────────────
+QA_CHECKLIST.md
 testing/
 backend/scripts/FOR_TESTING_ONLY.js
 backend/scripts/FOR_TESTING_ONLY_credentials.txt
