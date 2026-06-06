@@ -31,24 +31,50 @@ function formatTime(dateStr) {
   return `${Math.floor(h / 24)}d ago`;
 }
 
+const TYPE_BODY = {
+  match:          (p) => p?.name ? `You matched with ${p.name}!` : 'You have a new match!',
+  meeting:        (p) => p?.title || 'A meeting has been proposed.',
+  super_like:     (p) => p?.name ? `${p.name} super liked you!` : 'Someone super liked you!',
+  partner_invite: (p) => p?.title || 'New partner invitation.',
+};
+
 export default function NotificationBell({ tintColor }) {
   const navigation = useNavigation();
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const intervalRef = useRef(null);
   const notificationTick = useAppStore(s => s.notificationTick);
+  const seenIdsRef = useRef(null); // null = first load, Set after first load
 
   const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await api.get('/notifications');
       setNotifications(data);
+
+      if (seenIdsRef.current === null) {
+        // First load — record existing IDs without showing banners
+        seenIdsRef.current = new Set(data.map(n => n.id));
+        return;
+      }
+
+      // Detect notifications that are new since last fetch
+      const newUnread = data.filter(n => !n.readAt && !seenIdsRef.current.has(n.id));
+      if (newUnread.length > 0) {
+        const newest = newUnread[0];
+        useAppStore.getState().showBanner({
+          title: TYPE_LABEL[newest.type] || 'New Notification',
+          body: (TYPE_BODY[newest.type] || (() => ''))(newest.payload),
+          data: { type: newest.type, refId: newest.refId },
+        });
+      }
+      seenIdsRef.current = new Set(data.map(n => n.id));
     } catch { /* silent — bell is non-critical */ }
   }, []);
 
   useEffect(() => {
     fetchNotifications();
     clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(fetchNotifications, 15000);
+    intervalRef.current = setInterval(fetchNotifications, 5000);
     return () => clearInterval(intervalRef.current);
   }, [fetchNotifications, notificationTick]);
 
