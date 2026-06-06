@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
@@ -6,6 +7,7 @@ import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
 import { colors, investorColors, investorSwipeColors, investorThemeColors } from '../theme';
 import AppHeader from '../components/AppHeader';
+import InAppNotificationBanner from '../components/InAppNotificationBanner';
 import { getConversations } from '../services/match.service';
 
 import WelcomeScreen        from '../screens/auth/WelcomeScreen';
@@ -122,6 +124,7 @@ export default function AppNavigator() {
   const hasSeenOnboarding  = useAuthStore(s => s.hasSeenOnboarding);
 
   return (
+    <View style={{ flex: 1 }}>
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       {!token ? (
         <>
@@ -167,5 +170,7 @@ export default function AppNavigator() {
         </>
       )}
     </Stack.Navigator>
+    <InAppNotificationBanner />
+    </View>
   );
 }

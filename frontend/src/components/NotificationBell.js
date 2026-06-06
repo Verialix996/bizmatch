@@ -5,6 +5,7 @@ import {
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import api from '../services/api';
+import useAppStore from '../store/appStore';
 
 const TYPE_ICON = {
   match:          '🤝',
@@ -35,6 +36,7 @@ export default function NotificationBell({ tintColor }) {
   const [notifications, setNotifications] = useState([]);
   const [open, setOpen] = useState(false);
   const intervalRef = useRef(null);
+  const notificationTick = useAppStore(s => s.notificationTick);
 
   const fetchNotifications = useCallback(async () => {
     try {
@@ -45,9 +47,10 @@ export default function NotificationBell({ tintColor }) {
 
   useEffect(() => {
     fetchNotifications();
+    clearInterval(intervalRef.current);
     intervalRef.current = setInterval(fetchNotifications, 15000);
     return () => clearInterval(intervalRef.current);
-  }, [fetchNotifications]);
+  }, [fetchNotifications, notificationTick]);
 
   const unreadCount = notifications.filter(n => !n.readAt).length;
 

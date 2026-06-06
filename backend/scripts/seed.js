@@ -26,7 +26,7 @@ const DROP_ORDER = [
   'notifications', 'ai_compatibility_breakdowns',
   'messages', 'meetings', 'project_ndas', 'partner_invitations',
   'project_partners', 'project_matches', 'project_swipes',
-  'ai_match_scores', 'swipes', 'matches', 'projects', 'profiles',
+  'ai_match_scores', 'role_change_requests', 'swipes', 'matches', 'projects', 'profiles',
   'api_usage', 'users', 'schema_migrations',
 ];
 
@@ -43,11 +43,11 @@ const PASSWORD_HASH = bcrypt.hashSync('Demo1234!', 10);
 // ---------------------------------------------------------------------------
 
 const INVESTORS = [
-  { name: 'Sarah Chen',   email: 'sarah.chen@bizmatch.app',   domain: 'SaaS,B2B Software',    stage: 'mvp',    max: 500000,  bio: 'Early-stage SaaS investor with 12 years backing B2B software companies. Former product lead at Salesforce. I write the first check and sit on the board.' },
-  { name: 'Marcus Webb',  email: 'marcus.webb@bizmatch.app',  domain: 'FinTech,Payments',      stage: 'growth', max: 2000000, bio: 'Partner at Meridian Ventures. Focused on fintech infrastructure and payments. Previously built and sold a payment processing startup.' },
-  { name: 'Lena Fischer', email: 'lena.fischer@bizmatch.app', domain: 'HealthTech,MedTech',    stage: 'idea',   max: 150000,  bio: 'Angel investor and former ER physician. Backing founders who are fixing healthcare with technology. Love capital-efficient teams.' },
-  { name: 'David Okafor', email: 'david.okafor@bizmatch.app', domain: 'Marketplace,eCommerce', stage: 'mvp',    max: 750000,  bio: 'Operator-turned-investor. I built two marketplace startups and now back the next generation. Strong network in logistics and supply chain.' },
-  { name: 'Priya Nair',   email: 'priya.nair@bizmatch.app',   domain: 'EdTech,Future of Work', stage: 'mvp',    max: 300000,  bio: 'EdTech-focused investor and ex-Coursera. Passionate about upskilling and workforce development in emerging markets.' },
+  { name: 'Sarah Chen',   email: 'sarah.chen@bizmatch.app',   domain: 'SaaS,B2B Software',    stage: 'mvp',    max: 500000,  skills: ['SaaS Strategy', 'Product-Led Growth', 'Board Advisory'],       bio: 'Early-stage SaaS investor with 12 years backing B2B software companies. Former product lead at Salesforce. I write the first check and sit on the board.' },
+  { name: 'Marcus Webb',  email: 'marcus.webb@bizmatch.app',  domain: 'FinTech,Payments',      stage: 'growth', max: 2000000, skills: ['FinTech Regulation', 'Payments Infrastructure', 'Series A'],   bio: 'Partner at Meridian Ventures. Focused on fintech infrastructure and payments. Previously built and sold a payment processing startup.' },
+  { name: 'Lena Fischer', email: 'lena.fischer@bizmatch.app', domain: 'HealthTech,MedTech',    stage: 'idea',   max: 150000,  skills: ['FDA Pathways', 'Clinical Research', 'MedTech Due Diligence'], bio: 'Angel investor and former ER physician. Backing founders who are fixing healthcare with technology. Love capital-efficient teams.' },
+  { name: 'David Okafor', email: 'david.okafor@bizmatch.app', domain: 'Marketplace,eCommerce', stage: 'mvp',    max: 750000,  skills: ['Marketplace Dynamics', 'Supply Chain', 'Unit Economics'],      bio: 'Operator-turned-investor. I built two marketplace startups and now back the next generation. Strong network in logistics and supply chain.' },
+  { name: 'Priya Nair',   email: 'priya.nair@bizmatch.app',   domain: 'EdTech,Future of Work', stage: 'mvp',    max: 300000,  skills: ['EdTech Partnerships', 'Curriculum Design', 'Global Scaling'], bio: 'EdTech-focused investor and ex-Coursera. Passionate about upskilling and workforce development in emerging markets.' },
 ];
 
 const ENTREPRENEURS = [
@@ -59,31 +59,31 @@ const ENTREPRENEURS = [
 ];
 
 const MATCH_PAIRS = [
-  { inv: 'sarah.chen@bizmatch.app',  ent: 'alex.rivera@bizmatch.app', chat: [
+  { inv: 'sarah.chen@bizmatch.app',  ent: 'alex.rivera@bizmatch.app', meetingTitle: 'Seed Round Discussion — TeamSync', chat: [
     { from: 'inv', msg: "Hi Alex! TeamSync caught my eye — B2B SaaS at $50/team/month with 800 paying customers is impressive traction. Tell me more about retention." },
     { from: 'ent', msg: "Thanks Sarah! Monthly churn is 2.1% which we\'re actively working to improve. Annual contracts are stickier — 96% renewal rate there. The big unlock was adding AI meeting summaries which teams now say is their favourite feature." },
     { from: 'inv', msg: "That annual renewal number is strong. What does your expansion revenue look like? Are teams adding seats over time?" },
     { from: 'ent', msg: "Net revenue retention is 118% — teams start with 5-10 seats and grow to 20-30 as they onboard more departments. Sales is entirely inbound right now which is why I\'m excited to bring on capital to build an outbound motion." },
   ]},
-  { inv: 'marcus.webb@bizmatch.app', ent: 'mia.johnson@bizmatch.app', chat: [
+  { inv: 'marcus.webb@bizmatch.app', ent: 'mia.johnson@bizmatch.app', meetingTitle: 'Series A Intro Call — CashBridge', chat: [
     { from: 'inv', msg: "Mia, $3M monthly processing and revenue positive in fintech — that\'s rare. How are you thinking about the regulatory moat as you expand countries?" },
     { from: 'ent', msg: "We partner with local licensed banks in each market rather than getting direct licenses, which is 10x faster to launch. We hold no customer funds ourselves. The moat is our local bank network and the trust we\'ve built with communities that other apps haven\'t touched." },
     { from: 'inv', msg: "Smart structure. What\'s your take rate and how does it compare to incumbents?" },
     { from: 'ent', msg: "We charge 1.8% on transfers vs the 5-8% that Western Union and local agents charge. Even at our rate we\'re dramatically cheaper and the convenience is incomparable. Gross margin is 62% once you strip out payment processing costs." },
   ]},
-  { inv: 'lena.fischer@bizmatch.app', ent: 'jordan.lee@bizmatch.app', chat: [
+  { inv: 'lena.fischer@bizmatch.app', ent: 'jordan.lee@bizmatch.app', meetingTitle: 'Pre-Seed Check-in — VitalBand', chat: [
     { from: 'inv', msg: "Jordan — as a physician investor this is exactly what I look for. 94% AFib detection accuracy is publishable. Where are you in the FDA pathway?" },
     { from: 'ent', msg: "We\'re pursuing De Novo classification which is typically 12-18 months. We have a regulatory consultant who worked at FDA for 8 years guiding us. The pre-submission meeting went well — no major red flags. We\'re building the clinical evidence package now." },
     { from: 'inv', msg: "The pre-sub meeting result is the key signal I needed. What does the $120k pre-seed cover specifically?" },
     { from: 'ent', msg: "It covers the 510k-equivalent clinical study (40 patients, 3 sites), miniaturisation of the prototype, and 6 months runway for myself and my co-founder who is handling the ML side. We close pre-seed by end of Q2 and expect to have FDA clearance within 18 months of that." },
   ]},
-  { inv: 'david.okafor@bizmatch.app', ent: 'ethan.park@bizmatch.app', chat: [
+  { inv: 'david.okafor@bizmatch.app', ent: 'ethan.park@bizmatch.app', meetingTitle: 'Marketplace Deep Dive — ArtisanRoute', chat: [
     { from: 'inv', msg: "Ethan, marketplace unit economics are my speciality. Walk me through your take rate and seller payback period." },
     { from: 'ent', msg: "We take 12% on each transaction. Sellers pay nothing to list. Average seller does $800/month in sales on the platform, earning $704 net after our fee. A seller who earns $30/month locally now earns $700+ — that\'s transformational income. Seller acquisition cost is $45 and payback is under 2 months." },
     { from: 'inv', msg: "CAC payback under 2 months is excellent. What\'s your buyer-side retention looking like? That\'s usually the harder side of the marketplace." },
     { from: 'ent', msg: "Buyer 6-month retention is 61%, which we know needs work. We\'re building a subscription \'curated box\' product to create a recurring relationship. Buyers who subscribe retain at 89%. That\'s what the seed round is primarily funding — the subscription product and buyer acquisition." },
   ]},
-  { inv: 'priya.nair@bizmatch.app',   ent: 'zara.ahmed@bizmatch.app', chat: [
+  { inv: 'priya.nair@bizmatch.app',   ent: 'zara.ahmed@bizmatch.app', meetingTitle: 'Growth Strategy Call — LearnArc', chat: [
     { from: 'inv', msg: "Zara, your traction in EdTech is outstanding. 28k students across 40 countries without raising a Series A is impressive. What\'s your business model?" },
     { from: 'ent', msg: "We charge institutions (universities and corporate training departments) a per-seat SaaS fee of $12/month. 40% of revenue comes from direct B2C subscriptions at $8/month. The institutional channel is where we see the best LTV — average contract is 3 years." },
     { from: 'inv', msg: "The institutional channel resonates with me. How are you thinking about content? Is it your own or user-generated?" },
@@ -133,7 +133,7 @@ async function createInvestorProfile(conn, userId, inv) {
   await conn.query(
     `INSERT INTO profiles (user_id, bio, role_type, investment_domain, preferred_stage, max_investment, skills)
      VALUES (?, ?, 'investor', ?, ?, ?, ?)`,
-    [userId, inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(['Due Diligence', 'Financial Modeling', 'Board Advisory'])]
+    [userId, inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills)]
   );
 }
 
@@ -150,6 +150,21 @@ async function createProject(conn, userId, ent) {
     `INSERT INTO projects (user_id, title, description, industry, stage, funding_needed, visibility)
      VALUES (?, ?, ?, ?, ?, ?, 'public')`,
     [userId, ent.title, ent.bio, ent.industry, ent.stage, ent.needs]
+  );
+}
+
+async function createMeeting(conn, matchId, proposerId, receiverId, title, scheduledAt) {
+  await conn.query(
+    `INSERT INTO meetings (match_id, proposer_id, receiver_id, title, scheduled_at, location_type, video_link, status)
+     VALUES (?, ?, ?, ?, ?, 'virtual', 'https://meet.google.com/bizmatch-demo', 'confirmed')`,
+    [matchId, proposerId, receiverId, title, scheduledAt]
+  );
+}
+
+async function createNotification(conn, userId, type, refId, payload) {
+  await conn.query(
+    `INSERT INTO notifications (user_id, type, ref_id, payload) VALUES (?, ?, ?, ?)`,
+    [userId, type, refId, JSON.stringify(payload)]
   );
 }
 
@@ -214,15 +229,28 @@ async function run() {
     console.log(`  ✓ ${ent.name} — project: ${ent.title}`);
   }
 
-  // --- Pre-made matches + chats ---
-  console.log('\nCreating 5 pre-made matches with chat histories...');
-  for (const pair of MATCH_PAIRS) {
+  // --- Pre-made matches + chats + meetings + notifications ---
+  console.log('\nCreating 5 pre-made matches with chat histories, meetings and notifications...');
+  // Seed meetings 7–11 days in the future so they always appear upcoming
+  const baseDate = new Date();
+  baseDate.setHours(14, 0, 0, 0);
+  for (let i = 0; i < MATCH_PAIRS.length; i++) {
+    const pair = MATCH_PAIRS[i];
     const invId = invMap[pair.inv];
     const entId = entMap[pair.ent];
     if (!invId || !entId) { console.log(`  skip (user not found): ${pair.inv} / ${pair.ent}`); continue; }
     const matchId = await createMatch(conn, invId, entId);
     await seedChat(conn, matchId, invId, entId, pair.chat);
-    console.log(`  ✓ match: ${pair.inv.split('@')[0]} ↔ ${pair.ent.split('@')[0]} (${pair.chat.length} messages)`);
+
+    const meetingDate = new Date(baseDate);
+    meetingDate.setDate(baseDate.getDate() + 7 + i);
+    await createMeeting(conn, matchId, invId, entId, pair.meetingTitle, meetingDate);
+
+    const matchPayload = { matchId };
+    await createNotification(conn, invId, 'match', matchId, matchPayload);
+    await createNotification(conn, entId, 'match', matchId, matchPayload);
+
+    console.log(`  ✓ match: ${pair.inv.split('@')[0]} ↔ ${pair.ent.split('@')[0]} (${pair.chat.length} msgs · meeting ${meetingDate.toDateString()})`);
   }
 
   await conn.end();
@@ -253,7 +281,7 @@ async function confirm(question) {
 }
 
 async function main() {
-  console.log('\n⚠️  WARNING: This will DROP all 14 tables. All existing data will be permanently deleted.\n');
+  console.log('\n⚠️  WARNING: This will DROP all 15 tables. All existing data will be permanently deleted.\n');
   const answer = await confirm('Type "yes" to drop all tables: ');
   if (answer !== 'yes') {
     console.log('Aborted.');

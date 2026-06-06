@@ -400,6 +400,8 @@ export default function SwipeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
   const [compatModal, setCompatModal] = useState({ visible: false, loading: false, score: null, pros: [], cons: [] });
+  const [freeSwipeCount, setFreeSwipeCount] = useState(0);
+  const FREE_SWIPE_LIMIT = 2;
 
   const C = darkMode ? investorColors
           : isInvestorTheme ? investorThemeColors
@@ -486,6 +488,19 @@ export default function SwipeScreen() {
     if (swiping) return;
     const item = feed[currentIndex];
     if (!item) return;
+
+    if (!isPremium && freeSwipeCount >= FREE_SWIPE_LIMIT) {
+      Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
+      Alert.alert(
+        'Swipe Limit Reached',
+        `Free accounts are limited to ${FREE_SWIPE_LIMIT} swipes. Upgrade to Premium for unlimited swipes!`,
+        [
+          { text: 'Maybe Later' },
+          { text: 'Go Premium', onPress: () => navigation.navigate('Premium') },
+        ]
+      );
+      return;
+    }
 
     setLastMatchSummary(null);
     setSwiping(true);
@@ -574,7 +589,7 @@ export default function SwipeScreen() {
           setSwiping(false);
           Alert.alert(
             'Daily Limit Reached',
-            "You've used all 20 free swipes today. Upgrade to Premium for unlimited swipes!",
+            "You've used all your free swipes. Upgrade to Premium for unlimited swipes!",
             [
               { text: 'Maybe Later' },
               { text: 'Go Premium', onPress: () => navigation.navigate('Premium') },
@@ -584,9 +599,10 @@ export default function SwipeScreen() {
         }
       }
       setCurrentIndex(i => i + 1);
+      if (!isPremium) setFreeSwipeCount(c => c + 1);
       setSwiping(false);
     });
-  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, superRingScale, superRingOpacity, isEntrepreneur, navigation]);
+  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, superRingScale, superRingOpacity, isEntrepreneur, navigation, isPremium, freeSwipeCount]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);

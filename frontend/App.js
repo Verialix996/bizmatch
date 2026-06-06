@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { View, ActivityIndicator, Linking } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
@@ -8,6 +8,17 @@ import AppNavigator, { linking } from './src/navigation/AppNavigator';
 import useAuthStore from './src/store/authStore';
 import useAppStore from './src/store/appStore';
 import api from './src/services/api';
+
+// Show push alerts even while the app is foregrounded
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
+
+export const navigationRef = createNavigationContainerRef();
 
 function parseOAuthUrl(url) {
   if (!url || !url.startsWith('bizmatch://auth')) return null;
@@ -54,6 +65,31 @@ export default function App() {
     if (token) registerForPushNotifications();
   }, [token]);
 
+  useEffect(() => {
+    const bumpTick = useAppStore.getState().bumpNotificationTick;
+
+    // Notification arrives while app is open → show in-app banner + refresh bell
+    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+      const { title, body, data } = notification.request.content;
+      useAppStore.getState().showBanner({ title, body, data: data || {} });
+      bumpTick();
+    });
+
+    // User taps a notification → navigate to the relevant screen
+    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data || {};
+      if (navigationRef.isReady()) {
+        if (data.type === 'meeting') navigationRef.navigate('Meetings');
+        else navigationRef.navigate('Matches');
+      }
+    });
+
+    return () => {
+      receivedSub.remove();
+      responseSub.remove();
+    };
+  }, []);
+
   // Handle bizmatch://auth?token=... deep links (Google OAuth redirect on Android)
   useEffect(() => {
     const handleUrl = ({ url }) => {
@@ -93,7 +129,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer ref={navigationRef} linking={linking}>
         <AppNavigator />
       </NavigationContainer>
     </SafeAreaProvider>
