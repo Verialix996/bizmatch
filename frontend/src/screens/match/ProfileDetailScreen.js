@@ -61,8 +61,17 @@ function ChipRow({ items }) {
 }
 
 export default function ProfileDetailScreen({ route, navigation }) {
-  const { profile, matchId } = route.params;
+  const { profile: profileParam, matchId } = route.params;
   const user = useAuthStore(s => s.user);
+
+  // When navigated from chat, only minimal data is passed. Fetch the rest.
+  const [profile, setProfile] = useState(profileParam);
+  useEffect(() => {
+    if (!profileParam?.userId || profileParam.bio !== undefined) return;
+    api.get(`/profile/public/${profileParam.userId}`)
+      .then(r => setProfile(prev => ({ ...prev, ...r.data })))
+      .catch(() => {});
+  }, [profileParam?.userId]);
 
   const [compatibility, setCompatibility] = useState(null);
   const [compatibilityLoading, setCompatibilityLoading] = useState(true);
@@ -212,11 +221,11 @@ export default function ProfileDetailScreen({ route, navigation }) {
             </Section>
           )}
 
-          {/* Match score */}
-          {profile.score > 0 && (
+          {/* Match score — prefer AI score when available */}
+          {(profile.aiScore != null ? profile.aiScore : profile.score) > 0 && (
             <View style={styles.scoreRow}>
               <Text style={styles.scoreLabel}>Match Score</Text>
-              <Text style={styles.scoreValue}>{profile.score}</Text>
+              <Text style={styles.scoreValue}>{profile.aiScore ?? profile.score}%</Text>
             </View>
           )}
 
@@ -237,7 +246,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
                 <View style={styles.compatBarBg}>
                   <View style={[styles.compatBarFill, { width: `${compatibility.score}%` }]} />
                 </View>
-                <Text style={styles.compatScoreText}>{compatibility.score}%</Text>
               </View>
               {compatibility.pros?.length > 0 && (
                 <View style={styles.compatList}>

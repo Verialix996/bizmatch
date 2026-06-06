@@ -3,6 +3,7 @@ const { query } = require('../config/db');
 const PDFDocument = require('pdfkit');
 const { moderateText } = require('../services/moderation.service');
 const { emitNotification } = require('./notification.controller');
+const Anthropic = require('@anthropic-ai/sdk');
 
 const conversations = async (req, res, next) => {
   try {
@@ -199,7 +200,7 @@ const respondToInvite = async (req, res, next) => {
 };
 
 // POST /api/messages/:matchId/nda-request  { projectId }
-// Investor requests NDA signing to access full project details
+// Sender agrees to NDA terms and requests the other party to agree as well
 const requestNda = async (req, res, next) => {
   try {
     const matchId   = Number(req.params.matchId);
@@ -218,11 +219,19 @@ const requestNda = async (req, res, next) => {
     if (!projectRows[0]) return res.status(404).json({ error: 'Project not found' });
     const project = projectRows[0];
 
+    // Record sender's agreement to the NDA terms (no PDF yet — generated after both agree)
+    await query(
+      `INSERT INTO project_ndas (project_id, user_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE project_id = project_id`,
+      [projectId, senderId]
+    );
+
     const msg = await sendMessage(
       matchId, senderId,
-      `NDA requested for "${project.title}". Please review and sign to grant access.`,
+      `NDA requested for "${project.title}". Please review and agree to grant access.`,
       'nda_request',
-      { projectId, projectTitle: project.title }
+      { projectId, projectTitle: project.title, senderId }
     );
 
     res.status(201).json(msg);
@@ -231,7 +240,38 @@ const requestNda = async (req, res, next) => {
   }
 };
 
-async function generateNdaPdf(signerName, ownerName, projectTitle, signedAt) {
+async function generateNdaWithAI(disclosingParty, receivingParty, projectTitle, signedAt) {
+  try {
+    const client = new Anthropic();
+    const prompt = `Generate a professional Non-Disclosure Agreement for the BizMatch platform.
+
+Parties:
+- Disclosing Party (entrepreneur): ${disclosingParty}
+- Receiving Party (investor): ${receivingParty}
+- Project: "${projectTitle}"
+- Effective Date: ${signedAt}
+
+Write the NDA body with a short introductory paragraph then exactly 5 numbered clauses:
+1. Confidential Information – obligation to keep all non-public project information strictly confidential
+2. Non-Use – information may only be used to evaluate potential investment or collaboration
+3. Duration – 2 years from effective date
+4. Exceptions – carve-out for publicly available or independently known information
+5. Governing Law – State of Israel, competent courts thereof
+
+Keep it professional and concise (under 500 words). Do not repeat the party names or date in the heading — those are added separately. Return only the body text.`;
+
+    const response = await client.messages.create({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 800,
+      messages: [{ role: 'user', content: prompt }],
+    });
+    return response.content[0].text;
+  } catch {
+    return null;
+  }
+}
+
+async function generateNdaPdf(disclosingParty, receivingParty, projectTitle, signedAt, aiBody) {
   return new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: 60, size: 'A4' });
     const chunks = [];
@@ -253,57 +293,62 @@ async function generateNdaPdf(signerName, ownerName, projectTitle, signedAt) {
     doc.font('Helvetica').text(`"${projectTitle}"`);
     doc.moveDown(0.4);
     doc.font('Helvetica-Bold').text('Disclosing Party:  ', { continued: true });
-    doc.font('Helvetica').text(ownerName);
+    doc.font('Helvetica').text(disclosingParty);
     doc.moveDown(0.4);
     doc.font('Helvetica-Bold').text('Receiving Party:  ', { continued: true });
-    doc.font('Helvetica').text(signerName);
+    doc.font('Helvetica').text(receivingParty);
     doc.moveDown(1.5);
 
-    doc.font('Helvetica').text(
-      'This Non-Disclosure Agreement ("Agreement") is entered into between the parties named above with respect to the Project identified above.',
-      { lineGap: 4 }
-    );
-    doc.moveDown(1);
-
-    const clauses = [
-      ['1. Confidential Information', 'The Receiving Party agrees to keep all non-public information about the Project strictly confidential and not to disclose it to any third party without prior written consent from the Disclosing Party.'],
-      ['2. Non-Use', 'The Receiving Party shall not use the Confidential Information for any purpose other than evaluating a potential collaboration or investment in the Project.'],
-      ['3. Duration', 'This obligation of confidentiality shall remain in effect for a period of two (2) years from the Effective Date.'],
-      ['4. Exceptions', 'This Agreement does not apply to information that is or becomes publicly available through no breach of this Agreement, or that the Receiving Party can demonstrate was independently known prior to disclosure.'],
-      ['5. Governing Law', 'This Agreement shall be governed by and construed in accordance with the laws of the State of Israel, and any disputes shall be resolved in the competent courts thereof.'],
-    ];
-
-    for (const [heading, body] of clauses) {
-      doc.moveTo(60, doc.y).lineTo(doc.page.width - 60, doc.y).stroke('#CCCCCC');
-      doc.moveDown(0.5);
-      doc.font('Helvetica-Bold').fontSize(11).text(heading);
-      doc.font('Helvetica').fontSize(11).text(body, { lineGap: 3 });
+    if (aiBody) {
+      doc.font('Helvetica').fontSize(11).text(aiBody, { lineGap: 5, paragraphGap: 6 });
+      doc.moveDown(1.5);
+    } else {
+      doc.font('Helvetica').text(
+        'This Non-Disclosure Agreement ("Agreement") is entered into between the parties named above with respect to the Project identified above.',
+        { lineGap: 4 }
+      );
       doc.moveDown(1);
+
+      const clauses = [
+        ['1. Confidential Information', 'The Receiving Party agrees to keep all non-public information about the Project strictly confidential and not to disclose it to any third party without prior written consent from the Disclosing Party.'],
+        ['2. Non-Use', 'The Receiving Party shall not use the Confidential Information for any purpose other than evaluating a potential collaboration or investment in the Project.'],
+        ['3. Duration', 'This obligation of confidentiality shall remain in effect for a period of two (2) years from the Effective Date.'],
+        ['4. Exceptions', 'This Agreement does not apply to information that is or becomes publicly available through no breach of this Agreement, or that the Receiving Party can demonstrate was independently known prior to disclosure.'],
+        ['5. Governing Law', 'This Agreement shall be governed by and construed in accordance with the laws of the State of Israel, and any disputes shall be resolved in the competent courts thereof.'],
+      ];
+
+      for (const [heading, body] of clauses) {
+        doc.moveTo(60, doc.y).lineTo(doc.page.width - 60, doc.y).stroke('#CCCCCC');
+        doc.moveDown(0.5);
+        doc.font('Helvetica-Bold').fontSize(11).text(heading);
+        doc.font('Helvetica').fontSize(11).text(body, { lineGap: 3 });
+        doc.moveDown(1);
+      }
     }
 
     // Signature block
     doc.moveTo(60, doc.y).lineTo(doc.page.width - 60, doc.y).stroke('#CCCCCC');
     doc.moveDown(1.5);
-    doc.font('Helvetica-Bold').fontSize(12).text('SIGNATURE', { align: 'center' });
+    doc.font('Helvetica-Bold').fontSize(12).text('ELECTRONIC SIGNATURES', { align: 'center' });
     doc.moveDown(0.8);
-    doc.font('Helvetica-Bold').fontSize(11).text('Receiving Party:  ', { continued: true });
-    doc.font('Helvetica').text(signerName);
+    doc.font('Helvetica-Bold').fontSize(11).text('Disclosing Party:  ', { continued: true });
+    doc.font('Helvetica').text(disclosingParty);
     doc.moveDown(0.4);
-    doc.font('Helvetica-Bold').text('Disclosing Party:  ', { continued: true });
-    doc.font('Helvetica').text(ownerName);
+    doc.font('Helvetica-Bold').text('Receiving Party:  ', { continued: true });
+    doc.font('Helvetica').text(receivingParty);
     doc.moveDown(0.4);
-    doc.font('Helvetica-Bold').text('Signed On:  ', { continued: true });
+    doc.font('Helvetica-Bold').text('Agreed On:  ', { continued: true });
     doc.font('Helvetica').text(signedAt);
     doc.moveDown(1);
     doc.font('Helvetica').fontSize(9).fillColor('#888888')
-      .text('Electronically signed via the BizMatch platform. This digital signature is legally binding.', { align: 'center' });
+      .text('Both parties have electronically agreed to these terms via the BizMatch platform. This constitutes a legally binding agreement.', { align: 'center' });
 
     doc.end();
   });
 }
 
 // POST /api/messages/:matchId/nda-sign  { projectId }
-// Signs the NDA — generates a PDF, uploads to Cloudinary, records it, notifies via chat
+// Receiver agrees to NDA terms — if sender already agreed (two-sided flow), generates AI NDA for both
 const signNda = async (req, res, next) => {
   try {
     const matchId   = Number(req.params.matchId);
@@ -313,40 +358,75 @@ const signNda = async (req, res, next) => {
     if (!matchId || !projectId) return res.status(400).json({ error: 'matchId and projectId required' });
 
     const matchRows = await query(
-      'SELECT id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
+      'SELECT id, user1_id, user2_id FROM matches WHERE id = ? AND (user1_id = ? OR user2_id = ?)',
       [matchId, userId, userId]
     );
     if (!matchRows[0]) return res.status(403).json({ error: 'Not part of this match' });
+    const match = matchRows[0];
 
     const projectRows = await query('SELECT * FROM projects WHERE id = ? AND is_active = 1', [projectId]);
     const project = projectRows[0];
     if (!project) return res.status(404).json({ error: 'Project not found' });
 
-    const signerRows = await query('SELECT name FROM users WHERE id = ?', [userId]);
-    const ownerRows  = await query('SELECT name FROM users WHERE id = ?', [project.user_id]);
-    const signerName = signerRows[0]?.name || 'Unknown';
-    const ownerName  = ownerRows[0]?.name  || 'Unknown';
-    const signedAt   = new Date().toISOString().split('T')[0];
+    const disclosingPartyId = project.user_id;
+    const otherUserId       = match.user1_id === userId ? match.user2_id : match.user1_id;
+    // Receiving party = the signer if they don't own the project, otherwise the other participant
+    const receivingPartyId  = disclosingPartyId === userId ? otherUserId : userId;
 
-    // Generate PDF and store as BLOB in DB
-    const pdfBuffer = await generateNdaPdf(signerName, ownerName, project.title, signedAt);
+    const [disclosingRows, receivingRows] = await Promise.all([
+      query('SELECT name FROM users WHERE id = ?', [disclosingPartyId]),
+      query('SELECT name FROM users WHERE id = ?', [receivingPartyId]),
+    ]);
+    const disclosingParty = disclosingRows[0]?.name || 'Unknown';
+    const receivingParty  = receivingRows[0]?.name  || 'Unknown';
+    const signedAt        = new Date().toISOString().split('T')[0];
 
-    await query(
-      `INSERT INTO project_ndas (project_id, user_id, pdf_data)
-       VALUES (?, ?, ?)
-       ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
-      [projectId, userId, pdfBuffer]
+    // Check if the other party already agreed (two-sided NDA request flow)
+    const otherNdaRows = await query(
+      'SELECT id FROM project_ndas WHERE project_id = ? AND user_id = ?',
+      [projectId, otherUserId]
     );
+    const isTwoSided = otherNdaRows.length > 0;
+
+    let pdfBuffer;
+    if (isTwoSided) {
+      // Both parties have agreed — generate AI-personalised NDA
+      const aiBody = await generateNdaWithAI(disclosingParty, receivingParty, project.title, signedAt);
+      pdfBuffer = await generateNdaPdf(disclosingParty, receivingParty, project.title, signedAt, aiBody);
+
+      // Store PDF for both parties so each can retrieve it
+      await query(
+        `INSERT INTO project_ndas (project_id, user_id, pdf_data)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
+        [projectId, userId, pdfBuffer]
+      );
+      await query(
+        `INSERT INTO project_ndas (project_id, user_id, pdf_data)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
+        [projectId, otherUserId, pdfBuffer]
+      );
+    } else {
+      // Single-sided flow (e.g. partner invite) — use standard template, store for signer only
+      pdfBuffer = await generateNdaPdf(disclosingParty, receivingParty, project.title, signedAt, null);
+      await query(
+        `INSERT INTO project_ndas (project_id, user_id, pdf_data)
+         VALUES (?, ?, ?)
+         ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
+        [projectId, userId, pdfBuffer]
+      );
+    }
 
     const msg = await sendMessage(
       matchId, userId,
-      'NDA signed. You now have access to the full project details.',
+      'NDA agreed. You now have access to the full project details.',
       'nda_signed',
       { projectId }
     );
 
-    // If the signer is NOT the project owner, the owner wanted to share — auto-send project details
-    if (project && project.user_id !== userId) {
+    // If the signer is NOT the project owner, auto-send project details
+    if (project.user_id !== userId) {
       await sendMessage(
         matchId, project.user_id,
         `Project details shared: "${project.title}"`,

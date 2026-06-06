@@ -5,6 +5,52 @@ const { uploadDoc: upload } = require('../middleware/upload');
 const { moderateText } = require('../services/moderation.service');
 const { cloudinary } = require('../config/cloudinary');
 
+// GET /api/profile/public/:userId
+async function getPublicProfile(req, res, next) {
+  try {
+    const targetId = Number(req.params.userId);
+    if (!targetId) return res.status(400).json({ error: 'userId required' });
+
+    const rows = await query(
+      `SELECT u.id, u.name, u.photo_url, u.role, u.is_premium, u.premium_expires_at,
+              p.bio, p.role_type, p.skills, p.hobbies, p.investment_domain,
+              p.preferred_stage, p.max_investment,
+              proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+       FROM users u
+       LEFT JOIN profiles p ON p.user_id = u.id
+       LEFT JOIN (
+         SELECT pr.user_id, pr.stage, pr.funding_needed
+         FROM projects pr
+         INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
+       ) proj ON proj.user_id = u.id
+       WHERE u.id = ? AND u.deleted_at IS NULL`,
+      [targetId]
+    );
+    const row = rows[0];
+    if (!row) return res.status(404).json({ error: 'User not found' });
+
+    const safeParseArray = v => { try { const p = JSON.parse(v); return Array.isArray(p) ? p : []; } catch { return []; } };
+
+    res.json({
+      userId: row.id,
+      name: row.name,
+      photoUrl: row.photo_url,
+      role: row.role_type || row.role,
+      isPremium: !!(row.is_premium && row.premium_expires_at && new Date(row.premium_expires_at) > new Date()),
+      bio: row.bio || null,
+      skills: safeParseArray(row.skills),
+      hobbies: safeParseArray(row.hobbies),
+      investmentDomain: row.investment_domain || null,
+      preferredStage: row.preferred_stage || null,
+      maxInvestment: row.max_investment || null,
+      ventureStage: row.venture_stage || null,
+      fundingNeeds: row.funding_needs || null,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // GET /api/profile/me
 async function getMyProfile(req, res, next) {
   try {
@@ -123,4 +169,4 @@ async function serveCv(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { getMyProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv, serveCv };
+module.exports = { getMyProfile, getPublicProfile, createProfile, updateProfile, uploadIdDocument, upload, uploadCv, serveCv };

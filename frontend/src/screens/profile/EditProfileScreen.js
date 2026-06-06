@@ -231,8 +231,8 @@ export default function EditProfileScreen({ route, navigation }) {
     try {
       if (isNew) {
         await api.post('/profile', payload);
-        navigation.navigate('Onboarding');
         updateUser({ role: selectedRole, has_profile: true });
+        navigation.navigate('Onboarding');
       } else {
         await api.put('/profile', payload);
         if (forceStep === 'role') updateUser({ role: selectedRole });

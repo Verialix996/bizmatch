@@ -106,67 +106,61 @@ function safeParseArray(value) {
 }
 
 // ---------------------------------------------------------------------------
-// AI background scoring
+// AI scoring — synchronous with timeout, max N candidates
 // ---------------------------------------------------------------------------
 
-async function computeAiScores(userId, userRole, myProfile, candidates, selectedProject = null) {
+async function ensureAiScores(userId, userRole, myProfile, candidates, selectedProject = null, maxNew = 10) {
   if (!process.env.ANTHROPIC_API_KEY || !myProfile || candidates.length === 0) return;
 
-  try {
-    // Find which pairs are already cached
-    const candidateIds = candidates.map(c => c.user_id);
-    const placeholders = candidateIds.map(() => '?').join(',');
-    const cached = await query(
-      `SELECT candidate_id FROM ai_match_scores WHERE user_id = ? AND candidate_id IN (${placeholders})`,
-      [userId, ...candidateIds]
-    );
-    const cachedSet = new Set(cached.map(r => r.candidate_id));
-    const uncached = candidates.filter(c => !cachedSet.has(c.user_id));
+  const candidateIds = candidates.map(c => c.user_id);
+  const placeholders = candidateIds.map(() => '?').join(',');
+  const cached = await query(
+    `SELECT candidate_id FROM ai_match_scores WHERE user_id = ? AND candidate_id IN (${placeholders})`,
+    [userId, ...candidateIds]
+  );
+  const cachedSet = new Set(cached.map(r => r.candidate_id));
+  const uncached = candidates.filter(c => !cachedSet.has(c.user_id)).slice(0, maxNew);
 
-    if (uncached.length === 0) return;
+  if (uncached.length === 0) return;
 
-    const client = new Anthropic();
+  const client = new Anthropic();
 
-    const buildPrompt = (candidate) => {
-      if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
-        return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
+  const buildPrompt = (candidate) => {
+    if (userRole === 'investor' && candidate.role_type === 'entrepreneur') {
+      return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
 Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myProfile.preferred_stage || 'N/A'}, max invest=$${myProfile.max_investment || 0}.
 Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, industry=${candidate.project_industry || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
-      }
-      if (userRole === 'entrepreneur' && candidate.role_type === 'investor') {
-        const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
-        const needs = selectedProject?.funding_needed || myProfile.funding_needs || 0;
-        const projectDesc = selectedProject ? `, project="${selectedProject.title || ''} - ${selectedProject.description || ''}"` : '';
-        return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
+    }
+    if (userRole === 'entrepreneur' && candidate.role_type === 'investor') {
+      const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
+      const needs = selectedProject?.funding_needed || myProfile.funding_needs || 0;
+      const projectDesc = selectedProject ? `, project="${selectedProject.title || ''} - ${selectedProject.description || ''}"` : '';
+      return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
 Investor: domain=${candidate.investment_domain || 'N/A'}, preferred stage=${candidate.preferred_stage || 'N/A'}, max invest=$${candidate.max_investment || 0}.
 Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${stage}, needs=$${needs}${projectDesc}.`;
-      }
-      // entrepreneur-entrepreneur
-      return `Rate collaboration potential 0-100. Reply with ONLY a number.
+    }
+    return `Rate collaboration potential 0-100. Reply with ONLY a number.
 Person A: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(myProfile.hobbies).join(', ') || 'N/A'}.
 Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(candidate.hobbies).join(', ') || 'N/A'}.`;
-    };
+  };
 
-    await Promise.allSettled(
-      uncached.map(async (candidate) => {
-        const response = await client.messages.create({
-          model: 'claude-haiku-4-5-20251001',
-          max_tokens: 5,
-          messages: [{ role: 'user', content: buildPrompt(candidate) }],
-        });
-        const raw = response.content[0]?.text?.trim();
-        const score = parseInt(raw, 10);
-        if (isNaN(score)) return;
-        const clamped = Math.max(0, Math.min(100, score));
-        await query(
-          'INSERT IGNORE INTO ai_match_scores (user_id, candidate_id, score) VALUES (?, ?, ?)',
-          [userId, candidate.user_id, clamped]
-        );
-      })
-    );
-  } catch {
-    // non-critical — never affects feed response
-  }
+  await Promise.allSettled(
+    uncached.map(async (candidate) => {
+      const response = await client.messages.create({
+        model: 'claude-haiku-4-5-20251001',
+        max_tokens: 5,
+        messages: [{ role: 'user', content: buildPrompt(candidate) }],
+      });
+      const raw = response.content[0]?.text?.trim();
+      const score = parseInt(raw, 10);
+      if (isNaN(score)) return;
+      const clamped = Math.max(0, Math.min(100, score));
+      await query(
+        'INSERT IGNORE INTO ai_match_scores (user_id, candidate_id, score) VALUES (?, ?, ?)',
+        [userId, candidate.user_id, clamped]
+      );
+    })
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -225,6 +219,12 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
     selectedProject = pRows[0] || null;
   }
 
+  // Ensure AI scores exist for up to 10 uncached candidates before scoring (5s timeout fallback)
+  await Promise.race([
+    ensureAiScores(userId, userRole, myProfile, candidates, selectedProject, 10),
+    new Promise(resolve => setTimeout(resolve, 5000)),
+  ]).catch(() => {});
+
   // Load cached AI scores for all candidates in one query
   const aiScoreMap = new Map();
   if (candidates.length > 0) {
@@ -252,6 +252,7 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
     preferredStage: c.preferred_stage,
     maxInvestment: c.max_investment,
     score,
+    aiScore: aiScoreMap.get(c.user_id) ?? null,
   });
 
   const calcScore = (c) => {
@@ -281,12 +282,7 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
 
   const scoreAndSort = arr => arr.map(c => toCard(c, calcScore(c))).sort((a, b) => b.score - a.score);
 
-  const result = [...scoreAndSort(fresh), ...scoreAndSort(passed)].slice(0, limit);
-
-  // Trigger background AI scoring for uncached candidates (non-blocking)
-  computeAiScores(userId, userRole, myProfile, candidates, selectedProject).catch(() => {});
-
-  return result;
+  return [...scoreAndSort(fresh), ...scoreAndSort(passed)].slice(0, limit);
 }
 
 // ---------------------------------------------------------------------------

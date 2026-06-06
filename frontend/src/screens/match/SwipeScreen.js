@@ -110,9 +110,9 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
       <View style={styles.cardBody}>
         <View style={styles.roleLabelRow}>
           <Text style={styles.roleLabel}>{roleLabel}</Text>
-          {profile.score > 0 && (
-            <View style={[styles.scoreBadge, profile.score >= 70 ? styles.scoreHigh : profile.score >= 40 ? styles.scoreMid : styles.scoreLow]}>
-              <Text style={styles.scoreBadgeText}>{profile.score}% match</Text>
+          {(profile.aiScore != null ? profile.aiScore : profile.score) > 0 && (
+            <View style={[styles.scoreBadge, (profile.aiScore ?? profile.score) >= 70 ? styles.scoreHigh : (profile.aiScore ?? profile.score) >= 40 ? styles.scoreMid : styles.scoreLow]}>
+              <Text style={styles.scoreBadgeText}>{profile.aiScore ?? profile.score}% match</Text>
             </View>
           )}
         </View>

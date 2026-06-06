@@ -10,13 +10,8 @@ const useAuthStore = create((set, get) => ({
   isRestoring: true,
 
   setAuth: async (token, user) => {
-    // If user already has a profile they've been through onboarding — don't show it again
-    let hasSeenOnboarding = !!(user.has_profile);
-    if (!hasSeenOnboarding) {
-      try {
-        hasSeenOnboarding = (await SecureStore.getItemAsync('has_seen_onboarding')) === 'true';
-      } catch { /* SecureStore unavailable on web */ }
-    }
+    // has_profile is the authoritative source — never trust a stale device flag for a new account
+    const hasSeenOnboarding = !!(user.has_profile);
     set({ token, user, hasSeenOnboarding });
     try {
       await SecureStore.setItemAsync('auth_token', token);
@@ -36,10 +31,8 @@ const useAuthStore = create((set, get) => ({
     try {
       const token = await SecureStore.getItemAsync('auth_token');
       const userStr = await SecureStore.getItemAsync('auth_user');
-      const seenStr = await SecureStore.getItemAsync('has_seen_onboarding');
       const user = userStr ? JSON.parse(userStr) : null;
-      // A profile is definitive proof they've been through onboarding; fall back to stored flag
-      const hasSeenOnboarding = !!(user?.has_profile) || seenStr === 'true';
+      const hasSeenOnboarding = !!(user?.has_profile);
       if (token && user) set({ token, user, hasSeenOnboarding, isRestoring: false });
       else set({ hasSeenOnboarding, isRestoring: false });
     } catch { set({ isRestoring: false }); }
@@ -57,9 +50,10 @@ const useAuthStore = create((set, get) => ({
   })),
 
   logout: () => {
-    set({ token: null, user: null, newMatchCount: 0, readTimestamps: {} });
+    set({ token: null, user: null, newMatchCount: 0, readTimestamps: {}, hasSeenOnboarding: false });
     SecureStore.deleteItemAsync('auth_token').catch(() => {});
     SecureStore.deleteItemAsync('auth_user').catch(() => {});
+    SecureStore.deleteItemAsync('has_seen_onboarding').catch(() => {});
   },
 }));
 

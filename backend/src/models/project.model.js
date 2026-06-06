@@ -115,8 +115,13 @@ async function getProjectFeed(investorId, limit = 20) {
        AND u.role = 'entrepreneur'
        AND u.deleted_at IS NULL
        AND p.user_id != ?
+       AND p.user_id NOT IN (
+         SELECT CASE WHEN user1_id = ? THEN user2_id ELSE user1_id END
+         FROM matches
+         WHERE user1_id = ? OR user2_id = ?
+       )
        ${swipedClause}`,
-    [investorId, ...swiped]
+    [investorId, investorId, investorId, investorId, ...swiped]
   );
 
   const scored = projects.map(p => {
