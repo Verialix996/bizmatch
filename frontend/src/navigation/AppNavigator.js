@@ -23,6 +23,7 @@ import ProfileScreen        from '../screens/profile/ProfileScreen';
 import EditProfileScreen    from '../screens/profile/EditProfileScreen';
 import AccountSettings      from '../screens/profile/AccountSettings';
 import ProjectsScreen       from '../screens/project/ProjectsScreen';
+import ProjectDetailScreen  from '../screens/project/ProjectDetailScreen';
 import MeetingScreen        from '../screens/meeting/MeetingScreen';
 import MeetingDetailScreen  from '../screens/meeting/MeetingDetailScreen';
 import ProposeMeetingScreen from '../screens/meeting/ProposeMeetingScreen';
@@ -140,6 +141,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Main"             component={MainTabs} />
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
+          <Stack.Screen name="ProjectDetail"    component={ProjectDetailScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
           <Stack.Screen name="Meetings"         component={MeetingScreen} />
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
@@ -155,6 +157,7 @@ export default function AppNavigator() {
           <Stack.Screen name="Main"             component={MainTabs} />
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
+          <Stack.Screen name="ProjectDetail"    component={ProjectDetailScreen} />
           <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
           <Stack.Screen name="Meetings"         component={MeetingScreen} />

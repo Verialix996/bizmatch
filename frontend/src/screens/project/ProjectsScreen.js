@@ -610,7 +610,6 @@ export default function ProjectsScreen({ route }) {
   const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null });
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
   const [deckReview, setDeckReview] = useState({ visible: false, projectId: null, feedback: null, loading: false });
-  const [projectDetail, setProjectDetail] = useState(null);
   const [videoUpload, setVideoUpload] = useState({ projectId: null, progress: 0 });
 
   const coFounderMatchId = route?.params?.coFounderMatchId ?? null;
@@ -672,8 +671,8 @@ export default function ProjectsScreen({ route }) {
   };
 
   const handleViewProject = (project, ownerOverride = null) => {
-    setProjectDetail({
-      ...project,
+    navigation.navigate('ProjectDetail', {
+      project,
       ownerName: ownerOverride?.name ?? currentUser?.name,
     });
   };
@@ -916,44 +915,6 @@ export default function ProjectsScreen({ route }) {
         </View>
       </Modal>
 
-      {/* Project Detail Modal */}
-      <Modal visible={!!projectDetail} transparent animationType="fade" onRequestClose={() => setProjectDetail(null)}>
-        <View style={styles.deleteOverlay}>
-          <View style={[styles.deleteModal, { maxWidth: 380, width: '92%' }]}>
-            <Text style={[styles.deleteModalTitle, { fontSize: 18, marginBottom: 4 }]}>{projectDetail?.title}</Text>
-            {projectDetail?.ownerName ? (
-              <Text style={{ fontSize: 13, color: C.textHint, marginBottom: 10 }}>by {projectDetail.ownerName}</Text>
-            ) : null}
-            {(projectDetail?.stage || projectDetail?.industry) ? (
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
-                {projectDetail?.stage ? (
-                  <View style={styles.stagePill}><Text style={styles.stagePillText}>{STAGE_LABELS[projectDetail.stage] || projectDetail.stage}</Text></View>
-                ) : null}
-                {projectDetail?.industry ? (
-                  <View style={styles.metaChip}><Text style={styles.metaChipText}>{projectDetail.industry}</Text></View>
-                ) : null}
-              </View>
-            ) : null}
-            {projectDetail?.description ? (
-              <Text style={{ fontSize: 14, color: C.textSecondary, lineHeight: 20, marginBottom: 12 }}>{projectDetail.description}</Text>
-            ) : null}
-            {projectDetail?.funding_needed ? (
-              <Text style={{ fontSize: 14, color: C.primary, fontWeight: '700', marginBottom: 10 }}>
-                💰 Seeking ${Number(projectDetail.funding_needed).toLocaleString()}
-              </Text>
-            ) : null}
-            {(projectDetail?.deck_url || projectDetail?.video_url) ? (
-              <View style={{ flexDirection: 'row', gap: 8, marginBottom: 10 }}>
-                {projectDetail?.deck_url ? <View style={styles.metaChip}><Text style={styles.metaChipText}>📄 Deck attached</Text></View> : null}
-                {projectDetail?.video_url ? <View style={styles.metaChip}><Text style={styles.metaChipText}>🎬 Video attached</Text></View> : null}
-              </View>
-            ) : null}
-            <TouchableOpacity style={styles.deleteBtnCancel} onPress={() => setProjectDetail(null)}>
-              <Text style={styles.deleteBtnCancelText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
     </SafeAreaView>
   );
 }
