@@ -59,7 +59,7 @@ async function runMigrations() {
     } catch (err) {
       await conn.rollback();
       // These codes mean the change already exists in the DB — treat as applied.
-      const alreadyExists = new Set([1050, 1060, 1061]); // table/column/key exists
+      const alreadyExists = new Set([1050, 1060, 1061, 1091]); // table/column/key exists or already dropped
       if (alreadyExists.has(err.errno)) {
         console.warn(`Warning – already applied, recording: ${file}: ${err.message}`);
         await pool.execute('INSERT IGNORE INTO schema_migrations (filename) VALUES (?)', [file]);

@@ -1,4 +1,3 @@
--- 005: AI scoring cache for investor-project pairs
 
 CREATE TABLE IF NOT EXISTS ai_project_scores (
   investor_id INT NOT NULL,

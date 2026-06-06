@@ -4,6 +4,17 @@ const PDFDocument = require('pdfkit');
 const { moderateText } = require('../services/moderation.service');
 const { emitNotification } = require('./notification.controller');
 const Anthropic = require('@anthropic-ai/sdk');
+const { cloudinary } = require('../config/cloudinary');
+
+function uploadNdaToCloudinary(buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      { folder: 'bizmatch/ndas', resource_type: 'raw', format: 'pdf', public_id: `nda_${Date.now()}` },
+      (err, result) => (err ? reject(err) : resolve(result.secure_url))
+    );
+    stream.end(buffer);
+  });
+}
 
 const conversations = async (req, res, next) => {
   try {
@@ -394,27 +405,29 @@ const signNda = async (req, res, next) => {
       const aiBody = await generateNdaWithAI(disclosingParty, receivingParty, project.title, signedAt);
       pdfBuffer = await generateNdaPdf(disclosingParty, receivingParty, project.title, signedAt, aiBody);
 
-      // Store PDF for both parties so each can retrieve it
+      // Upload PDF to Cloudinary and store URL for both parties
+      const ndaUrl = await uploadNdaToCloudinary(pdfBuffer);
       await query(
-        `INSERT INTO project_ndas (project_id, user_id, pdf_data)
+        `INSERT INTO project_ndas (project_id, user_id, document_url)
          VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
-        [projectId, userId, pdfBuffer]
+         ON DUPLICATE KEY UPDATE document_url = VALUES(document_url)`,
+        [projectId, userId, ndaUrl]
       );
       await query(
-        `INSERT INTO project_ndas (project_id, user_id, pdf_data)
+        `INSERT INTO project_ndas (project_id, user_id, document_url)
          VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
-        [projectId, otherUserId, pdfBuffer]
+         ON DUPLICATE KEY UPDATE document_url = VALUES(document_url)`,
+        [projectId, otherUserId, ndaUrl]
       );
     } else {
       // Single-sided flow (e.g. partner invite) — use standard template, store for signer only
       pdfBuffer = await generateNdaPdf(disclosingParty, receivingParty, project.title, signedAt, null);
+      const ndaUrl = await uploadNdaToCloudinary(pdfBuffer);
       await query(
-        `INSERT INTO project_ndas (project_id, user_id, pdf_data)
+        `INSERT INTO project_ndas (project_id, user_id, document_url)
          VALUES (?, ?, ?)
-         ON DUPLICATE KEY UPDATE pdf_data = VALUES(pdf_data)`,
-        [projectId, userId, pdfBuffer]
+         ON DUPLICATE KEY UPDATE document_url = VALUES(document_url)`,
+        [projectId, userId, ndaUrl]
       );
     }
 

@@ -26,7 +26,8 @@ const DROP_ORDER = [
   'notifications',
   'messages', 'meetings', 'project_ndas', 'partner_invitations',
   'project_partners', 'project_matches', 'project_swipes',
-  'ai_project_scores', 'ai_match_scores', 'swipes', 'matches', 'projects',
+  'ai_project_scores', 'ai_match_scores',
+  'swipes', 'matches', 'projects',
   'users', 'schema_migrations',
 ];
 
@@ -51,43 +52,43 @@ const INVESTORS = [
 ];
 
 const ENTREPRENEURS = [
-  { name: 'Alex Rivera', email: 'alex.rivera@bizmatch.app', title: 'TeamSync',     industry: 'SaaS',       stage: 'mvp',    needs: 400000,  skills: ['SaaS','Product Management','Engineering'],    hobbies: ['chess','running','gaming'],   bio: 'Ex-Google engineer building the async collaboration tool remote teams actually love. TeamSync combines video updates, task threads and AI meeting summaries. 800 paying teams after 6 months.' },
-  { name: 'Mia Johnson', email: 'mia.johnson@bizmatch.app', title: 'CashBridge',   industry: 'FinTech',    stage: 'growth', needs: 2000000, skills: ['FinTech','Mobile','Growth Hacking'],          hobbies: ['cooking','travel','reading'], bio: 'CEO of CashBridge, bringing banking to 1.4B unbanked adults in Southeast Asia. Revenue positive, processing $3M monthly. Looking for a Series A partner who believes financial inclusion is a real market.' },
-  { name: 'Jordan Lee',  email: 'jordan.lee@bizmatch.app',  title: 'VitalBand',    industry: 'HealthTech', stage: 'idea',   needs: 120000,  skills: ['Hardware','Machine Learning','BioSignals'],   hobbies: ['cycling','yoga','podcasts'],  bio: 'MD and ML engineer building a wearable that predicts health events 48 hours before symptoms appear. First prototype detects atrial fibrillation with 94% accuracy. Raising pre-seed to finish FDA validation.' },
-  { name: 'Zara Ahmed',  email: 'zara.ahmed@bizmatch.app',  title: 'LearnArc',     industry: 'EdTech',     stage: 'growth', needs: 1500000, skills: ['EdTech','Content','Community Building'],      hobbies: ['chess','hiking','teaching'], bio: 'Serial entrepreneur on my third venture. LearnArc is an adaptive learning platform with 28k active students across 40 countries. Raised $400k, now scaling. Strong education policy network in MENA and South Asia.' },
-  { name: 'Ethan Park',  email: 'ethan.park@bizmatch.app',  title: 'ArtisanRoute', industry: 'Marketplace',stage: 'mvp',    needs: 500000,  skills: ['Marketplace','Logistics','Community'],        hobbies: ['football','cooking','music'], bio: 'Connecting African artisans to global buyers. 340 sellers across 12 countries, shipping to 40 destinations. Average seller earns 3x their local market rate. Profitable unit economics, seeking seed to expand to Latin America.' },
+  { name: 'Alex Rivera', email: 'alex.rivera@bizmatch.app', title: 'TeamSync',     industry: 'SaaS',        stage: 'mvp',    needs: 400000,  skills: ['SaaS','Product Management','Engineering'],   hobbies: ['chess','running','gaming'],   bio: 'Ex-Google engineer building the async collaboration tool remote teams actually love. TeamSync combines video updates, task threads and AI meeting summaries. 800 paying teams after 6 months.' },
+  { name: 'Mia Johnson', email: 'mia.johnson@bizmatch.app', title: 'CashBridge',   industry: 'FinTech',     stage: 'growth', needs: 2000000, skills: ['FinTech','Mobile','Growth Hacking'],         hobbies: ['cooking','travel','reading'], bio: 'CEO of CashBridge, bringing banking to 1.4B unbanked adults in Southeast Asia. Revenue positive, processing $3M monthly. Looking for a Series A partner who believes financial inclusion is a real market.' },
+  { name: 'Jordan Lee',  email: 'jordan.lee@bizmatch.app',  title: 'VitalBand',    industry: 'HealthTech',  stage: 'idea',   needs: 120000,  skills: ['Hardware','Machine Learning','BioSignals'],  hobbies: ['cycling','yoga','podcasts'],  bio: 'MD and ML engineer building a wearable that predicts health events 48 hours before symptoms appear. First prototype detects atrial fibrillation with 94% accuracy. Raising pre-seed to finish FDA validation.' },
+  { name: 'Zara Ahmed',  email: 'zara.ahmed@bizmatch.app',  title: 'LearnArc',     industry: 'EdTech',      stage: 'growth', needs: 1500000, skills: ['EdTech','Content','Community Building'],     hobbies: ['chess','hiking','teaching'], bio: 'Serial entrepreneur on my third venture. LearnArc is an adaptive learning platform with 28k active students across 40 countries. Raised $400k, now scaling. Strong education policy network in MENA and South Asia.' },
+  { name: 'Ethan Park',  email: 'ethan.park@bizmatch.app',  title: 'ArtisanRoute', industry: 'Marketplace', stage: 'mvp',    needs: 500000,  skills: ['Marketplace','Logistics','Community'],       hobbies: ['football','cooking','music'], bio: 'Connecting African artisans to global buyers. 340 sellers across 12 countries, shipping to 40 destinations. Average seller earns 3x their local market rate. Profitable unit economics, seeking seed to expand to Latin America.' },
 ];
 
 const MATCH_PAIRS = [
-  { inv: 'sarah.chen@bizmatch.app',  ent: 'alex.rivera@bizmatch.app', meetingTitle: 'Seed Round Discussion — TeamSync', chat: [
+  { inv: 'sarah.chen@bizmatch.app',   ent: 'alex.rivera@bizmatch.app', meetingTitle: 'Seed Round Discussion — TeamSync', chat: [
     { from: 'inv', msg: "Hi Alex! TeamSync caught my eye — B2B SaaS at $50/team/month with 800 paying customers is impressive traction. Tell me more about retention." },
-    { from: 'ent', msg: "Thanks Sarah! Monthly churn is 2.1% which we\'re actively working to improve. Annual contracts are stickier — 96% renewal rate there. The big unlock was adding AI meeting summaries which teams now say is their favourite feature." },
+    { from: 'ent', msg: "Thanks Sarah! Monthly churn is 2.1% which we're actively working to improve. Annual contracts are stickier — 96% renewal rate there. The big unlock was adding AI meeting summaries which teams now say is their favourite feature." },
     { from: 'inv', msg: "That annual renewal number is strong. What does your expansion revenue look like? Are teams adding seats over time?" },
-    { from: 'ent', msg: "Net revenue retention is 118% — teams start with 5-10 seats and grow to 20-30 as they onboard more departments. Sales is entirely inbound right now which is why I\'m excited to bring on capital to build an outbound motion." },
+    { from: 'ent', msg: "Net revenue retention is 118% — teams start with 5-10 seats and grow to 20-30 as they onboard more departments. Sales is entirely inbound right now which is why I'm excited to bring on capital to build an outbound motion." },
   ]},
-  { inv: 'marcus.webb@bizmatch.app', ent: 'mia.johnson@bizmatch.app', meetingTitle: 'Series A Intro Call — CashBridge', chat: [
-    { from: 'inv', msg: "Mia, $3M monthly processing and revenue positive in fintech — that\'s rare. How are you thinking about the regulatory moat as you expand countries?" },
-    { from: 'ent', msg: "We partner with local licensed banks in each market rather than getting direct licenses, which is 10x faster to launch. We hold no customer funds ourselves. The moat is our local bank network and the trust we\'ve built with communities that other apps haven\'t touched." },
-    { from: 'inv', msg: "Smart structure. What\'s your take rate and how does it compare to incumbents?" },
-    { from: 'ent', msg: "We charge 1.8% on transfers vs the 5-8% that Western Union and local agents charge. Even at our rate we\'re dramatically cheaper and the convenience is incomparable. Gross margin is 62% once you strip out payment processing costs." },
+  { inv: 'marcus.webb@bizmatch.app',  ent: 'mia.johnson@bizmatch.app', meetingTitle: 'Series A Intro Call — CashBridge', chat: [
+    { from: 'inv', msg: "Mia, $3M monthly processing and revenue positive in fintech — that's rare. How are you thinking about the regulatory moat as you expand countries?" },
+    { from: 'ent', msg: "We partner with local licensed banks in each market rather than getting direct licenses, which is 10x faster to launch. We hold no customer funds ourselves. The moat is our local bank network and the trust we've built with communities that other apps haven't touched." },
+    { from: 'inv', msg: "Smart structure. What's your take rate and how does it compare to incumbents?" },
+    { from: 'ent', msg: "We charge 1.8% on transfers vs the 5-8% that Western Union and local agents charge. Even at our rate we're dramatically cheaper and the convenience is incomparable. Gross margin is 62% once you strip out payment processing costs." },
   ]},
-  { inv: 'lena.fischer@bizmatch.app', ent: 'jordan.lee@bizmatch.app', meetingTitle: 'Pre-Seed Check-in — VitalBand', chat: [
+  { inv: 'lena.fischer@bizmatch.app', ent: 'jordan.lee@bizmatch.app',  meetingTitle: 'Pre-Seed Check-in — VitalBand', chat: [
     { from: 'inv', msg: "Jordan — as a physician investor this is exactly what I look for. 94% AFib detection accuracy is publishable. Where are you in the FDA pathway?" },
-    { from: 'ent', msg: "We\'re pursuing De Novo classification which is typically 12-18 months. We have a regulatory consultant who worked at FDA for 8 years guiding us. The pre-submission meeting went well — no major red flags. We\'re building the clinical evidence package now." },
+    { from: 'ent', msg: "We're pursuing De Novo classification which is typically 12-18 months. We have a regulatory consultant who worked at FDA for 8 years guiding us. The pre-submission meeting went well — no major red flags. We're building the clinical evidence package now." },
     { from: 'inv', msg: "The pre-sub meeting result is the key signal I needed. What does the $120k pre-seed cover specifically?" },
     { from: 'ent', msg: "It covers the 510k-equivalent clinical study (40 patients, 3 sites), miniaturisation of the prototype, and 6 months runway for myself and my co-founder who is handling the ML side. We close pre-seed by end of Q2 and expect to have FDA clearance within 18 months of that." },
   ]},
-  { inv: 'david.okafor@bizmatch.app', ent: 'ethan.park@bizmatch.app', meetingTitle: 'Marketplace Deep Dive — ArtisanRoute', chat: [
+  { inv: 'david.okafor@bizmatch.app', ent: 'ethan.park@bizmatch.app',  meetingTitle: 'Marketplace Deep Dive — ArtisanRoute', chat: [
     { from: 'inv', msg: "Ethan, marketplace unit economics are my speciality. Walk me through your take rate and seller payback period." },
-    { from: 'ent', msg: "We take 12% on each transaction. Sellers pay nothing to list. Average seller does $800/month in sales on the platform, earning $704 net after our fee. A seller who earns $30/month locally now earns $700+ — that\'s transformational income. Seller acquisition cost is $45 and payback is under 2 months." },
-    { from: 'inv', msg: "CAC payback under 2 months is excellent. What\'s your buyer-side retention looking like? That\'s usually the harder side of the marketplace." },
-    { from: 'ent', msg: "Buyer 6-month retention is 61%, which we know needs work. We\'re building a subscription \'curated box\' product to create a recurring relationship. Buyers who subscribe retain at 89%. That\'s what the seed round is primarily funding — the subscription product and buyer acquisition." },
+    { from: 'ent', msg: "We take 12% on each transaction. Sellers pay nothing to list. Average seller does $800/month in sales on the platform, earning $704 net after our fee. A seller who earns $30/month locally now earns $700+ — that's transformational income. Seller acquisition cost is $45 and payback is under 2 months." },
+    { from: 'inv', msg: "CAC payback under 2 months is excellent. What's your buyer-side retention looking like? That's usually the harder side of the marketplace." },
+    { from: 'ent', msg: "Buyer 6-month retention is 61%, which we know needs work. We're building a subscription 'curated box' product to create a recurring relationship. Buyers who subscribe retain at 89%. That's what the seed round is primarily funding — the subscription product and buyer acquisition." },
   ]},
-  { inv: 'priya.nair@bizmatch.app',   ent: 'zara.ahmed@bizmatch.app', meetingTitle: 'Growth Strategy Call — LearnArc', chat: [
-    { from: 'inv', msg: "Zara, your traction in EdTech is outstanding. 28k students across 40 countries without raising a Series A is impressive. What\'s your business model?" },
+  { inv: 'priya.nair@bizmatch.app',   ent: 'zara.ahmed@bizmatch.app',  meetingTitle: 'Growth Strategy Call — LearnArc', chat: [
+    { from: 'inv', msg: "Zara, your traction in EdTech is outstanding. 28k students across 40 countries without raising a Series A is impressive. What's your business model?" },
     { from: 'ent', msg: "We charge institutions (universities and corporate training departments) a per-seat SaaS fee of $12/month. 40% of revenue comes from direct B2C subscriptions at $8/month. The institutional channel is where we see the best LTV — average contract is 3 years." },
     { from: 'inv', msg: "The institutional channel resonates with me. How are you thinking about content? Is it your own or user-generated?" },
-    { from: 'ent', msg: "We\'re a platform, not a content company. Instructors and institutions publish their own content and we provide the adaptive delivery engine. This means we scale content without scaling headcount. We take 30% revenue share on paid courses sold through our marketplace." },
+    { from: 'ent', msg: "We're a platform, not a content company. Instructors and institutions publish their own content and we provide the adaptive delivery engine. This means we scale content without scaling headcount. We take 30% revenue share on paid courses sold through our marketplace." },
   ]},
 ];
 
@@ -124,23 +125,28 @@ async function runMigrations(conn) {
   }
 }
 
-async function createUser(conn, { name, email, role }) {
-  const [rows] = await conn.query('INSERT INTO users (name, email, password_hash, role, is_verified) VALUES (?, ?, ?, ?, 1)', [name, email, PASSWORD_HASH, role]);
+async function createInvestor(conn, inv) {
+  const [rows] = await conn.query(
+    `INSERT INTO users
+       (name, email, password_hash, role, is_verified,
+        role_type, bio, investment_domain, preferred_stage, max_investment, skills)
+     VALUES (?, ?, ?, 'investor', 1, 'investor', ?, ?, ?, ?, ?)`,
+    [inv.name, inv.email, PASSWORD_HASH,
+     inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills)]
+  );
   return rows.insertId;
 }
 
-async function createInvestorProfile(conn, userId, inv) {
-  await conn.query(
-    `UPDATE users SET bio = ?, role_type = 'investor', investment_domain = ?, preferred_stage = ?, max_investment = ?, skills = ? WHERE id = ?`,
-    [inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills), userId]
+async function createEntrepreneur(conn, ent) {
+  const [rows] = await conn.query(
+    `INSERT INTO users
+       (name, email, password_hash, role, is_verified,
+        role_type, bio, skills, hobbies)
+     VALUES (?, ?, ?, 'entrepreneur', 1, 'entrepreneur', ?, ?, ?)`,
+    [ent.name, ent.email, PASSWORD_HASH,
+     ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies)]
   );
-}
-
-async function createEntrepreneurProfile(conn, userId, ent) {
-  await conn.query(
-    `UPDATE users SET bio = ?, role_type = 'entrepreneur', skills = ?, hobbies = ? WHERE id = ?`,
-    [ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies), userId]
-  );
+  return rows.insertId;
 }
 
 async function createProject(conn, userId, ent) {
@@ -149,6 +155,16 @@ async function createProject(conn, userId, ent) {
      VALUES (?, ?, ?, ?, ?, ?, 'public')`,
     [userId, ent.title, ent.bio, ent.industry, ent.stage, ent.needs]
   );
+}
+
+async function createMatch(conn, invId, entId) {
+  const [u1, u2] = invId < entId ? [invId, entId] : [entId, invId];
+  await conn.query('INSERT IGNORE INTO swipes (swiper_id, swiped_id, direction) VALUES (?, ?, ?)', [invId, entId, 'like']);
+  await conn.query('INSERT IGNORE INTO swipes (swiper_id, swiped_id, direction) VALUES (?, ?, ?)', [entId, invId, 'like']);
+  await conn.query('INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)', [u1, u2]);
+  const [rows] = await conn.query('SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?', [u1, u2]);
+  if (!rows[0]) throw new Error(`Match insert failed for users ${u1} and ${u2}`);
+  return rows[0].id;
 }
 
 async function createMeeting(conn, matchId, proposerId, receiverId, title, scheduledAt) {
@@ -164,16 +180,6 @@ async function createNotification(conn, userId, type, refId, payload) {
     `INSERT INTO notifications (user_id, type, ref_id, payload) VALUES (?, ?, ?, ?)`,
     [userId, type, refId, JSON.stringify(payload)]
   );
-}
-
-async function createMatch(conn, invId, entId) {
-  const [u1, u2] = invId < entId ? [invId, entId] : [entId, invId];
-  await conn.query('INSERT IGNORE INTO swipes (swiper_id, swiped_id, direction) VALUES (?, ?, ?)', [invId, entId, 'like']);
-  await conn.query('INSERT IGNORE INTO swipes (swiper_id, swiped_id, direction) VALUES (?, ?, ?)', [entId, invId, 'like']);
-  await conn.query('INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)', [u1, u2]);
-  const [rows] = await conn.query('SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?', [u1, u2]);
-  if (!rows[0]) throw new Error(`Match insert failed for users ${u1} and ${u2}`);
-  return rows[0].id;
 }
 
 async function seedChat(conn, matchId, invId, entId, messages) {
@@ -210,8 +216,7 @@ async function run() {
   console.log('\nCreating 5 investors...');
   const invMap = {};
   for (const inv of INVESTORS) {
-    const id = await createUser(conn, { name: inv.name, email: inv.email, role: 'investor' });
-    await createInvestorProfile(conn, id, inv);
+    const id = await createInvestor(conn, inv);
     invMap[inv.email] = id;
     console.log(`  ✓ ${inv.name}`);
   }
@@ -220,8 +225,7 @@ async function run() {
   console.log('\nCreating 5 entrepreneurs + projects...');
   const entMap = {};
   for (const ent of ENTREPRENEURS) {
-    const id = await createUser(conn, { name: ent.name, email: ent.email, role: 'entrepreneur' });
-    await createEntrepreneurProfile(conn, id, ent);
+    const id = await createEntrepreneur(conn, ent);
     await createProject(conn, id, ent);
     entMap[ent.email] = id;
     console.log(`  ✓ ${ent.name} — project: ${ent.title}`);
@@ -229,7 +233,6 @@ async function run() {
 
   // --- Pre-made matches + chats + meetings + notifications ---
   console.log('\nCreating 5 pre-made matches with chat histories, meetings and notifications...');
-  // Seed meetings 7–11 days in the future so they always appear upcoming
   const baseDate = new Date();
   baseDate.setHours(14, 0, 0, 0);
   for (let i = 0; i < MATCH_PAIRS.length; i++) {
@@ -237,6 +240,7 @@ async function run() {
     const invId = invMap[pair.inv];
     const entId = entMap[pair.ent];
     if (!invId || !entId) { console.log(`  skip (user not found): ${pair.inv} / ${pair.ent}`); continue; }
+
     const matchId = await createMatch(conn, invId, entId);
     await seedChat(conn, matchId, invId, entId, pair.chat);
 
@@ -244,9 +248,8 @@ async function run() {
     meetingDate.setDate(baseDate.getDate() + 7 + i);
     await createMeeting(conn, matchId, invId, entId, pair.meetingTitle, meetingDate);
 
-    const matchPayload = { matchId };
-    await createNotification(conn, invId, 'match', matchId, matchPayload);
-    await createNotification(conn, entId, 'match', matchId, matchPayload);
+    await createNotification(conn, invId, 'match', matchId, { matchId });
+    await createNotification(conn, entId, 'match', matchId, { matchId });
 
     console.log(`  ✓ match: ${pair.inv.split('@')[0]} ↔ ${pair.ent.split('@')[0]} (${pair.chat.length} msgs · meeting ${meetingDate.toDateString()})`);
   }
@@ -279,7 +282,7 @@ async function confirm(question) {
 }
 
 async function main() {
-  console.log('\n⚠️  WARNING: This will DROP all 14 tables. All existing data will be permanently deleted.\n');
+  console.log('\n⚠️  WARNING: This will DROP all tables. All existing data will be permanently deleted.\n');
   const answer = await confirm('Type "yes" to drop all tables: ');
   if (answer !== 'yes') {
     console.log('Aborted.');

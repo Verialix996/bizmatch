@@ -303,20 +303,17 @@ const serveNda = async (req, res, next) => {
     const projectId = Number(req.params.id);
     const userId = decoded.id;
 
-    let rows = await query('SELECT pdf_data FROM project_ndas WHERE project_id = ? AND user_id = ?', [projectId, userId]);
+    let rows = await query('SELECT document_url FROM project_ndas WHERE project_id = ? AND user_id = ?', [projectId, userId]);
 
     if (!rows[0]) {
       const ownerCheck = await query('SELECT id FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
       if (!ownerCheck[0]) return res.status(403).json({ error: 'Not authorized' });
-      rows = await query('SELECT pdf_data FROM project_ndas WHERE project_id = ? LIMIT 1', [projectId]);
+      rows = await query('SELECT document_url FROM project_ndas WHERE project_id = ? LIMIT 1', [projectId]);
     }
 
-    if (!rows[0]?.pdf_data) return res.status(404).json({ error: 'NDA not found' });
+    if (!rows[0]?.document_url) return res.status(404).json({ error: 'NDA not found' });
 
-    const buffer = Buffer.isBuffer(rows[0].pdf_data) ? rows[0].pdf_data : Buffer.from(rows[0].pdf_data);
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', 'inline; filename="nda.pdf"');
-    res.send(buffer);
+    return res.redirect(rows[0].document_url);
   } catch (err) { next(err); }
 };
 
