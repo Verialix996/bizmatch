@@ -71,7 +71,7 @@ export default function ProposeMeetingScreen({ route, navigation }) {
           videoLink:   locationType === 'virtual'   ? videoLink.trim()  : undefined,
           address:     locationType === 'in_person'  ? address.trim()   : undefined,
         });
-        navigation.navigate('Meetings');
+        navigation.popToTop();
       } else {
         await api.post('/meetings', {
           matchId,
