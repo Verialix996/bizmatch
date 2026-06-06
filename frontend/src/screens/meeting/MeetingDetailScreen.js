@@ -119,6 +119,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
         )}
       </View>
 
+      {/* Receiver on proposed: Confirm + Decline */}
       {isReceiver && meeting.status === 'proposed' && (
         <View style={styles.actionRow}>
           <TouchableOpacity
@@ -134,23 +135,10 @@ export default function MeetingDetailScreen({ route, navigation }) {
             onPress={() =>
               Alert.alert(
                 'Decline Meeting',
-                'Would you like to decline or suggest a new time?',
+                'Are you sure you want to decline this meeting?',
                 [
                   { text: 'Cancel' },
-                  { text: 'Just Decline', style: 'destructive', onPress: () => respond('declined') },
-                  {
-                    text: 'Suggest New Time',
-                    onPress: () => navigation.navigate('ProposeMeeting', {
-                      matchId: meeting.match_id,
-                      rescheduleId: meeting.id,
-                      prefill: {
-                        title: meeting.title,
-                        locationType: meeting.location_type,
-                        videoLink: meeting.video_link,
-                        address: meeting.address,
-                      },
-                    }),
-                  },
+                  { text: 'Decline', style: 'destructive', onPress: () => respond('declined') },
                 ]
               )
             }
@@ -160,6 +148,27 @@ export default function MeetingDetailScreen({ route, navigation }) {
         </View>
       )}
 
+      {/* Reschedule: receiver on proposed, or either party on confirmed */}
+      {((isReceiver && meeting.status === 'proposed') || meeting.status === 'confirmed') && (
+        <TouchableOpacity
+          style={[styles.actionBtn, { backgroundColor: colors.primary, alignSelf: 'stretch', marginBottom: 12 }]}
+          onPress={() => navigation.navigate('ProposeMeeting', {
+            matchId: meeting.match_id,
+            rescheduleId: meeting.id,
+            prefill: {
+              title: meeting.title,
+              locationType: meeting.location_type,
+              videoLink: meeting.video_link,
+              address: meeting.address,
+            },
+          })}
+          disabled={loadingAction}
+        >
+          <Text style={styles.actionBtnText}>Reschedule</Text>
+        </TouchableOpacity>
+      )}
+
+      {/* Proposer on proposed: Cancel */}
       {isProposer && meeting.status === 'proposed' && (
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: colors.error, alignSelf: 'stretch' }]}
@@ -170,7 +179,8 @@ export default function MeetingDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
-      {(isProposer || isReceiver) && meeting.status === 'confirmed' && (
+      {/* Either party on confirmed: Cancel */}
+      {meeting.status === 'confirmed' && (
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: colors.error, alignSelf: 'stretch' }]}
           onPress={() =>

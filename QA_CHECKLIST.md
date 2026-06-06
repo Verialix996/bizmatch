@@ -56,66 +56,25 @@
 ## Flow 11 — Meetings
 **Accounts:** `marcus.webb@bizmatch.app` ↔ `mia.johnson@bizmatch.app`
 
-- [ ] ProposeMeetingScreen: title, Virtual/In-Person toggle, date picker, time picker all work
-- [ ] Virtual meeting: video link field shown and saves correctly
-- [ ] In-Person meeting: address autocomplete works (Nominatim OSM), address saves
-- [ ] Proposed meeting appears in MeetingScreen with "Proposed" status for marcus.webb
-- [ ] mia.johnson sees the proposal in her MeetingScreen
-- [ ] mia.johnson can Confirm → status changes to "Confirmed" on both sides
-- [ ] mia.johnson can Decline → navigates back to list, meeting shows "Declined"
-- [ ] marcus.webb can Cancel → navigates back to list, meeting removed
-- [ ] Reschedule: ProposeMeetingScreen opens with pre-filled data
-- [ ] Free tier: 4th active meeting shows limit error
-- [ ] MeetingDetailScreen: all details display correctly
-- [ ] Virtual meeting "Join Call" button opens the video link correctly
----
-
-## Flow 12 — AI Meeting Briefing
-**Accounts:** `marcus.webb@bizmatch.app` — use the confirmed meeting from Flow 11
-
-- [ ] "Generate Briefing" button visible on a confirmed meeting
-- [ ] Loading state shown while generating (~2–3s)
-- [ ] Briefing displays: skills match, investment thesis, compatibility notes, discussion points
-- [ ] No crash or timeout during generation
+- [ ] Reschedule: "Reschedule" button visible on proposed (receiver) and confirmed meetings
+- [ ] Reschedule: ProposeMeetingScreen opens with pre-filled title, type, link/address
+- [ ] Reschedule: submitting updates meeting and navigates back to list with new time
 
 ---
 
-## Flow 13 — Premium
-**Accounts:** `priya.nair@bizmatch.app` or `zara.ahmed@bizmatch.app`
-
-- [ ] PremiumScreen loads with correct benefits table
-- [ ] "Activate" button shows 30-day free trial messaging
-- [ ] Activation works → premium badge appears on profile
-- [ ] Expiry date shown for active subscribers
-- [ ] Cancel subscription: confirmation dialog → cancelled
-- [ ] Unlimited swipes active after activation (no 20/day cap message)
-- [ ] "Who Liked You" section visible on Discover after activation
-- [ ] Meeting limit removed after activation
+## ✅ Flow 12 — AI Meeting Briefing — Complete
 
 ---
 
-## Flow 14 — Account Settings
-**Accounts:** `david.okafor@bizmatch.app`
-
-- [ ] AccountSettings loads without errors
-- [ ] Edit name: change saves and reflects on ProfileScreen
-- [ ] Dark Mode toggle: theme changes immediately across all tabs
-- [ ] Dark Mode toggle: can be turned off, reverts correctly
-- [ ] Enable 2FA: QR code renders, correct code enables 2FA
-- [ ] Disable 2FA: requires current code to disable
-- [ ] Referral code: displays and copy-to-clipboard works
-- [ ] Logout: clears session, returns to WelcomeScreen
-- [ ] Delete account: confirmation dialog → account deleted, returns to WelcomeScreen
+## ✅ Flow 13 — Premium — Complete
 
 ---
 
-## Flow 15 — Login with 2FA
-**Accounts:** Account with 2FA enabled from Flow 14 (`david.okafor@bizmatch.app`)
+## ✅ Flow 14 — Account Settings — Complete
 
-- [ ] Login on 2FA-enabled account → Verify2FAScreen appears
-- [ ] Correct authenticator code → navigates to main app
-- [ ] Wrong code → shows error
-- [ ] Google OAuth on 2FA account → Verify2FAScreen appears after OAuth
+---
+
+## ✅ Flow 15 — Login with 2FA — Complete
 
 ---
 

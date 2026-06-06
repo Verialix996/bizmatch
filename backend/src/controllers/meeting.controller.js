@@ -199,30 +199,48 @@ Person profile:
   }
 };
 
-// PATCH /api/meetings/:id/reschedule  { scheduledAt, videoLink?, address? }
+// PATCH /api/meetings/:id/reschedule  { scheduledAt, locationType?, videoLink?, address? }
 const reschedule = async (req, res, next) => {
   try {
     const meetingId = Number(req.params.id);
     const userId = req.user.id;
-    const { scheduledAt, videoLink, address } = req.body;
+    const { scheduledAt, locationType, videoLink, address } = req.body;
 
     if (!scheduledAt) return res.status(400).json({ error: 'scheduledAt is required' });
 
     const meeting = await getMeetingById(meetingId);
     if (!meeting) return res.status(404).json({ error: 'Meeting not found' });
-    if (meeting.receiver_id !== userId) return res.status(403).json({ error: 'Only the receiver can reschedule' });
-    if (meeting.status !== 'proposed') return res.status(400).json({ error: 'Can only reschedule a proposed meeting' });
+
+    const isParticipant = meeting.proposer_id === userId || meeting.receiver_id === userId;
+    if (!isParticipant) return res.status(403).json({ error: 'Not part of this meeting' });
+
+    if (!['proposed', 'confirmed'].includes(meeting.status)) {
+      return res.status(400).json({ error: 'Can only reschedule a proposed or confirmed meeting' });
+    }
+    if (meeting.status === 'proposed' && meeting.receiver_id !== userId) {
+      return res.status(403).json({ error: 'Only the receiver can reschedule a proposed meeting' });
+    }
+
+    const otherUserId = meeting.proposer_id === userId ? meeting.receiver_id : meeting.proposer_id;
+    const newLocationType = locationType || meeting.location_type;
 
     await query(
       `UPDATE meetings SET
-         scheduled_at = ?,
-         video_link   = ?,
-         address      = ?,
-         proposer_id  = receiver_id,
-         receiver_id  = proposer_id,
-         status       = 'proposed'
+         scheduled_at  = ?,
+         location_type = ?,
+         video_link    = ?,
+         address       = ?,
+         proposer_id   = ?,
+         receiver_id   = ?,
+         status        = 'proposed'
        WHERE id = ?`,
-      [toMysqlDatetime(scheduledAt), videoLink || null, address || null, meetingId]
+      [
+        toMysqlDatetime(scheduledAt),
+        newLocationType,
+        newLocationType === 'virtual'   ? (videoLink || null) : null,
+        newLocationType === 'in_person' ? (address  || null)  : null,
+        userId, otherUserId, meetingId,
+      ]
     );
 
     const updated = await getMeetingById(meetingId);

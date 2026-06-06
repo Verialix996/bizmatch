@@ -67,9 +67,11 @@ export default function ProposeMeetingScreen({ route, navigation }) {
       if (rescheduleId) {
         await api.patch(`/meetings/${rescheduleId}/reschedule`, {
           scheduledAt: date.toISOString(),
+          locationType,
           videoLink:   locationType === 'virtual'   ? videoLink.trim()  : undefined,
           address:     locationType === 'in_person'  ? address.trim()   : undefined,
         });
+        navigation.navigate('Meetings');
       } else {
         await api.post('/meetings', {
           matchId,
@@ -79,8 +81,8 @@ export default function ProposeMeetingScreen({ route, navigation }) {
           videoLink:   locationType === 'virtual'   ? videoLink.trim()  : undefined,
           address:     locationType === 'in_person'  ? address.trim()   : undefined,
         });
+        navigation.goBack();
       }
-      navigation.goBack();
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'Could not submit meeting.');
     }
