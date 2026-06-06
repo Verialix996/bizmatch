@@ -53,13 +53,7 @@
 
 ---
 
-## Flow 11 — Meetings
-**Accounts:** `marcus.webb@bizmatch.app` ↔ `mia.johnson@bizmatch.app`
-
-- [ ] Reschedule: "Reschedule" button visible on proposed (receiver) and confirmed meetings
-- [ ] Reschedule: ProposeMeetingScreen opens with pre-filled title, type, link/address
-- [ ] Reschedule: submitting updates meeting and navigates back to list with new time
-
+## ✅ Flow 11 — Meetings — Complete
 ---
 
 ## ✅ Flow 12 — AI Meeting Briefing — Complete
@@ -78,16 +72,7 @@
 
 ---
 
-## General
-
-- [ ] Bottom tab navigation works between all 4 tabs
-- [ ] App header renders correctly (investor mode toggle visible on Discover only)
-- [ ] Investor mode toggle changes theme correctly
-- [ ] Back navigation never causes a blank or stuck screen
-- [ ] No red Expo error screens during any flow
-- [ ] No console warnings about unhandled navigation actions
-- [ ] App resumes correctly after backgrounding and foregrounding
-- [ ] Deep link for password reset (`bizmatch://reset-password`) works on device
+## ✅ General — Complete
 
 ---
 

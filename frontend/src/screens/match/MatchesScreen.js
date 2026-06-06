@@ -268,7 +268,7 @@ export default function MatchesScreen({ navigation }) {
                   <TouchableOpacity
                     key={String(m.id)}
                     style={styles.meetingCard}
-                    onPress={() => navigation.navigate('MeetingDetail', { meeting: m })}
+                    onPress={() => navigation.navigate('Meetings')}
                     activeOpacity={0.85}
                   >
                     <View style={{ flex: 1 }}>
