@@ -49,16 +49,8 @@
 
 ---
 
-## Flow 10 — Project Management
-**Accounts:** `alex.rivera@bizmatch.app` (has **TeamSync** project pre-seeded)
-*(Also test with `mia.johnson` → CashBridge, `jordan.lee` → VitalBand, `zara.ahmed` → LearnArc, `ethan.park` → ArtisanRoute)*
+## ✅ Flow 10 — Project Management — Complete
 
-- [ ] Create new project: name, description, stage → saves correctly
-- [ ] Upload pitch video: progress bar shown during upload, video playable after upload
-- [ ] Tapping a project card opens project detail popup (not owner profile)
-- [ ] Manage partners: list shows all partners with roles
-- [ ] Change partner role: dropdown works and saves
-- [ ] AI feedback on deck displays (requires investor to have reviewed the deck)
 ---
 
 ## Flow 11 — Meetings
@@ -70,12 +62,12 @@
 - [ ] Proposed meeting appears in MeetingScreen with "Proposed" status for marcus.webb
 - [ ] mia.johnson sees the proposal in her MeetingScreen
 - [ ] mia.johnson can Confirm → status changes to "Confirmed" on both sides
-- [ ] mia.johnson can Decline → status changes to "Declined"
-- [ ] marcus.webb can Cancel → status changes to "Cancelled"
+- [ ] mia.johnson can Decline → navigates back to list, meeting shows "Declined"
+- [ ] marcus.webb can Cancel → navigates back to list, meeting removed
 - [ ] Reschedule: ProposeMeetingScreen opens with pre-filled data
 - [ ] Free tier: 4th active meeting shows limit error
 - [ ] MeetingDetailScreen: all details display correctly
-
+- [ ] Virtual meeting "Join Call" button opens the video link correctly
 ---
 
 ## Flow 12 — AI Meeting Briefing

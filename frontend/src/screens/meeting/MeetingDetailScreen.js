@@ -45,6 +45,9 @@ export default function MeetingDetailScreen({ route, navigation }) {
     try {
       const { data } = await api.put(`/meetings/${meeting.id}`, { status });
       setMeeting(data);
+      if (status === 'cancelled' || status === 'declined') {
+        navigation.goBack();
+      }
     } catch (err) {
       Alert.alert('Error', err.response?.data?.error || 'Action failed.');
     }
@@ -87,7 +90,16 @@ export default function MeetingDetailScreen({ route, navigation }) {
         </View>
 
         {meeting.location_type === 'virtual' && meeting.video_link && (
-          <TouchableOpacity style={styles.joinBtn} onPress={() => Linking.openURL(meeting.video_link)}>
+          <TouchableOpacity
+            style={styles.joinBtn}
+            onPress={() => {
+              let url = meeting.video_link;
+              if (!url.startsWith('http://') && !url.startsWith('https://')) {
+                url = 'https://' + url;
+              }
+              Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open the call link.'));
+            }}
+          >
             <Ionicons name="videocam" size={16} color="#fff" />
             <Text style={styles.joinBtnText}>Join Call</Text>
           </TouchableOpacity>
