@@ -122,6 +122,7 @@ export default function ChatScreen({ route, navigation }) {
   const [ndaPreviewVisible, setNdaPreviewVisible] = useState(false);
   const [ndaPreviewItem, setNdaPreviewItem] = useState(null);
   const [ndaSenderProject, setNdaSenderProject] = useState(null); // set when investor is signing as sender
+  const [ndaSigning, setNdaSigning] = useState(false);
 
   // Job offer modal
   const [jobOfferVisible, setJobOfferVisible] = useState(false);
@@ -314,28 +315,36 @@ export default function ChatScreen({ route, navigation }) {
   const handleSignNda = async (item) => {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
+    setNdaSigning(true);
     try {
       const res = await signNda(match.matchId, meta.projectId);
       if (res.data?.id) lastIdRef.current = res.data.id;
       appendMessages(res.data);
+      setNdaPreviewVisible(false);
+      setNdaPreviewItem(null);
       // Reload to pick up the auto-shared project_shared message and updated nda_signed
       await load();
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not agree to NDA.');
+    } finally {
+      setNdaSigning(false);
     }
   };
 
   const handleSenderRequestNda = async () => {
     if (!ndaSenderProject) return;
     const project = ndaSenderProject;
-    setNdaPreviewVisible(false);
-    setNdaSenderProject(null);
+    setNdaSigning(true);
     try {
       const res = await requestNda(match.matchId, project.id);
       if (res.data?.id) lastIdRef.current = res.data.id;
       appendMessages(res.data);
+      setNdaPreviewVisible(false);
+      setNdaSenderProject(null);
     } catch (e) {
       Alert.alert('Error', e.response?.data?.error || 'Could not send NDA request.');
+    } finally {
+      setNdaSigning(false);
     }
   };
 
@@ -660,10 +669,10 @@ export default function ChatScreen({ route, navigation }) {
               </View>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnAccept, { marginTop: 10 }]}
-                onPress={() => handleSignNda(item)}
+                onPress={() => { setNdaPreviewItem(item); setNdaPreviewVisible(true); }}
                 activeOpacity={0.85}
               >
-                <Text style={styles.actionBtnAcceptText}>I Agree</Text>
+                <Text style={styles.actionBtnAcceptText}>Review & Agree</Text>
               </TouchableOpacity>
             </View>
           )}
@@ -1232,8 +1241,8 @@ export default function ChatScreen({ route, navigation }) {
         </View>
       </Modal>
 
-      {/* NDA preview modal — used for sender (sign & send request) and partner-invite signing */}
-      <Modal visible={ndaPreviewVisible} transparent animationType="fade" onRequestClose={() => { setNdaPreviewVisible(false); setNdaPreviewItem(null); setNdaSenderProject(null); }}>
+      {/* NDA preview modal — used for sender (sign & send request) and receiver (agree) */}
+      <Modal visible={ndaPreviewVisible} transparent animationType="fade" onRequestClose={() => { if (ndaSigning) return; setNdaPreviewVisible(false); setNdaPreviewItem(null); setNdaSenderProject(null); }}>
         <View style={styles.ndaOverlay}>
           <View style={styles.ndaModal}>
             <Text style={styles.ndaModalTitle}>Non-Disclosure Agreement</Text>
@@ -1242,7 +1251,9 @@ export default function ChatScreen({ route, navigation }) {
                 By signing, you agree to these terms as the requesting party. The other party must also agree before the NDA document is generated.
               </Text>
             ) : (
-              <Text style={styles.ndaModalSub}>Please review the key terms before signing</Text>
+              <Text style={styles.ndaModalSub}>
+                Review the key terms below. Tapping "Sign NDA" records your agreement and generates the final NDA document.
+              </Text>
             )}
             <View style={styles.ndaClauseList}>
               <View style={styles.ndaClause}>
@@ -1264,26 +1275,31 @@ export default function ChatScreen({ route, navigation }) {
             </View>
             <View style={styles.ndaModalActions}>
               <TouchableOpacity
-                style={styles.ndaCancelBtn}
-                onPress={() => { setNdaPreviewVisible(false); setNdaPreviewItem(null); setNdaSenderProject(null); }}
+                style={[styles.ndaCancelBtn, ndaSigning && { opacity: 0.4 }]}
+                onPress={() => { if (ndaSigning) return; setNdaPreviewVisible(false); setNdaPreviewItem(null); setNdaSenderProject(null); }}
+                disabled={ndaSigning}
               >
                 <Text style={styles.ndaCancelBtnText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity
-                style={styles.ndaSignBtn}
+                style={[styles.ndaSignBtn, ndaSigning && { opacity: 0.7 }]}
                 onPress={() => {
+                  if (ndaSigning) return;
                   if (ndaSenderProject) {
                     handleSenderRequestNda();
                   } else {
-                    setNdaPreviewVisible(false);
                     if (ndaPreviewItem) handleSignNda(ndaPreviewItem);
-                    setNdaPreviewItem(null);
                   }
                 }}
+                disabled={ndaSigning}
               >
-                <Text style={styles.ndaSignBtnText}>
-                  {ndaSenderProject ? 'Sign & Send Request' : 'Sign NDA'}
-                </Text>
+                {ndaSigning ? (
+                  <ActivityIndicator size="small" color="#fff" />
+                ) : (
+                  <Text style={styles.ndaSignBtnText}>
+                    {ndaSenderProject ? 'Sign & Send Request' : 'Sign NDA'}
+                  </Text>
+                )}
               </TouchableOpacity>
             </View>
           </View>
