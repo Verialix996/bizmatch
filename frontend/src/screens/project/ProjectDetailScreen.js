@@ -1,7 +1,8 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, StatusBar, ActivityIndicator, Linking, Modal, Dimensions,
+  SafeAreaView, StatusBar, ActivityIndicator, Modal, Dimensions,
 } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useState, useEffect } from 'react';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { getPartners } from '../../services/project.service';
@@ -80,7 +81,7 @@ export default function ProjectDetailScreen({ route, navigation }) {
 
   const openDeck = () => {
     const token = useAuthStore.getState().token;
-    Linking.openURL(`${BACKEND_BASE_URL}/api/projects/${project.id}/deck?token=${token}`);
+    WebBrowser.openBrowserAsync(`${BACKEND_BASE_URL}/api/projects/${project.id}/deck?token=${token}`);
   };
 
   const displayOwner = ownerName || project.owner_name;

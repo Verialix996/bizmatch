@@ -15,7 +15,7 @@ const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe, getCompatibility } from '../../services/match.service';
 import { getProjectFeed, swipeProject, getMyProjects } from '../../services/project.service';
-import { Linking } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorSwipeColors, investorThemeColors, cardShadow, radius } from '../../theme';
@@ -232,7 +232,7 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
               style={styles.linkBtn}
               onPress={() => {
                 const token = useAuthStore.getState().token;
-                Linking.openURL(`${BACKEND_BASE_URL}/api/projects/${project.projectId}/deck?token=${token}`);
+                WebBrowser.openBrowserAsync(`${BACKEND_BASE_URL}/api/projects/${project.projectId}/deck?token=${token}`);
               }}
             >
               <Text style={styles.linkBtnText}>📄 View Deck</Text>
