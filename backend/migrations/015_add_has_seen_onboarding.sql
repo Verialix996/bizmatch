@@ -1,2 +1,0 @@
-ALTER TABLE users
-  ADD COLUMN has_seen_onboarding TINYINT(1) NOT NULL DEFAULT 0;
