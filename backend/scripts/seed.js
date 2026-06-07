@@ -130,8 +130,8 @@ async function createInvestor(conn, inv, photoUrl) {
   const [rows] = await conn.query(
     `INSERT INTO users
        (name, email, password_hash, role, is_verified,
-        role_type, bio, investment_domain, preferred_stage, max_investment, skills, photo_url)
-     VALUES (?, ?, ?, 'investor', 1, 'investor', ?, ?, ?, ?, ?, ?)`,
+        role_type, bio, investment_domain, preferred_stage, max_investment, skills, photo_url, has_seen_onboarding)
+     VALUES (?, ?, ?, 'investor', 1, 'investor', ?, ?, ?, ?, ?, ?, 1)`,
     [inv.name, inv.email, PASSWORD_HASH,
      inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills), photoUrl]
   );
@@ -142,8 +142,8 @@ async function createEntrepreneur(conn, ent, photoUrl) {
   const [rows] = await conn.query(
     `INSERT INTO users
        (name, email, password_hash, role, is_verified,
-        role_type, bio, skills, hobbies, photo_url)
-     VALUES (?, ?, ?, 'entrepreneur', 1, 'entrepreneur', ?, ?, ?, ?)`,
+        role_type, bio, skills, hobbies, photo_url, has_seen_onboarding)
+     VALUES (?, ?, ?, 'entrepreneur', 1, 'entrepreneur', ?, ?, ?, ?, 1)`,
     [ent.name, ent.email, PASSWORD_HASH,
      ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies), photoUrl]
   );
