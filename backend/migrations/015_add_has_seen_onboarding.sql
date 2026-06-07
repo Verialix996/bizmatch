@@ -1,2 +1,2 @@
 ALTER TABLE users
-  ADD COLUMN IF NOT EXISTS has_seen_onboarding TINYINT(1) NOT NULL DEFAULT 0;
+  ADD COLUMN has_seen_onboarding TINYINT(1) NOT NULL DEFAULT 0;
