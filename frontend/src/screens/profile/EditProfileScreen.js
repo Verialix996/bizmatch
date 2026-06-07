@@ -121,6 +121,7 @@ export default function EditProfileScreen({ route, navigation }) {
   const forceStep = route.params?.forceStep;
   const updateUser = useAuthStore(s => s.updateUser);
   const currentUser = useAuthStore(s => s.user);
+  const hasSeenOnboarding = useAuthStore(s => s.hasSeenOnboarding);
   const darkMode = useAppStore(s => s.darkMode);
   const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
@@ -232,7 +233,9 @@ export default function EditProfileScreen({ route, navigation }) {
       if (isNew) {
         await api.post('/profile', payload);
         updateUser({ role: selectedRole, has_profile: true });
-        navigation.navigate('Onboarding');
+        // reset() works regardless of which navigator branch is active.
+        // Onboarding appears when the user hasn't seen it; otherwise go to Main.
+        navigation.reset({ index: 0, routes: [{ name: hasSeenOnboarding ? 'Main' : 'Onboarding' }] });
       } else {
         await api.put('/profile', payload);
         if (forceStep === 'role') updateUser({ role: selectedRole });

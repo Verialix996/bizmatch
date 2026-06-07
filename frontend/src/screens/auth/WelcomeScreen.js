@@ -46,6 +46,7 @@ export default function WelcomeScreen({ navigation }) {
               name: data.name,
               role: data.role,
               has_profile: data.has_profile === true || data.has_profile === 'true',
+              has_seen_onboarding: data.has_seen_onboarding === true || data.has_seen_onboarding === 1,
             });
           }
           return;
@@ -102,6 +103,7 @@ export default function WelcomeScreen({ navigation }) {
                     name: data.name,
                     role: data.role,
                     has_profile: data.has_profile === true || data.has_profile === 'true',
+                    has_seen_onboarding: data.has_seen_onboarding === true || data.has_seen_onboarding === 1,
                   });
                 }
                 return resolve();
@@ -134,6 +136,7 @@ export default function WelcomeScreen({ navigation }) {
               name: params.name,
               role: params.role,
               has_profile: params.has_profile === 'true',
+              has_seen_onboarding: params.has_seen_onboarding === '1',
               is_premium: params.is_premium === '1' || params.is_premium === 'true' ? 1 : 0,
               premium_expires_at: params.premium_expires_at || null,
               photo_url: params.photo_url || null,

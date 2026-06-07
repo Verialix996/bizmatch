@@ -96,7 +96,7 @@ async function login(req, res, next) {
 
     const profile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, has_seen_onboarding: !!user.has_seen_onboarding, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled } });
   } catch (err) {
     next(err);
   }
@@ -116,7 +116,7 @@ async function verifyEmail(req, res, next) {
     await UserModel.setOtpCode(user.id, null, null);
 
     const token = generateToken(user);
-    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: false, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled } });
+    res.json({ message: 'Email verified', token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: false, has_seen_onboarding: false, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled } });
   } catch (err) {
     next(err);
   }
@@ -276,6 +276,7 @@ async function oauthCallback(req, res) {
       name:   user.name  || '',
       role:   user.role  || '',
       has_profile,
+      has_seen_onboarding: user.has_seen_onboarding ? 1 : 0,
       is_premium: user.is_premium || 0,
       premium_expires_at: user.premium_expires_at || '',
       photo_url: user.photo_url || '',
@@ -298,6 +299,7 @@ async function oauthCallback(req, res) {
     name:   user.name  || '',
     role:   user.role  || '',
     has_profile: String(has_profile),
+    has_seen_onboarding: String(user.has_seen_onboarding ? 1 : 0),
     is_premium: String(user.is_premium || 0),
     premium_expires_at: user.premium_expires_at || '',
     photo_url: user.photo_url || '',
@@ -344,7 +346,7 @@ async function googleMobile(req, res, next) {
 
     const userProfile = await ProfileModel.findByUserId(user.id);
     const token = generateToken(user);
-    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!userProfile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled } });
+    res.json({ token, user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!userProfile, has_seen_onboarding: !!user.has_seen_onboarding, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled } });
   } catch (err) {
     next(err);
   }
@@ -374,7 +376,7 @@ async function login2FA(req, res, next) {
     const jwtToken = generateToken(user);
     res.json({
       token: jwtToken,
-      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled },
+      user: { id: user.id, email: user.email, name: user.name, role: user.role, has_profile: !!profile, has_seen_onboarding: !!user.has_seen_onboarding, is_premium: user.is_premium, premium_expires_at: user.premium_expires_at, photo_url: user.photo_url, two_factor_enabled: !!user.two_factor_enabled },
     });
   } catch (err) {
     next(err);

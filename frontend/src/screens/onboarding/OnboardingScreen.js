@@ -2,6 +2,7 @@ import { useState, useRef } from 'react';
 import { View, Text, TouchableOpacity, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useAuthStore from '../../store/authStore';
+import api from '../../services/api';
 import { colors } from '../../theme';
 
 const SLIDES = [
@@ -38,8 +39,9 @@ export default function OnboardingScreen({ navigation }) {
   const setHasSeenOnboarding = useAuthStore(s => s.setHasSeenOnboarding);
 
   const finish = () => {
-    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
     setHasSeenOnboarding();
+    api.patch('/users/me/onboarding').catch(() => {});
+    navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 
   const next = () => {

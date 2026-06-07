@@ -10,8 +10,7 @@ const useAuthStore = create((set, get) => ({
   isRestoring: true,
 
   setAuth: async (token, user) => {
-    // has_profile is the authoritative source — never trust a stale device flag for a new account
-    const hasSeenOnboarding = !!(user.has_profile);
+    const hasSeenOnboarding = !!(user.has_seen_onboarding);
     set({ token, user, hasSeenOnboarding });
     try {
       await SecureStore.setItemAsync('auth_token', token);
@@ -32,15 +31,18 @@ const useAuthStore = create((set, get) => ({
       const token = await SecureStore.getItemAsync('auth_token');
       const userStr = await SecureStore.getItemAsync('auth_user');
       const user = userStr ? JSON.parse(userStr) : null;
-      const hasSeenOnboarding = !!(user?.has_profile);
+      const hasSeenOnboarding = !!(user?.has_seen_onboarding);
       if (token && user) set({ token, user, hasSeenOnboarding, isRestoring: false });
       else set({ hasSeenOnboarding, isRestoring: false });
     } catch { set({ isRestoring: false }); }
   },
 
   setHasSeenOnboarding: () => {
-    set({ hasSeenOnboarding: true });
-    SecureStore.setItemAsync('has_seen_onboarding', 'true').catch(() => {});
+    set(state => {
+      const updated = state.user ? { ...state.user, has_seen_onboarding: true } : state.user;
+      if (updated) SecureStore.setItemAsync('auth_user', JSON.stringify(updated)).catch(() => {});
+      return { user: updated, hasSeenOnboarding: true };
+    });
   },
 
   setNewMatchCount: (count) => set({ newMatchCount: count }),

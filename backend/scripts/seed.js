@@ -43,20 +43,21 @@ const PASSWORD_HASH = bcrypt.hashSync('Demo1234!', 10);
 // Seed data
 // ---------------------------------------------------------------------------
 
+// pravatar.cc — real portrait photos, stable by img number, size param controls resolution
 const INVESTORS = [
-  { name: 'Sarah Chen',   email: 'sarah.chen@bizmatch.app',   domain: 'SaaS,B2B Software',    stage: 'mvp',    max: 500000,  skills: ['SaaS Strategy', 'Product-Led Growth', 'Board Advisory'],       bio: 'Early-stage SaaS investor with 12 years backing B2B software companies. Former product lead at Salesforce. I write the first check and sit on the board.' },
-  { name: 'Marcus Webb',  email: 'marcus.webb@bizmatch.app',  domain: 'FinTech,Payments',      stage: 'growth', max: 2000000, skills: ['FinTech Regulation', 'Payments Infrastructure', 'Series A'],   bio: 'Partner at Meridian Ventures. Focused on fintech infrastructure and payments. Previously built and sold a payment processing startup.' },
-  { name: 'Lena Fischer', email: 'lena.fischer@bizmatch.app', domain: 'HealthTech,MedTech',    stage: 'idea',   max: 150000,  skills: ['FDA Pathways', 'Clinical Research', 'MedTech Due Diligence'], bio: 'Angel investor and former ER physician. Backing founders who are fixing healthcare with technology. Love capital-efficient teams.' },
-  { name: 'David Okafor', email: 'david.okafor@bizmatch.app', domain: 'Marketplace,eCommerce', stage: 'mvp',    max: 750000,  skills: ['Marketplace Dynamics', 'Supply Chain', 'Unit Economics'],      bio: 'Operator-turned-investor. I built two marketplace startups and now back the next generation. Strong network in logistics and supply chain.' },
-  { name: 'Priya Nair',   email: 'priya.nair@bizmatch.app',   domain: 'EdTech,Future of Work', stage: 'mvp',    max: 300000,  skills: ['EdTech Partnerships', 'Curriculum Design', 'Global Scaling'], bio: 'EdTech-focused investor and ex-Coursera. Passionate about upskilling and workforce development in emerging markets.' },
+  { name: 'Sarah Chen',   email: 'sarah.chen@bizmatch.app',   avatar: 'https://i.pravatar.cc/600?img=47', domain: 'SaaS,B2B Software',    stage: 'mvp',    max: 500000,  skills: ['SaaS Strategy', 'Product-Led Growth', 'Board Advisory'],       bio: 'Early-stage SaaS investor with 12 years backing B2B software companies. Former product lead at Salesforce. I write the first check and sit on the board.' },
+  { name: 'Marcus Webb',  email: 'marcus.webb@bizmatch.app',  avatar: 'https://i.pravatar.cc/600?img=33', domain: 'FinTech,Payments',      stage: 'growth', max: 2000000, skills: ['FinTech Regulation', 'Payments Infrastructure', 'Series A'],   bio: 'Partner at Meridian Ventures. Focused on fintech infrastructure and payments. Previously built and sold a payment processing startup.' },
+  { name: 'Lena Fischer', email: 'lena.fischer@bizmatch.app', avatar: 'https://i.pravatar.cc/600?img=22', domain: 'HealthTech,MedTech',    stage: 'idea',   max: 150000,  skills: ['FDA Pathways', 'Clinical Research', 'MedTech Due Diligence'], bio: 'Angel investor and former ER physician. Backing founders who are fixing healthcare with technology. Love capital-efficient teams.' },
+  { name: 'David Okafor', email: 'david.okafor@bizmatch.app', avatar: 'https://i.pravatar.cc/600?img=53', domain: 'Marketplace,eCommerce', stage: 'mvp',    max: 750000,  skills: ['Marketplace Dynamics', 'Supply Chain', 'Unit Economics'],      bio: 'Operator-turned-investor. I built two marketplace startups and now back the next generation. Strong network in logistics and supply chain.' },
+  { name: 'Priya Nair',   email: 'priya.nair@bizmatch.app',   avatar: 'https://i.pravatar.cc/600?img=57', domain: 'EdTech,Future of Work', stage: 'mvp',    max: 300000,  skills: ['EdTech Partnerships', 'Curriculum Design', 'Global Scaling'], bio: 'EdTech-focused investor and ex-Coursera. Passionate about upskilling and workforce development in emerging markets.' },
 ];
 
 const ENTREPRENEURS = [
-  { name: 'Alex Rivera', email: 'alex.rivera@bizmatch.app', title: 'TeamSync',     industry: 'SaaS',        stage: 'mvp',    needs: 400000,  skills: ['SaaS','Product Management','Engineering'],   hobbies: ['chess','running','gaming'],   bio: 'Ex-Google engineer building the async collaboration tool remote teams actually love. TeamSync combines video updates, task threads and AI meeting summaries. 800 paying teams after 6 months.' },
-  { name: 'Mia Johnson', email: 'mia.johnson@bizmatch.app', title: 'CashBridge',   industry: 'FinTech',     stage: 'growth', needs: 2000000, skills: ['FinTech','Mobile','Growth Hacking'],         hobbies: ['cooking','travel','reading'], bio: 'CEO of CashBridge, bringing banking to 1.4B unbanked adults in Southeast Asia. Revenue positive, processing $3M monthly. Looking for a Series A partner who believes financial inclusion is a real market.' },
-  { name: 'Jordan Lee',  email: 'jordan.lee@bizmatch.app',  title: 'VitalBand',    industry: 'HealthTech',  stage: 'idea',   needs: 120000,  skills: ['Hardware','Machine Learning','BioSignals'],  hobbies: ['cycling','yoga','podcasts'],  bio: 'MD and ML engineer building a wearable that predicts health events 48 hours before symptoms appear. First prototype detects atrial fibrillation with 94% accuracy. Raising pre-seed to finish FDA validation.' },
-  { name: 'Zara Ahmed',  email: 'zara.ahmed@bizmatch.app',  title: 'LearnArc',     industry: 'EdTech',      stage: 'growth', needs: 1500000, skills: ['EdTech','Content','Community Building'],     hobbies: ['chess','hiking','teaching'], bio: 'Serial entrepreneur on my third venture. LearnArc is an adaptive learning platform with 28k active students across 40 countries. Raised $400k, now scaling. Strong education policy network in MENA and South Asia.' },
-  { name: 'Ethan Park',  email: 'ethan.park@bizmatch.app',  title: 'ArtisanRoute', industry: 'Marketplace', stage: 'mvp',    needs: 500000,  skills: ['Marketplace','Logistics','Community'],       hobbies: ['football','cooking','music'], bio: 'Connecting African artisans to global buyers. 340 sellers across 12 countries, shipping to 40 destinations. Average seller earns 3x their local market rate. Profitable unit economics, seeking seed to expand to Latin America.' },
+  { name: 'Alex Rivera', email: 'alex.rivera@bizmatch.app', avatar: 'https://i.pravatar.cc/600?img=12', title: 'TeamSync',     industry: 'SaaS',        stage: 'mvp',    needs: 400000,  skills: ['SaaS','Product Management','Engineering'],   hobbies: ['chess','running','gaming'],   bio: 'Ex-Google engineer building the async collaboration tool remote teams actually love. TeamSync combines video updates, task threads and AI meeting summaries. 800 paying teams after 6 months.' },
+  { name: 'Mia Johnson', email: 'mia.johnson@bizmatch.app', avatar: 'https://i.pravatar.cc/600?img=67', title: 'CashBridge',   industry: 'FinTech',     stage: 'growth', needs: 2000000, skills: ['FinTech','Mobile','Growth Hacking'],         hobbies: ['cooking','travel','reading'], bio: 'CEO of CashBridge, bringing banking to 1.4B unbanked adults in Southeast Asia. Revenue positive, processing $3M monthly. Looking for a Series A partner who believes financial inclusion is a real market.' },
+  { name: 'Jordan Lee',  email: 'jordan.lee@bizmatch.app',  avatar: 'https://i.pravatar.cc/600?img=39', title: 'VitalBand',    industry: 'HealthTech',  stage: 'idea',   needs: 120000,  skills: ['Hardware','Machine Learning','BioSignals'],  hobbies: ['cycling','yoga','podcasts'],  bio: 'MD and ML engineer building a wearable that predicts health events 48 hours before symptoms appear. First prototype detects atrial fibrillation with 94% accuracy. Raising pre-seed to finish FDA validation.' },
+  { name: 'Zara Ahmed',  email: 'zara.ahmed@bizmatch.app',  avatar: 'https://i.pravatar.cc/600?img=48', title: 'LearnArc',     industry: 'EdTech',      stage: 'growth', needs: 1500000, skills: ['EdTech','Content','Community Building'],     hobbies: ['chess','hiking','teaching'], bio: 'Serial entrepreneur on my third venture. LearnArc is an adaptive learning platform with 28k active students across 40 countries. Raised $400k, now scaling. Strong education policy network in MENA and South Asia.' },
+  { name: 'Ethan Park',  email: 'ethan.park@bizmatch.app',  avatar: 'https://i.pravatar.cc/600?img=16', title: 'ArtisanRoute', industry: 'Marketplace', stage: 'mvp',    needs: 500000,  skills: ['Marketplace','Logistics','Community'],       hobbies: ['football','cooking','music'], bio: 'Connecting African artisans to global buyers. 340 sellers across 12 countries, shipping to 40 destinations. Average seller earns 3x their local market rate. Profitable unit economics, seeking seed to expand to Latin America.' },
 ];
 
 const MATCH_PAIRS = [
@@ -125,26 +126,26 @@ async function runMigrations(conn) {
   }
 }
 
-async function createInvestor(conn, inv) {
+async function createInvestor(conn, inv, photoUrl) {
   const [rows] = await conn.query(
     `INSERT INTO users
        (name, email, password_hash, role, is_verified,
-        role_type, bio, investment_domain, preferred_stage, max_investment, skills)
-     VALUES (?, ?, ?, 'investor', 1, 'investor', ?, ?, ?, ?, ?)`,
+        role_type, bio, investment_domain, preferred_stage, max_investment, skills, photo_url)
+     VALUES (?, ?, ?, 'investor', 1, 'investor', ?, ?, ?, ?, ?, ?)`,
     [inv.name, inv.email, PASSWORD_HASH,
-     inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills)]
+     inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills), photoUrl]
   );
   return rows.insertId;
 }
 
-async function createEntrepreneur(conn, ent) {
+async function createEntrepreneur(conn, ent, photoUrl) {
   const [rows] = await conn.query(
     `INSERT INTO users
        (name, email, password_hash, role, is_verified,
-        role_type, bio, skills, hobbies)
-     VALUES (?, ?, ?, 'entrepreneur', 1, 'entrepreneur', ?, ?, ?)`,
+        role_type, bio, skills, hobbies, photo_url)
+     VALUES (?, ?, ?, 'entrepreneur', 1, 'entrepreneur', ?, ?, ?, ?)`,
     [ent.name, ent.email, PASSWORD_HASH,
-     ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies)]
+     ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies), photoUrl]
   );
   return rows.insertId;
 }
@@ -216,7 +217,7 @@ async function run() {
   console.log('\nCreating 5 investors...');
   const invMap = {};
   for (const inv of INVESTORS) {
-    const id = await createInvestor(conn, inv);
+    const id = await createInvestor(conn, inv, inv.avatar);
     invMap[inv.email] = id;
     console.log(`  ✓ ${inv.name}`);
   }
@@ -225,7 +226,7 @@ async function run() {
   console.log('\nCreating 5 entrepreneurs + projects...');
   const entMap = {};
   for (const ent of ENTREPRENEURS) {
-    const id = await createEntrepreneur(conn, ent);
+    const id = await createEntrepreneur(conn, ent, ent.avatar);
     await createProject(conn, id, ent);
     entMap[ent.email] = id;
     console.log(`  ✓ ${ent.name} — project: ${ent.title}`);

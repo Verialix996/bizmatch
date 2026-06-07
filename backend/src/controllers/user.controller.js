@@ -153,4 +153,12 @@ async function verifySelf(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, cancelPremium, whoLikedMe, verifySelf };
+// PATCH /api/users/me/onboarding
+async function markOnboardingSeen(req, res, next) {
+  try {
+    await UserModel.setHasSeenOnboarding(req.user.id);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+}
+
+module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, cancelPremium, whoLikedMe, verifySelf, markOnboardingSeen };

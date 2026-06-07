@@ -8,6 +8,7 @@ router.delete('/me',                    authenticate, ctrl.deleteAccount);
 router.patch('/me/role',                authenticate, ctrl.setRole);
 router.post('/me/photo',                authenticate, ctrl.uploadPhoto);
 router.patch('/me/push-token',          authenticate, ctrl.savePushToken);
+router.patch('/me/onboarding',          authenticate, ctrl.markOnboardingSeen);
 router.post('/me/premium/activate',     authenticate, ctrl.activatePremium);
 router.delete('/me/premium',            authenticate, ctrl.cancelPremium);
 router.get('/me/who-liked-me',          authenticate, ctrl.whoLikedMe);

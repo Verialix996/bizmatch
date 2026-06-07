@@ -123,6 +123,10 @@ const UserModel = {
       [attempts, lockedUntil ?? null, id]
     );
   },
+
+  async setHasSeenOnboarding(id) {
+    await query('UPDATE users SET has_seen_onboarding = 1 WHERE id = ?', [id]);
+  },
 };
 
 module.exports = UserModel;

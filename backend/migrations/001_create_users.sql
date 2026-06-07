@@ -24,6 +24,7 @@ CREATE TABLE IF NOT EXISTS users (
   last_active_at       DATETIME NULL DEFAULT NULL,
   swipe_count          INT DEFAULT 0,
   swipe_count_date     DATE NULL,
+  has_seen_onboarding  TINYINT(1) NOT NULL DEFAULT 0,
   bio                  TEXT,
   skills               TEXT,
   hobbies              TEXT,
