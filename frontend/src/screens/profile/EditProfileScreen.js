@@ -232,7 +232,7 @@ export default function EditProfileScreen({ route, navigation }) {
       if (isNew) {
         await api.post('/profile', payload);
         updateUser({ role: selectedRole, has_profile: true });
-        // Navigator automatically shows Onboarding (Branch 3) once has_profile is true
+        navigation.navigate('Onboarding');
       } else {
         await api.put('/profile', payload);
         if (forceStep === 'role') updateUser({ role: selectedRole });
