@@ -94,6 +94,9 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
+        {project.icon_url ? (
+          <Image source={{ uri: project.icon_url }} style={styles.projectIcon} />
+        ) : null}
         <TouchableOpacity style={{ flex: 1 }} onPress={() => onViewDetail?.(project)} activeOpacity={0.7}>
           <Text style={styles.cardTitle}>{project.title}</Text>
           {project.stage ? (
@@ -417,6 +420,9 @@ function JoinedProjectCard({ project, onViewDetail, styles, C }) {
   return (
     <View style={[styles.card, styles.joinedCard]}>
       <View style={styles.cardHeader}>
+        {project.icon_url ? (
+          <Image source={{ uri: project.icon_url }} style={styles.projectIcon} />
+        ) : null}
         <TouchableOpacity style={{ flex: 1 }} onPress={() => onViewDetail?.(project)} activeOpacity={0.7}>
           <Text style={styles.cardTitle}>{project.title}</Text>
           {project.stage ? (
@@ -970,6 +976,13 @@ function makeStyles(C) {
     flexDirection: 'row',
     alignItems: 'flex-start',
     marginBottom: 10,
+  },
+  projectIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    marginRight: 12,
+    backgroundColor: C.backgroundSoft,
   },
   cardTitle: {
     fontSize: 16,

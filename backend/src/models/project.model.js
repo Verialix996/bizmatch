@@ -42,18 +42,18 @@ function jaccardScore(textA, textB, maxPts) {
 // ── CRUD ──────────────────────────────────────────────────────────────────────
 
 async function createProject(userId, data) {
-  const { title, description, stage, funding_needed, industry, visibility, deck_url, video_url } = data;
+  const { title, description, stage, funding_needed, industry, visibility, icon_url, deck_url, video_url } = data;
   const result = await query(
-    `INSERT INTO projects (user_id, title, description, stage, funding_needed, industry, visibility, deck_url, video_url)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT INTO projects (user_id, title, description, stage, funding_needed, industry, visibility, icon_url, deck_url, video_url)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     [userId, title, description || null, stage || null, funding_needed || null,
-     industry || null, visibility || 'public', deck_url || null, video_url || null]
+     industry || null, visibility || 'public', icon_url || null, deck_url || null, video_url || null]
   );
-  const rows = await query('SELECT id, user_id, title, description, stage, funding_needed, industry, visibility, deck_url, video_url, is_active, created_at, updated_at FROM projects WHERE id = ?', [result.insertId]);
+  const rows = await query(`SELECT ${PROJECT_COLS} FROM projects WHERE id = ?`, [result.insertId]);
   return rows[0];
 }
 
-const PROJECT_COLS = 'id, user_id, title, description, stage, funding_needed, industry, visibility, deck_url, video_url, is_active, created_at, updated_at';
+const PROJECT_COLS = 'id, user_id, title, description, stage, funding_needed, industry, visibility, icon_url, deck_url, video_url, is_active, created_at, updated_at';
 
 async function getProjectsByUser(userId) {
   return await query(
@@ -182,7 +182,7 @@ async function getProjectFeed(investorId, limit = 20) {
 
   const projects = await query(
     `SELECT p.id, p.user_id, p.title, p.description, p.stage, p.funding_needed,
-            p.industry, p.visibility, p.deck_url, p.video_url, p.is_active,
+            p.industry, p.visibility, p.icon_url, p.deck_url, p.video_url, p.is_active,
             p.created_at, p.updated_at,
             u.name AS owner_name, u.photo_url AS owner_photo,
             u.is_premium AS owner_is_premium, u.premium_expires_at AS owner_premium_expires_at,
@@ -442,7 +442,7 @@ async function removeProjectPartner(projectId, ownerUserId, partnerUserId) {
 async function getJoinedProjects(userId) {
   return await query(
     `SELECT p.id, p.user_id, p.title, p.description, p.stage, p.funding_needed,
-            p.industry, p.visibility, p.deck_url, p.video_url, p.is_active,
+            p.industry, p.visibility, p.icon_url, p.deck_url, p.video_url, p.is_active,
             p.created_at, p.updated_at,
             u.name AS owner_name, u.photo_url AS owner_photo
      FROM project_partners pp
@@ -457,7 +457,7 @@ async function getJoinedProjects(userId) {
 // Public read of another user's projects (for NDA request / partner flows)
 async function getProjectsByOwner(ownerId) {
   return await query(
-    `SELECT id, title, description, stage, industry, deck_url, video_url
+    `SELECT id, title, description, stage, industry, icon_url, deck_url, video_url
      FROM projects WHERE user_id = ? AND is_active = 1 ORDER BY created_at DESC`,
     [ownerId]
   );

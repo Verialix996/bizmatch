@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS projects (
   stage          VARCHAR(20) CHECK(stage IN ('idea', 'mvp', 'growth', 'scale')),
   funding_needed INT,
   industry       TEXT,
+  icon_url       TEXT,
   deck_url       TEXT,
   video_url      TEXT,
   is_active      TINYINT(1) DEFAULT 1,
