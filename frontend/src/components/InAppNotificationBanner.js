@@ -6,6 +6,7 @@ import useAppStore from '../store/appStore';
 
 const TYPE_ICON = {
   match:          '🤝',
+  message:        '💬',
   meeting:        '📅',
   super_like:     '⭐',
   partner_invite: '📋',
@@ -39,13 +40,13 @@ export default function InAppNotificationBanner() {
   function slide(dir) {
     if (dir === 'in') {
       Animated.parallel([
-        Animated.spring(translateY, { toValue: 0, useNativeDriver: true, friction: 10, tension: 70 }),
-        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(translateY, { toValue: 0, useNativeDriver: false, friction: 10, tension: 70 }),
+        Animated.timing(opacity, { toValue: 1, duration: 200, useNativeDriver: false }),
       ]).start();
     } else {
       Animated.parallel([
-        Animated.timing(translateY, { toValue: -160, duration: 260, useNativeDriver: true }),
-        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: true }),
+        Animated.timing(translateY, { toValue: -160, duration: 260, useNativeDriver: false }),
+        Animated.timing(opacity, { toValue: 0, duration: 220, useNativeDriver: false }),
       ]).start();
     }
   }
