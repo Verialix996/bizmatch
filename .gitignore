@@ -83,5 +83,6 @@ tests and bugs/
 # ── Project docs (academic submissions, not for repo) ─────────────────────────
 docs/
 
-# ── Demo seed (run manually when needed, never commit) ────────────────────────
+# ── Scripts (run manually when needed, never commit) ─────────────────────────
 backend/scripts/demo.js
+backend/scripts/seed.js
