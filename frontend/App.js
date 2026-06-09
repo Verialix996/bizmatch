@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Linking } from 'react-native';
+import { Platform, View, ActivityIndicator, Linking } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Notifications from 'expo-notifications';
@@ -9,14 +9,16 @@ import useAuthStore from './src/store/authStore';
 import useAppStore from './src/store/appStore';
 import api from './src/services/api';
 
-// Show push alerts even while the app is foregrounded
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+// Push notifications are native-only — web uses the in-app bell
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -33,7 +35,7 @@ function parseOAuthUrl(url) {
 }
 
 async function registerForPushNotifications() {
-  if (!Device.isDevice) return;
+  if (Platform.OS === 'web' || !Device.isDevice) return;
   const { status } = await Notifications.requestPermissionsAsync();
   if (status !== 'granted') return;
   const { data: token } = await Notifications.getExpoPushTokenAsync();
@@ -66,6 +68,8 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
+    if (Platform.OS === 'web') return;
+
     const bumpTick = useAppStore.getState().bumpNotificationTick;
 
     // Notification arrives while app is open → show in-app banner + refresh bell
