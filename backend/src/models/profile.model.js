@@ -73,8 +73,6 @@ const ProfileModel = {
           [userId, ...investorValues]
         );
       }
-    } else if (roleType === 'entrepreneur') {
-      await query('INSERT IGNORE INTO entrepreneur_profiles (user_id) VALUES (?)', [userId]);
     }
     return { userId };
   },

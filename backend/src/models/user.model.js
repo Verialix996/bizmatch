@@ -48,8 +48,6 @@ const UserModel = {
     await query('INSERT INTO user_app_state (user_id) VALUES (?)', [result.insertId]);
     if (role === 'investor') {
       await query('INSERT IGNORE INTO investor_profiles (user_id) VALUES (?)', [result.insertId]);
-    } else if (role === 'entrepreneur') {
-      await query('INSERT IGNORE INTO entrepreneur_profiles (user_id) VALUES (?)', [result.insertId]);
     }
     return { id: result.insertId, email, role, name, is_verified: 0 };
   },
@@ -164,10 +162,6 @@ const UserModel = {
     await query('UPDATE user_profiles SET role_type = ? WHERE user_id = ?', [role, id]);
     if (role === 'investor') {
       await query('INSERT IGNORE INTO investor_profiles (user_id) VALUES (?)', [id]);
-      await query('DELETE FROM entrepreneur_profiles WHERE user_id = ?', [id]);
-    } else if (role === 'entrepreneur') {
-      await query('INSERT IGNORE INTO entrepreneur_profiles (user_id) VALUES (?)', [id]);
-      await query('DELETE FROM investor_profiles WHERE user_id = ?', [id]);
     }
   },
 
