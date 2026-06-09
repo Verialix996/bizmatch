@@ -440,7 +440,6 @@ export default function SwipeScreen() {
       return;
     }
 
-    setLastMatchSummary(null);
     setSwiping(true);
     const toX = direction === 'like' ? 500 : -500;
 
