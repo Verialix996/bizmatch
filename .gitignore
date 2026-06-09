@@ -66,6 +66,8 @@ current bugs.txt
 graphify-out/
 dashboard.sh
 hermes-pi4-setup.md
+knip.json
+eslint.config.js
 
 # ── Misc ─────────────────────────────────────────────────────────────────────
 coverage/
