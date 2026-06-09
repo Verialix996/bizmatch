@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react';
-import { View, Text, TouchableOpacity, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
+import { useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import useAuthStore from '../../store/authStore';
 import api from '../../services/api';
@@ -16,7 +16,7 @@ const SLIDES = [
     key: '2',
     emoji: '🤝',
     title: 'Match',
-    subtitle: "When both sides swipe right, it's a match! Our AI explains exactly why you're a great fit.",
+    subtitle: "When both sides swipe right, it's a match — start chatting right away.",
   },
   {
     key: '3',
@@ -35,7 +35,6 @@ const SLIDES = [
 export default function OnboardingScreen({ navigation }) {
   const { width } = useWindowDimensions();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const listRef = useRef(null);
   const setHasSeenOnboarding = useAuthStore(s => s.setHasSeenOnboarding);
 
   const finish = () => {
@@ -46,15 +45,14 @@ export default function OnboardingScreen({ navigation }) {
 
   const next = () => {
     if (currentIndex < SLIDES.length - 1) {
-      const nextIndex = currentIndex + 1;
-      listRef.current?.scrollToIndex({ index: nextIndex, animated: true });
-      setCurrentIndex(nextIndex);
+      setCurrentIndex(currentIndex + 1);
     } else {
       finish();
     }
   };
 
   const isLast = currentIndex === SLIDES.length - 1;
+  const slide = SLIDES[currentIndex];
 
   return (
     <SafeAreaView style={styles.container}>
@@ -64,22 +62,11 @@ export default function OnboardingScreen({ navigation }) {
         </TouchableOpacity>
       )}
 
-      <FlatList
-        ref={listRef}
-        data={SLIDES}
-        horizontal
-        pagingEnabled
-        showsHorizontalScrollIndicator={false}
-        scrollEnabled={false}
-        keyExtractor={item => item.key}
-        renderItem={({ item }) => (
-          <View style={[styles.slide, { width }]}>
-            <Text style={styles.emoji}>{item.emoji}</Text>
-            <Text style={styles.title}>{item.title}</Text>
-            <Text style={styles.subtitle}>{item.subtitle}</Text>
-          </View>
-        )}
-      />
+      <View style={[styles.slide, { width }]}>
+        <Text style={styles.emoji}>{slide.emoji}</Text>
+        <Text style={styles.title}>{slide.title}</Text>
+        <Text style={styles.subtitle}>{slide.subtitle}</Text>
+      </View>
 
       <View style={styles.footer}>
         <View style={styles.dots}>
