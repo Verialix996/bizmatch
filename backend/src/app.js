@@ -23,7 +23,9 @@ const app = express();
 app.set('trust proxy', 1);
 
 // Security & parsing
-app.use(helmet());
+// crossOriginOpenerPolicy disabled: COOP: same-origin severs the opener's popup reference,
+// making popup.closed return true immediately in Chrome and breaking the OAuth popup flow.
+app.use(helmet({ crossOriginOpenerPolicy: false }));
 const NETLIFY_SITE = 'bizmatchapp.netlify.app';
 const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(',').map(o => o.trim())

@@ -112,6 +112,7 @@ export default function WelcomeScreen({ navigation }) {
             if (popup.closed || attempts > 150) {
               clearInterval(interval);
               window.removeEventListener('message', onMessage);
+              setGoogleError('Google sign-in was cancelled or failed. Please try again.');
               resolve();
             }
           }, 1000);
