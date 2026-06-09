@@ -52,15 +52,15 @@ export default function NotificationBell({ tintColor }) {
   const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await api.get('/notifications');
+      const unread = data.filter(n => !n.readAt);
+      console.log('[Bell] fetched', data.length, 'total,', unread.length, 'unread', unread);
       setNotifications(data);
 
       if (seenIdsRef.current === null) {
-        // First load — record existing IDs without showing banners
         seenIdsRef.current = new Set(data.map(n => n.id));
         return;
       }
 
-      // Detect notifications that are new since last fetch
       const newUnread = data.filter(n => !n.readAt && !seenIdsRef.current.has(n.id));
       if (newUnread.length > 0) {
         const newest = newUnread[0];
@@ -71,7 +71,9 @@ export default function NotificationBell({ tintColor }) {
         });
       }
       seenIdsRef.current = new Set(data.map(n => n.id));
-    } catch { /* silent — bell is non-critical */ }
+    } catch (err) {
+      console.error('[Bell] fetch error', err);
+    }
   }, []);
 
   useEffect(() => {
@@ -120,12 +122,14 @@ export default function NotificationBell({ tintColor }) {
   return (
     <>
       <TouchableOpacity style={styles.bellBtn} onPress={handleOpen} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-        <Text style={[styles.bellIcon, { color: iconColor }]}>🔔</Text>
-        {unreadCount > 0 && (
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
-          </View>
-        )}
+        <View style={styles.bellRow}>
+          <Text style={[styles.bellIcon, { color: iconColor }]}>🔔</Text>
+          {unreadCount > 0 && (
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
 
       <Modal transparent visible={open} animationType="fade" onRequestClose={() => setOpen(false)}>
@@ -172,12 +176,10 @@ export default function NotificationBell({ tintColor }) {
 }
 
 const styles = StyleSheet.create({
-  bellBtn: { position: 'relative', padding: 4, overflow: 'visible' },
+  bellBtn: { padding: 4 },
+  bellRow: { flexDirection: 'row', alignItems: 'flex-start' },
   bellIcon: { fontSize: 22 },
   badge: {
-    position: 'absolute',
-    top: 0,
-    right: 0,
     minWidth: 16,
     height: 16,
     borderRadius: 8,
@@ -185,6 +187,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 3,
+    marginLeft: -8,
+    marginTop: -2,
   },
   badgeText: { color: '#fff', fontSize: 10, fontWeight: '800' },
 
