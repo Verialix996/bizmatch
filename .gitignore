@@ -88,3 +88,4 @@ docs/
 # ── Scripts (run manually when needed, never commit) ─────────────────────────
 backend/scripts/demo.js
 backend/scripts/seed.js
+backend/scripts/check-schema.js
