@@ -76,6 +76,7 @@ async function getConversations(userId) {
        ent_proj.stage AS ventureStage,
        lm.body AS lastMessage,
        lm.created_at AS lastMessageAt,
+       lm.read_at AS lastMessageReadAt,
        lm.sender_id AS lastMessageSenderId,
        proj.title AS projectName,
        proj.id AS projectId,

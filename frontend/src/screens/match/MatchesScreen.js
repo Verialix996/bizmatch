@@ -54,14 +54,10 @@ function NewMatchBubble({ item, onPress, C, styles }) {
   );
 }
 
-function ConversationRow({ item, onPress, currentUserId, readTimestamps, C, styles, showPersonName }) {
+function ConversationRow({ item, onPress, currentUserId, C, styles, showPersonName }) {
   const roleLabel = item.roleType === 'investor' ? 'INVESTOR' : 'ENTREPRENEUR';
   const domain = item.investmentDomain || item.ventureStage || '';
-  const lastMsgTime = item.lastMessageAt
-    ? new Date(item.lastMessageAt.endsWith('Z') ? item.lastMessageAt : item.lastMessageAt + 'Z').getTime()
-    : 0;
-  const readAt = readTimestamps?.[item.matchId] || 0;
-  const hasUnread = item.lastMessage && item.lastMessageSenderId !== currentUserId && lastMsgTime > readAt;
+  const hasUnread = item.lastMessage && item.lastMessageSenderId !== currentUserId && !item.lastMessageReadAt;
 
   return (
     <TouchableOpacity style={styles.convRow} onPress={onPress} activeOpacity={0.7}>
@@ -122,7 +118,6 @@ export default function MatchesScreen({ navigation }) {
   const [meetingsLoading, setMeetingsLoading] = useState(false);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser = useAuthStore(s => s.user);
-  const readTimestamps = useAuthStore(s => s.readTimestamps);
   const darkMode = useAppStore(s => s.darkMode);
   const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
@@ -137,15 +132,11 @@ export default function MatchesScreen({ navigation }) {
         whoLikedMe().then(r => setLikedBy(r.data || [])).catch(() => {});
       }
       const items = res.data || [];
-      const readTs = useAuthStore.getState().readTimestamps;
       // Badge = new matches (no messages) + conversations with unread last message
       const newMatchCount = items.filter(c => !c.lastMessage).length;
-      const unreadCount = items.filter(c => {
-        if (!c.lastMessage || c.lastMessageSenderId === currentUser?.id) return false;
-        const lastMsgTime = c.lastMessageAt ? new Date(c.lastMessageAt.endsWith('Z') ? c.lastMessageAt : c.lastMessageAt + 'Z').getTime() : 0;
-        const readAt = readTs[c.matchId] || 0;
-        return lastMsgTime > readAt;
-      }).length;
+      const unreadCount = items.filter(c =>
+        c.lastMessage && c.lastMessageSenderId !== currentUser?.id && !c.lastMessageReadAt
+      ).length;
       setNewMatchCount(newMatchCount + unreadCount);
     } catch (e) {
       console.error('Conversations error:', e.response?.data?.error || e.message);
@@ -163,13 +154,10 @@ export default function MatchesScreen({ navigation }) {
         const res = await getConversations();
         setConversations(res.data);
         const items = res.data || [];
-        const readTs = useAuthStore.getState().readTimestamps;
         const newMatchCount = items.filter(c => !c.lastMessage).length;
-        const unreadCount = items.filter(c => {
-          if (!c.lastMessage || c.lastMessageSenderId === currentUser?.id) return false;
-          const t = c.lastMessageAt ? new Date(c.lastMessageAt.endsWith('Z') ? c.lastMessageAt : c.lastMessageAt + 'Z').getTime() : 0;
-          return t > (readTs[c.matchId] || 0);
-        }).length;
+        const unreadCount = items.filter(c =>
+          c.lastMessage && c.lastMessageSenderId !== currentUser?.id && !c.lastMessageReadAt
+        ).length;
         setNewMatchCount(newMatchCount + unreadCount);
       } catch { /* silent */ }
     }, 10000);
@@ -368,7 +356,7 @@ export default function MatchesScreen({ navigation }) {
                           key={`pc-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
-                          readTimestamps={readTimestamps}
+                          
                           C={C} styles={styles}
                           showPersonName
                           onPress={() => navigation.navigate('Chat', { match: item })}
@@ -389,7 +377,7 @@ export default function MatchesScreen({ navigation }) {
                           key={`ac-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
-                          readTimestamps={readTimestamps}
+                          
                           C={C} styles={styles}
                           onPress={() => navigation.navigate('Chat', { match: item })}
                         />
@@ -415,7 +403,7 @@ export default function MatchesScreen({ navigation }) {
                           key={`gc-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
-                          readTimestamps={readTimestamps}
+                          
                           C={C} styles={styles}
                           showPersonName
                           onPress={() => navigation.navigate('Chat', { match: item })}
@@ -436,7 +424,7 @@ export default function MatchesScreen({ navigation }) {
                           key={`ec-${idx}-${item.matchId}`}
                           item={item}
                           currentUserId={currentUser?.id}
-                          readTimestamps={readTimestamps}
+                          
                           C={C} styles={styles}
                           onPress={() => navigation.navigate('Chat', { match: item })}
                         />
