@@ -11,7 +11,6 @@ const ProfileModel = {
     const rows = await query(
       `SELECT up.user_id, up.bio, up.skills, up.hobbies, up.role_type,
               up.portfolio_url, up.linkedin_url, up.experience, up.cv_url, up.photo_url,
-              up.created_at, up.updated_at,
               ip.investment_domain, ip.preferred_stage, ip.max_investment
        FROM user_profiles up
        LEFT JOIN investor_profiles ip ON ip.user_id = up.user_id
