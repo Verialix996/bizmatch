@@ -56,6 +56,27 @@ const send = async (req, res, next) => {
     const msg = await sendMessage(matchId, req.user.id, body.trim());
     if (!msg) return res.status(403).json({ error: 'Not part of this match' });
 
+    // Emit in-app bell notification to receiver (skip if one already unread for this match)
+    ;(async () => {
+      try {
+        const matchRows = await query(
+          'SELECT user1_id, user2_id FROM matches WHERE id = ?', [matchId]
+        );
+        if (!matchRows[0]) return;
+        const receiverId = matchRows[0].user1_id === req.user.id ? matchRows[0].user2_id : matchRows[0].user1_id;
+        const existing = await query(
+          `SELECT id FROM notifications WHERE user_id = ? AND type = 'message' AND ref_id = ? AND read_at IS NULL LIMIT 1`,
+          [receiverId, matchId]
+        );
+        if (existing.length) return; // already an unread badge for this chat
+        const senderRows = await query('SELECT name FROM users WHERE id = ?', [req.user.id]);
+        await emitNotification(receiverId, 'message', matchId, {
+          matchId,
+          fromName: senderRows[0]?.name || 'Someone',
+        });
+      } catch { /* non-critical */ }
+    })();
+
     res.status(201).json(msg);
   } catch (err) {
     next(err);

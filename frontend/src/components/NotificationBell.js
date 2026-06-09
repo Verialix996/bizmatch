@@ -9,6 +9,7 @@ import useAppStore from '../store/appStore';
 
 const TYPE_ICON = {
   match:          '🤝',
+  message:        '💬',
   meeting:        '📅',
   super_like:     '⭐',
   partner_invite: '📋',
@@ -16,6 +17,7 @@ const TYPE_ICON = {
 
 const TYPE_LABEL = {
   match:          'New Match',
+  message:        'New Message',
   meeting:        'Meeting Invitation',
   super_like:     'Super Like',
   partner_invite: 'Partner Invitation',
@@ -33,6 +35,7 @@ function formatTime(dateStr) {
 
 const TYPE_BODY = {
   match:          (p) => p?.name ? `You matched with ${p.name}!` : 'You have a new match!',
+  message:        (p) => p?.fromName ? `New message from ${p.fromName}` : 'You have a new message.',
   meeting:        (p) => p?.title || 'A meeting has been proposed.',
   super_like:     (p) => p?.name ? `${p.name} super liked you!` : 'Someone super liked you!',
   partner_invite: (p) => p?.title || 'New partner invitation.',
@@ -98,9 +101,10 @@ export default function NotificationBell({ tintColor }) {
     setOpen(false);
     switch (item.type) {
       case 'match':
+      case 'super_like':
         navigation.navigate('Matches');
         break;
-      case 'super_like':
+      case 'message':
         navigation.navigate('Matches');
         break;
       case 'meeting':
