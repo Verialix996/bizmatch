@@ -63,6 +63,7 @@ stitch_match_messaging_chat/
 current bugs.txt
 # ── Tools ────────────────────────────────────────────────────────────────────
 .understand-anything/
+graphify-out/
 dashboard.sh
 hermes-pi4-setup.md
 
