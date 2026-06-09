@@ -3,8 +3,9 @@
 A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 **Backend:** Live on Railway → `https://zooming-surprise-production.up.railway.app`  
-**Frontend:** Expo (React Native) — run locally, connects to Railway from any network  
-**Deploy branch:** `main` (Railway auto-deploys from this branch)
+**Frontend (web):** Live on Netlify → `https://bizmatchapp.netlify.app`  
+**Frontend (native):** Expo (React Native) — run locally or build via EAS, connects to Railway from any network  
+**Deploy branch:** `main` (Railway and Netlify both auto-deploy from this branch)
 
 ---
 
@@ -86,8 +87,9 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Never shown again after completion
 
 ### Push Notifications
-- New match and new message alerts when app is backgrounded
-- Real physical device required (not simulators)
+- New match and new message alerts when app is backgrounded (native only)
+- Real physical device required for OS-level push (not simulators)
+- **Web version** uses an in-app notification bell that polls every 5 s — no device or service worker needed
 
 ### AI Content Moderation
 - Profile bios, chat messages, and project descriptions screened before saving
@@ -220,7 +222,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # 16 numbered .sql files (001–016), auto-run on startup
+│   ├── migrations/        # 21 numbered .sql files, auto-run on startup
 │   ├── scripts/           # seed.js — wipes DB, reseeds 5 investors + 5 entrepreneurs
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
@@ -241,13 +243,11 @@ bizmatch/
 │   │   │   ├── premium/   # PremiumScreen
 │   │   │   ├── profile/   # ProfileScreen, EditProfile
 │   │   │   └── project/   # ProjectsScreen, CreateProject, EditProject
-│   │   ├── services/      # API calls (axios)
-│   │   └── store/         # Zustand (auth + SecureStore persistence)
+│   │   ├── services/      # API calls (axios), alert utility
+│   │   ├── store/         # Zustand (auth + app state)
+│   │   └── utils/         # pushNotifications.native.js / .web.js (platform stubs)
+│   ├── stubs/             # react-devtools-core stub for Metro web builds
 │   └── App.js
-├── docs/                  # Setup guides + academic files (gitignored)
-├── FEATURE_STATUS.md      # Status of every feature
-├── TESTING.md             # Manual testing guide
-└── systems.md             # Full technical system documentation
 ```
 
 ---
@@ -306,6 +306,8 @@ bizmatch/
 | PUT | `/api/meetings/:id` | Confirm / decline meeting |
 | PATCH | `/api/meetings/:id/reschedule` | Suggest a new meeting time |
 | GET | `/api/meetings/:id/briefing` | Get AI due diligence briefing |
+| GET | `/api/notifications` | Get all notifications (last 50) |
+| POST | `/api/notifications/read` | Mark notifications as read (`{ ids }` or `{ types }`) |
 
 ---
 
@@ -313,16 +315,16 @@ bizmatch/
 
 The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main`.
 
-- **Database:** MySQL on Railway — 16 numbered migrations run automatically on startup (idempotent)
+- **Backend:** Railway — auto-deploys from `main`; start command `node server.js`
+- **Frontend:** Netlify — auto-deploys from `main`; build command `npx expo export -p web`; publishes `frontend/dist/`
+- **Database:** MySQL on Railway — 21 numbered migrations run automatically on startup (idempotent)
 - **File storage:** Cloudinary (photos, docs, videos, pitch decks, NDA PDFs)
-- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — feed ranking, deck review, meeting briefings, compatibility scoring
+- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — candidate scoring for feed ranking, deck review, meeting briefings
 - **Content moderation:** local word-list (no API calls)
-- **Node.js service:** root directory `backend/`, start command `node server.js`
 
 ## Notes
 
 - Never commit `.env` files
 - AI features fail silently when `ANTHROPIC_API_KEY` is missing
-- Push notifications only work on real physical devices
-- See `docs/QA_CHECKLIST.md` for manual testing instructions
-- See `TECHNICAL_VIDEO_PLAN.md` for a full code walkthrough
+- Push notifications (OS-level) only work on real physical devices; web uses the in-app bell
+- See `docs/QA_CHECKLIST.md` for manual testing instructions (file is gitignored)
