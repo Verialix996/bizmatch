@@ -6,8 +6,8 @@ async function emitNotification(userId, type, refId, payload = {}) {
       'INSERT INTO notifications (user_id, type, ref_id, payload) VALUES (?, ?, ?, ?)',
       [userId, type, refId || null, JSON.stringify(payload)]
     );
-  } catch {
-    // non-critical — never block the request
+  } catch (err) {
+    console.error('[emitNotification] failed:', type, err.message);
   }
 }
 
