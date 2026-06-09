@@ -195,7 +195,13 @@ export default function EditProfileScreen({ route, navigation }) {
       const asset = result.assets[0];
       setCvUploading(true);
       const formData = new FormData();
-      formData.append('cv', { uri: asset.uri, name: asset.name || 'cv.pdf', type: asset.mimeType || 'application/pdf' });
+      if (asset.file) {
+        // Web: DocumentPicker gives a real File object
+        formData.append('cv', asset.file, asset.name || 'cv.pdf');
+      } else {
+        // React Native: use URI object syntax
+        formData.append('cv', { uri: asset.uri, name: asset.name || 'cv.pdf', type: asset.mimeType || 'application/pdf' });
+      }
       const { data } = await api.post('/profile/upload-cv', formData, { headers: { 'Content-Type': 'multipart/form-data' } });
       setCvUrl(data.cv_url);
     } catch (err) {
