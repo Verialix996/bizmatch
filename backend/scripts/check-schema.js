@@ -15,6 +15,7 @@ const { query, pool } = require('../src/config/db');
 
 const EXPECTED_TABLES = [
   'users', 'swipes', 'matches',
+  'user_auth_security', 'user_profiles', 'investor_profiles', 'user_app_state',
   'projects', 'project_swipes', 'project_matches',
   'messages', 'meetings', 'notifications',
   'project_partners', 'partner_invitations', 'project_ndas',
@@ -26,14 +27,23 @@ const DROPPED_TABLES = [
   'profiles', 'ai_compatibility_breakdowns', 'role_change_requests', 'api_usage',
 ];
 
-// profiles → users merge (004): these columns must now live on users.
 const USERS_MUST_HAVE = [
-  'bio', 'skills', 'hobbies', 'role_type', 'investment_domain',
-  'preferred_stage', 'max_investment', 'portfolio_url', 'linkedin_url',
-  'experience', 'cv_url',
+  'email', 'name', 'role', 'is_verified', 'verification_status',
+  'deleted_at', 'created_at', 'updated_at',
 ];
-// Blob columns removed in 006.
-const USERS_MUST_NOT_HAVE = ['cv_data'];
+const USERS_MUST_NOT_HAVE = [
+  'password_hash', 'otp_code', 'reset_token', 'oauth_provider',
+  'two_factor_secret', 'photo_url', 'push_token', 'is_premium',
+  'premium_expires_at', 'login_attempts', 'locked_until', 'last_active_at',
+  'swipe_count', 'swipe_count_date', 'has_seen_onboarding', 'bio', 'skills',
+  'hobbies', 'role_type', 'investment_domain', 'preferred_stage',
+  'max_investment', 'portfolio_url', 'linkedin_url', 'experience', 'cv_url',
+  'cv_data',
+];
+const USER_AUTH_MUST_HAVE = ['user_id', 'password_hash', 'otp_code', 'otp_expires_at', 'reset_token', 'reset_token_expires', 'oauth_provider', 'oauth_provider_id', 'two_factor_secret', 'two_factor_enabled', 'login_attempts', 'locked_until'];
+const USER_PROFILES_MUST_HAVE = ['user_id', 'photo_url', 'bio', 'skills', 'hobbies', 'role_type', 'portfolio_url', 'linkedin_url', 'experience', 'cv_url'];
+const INVESTOR_PROFILES_MUST_HAVE = ['user_id', 'investment_domain', 'preferred_stage', 'max_investment'];
+const USER_APP_STATE_MUST_HAVE = ['user_id', 'push_token', 'is_premium', 'premium_expires_at', 'last_active_at', 'swipe_count', 'swipe_count_date', 'has_seen_onboarding'];
 const PROJECTS_MUST_HAVE = ['deck_url', 'video_url'];
 const PROJECTS_MUST_NOT_HAVE = ['deck_data', 'deck_mime'];
 
@@ -52,6 +62,10 @@ const EXPECTED_MIGRATIONS = [
   '012_create_ai_match_scores.sql',
   '013_create_notifications.sql',
   '014_create_ai_project_scores.sql',
+  '015_create_user_auth_security.sql',
+  '016_create_user_profiles.sql',
+  '017_create_investor_profiles.sql',
+  '019_create_user_app_state.sql',
 ];
 
 const results = [];
@@ -87,14 +101,29 @@ async function main() {
       tables.includes(t) ? 'still exists!' : 'gone');
   }
 
-  // 3. users column expectations (profiles merge + blob removal).
+  // 3. users column expectations (normalized user tables).
   if (tables.includes('users')) {
     const cols = await listColumns('users');
     for (const c of USERS_MUST_HAVE) {
-      check(`users.${c} exists (profiles merge)`, cols.includes(c));
+      check(`users.${c} exists`, cols.includes(c));
     }
     for (const c of USERS_MUST_NOT_HAVE) {
-      check(`users.${c} removed (blob)`, !cols.includes(c));
+      check(`users.${c} moved out of users`, !cols.includes(c));
+    }
+  }
+
+  const normalizedChecks = [
+    ['user_auth_security', USER_AUTH_MUST_HAVE],
+    ['user_profiles', USER_PROFILES_MUST_HAVE],
+    ['investor_profiles', INVESTOR_PROFILES_MUST_HAVE],
+    ['user_app_state', USER_APP_STATE_MUST_HAVE],
+  ];
+  for (const [table, expectedCols] of normalizedChecks) {
+    if (tables.includes(table)) {
+      const cols = await listColumns(table);
+      for (const c of expectedCols) {
+        check(`${table}.${c} exists`, cols.includes(c));
+      }
     }
   }
 
@@ -130,6 +159,6 @@ async function main() {
 
 main().catch(async (err) => {
   console.error('Schema check crashed:', err.message);
-  try { await pool.end(); } catch (_) {}
+  try { await pool.end(); } catch {}
   process.exit(1);
 });

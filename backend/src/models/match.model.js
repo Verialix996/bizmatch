@@ -175,9 +175,12 @@ async function preScoreUser(userId) {
   if (!process.env.ANTHROPIC_API_KEY) return;
 
   const meRows = await query(
-    `SELECT u.role, u.bio, u.skills, u.hobbies, u.investment_domain, u.preferred_stage, u.max_investment,
+    `SELECT u.role, profile.bio, profile.skills, profile.hobbies,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs
      FROM users u
+     LEFT JOIN user_profiles profile ON profile.user_id = u.id
+     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage, pr.funding_needed
        FROM projects pr
@@ -191,10 +194,12 @@ async function preScoreUser(userId) {
 
   const opposingRole = me.role === 'investor' ? 'entrepreneur' : 'investor';
   const candidates = await query(
-    `SELECT u.id AS user_id, u.bio, u.skills, u.hobbies, u.role AS role_type,
-            u.investment_domain, u.preferred_stage, u.max_investment,
+    `SELECT u.id AS user_id, profile.bio, profile.skills, profile.hobbies, u.role AS role_type,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
+     LEFT JOIN user_profiles profile ON profile.user_id = u.id
+     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
        FROM projects pr
@@ -246,10 +251,14 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   const roleFilter = (mode === 'partners' || userRole === 'investor') ? 'entrepreneur' : 'investor';
 
   const candidates = await query(
-    `SELECT u.id AS user_id, u.name, u.photo_url, u.is_premium, u.premium_expires_at,
-            u.bio, u.skills, u.hobbies, u.role_type, u.investment_domain, u.preferred_stage, u.max_investment,
+    `SELECT u.id AS user_id, u.name, profile.photo_url, app.is_premium, app.premium_expires_at,
+            profile.bio, profile.skills, profile.hobbies, profile.role_type,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
+     LEFT JOIN user_profiles profile ON profile.user_id = u.id
+     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
+     LEFT JOIN user_app_state app ON app.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
        FROM projects pr
@@ -262,8 +271,12 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   );
 
   const myProfileRows = await query(
-    `SELECT u.*, proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+    `SELECT u.id, u.role, profile.photo_url, profile.bio, profile.skills, profile.hobbies, profile.role_type,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment,
+            proj.stage AS venture_stage, proj.funding_needed AS funding_needs
      FROM users u
+     LEFT JOIN user_profiles profile ON profile.user_id = u.id
+     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage, pr.funding_needed
        FROM projects pr
@@ -432,14 +445,16 @@ async function getMatches(userId) {
        m.created_at AS matchedAt,
        u.id AS userId,
        u.name,
-       u.photo_url AS photoUrl,
+       profile.photo_url AS photoUrl,
        u.role,
-       u.bio,
-       u.role_type AS roleType,
-       u.investment_domain AS investmentDomain,
+       profile.bio,
+       profile.role_type AS roleType,
+       investor.investment_domain AS investmentDomain,
        proj.stage AS ventureStage
      FROM matches m
      JOIN users u ON u.id = CASE WHEN m.user1_id = ? THEN m.user2_id ELSE m.user1_id END
+     LEFT JOIN user_profiles profile ON profile.user_id = u.id
+     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage
        FROM projects pr

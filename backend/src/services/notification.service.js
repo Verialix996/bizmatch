@@ -2,7 +2,7 @@ const { query } = require('../config/db');
 
 async function sendPushNotification(userId, title, body, data = {}) {
   try {
-    const rows = await query('SELECT push_token FROM users WHERE id = ?', [userId]);
+    const rows = await query('SELECT push_token FROM user_app_state WHERE user_id = ?', [userId]);
     const token = rows[0]?.push_token;
     if (!token || !token.startsWith('ExponentPushToken')) return;
 

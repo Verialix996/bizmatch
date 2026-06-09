@@ -31,7 +31,7 @@ const swipe = async (req, res, next) => {
     const userRows = await query(
       `SELECT is_premium, premium_expires_at,
               IF(swipe_count_date = CURDATE(), swipe_count, 0) AS today_count
-       FROM users WHERE id = ?`,
+       FROM user_app_state WHERE user_id = ?`,
       [req.user.id]
     );
     const u = userRows[0];
@@ -42,10 +42,10 @@ const swipe = async (req, res, next) => {
         return res.status(429).json({ error: 'Daily swipe limit reached', upgradeRequired: true });
       }
       await query(
-        `UPDATE users SET
+        `UPDATE user_app_state SET
            swipe_count = IF(swipe_count_date = CURDATE(), swipe_count + 1, 1),
            swipe_count_date = CURDATE()
-         WHERE id = ?`,
+         WHERE user_id = ?`,
         [req.user.id]
       );
     }
@@ -75,18 +75,22 @@ const compatibility = async (req, res, next) => {
     if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI unavailable' });
 
     const [viewerRows, targetRows] = await Promise.all([
-      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
+      query(`SELECT u.name, u.role, up.bio, up.skills, ip.investment_domain, ip.preferred_stage, ip.max_investment,
                     proj.stage AS venture_stage, proj.funding_needed AS funding_needs
              FROM users u
+             LEFT JOIN user_profiles up ON up.user_id = u.id
+             LEFT JOIN investor_profiles ip ON ip.user_id = u.id
              LEFT JOIN (
                SELECT pr.user_id, pr.stage, pr.funding_needed
                FROM projects pr
                INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
              ) proj ON proj.user_id = u.id
              WHERE u.id = ?`, [viewerId]),
-      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
+      query(`SELECT u.name, u.role, up.bio, up.skills, ip.investment_domain, ip.preferred_stage, ip.max_investment,
                     proj.stage AS venture_stage, proj.funding_needed AS funding_needs
              FROM users u
+             LEFT JOIN user_profiles up ON up.user_id = u.id
+             LEFT JOIN investor_profiles ip ON ip.user_id = u.id
              LEFT JOIN (
                SELECT pr.user_id, pr.stage, pr.funding_needed
                FROM projects pr

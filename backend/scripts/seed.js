@@ -28,6 +28,7 @@ const DROP_ORDER = [
   'project_partners', 'project_matches', 'project_swipes',
   'ai_project_scores', 'ai_match_scores',
   'swipes', 'matches', 'projects',
+  'user_auth_security', 'user_profiles', 'investor_profiles', 'user_app_state',
   'users', 'schema_migrations',
 ];
 
@@ -129,25 +130,58 @@ async function runMigrations(conn) {
 async function createInvestor(conn, inv, photoUrl) {
   const [rows] = await conn.query(
     `INSERT INTO users
-       (name, email, password_hash, role, is_verified,
-        role_type, bio, investment_domain, preferred_stage, max_investment, skills, photo_url, has_seen_onboarding)
-     VALUES (?, ?, ?, 'investor', 1, 'investor', ?, ?, ?, ?, ?, ?, 1)`,
-    [inv.name, inv.email, PASSWORD_HASH,
-     inv.bio, inv.domain, inv.stage, inv.max, JSON.stringify(inv.skills), photoUrl]
+       (name, email, role, is_verified)
+     VALUES (?, ?, 'investor', 1)`,
+    [inv.name, inv.email]
   );
-  return rows.insertId;
+  const userId = rows.insertId;
+  await conn.query(
+    `INSERT INTO user_auth_security (user_id, password_hash)
+     VALUES (?, ?)`,
+    [userId, PASSWORD_HASH]
+  );
+  await conn.query(
+    `INSERT INTO user_profiles (user_id, role_type, bio, skills, photo_url)
+     VALUES (?, 'investor', ?, ?, ?)`,
+    [userId, inv.bio, JSON.stringify(inv.skills), photoUrl]
+  );
+  await conn.query(
+    `INSERT INTO investor_profiles (user_id, investment_domain, preferred_stage, max_investment)
+     VALUES (?, ?, ?, ?)`,
+    [userId, inv.domain, inv.stage, inv.max]
+  );
+  await conn.query(
+    `INSERT INTO user_app_state (user_id, has_seen_onboarding)
+     VALUES (?, 1)`,
+    [userId]
+  );
+  return userId;
 }
 
 async function createEntrepreneur(conn, ent, photoUrl) {
   const [rows] = await conn.query(
     `INSERT INTO users
-       (name, email, password_hash, role, is_verified,
-        role_type, bio, skills, hobbies, photo_url, has_seen_onboarding)
-     VALUES (?, ?, ?, 'entrepreneur', 1, 'entrepreneur', ?, ?, ?, ?, 1)`,
-    [ent.name, ent.email, PASSWORD_HASH,
-     ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies), photoUrl]
+       (name, email, role, is_verified)
+     VALUES (?, ?, 'entrepreneur', 1)`,
+    [ent.name, ent.email]
   );
-  return rows.insertId;
+  const userId = rows.insertId;
+  await conn.query(
+    `INSERT INTO user_auth_security (user_id, password_hash)
+     VALUES (?, ?)`,
+    [userId, PASSWORD_HASH]
+  );
+  await conn.query(
+    `INSERT INTO user_profiles (user_id, role_type, bio, skills, hobbies, photo_url)
+     VALUES (?, 'entrepreneur', ?, ?, ?, ?)`,
+    [userId, ent.bio, JSON.stringify(ent.skills), JSON.stringify(ent.hobbies), photoUrl]
+  );
+  await conn.query(
+    `INSERT INTO user_app_state (user_id, has_seen_onboarding)
+     VALUES (?, 1)`,
+    [userId]
+  );
+  return userId;
 }
 
 async function createProject(conn, userId, ent) {

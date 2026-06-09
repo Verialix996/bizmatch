@@ -72,7 +72,7 @@ const swipe = async (req, res, next) => {
     const userRows = await query(
       `SELECT is_premium, premium_expires_at,
               IF(swipe_count_date = CURDATE(), swipe_count, 0) AS today_count
-       FROM users WHERE id = ?`,
+       FROM user_app_state WHERE user_id = ?`,
       [req.user.id]
     );
     const u = userRows[0];
@@ -83,10 +83,10 @@ const swipe = async (req, res, next) => {
         return res.status(429).json({ error: 'Daily swipe limit reached', upgradeRequired: true });
       }
       await query(
-        `UPDATE users SET
+        `UPDATE user_app_state SET
            swipe_count = IF(swipe_count_date = CURDATE(), swipe_count + 1, 1),
            swipe_count_date = CURDATE()
-         WHERE id = ?`,
+         WHERE user_id = ?`,
         [req.user.id]
       );
     }

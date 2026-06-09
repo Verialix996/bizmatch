@@ -39,9 +39,10 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
   if (after != null) {
     return await query(
       `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at, m.read_at,
-              u.name AS sender_name, u.photo_url AS sender_photo
+              u.name AS sender_name, up.photo_url AS sender_photo
        FROM messages m
        JOIN users u ON u.id = m.sender_id
+       LEFT JOIN user_profiles up ON up.user_id = m.sender_id
        WHERE m.match_id = ? AND m.id > ?
        ORDER BY m.created_at ASC`,
       [matchId, after]
@@ -50,9 +51,10 @@ async function getMessages(matchId, userId, limit = 50, offset = 0, after = null
 
   return await query(
     `SELECT m.id, m.match_id, m.sender_id, m.body, m.message_type, m.metadata, m.created_at, m.read_at,
-            u.name AS sender_name, u.photo_url AS sender_photo
+            u.name AS sender_name, up.photo_url AS sender_photo
      FROM messages m
      JOIN users u ON u.id = m.sender_id
+     LEFT JOIN user_profiles up ON up.user_id = m.sender_id
      WHERE m.match_id = ?
      ORDER BY m.created_at ASC
      LIMIT ${limit} OFFSET ${offset}`,
@@ -68,10 +70,10 @@ async function getConversations(userId) {
        m.ai_summary AS aiSummary,
        u.id AS userId,
        u.name,
-       u.photo_url AS photoUrl,
-       u.role_type AS roleType,
-       u.bio,
-       u.investment_domain AS investmentDomain,
+       up.photo_url AS photoUrl,
+       up.role_type AS roleType,
+       up.bio,
+       ip.investment_domain AS investmentDomain,
        ent_proj.stage AS ventureStage,
        lm.body AS lastMessage,
        lm.created_at AS lastMessageAt,
@@ -81,6 +83,8 @@ async function getConversations(userId) {
        pm.investor_id AS projectInvestorId
      FROM matches m
      JOIN users u ON u.id = IF(m.user1_id = ?, m.user2_id, m.user1_id)
+     LEFT JOIN user_profiles up ON up.user_id = u.id
+     LEFT JOIN investor_profiles ip ON ip.user_id = u.id
      LEFT JOIN (
        SELECT pr.user_id, pr.stage
        FROM projects pr

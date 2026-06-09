@@ -125,16 +125,20 @@ async function preScoreProject(projectId) {
   if (!process.env.ANTHROPIC_API_KEY) return;
 
   const projRows = await query(
-    `SELECT p.id, p.industry, p.stage, p.funding_needed, p.description, u.skills AS owner_skills
-     FROM projects p JOIN users u ON u.id = p.user_id WHERE p.id = ? AND p.is_active = 1`,
+    `SELECT p.id, p.industry, p.stage, p.funding_needed, p.description, up.skills AS owner_skills
+     FROM projects p
+     JOIN user_profiles up ON up.user_id = p.user_id
+     WHERE p.id = ? AND p.is_active = 1`,
     [projectId]
   );
   const project = projRows[0];
   if (!project) return;
 
   const investors = await query(
-    'SELECT id, investment_domain, preferred_stage, max_investment FROM users WHERE role = ? AND deleted_at IS NULL',
-    ['investor']
+    `SELECT u.id, ip.investment_domain, ip.preferred_stage, ip.max_investment
+     FROM users u
+     JOIN investor_profiles ip ON ip.user_id = u.id
+     WHERE u.role = 'investor' AND u.deleted_at IS NULL`
   );
   if (!investors.length) return;
 
@@ -173,7 +177,15 @@ async function getProjectFeed(investorId, limit = 20) {
   );
   const swiped = swipedRows.map(r => r.project_id);
 
-  const investorProfileRows = await query('SELECT * FROM users WHERE id = ?', [investorId]);
+  const investorProfileRows = await query(
+    `SELECT u.id, ip.investment_domain, ip.preferred_stage, ip.max_investment,
+            app.is_premium, app.premium_expires_at
+     FROM users u
+     LEFT JOIN investor_profiles ip ON ip.user_id = u.id
+     LEFT JOIN user_app_state app ON app.user_id = u.id
+     WHERE u.id = ?`,
+    [investorId]
+  );
   const investorProfile = investorProfileRows[0];
 
   const swipedClause = swiped.length > 0
@@ -184,11 +196,13 @@ async function getProjectFeed(investorId, limit = 20) {
     `SELECT p.id, p.user_id, p.title, p.description, p.stage, p.funding_needed,
             p.industry, p.visibility, p.icon_url, p.deck_url, p.video_url, p.is_active,
             p.created_at, p.updated_at,
-            u.name AS owner_name, u.photo_url AS owner_photo,
-            u.is_premium AS owner_is_premium, u.premium_expires_at AS owner_premium_expires_at,
-            u.bio AS owner_bio, u.skills AS owner_skills
+            u.name AS owner_name, up.photo_url AS owner_photo,
+            app.is_premium AS owner_is_premium, app.premium_expires_at AS owner_premium_expires_at,
+            up.bio AS owner_bio, up.skills AS owner_skills
      FROM projects p
      JOIN users u ON u.id = p.user_id
+     LEFT JOIN user_profiles up ON up.user_id = p.user_id
+     LEFT JOIN user_app_state app ON app.user_id = p.user_id
      WHERE p.is_active = 1
        AND p.visibility = 'public'
        AND u.role = 'entrepreneur'
@@ -342,10 +356,11 @@ async function getProjectMatches(userId, role) {
     return await query(
       `SELECT pm.*, p.title, p.description, p.stage, p.funding_needed, p.industry,
               p.deck_url, p.video_url,
-              u.name AS owner_name, u.photo_url AS owner_photo
+              u.name AS owner_name, up.photo_url AS owner_photo
        FROM project_matches pm
        JOIN projects p ON p.id = pm.project_id
        JOIN users u ON u.id = pm.user_id
+       LEFT JOIN user_profiles up ON up.user_id = pm.user_id
        WHERE pm.investor_id = ?
        ORDER BY pm.created_at DESC`,
       [userId]
@@ -353,11 +368,13 @@ async function getProjectMatches(userId, role) {
   }
   return await query(
     `SELECT pm.*, p.title, p.description,
-            u.name AS investor_name, u.photo_url AS investor_photo,
-            u.bio AS investor_bio, u.investment_domain
+            u.name AS investor_name, up.photo_url AS investor_photo,
+            up.bio AS investor_bio, ip.investment_domain
      FROM project_matches pm
      JOIN projects p ON p.id = pm.project_id
      JOIN users u ON u.id = pm.investor_id
+     LEFT JOIN user_profiles up ON up.user_id = pm.investor_id
+     LEFT JOIN investor_profiles ip ON ip.user_id = pm.investor_id
      WHERE p.user_id = ?
      ORDER BY pm.created_at DESC`,
     [userId]
@@ -368,7 +385,7 @@ async function getProjectMatches(userId, role) {
 
 async function getProjectPartners(projectId) {
   const rows = await query(
-    `SELECT team.user_id, u.name, u.photo_url, u.bio, u.role_type, u.skills,
+    `SELECT team.user_id, u.name, up.photo_url, up.bio, up.role_type, up.skills,
             team.is_owner, team.role AS project_role
      FROM (
        SELECT user_id AS user_id, 1 AS is_owner, 'owner' AS role FROM projects WHERE id = ?
@@ -376,6 +393,7 @@ async function getProjectPartners(projectId) {
        SELECT pp.user_id, 0 AS is_owner, pp.role FROM project_partners pp WHERE pp.project_id = ?
      ) AS team
      JOIN users u ON u.id = team.user_id
+     LEFT JOIN user_profiles up ON up.user_id = team.user_id
      ORDER BY team.is_owner DESC`,
     [projectId, projectId]
   );
@@ -444,10 +462,11 @@ async function getJoinedProjects(userId) {
     `SELECT p.id, p.user_id, p.title, p.description, p.stage, p.funding_needed,
             p.industry, p.visibility, p.icon_url, p.deck_url, p.video_url, p.is_active,
             p.created_at, p.updated_at,
-            u.name AS owner_name, u.photo_url AS owner_photo
+            u.name AS owner_name, up.photo_url AS owner_photo
      FROM project_partners pp
      JOIN projects p ON p.id = pp.project_id
      JOIN users u ON u.id = p.user_id
+     LEFT JOIN user_profiles up ON up.user_id = p.user_id
      WHERE pp.user_id = ? AND p.is_active = 1
      ORDER BY pp.added_at DESC`,
     [userId]

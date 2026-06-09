@@ -29,7 +29,7 @@ const propose = async (req, res, next) => {
     );
     if (!matchRows[0]) return res.status(403).json({ error: 'Not part of this match' });
 
-    const userRows = await query('SELECT is_premium, premium_expires_at FROM users WHERE id = ?', [proposerId]);
+    const userRows = await query('SELECT is_premium, premium_expires_at FROM user_app_state WHERE user_id = ?', [proposerId]);
     const u = userRows[0];
     const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
     if (!isPremium) {
@@ -132,9 +132,12 @@ const briefing = async (req, res, next) => {
 
     const [profileRows, projectRows] = await Promise.all([
       query(
-        `SELECT name, role, bio, skills, hobbies, role_type,
-                investment_domain, preferred_stage, max_investment
-         FROM users WHERE id = ?`,
+        `SELECT u.name, u.role, up.bio, up.skills, up.hobbies, up.role_type,
+                ip.investment_domain, ip.preferred_stage, ip.max_investment
+         FROM users u
+         LEFT JOIN user_profiles up ON up.user_id = u.id
+         LEFT JOIN investor_profiles ip ON ip.user_id = u.id
+         WHERE u.id = ?`,
         [otherId]
       ),
       query(

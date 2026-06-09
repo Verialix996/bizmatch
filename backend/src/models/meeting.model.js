@@ -20,11 +20,13 @@ async function createMeeting(data) {
 async function getMeetingById(id) {
   const rows = await query(
     `SELECT m.*,
-            up.name AS proposer_name, up.photo_url AS proposer_photo,
-            ur.name AS receiver_name, ur.photo_url AS receiver_photo
+            up_u.name AS proposer_name, up_p.photo_url AS proposer_photo,
+            ur_u.name AS receiver_name, ur_p.photo_url AS receiver_photo
      FROM meetings m
-     JOIN users up ON up.id = m.proposer_id
-     JOIN users ur ON ur.id = m.receiver_id
+     JOIN users up_u ON up_u.id = m.proposer_id
+     LEFT JOIN user_profiles up_p ON up_p.user_id = m.proposer_id
+     JOIN users ur_u ON ur_u.id = m.receiver_id
+     LEFT JOIN user_profiles ur_p ON ur_p.user_id = m.receiver_id
      WHERE m.id = ?`,
     [id]
   );
@@ -34,11 +36,13 @@ async function getMeetingById(id) {
 async function getMeetingsForUser(userId) {
   return await query(
     `SELECT m.*,
-            up.name AS proposer_name, up.photo_url AS proposer_photo,
-            ur.name AS receiver_name, ur.photo_url AS receiver_photo
+            up_u.name AS proposer_name, up_p.photo_url AS proposer_photo,
+            ur_u.name AS receiver_name, ur_p.photo_url AS receiver_photo
      FROM meetings m
-     JOIN users up ON up.id = m.proposer_id
-     JOIN users ur ON ur.id = m.receiver_id
+     JOIN users up_u ON up_u.id = m.proposer_id
+     LEFT JOIN user_profiles up_p ON up_p.user_id = m.proposer_id
+     JOIN users ur_u ON ur_u.id = m.receiver_id
+     LEFT JOIN user_profiles ur_p ON ur_p.user_id = m.receiver_id
      WHERE (m.proposer_id = ? OR m.receiver_id = ?)
        AND m.status != 'cancelled'
      ORDER BY m.scheduled_at ASC`,

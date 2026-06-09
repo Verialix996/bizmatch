@@ -36,7 +36,13 @@ async function getUser(req, res, next) {
   try {
     const user = await UserModel.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    const { password_hash, otp_code, reset_token, two_factor_secret, ...safe } = user;
+    const {
+      password_hash: _password_hash,
+      otp_code: _otp_code,
+      reset_token: _reset_token,
+      two_factor_secret: _two_factor_secret,
+      ...safe
+    } = user;
     res.json(safe);
   } catch (err) {
     next(err);
@@ -92,7 +98,7 @@ async function savePushToken(req, res, next) {
   try {
     const { pushToken } = req.body;
     if (!pushToken) return res.status(400).json({ error: 'pushToken required' });
-    await query('UPDATE users SET push_token = ? WHERE id = ?', [pushToken, req.user.id]);
+    await query('UPDATE user_app_state SET push_token = ? WHERE user_id = ?', [pushToken, req.user.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
@@ -101,7 +107,7 @@ async function savePushToken(req, res, next) {
 async function activatePremium(req, res, next) {
   try {
     await query(
-      "UPDATE users SET is_premium = 1, premium_expires_at = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE id = ?",
+      "UPDATE user_app_state SET is_premium = 1, premium_expires_at = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE user_id = ?",
       [req.user.id]
     );
     const expiresAt = new Date(Date.now() + 30 * 86400000);
@@ -113,7 +119,7 @@ async function activatePremium(req, res, next) {
 async function whoLikedMe(req, res, next) {
   try {
     const userRows = await query(
-      'SELECT is_premium, premium_expires_at FROM users WHERE id = ?',
+      'SELECT is_premium, premium_expires_at FROM user_app_state WHERE user_id = ?',
       [req.user.id]
     );
     const u = userRows[0];
@@ -121,9 +127,10 @@ async function whoLikedMe(req, res, next) {
     if (!isPremium) return res.status(403).json({ error: 'Premium required' });
 
     const rows = await query(
-      `SELECT u.id, u.name, u.photo_url AS photoUrl, s.is_super_like AS isSuperLike
+      `SELECT u.id, u.name, up.photo_url AS photoUrl, s.is_super_like AS isSuperLike
        FROM swipes s
        JOIN users u ON u.id = s.swiper_id
+       LEFT JOIN user_profiles up ON up.user_id = s.swiper_id
        WHERE s.swiped_id = ? AND s.direction = 'like' AND u.deleted_at IS NULL`,
       [req.user.id]
     );
@@ -135,7 +142,7 @@ async function whoLikedMe(req, res, next) {
 async function cancelPremium(req, res, next) {
   try {
     await query(
-      'UPDATE users SET is_premium = 0, premium_expires_at = NULL WHERE id = ?',
+      'UPDATE user_app_state SET is_premium = 0, premium_expires_at = NULL WHERE user_id = ?',
       [req.user.id]
     );
     res.json({ ok: true });

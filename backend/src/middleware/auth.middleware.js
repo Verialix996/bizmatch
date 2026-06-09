@@ -16,7 +16,7 @@ function authenticate(req, res, next) {
     const now = Date.now();
     if (!lastActiveWrite.has(user.id) || now - lastActiveWrite.get(user.id) > ACTIVE_DEBOUNCE_MS) {
       lastActiveWrite.set(user.id, now);
-      query('UPDATE users SET last_active_at = UTC_TIMESTAMP() WHERE id = ?', [user.id]).catch(() => {});
+      query('UPDATE user_app_state SET last_active_at = UTC_TIMESTAMP() WHERE user_id = ?', [user.id]).catch(() => {});
     }
 
     next();
