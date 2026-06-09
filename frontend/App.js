@@ -1,24 +1,28 @@
 import { useEffect } from 'react';
-import { Platform, View, ActivityIndicator, Linking } from 'react-native';
+import { View, ActivityIndicator, Linking } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
+import {
+  setNotificationHandler,
+  addNotificationReceivedListener,
+  addNotificationResponseReceivedListener,
+  requestPermissionsAsync,
+  getExpoPushTokenAsync,
+} from './src/utils/pushNotifications';
 import AppNavigator, { linking } from './src/navigation/AppNavigator';
 import useAuthStore from './src/store/authStore';
 import useAppStore from './src/store/appStore';
 import api from './src/services/api';
 
-// Push notifications are native-only — web uses the in-app bell
-if (Platform.OS !== 'web') {
-  Notifications.setNotificationHandler({
-    handleNotification: async () => ({
-      shouldShowAlert: true,
-      shouldPlaySound: true,
-      shouldSetBadge: false,
-    }),
-  });
-}
+// Show push alerts even while the app is foregrounded (no-op on web)
+setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 export const navigationRef = createNavigationContainerRef();
 
@@ -35,10 +39,11 @@ function parseOAuthUrl(url) {
 }
 
 async function registerForPushNotifications() {
-  if (Platform.OS === 'web' || !Device.isDevice) return;
-  const { status } = await Notifications.requestPermissionsAsync();
+  if (!Device.isDevice) return;
+  const { status } = await requestPermissionsAsync();
   if (status !== 'granted') return;
-  const { data: token } = await Notifications.getExpoPushTokenAsync();
+  const { data: token } = await getExpoPushTokenAsync();
+  if (!token) return;
   try {
     await api.patch('/users/me/push-token', { pushToken: token });
   } catch { /* silent */ }
@@ -68,19 +73,17 @@ export default function App() {
   }, [token]);
 
   useEffect(() => {
-    if (Platform.OS === 'web') return;
-
     const bumpTick = useAppStore.getState().bumpNotificationTick;
 
-    // Notification arrives while app is open → show in-app banner + refresh bell
-    const receivedSub = Notifications.addNotificationReceivedListener((notification) => {
+    // Notification arrives while app is open → show in-app banner + refresh bell (no-op on web)
+    const receivedSub = addNotificationReceivedListener((notification) => {
       const { title, body, data } = notification.request.content;
       useAppStore.getState().showBanner({ title, body, data: data || {} });
       bumpTick();
     });
 
-    // User taps a notification → navigate to the relevant screen
-    const responseSub = Notifications.addNotificationResponseReceivedListener((response) => {
+    // User taps a system notification → navigate to the relevant screen (no-op on web)
+    const responseSub = addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data || {};
       if (navigationRef.isReady()) {
         if (data.type === 'meeting') navigationRef.navigate('Meetings');
