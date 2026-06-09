@@ -1,7 +1,8 @@
 import {
   View, Text, TextInput, TouchableOpacity, Switch,
-  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Alert, Linking, StatusBar
+  StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, Linking, StatusBar
 } from 'react-native';
+import { showAlert } from '../../services/alert';
 import * as Clipboard from 'expo-clipboard';
 import { useState } from 'react';
 import api from '../../services/api';
@@ -42,7 +43,7 @@ export default function AccountSettingsScreen({ navigation }) {
   const [premiumLoading, setPremiumLoading] = useState(false);
 
   const handleCancelPremium = () => {
-    Alert.alert(
+    showAlert(
       'Cancel Subscription',
       'Are you sure you want to cancel your Premium subscription? You will lose access immediately.',
       [
@@ -55,7 +56,7 @@ export default function AccountSettingsScreen({ navigation }) {
               await cancelPremium();
               updateUser({ ...user, is_premium: 0, premium_expires_at: null });
             } catch {
-              Alert.alert('Error', 'Could not cancel subscription. Please try again.');
+              showAlert('Error', 'Could not cancel subscription. Please try again.');
             } finally {
               setPremiumLoading(false);
             }
@@ -350,7 +351,7 @@ export default function AccountSettingsScreen({ navigation }) {
                     await Linking.openURL(url);
                   } catch {
                     await Clipboard.setStringAsync(twoFactorSetup.secret);
-                    Alert.alert('Copied', 'Google Authenticator not found — setup key copied to clipboard.\n\nOpen Google Authenticator → tap "+" → "Enter a setup key" → paste.');
+                    showAlert('Copied', 'Google Authenticator not found — setup key copied to clipboard.\n\nOpen Google Authenticator → tap "+" → "Enter a setup key" → paste.');
                   }
                 }}
               >
@@ -361,7 +362,7 @@ export default function AccountSettingsScreen({ navigation }) {
                 style={[styles.input, styles.inputDisabled, { marginBottom: 16 }]}
                 onPress={async () => {
                   await Clipboard.setStringAsync(twoFactorSetup.secret);
-                  Alert.alert('Copied', 'Setup key copied to clipboard.');
+                  showAlert('Copied', 'Setup key copied to clipboard.');
                 }}
               >
                 <Text style={{ color: C.textPrimary, fontWeight: '700', letterSpacing: 2 }}>

@@ -1,8 +1,9 @@
 import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator, Alert, Platform,
+  StyleSheet, ActivityIndicator, Platform,
 } from 'react-native';
+import { showAlert } from '../../services/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@expo/vector-icons';
@@ -58,9 +59,9 @@ export default function ProposeMeetingScreen({ route, navigation }) {
   };
 
   const submit = async () => {
-    if (!title.trim()) return Alert.alert('Missing field', 'Please enter a meeting title.');
-    if (locationType === 'virtual' && !videoLink.trim()) return Alert.alert('Missing field', 'Please enter a video call link.');
-    if (locationType === 'in_person' && !address.trim()) return Alert.alert('Missing field', 'Please enter a meeting address.');
+    if (!title.trim()) return showAlert('Missing field', 'Please enter a meeting title.');
+    if (locationType === 'virtual' && !videoLink.trim()) return showAlert('Missing field', 'Please enter a video call link.');
+    if (locationType === 'in_person' && !address.trim()) return showAlert('Missing field', 'Please enter a meeting address.');
 
     setLoading(true);
     try {
@@ -84,7 +85,7 @@ export default function ProposeMeetingScreen({ route, navigation }) {
         navigation.goBack();
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Could not submit meeting.');
+      showAlert('Error', err.response?.data?.error || 'Could not submit meeting.');
     }
     setLoading(false);
   };

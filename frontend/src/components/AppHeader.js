@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { showAlert } from '../services/alert';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { colors, investorColors, investorSwipeColors, investorThemeColors, radius } from '../theme';
@@ -34,7 +35,7 @@ export default function AppHeader({ showToggle = false }) {
   const handleToggle = (toInvestor) => {
     if (!toInvestor) { exitInvestorMode(); return; }
     if (!isPremium) {
-      Alert.alert(
+      showAlert(
         'Premium Required',
         'Investor search mode is a Premium feature. Upgrade to find investors for your project.',
         [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]

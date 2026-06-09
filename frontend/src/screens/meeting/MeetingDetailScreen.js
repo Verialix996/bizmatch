@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, StyleSheet,
-  ActivityIndicator, Linking, Alert,
-} from 'react-native';
+  ActivityIndicator, Linking, } from 'react-native';
+import { showAlert } from '../../services/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../../store/authStore';
@@ -49,7 +49,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
         navigation.goBack();
       }
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Action failed.');
+      showAlert('Error', err.response?.data?.error || 'Action failed.');
     }
     setLoadingAction(false);
   };
@@ -60,7 +60,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
       const { data } = await api.get(`/meetings/${meeting.id}/briefing`);
       setBriefing(data);
     } catch (err) {
-      Alert.alert('Error', err.response?.data?.error || 'Could not generate briefing.');
+      showAlert('Error', err.response?.data?.error || 'Could not generate briefing.');
     }
     setLoadingBriefing(false);
   };
@@ -97,7 +97,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
               if (!url.startsWith('http://') && !url.startsWith('https://')) {
                 url = 'https://' + url;
               }
-              Linking.openURL(url).catch(() => Alert.alert('Error', 'Could not open the call link.'));
+              Linking.openURL(url).catch(() => showAlert('Error', 'Could not open the call link.'));
             }}
           >
             <Ionicons name="videocam" size={16} color="#fff" />
@@ -133,7 +133,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
             style={[styles.actionBtn, { backgroundColor: colors.error }]}
             disabled={loadingAction}
             onPress={() =>
-              Alert.alert(
+              showAlert(
                 'Decline Meeting',
                 'Are you sure you want to decline this meeting?',
                 [
@@ -184,7 +184,7 @@ export default function MeetingDetailScreen({ route, navigation }) {
         <TouchableOpacity
           style={[styles.actionBtn, { backgroundColor: colors.error, alignSelf: 'stretch' }]}
           onPress={() =>
-            Alert.alert(
+            showAlert(
               'Cancel Meeting',
               'Are you sure you want to cancel this confirmed meeting?',
               [

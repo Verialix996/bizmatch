@@ -1,8 +1,8 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, SafeAreaView, ActivityIndicator, Alert,
-  Modal, FlatList, Image, StatusBar,
+  TextInput, SafeAreaView, ActivityIndicator,   Modal, FlatList, Image, StatusBar,
 } from 'react-native';
+import { showAlert } from '../../services/alert';
 import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
@@ -86,7 +86,7 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
       setPartners(prev => prev.map(p => p.userId === roleEdit.userId ? { ...p, role: roleInput } : p));
       setRoleEdit(null);
     } catch (err) {
-      Alert.alert('Error', err?.response?.data?.error || 'Could not update role.');
+      showAlert('Error', err?.response?.data?.error || 'Could not update role.');
     }
     setRoleSaving(false);
   };
@@ -701,7 +701,7 @@ export default function ProjectsScreen({ route }) {
       await uploadDeck(projectId, file.uri, file.name, file.file || null);
       load();
     } catch {
-      Alert.alert('Upload Failed', 'Could not upload deck. Please try again.');
+      showAlert('Upload Failed', 'Could not upload deck. Please try again.');
     }
   };
 
@@ -716,7 +716,7 @@ export default function ProjectsScreen({ route }) {
       setDeckReview(d => ({ ...d, feedback: data, loading: false }));
     } catch (err) {
       setDeckReview(d => ({ ...d, loading: false }));
-      Alert.alert('Error', err.response?.data?.error || 'Could not get AI feedback.');
+      showAlert('Error', err.response?.data?.error || 'Could not get AI feedback.');
     }
   };
 
@@ -724,7 +724,7 @@ export default function ProjectsScreen({ route }) {
     try {
       const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert('Permission Required', 'Photo library access is needed to upload a video.');
+        showAlert('Permission Required', 'Photo library access is needed to upload a video.');
         return;
       }
       const result = await ImagePicker.launchImageLibraryAsync({
@@ -741,7 +741,7 @@ export default function ProjectsScreen({ route }) {
       load();
     } catch {
       setVideoUpload({ projectId: null, progress: 0 });
-      Alert.alert('Upload Failed', 'Could not upload video. Please try again.');
+      showAlert('Upload Failed', 'Could not upload video. Please try again.');
     }
   };
 

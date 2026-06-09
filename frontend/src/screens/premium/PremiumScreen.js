@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Alert, ScrollView } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView } from 'react-native';
+import { showAlert } from '../../services/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import api from '../../services/api';
@@ -58,11 +59,11 @@ export default function PremiumScreen() {
     try {
       const res = await api.post('/users/me/premium/activate');
       updateUser({ is_premium: true, premium_expires_at: res.data.expiresAt });
-      Alert.alert('Premium Activated!', 'You now have 30 days of free premium. Enjoy!', [
+      showAlert('Premium Activated!', 'You now have 30 days of free premium. Enjoy!', [
         { text: 'Awesome', onPress: () => navigation.goBack() },
       ]);
     } catch (e) {
-      Alert.alert('Error', 'Could not activate premium. Please try again.');
+      showAlert('Error', 'Could not activate premium. Please try again.');
     } finally {
       setLoading(false);
     }

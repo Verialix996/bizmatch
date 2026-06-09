@@ -3,8 +3,9 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
-  SafeAreaView, StatusBar, Dimensions, Alert, FlatList,
+  SafeAreaView, StatusBar, Dimensions, FlatList,
 } from 'react-native';
+import { showAlert } from '../../services/alert';
 import { VideoView, useVideoPlayer } from 'expo-video';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -429,7 +430,7 @@ export default function SwipeScreen() {
 
     if (!isPremium && freeSwipeCount >= FREE_SWIPE_LIMIT) {
       Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
-      Alert.alert(
+      showAlert(
         'Swipe Limit Reached',
         `Free accounts are limited to ${FREE_SWIPE_LIMIT} swipes. Upgrade to Premium for unlimited swipes!`,
         [
@@ -523,7 +524,7 @@ export default function SwipeScreen() {
         if (e.response?.status === 429 && e.response?.data?.upgradeRequired) {
           Animated.spring(position, { toValue: { x: 0, y: 0 }, useNativeDriver: false }).start();
           setSwiping(false);
-          Alert.alert(
+          showAlert(
             'Daily Limit Reached',
             "You've used all your free swipes. Upgrade to Premium for unlimited swipes!",
             [
@@ -692,7 +693,7 @@ export default function SwipeScreen() {
                 style={[styles.actionBtn, styles.starBtn, (investorMode || darkMode) && { borderColor: C.primary, backgroundColor: C.surface }]}
                 onPress={() => {
                   if (!isPremium) {
-                    Alert.alert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
+                    showAlert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
                       [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
                     );
                     return;

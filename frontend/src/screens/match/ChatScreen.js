@@ -2,8 +2,9 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, TouchableWithoutFeedback, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Image, StatusBar, Alert, Modal, Linking, Dimensions, Keyboard,
+  ActivityIndicator, Image, StatusBar, Modal, Linking, Dimensions, Keyboard,
 } from 'react-native';
+import { showAlert } from '../../services/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -268,7 +269,7 @@ export default function ChatScreen({ route, navigation }) {
       if (responseMsg) lastIdRef.current = responseMsg.id;
       appendMessages(responseMsg);
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
+      showAlert('Error', e.response?.data?.error || 'Could not accept invite.');
     }
   };
 
@@ -282,7 +283,7 @@ export default function ChatScreen({ route, navigation }) {
       if (responseMsg) lastIdRef.current = responseMsg.id;
       appendMessages(...[ndaRes.data, responseMsg].filter(Boolean));
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not accept invite.');
+      showAlert('Error', e.response?.data?.error || 'Could not accept invite.');
     }
   };
 
@@ -295,7 +296,7 @@ export default function ChatScreen({ route, navigation }) {
       if (responseMsg) lastIdRef.current = responseMsg.id;
       appendMessages(responseMsg);
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not decline invite.');
+      showAlert('Error', e.response?.data?.error || 'Could not decline invite.');
     }
   };
 
@@ -312,7 +313,7 @@ export default function ChatScreen({ route, navigation }) {
       // Reload to pick up the auto-shared project_shared message and updated nda_signed
       await load();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not agree to NDA.');
+      showAlert('Error', e.response?.data?.error || 'Could not agree to NDA.');
     } finally {
       setNdaSigning(false);
     }
@@ -329,7 +330,7 @@ export default function ChatScreen({ route, navigation }) {
       setNdaPreviewVisible(false);
       setNdaSenderProject(null);
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not send NDA request.');
+      showAlert('Error', e.response?.data?.error || 'Could not send NDA request.');
     } finally {
       setNdaSigning(false);
     }
@@ -346,7 +347,7 @@ export default function ChatScreen({ route, navigation }) {
       setJobOfferTitle('');
       setJobOfferDesc('');
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not send job offer.');
+      showAlert('Error', e.response?.data?.error || 'Could not send job offer.');
     } finally {
       setJobOfferSending(false);
     }
@@ -358,7 +359,7 @@ export default function ChatScreen({ route, navigation }) {
       if (res.data?.id) lastIdRef.current = res.data.id;
       appendMessages(res.data);
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Could not respond.');
+      showAlert('Error', e.response?.data?.error || 'Could not respond.');
     }
   };
 
@@ -382,7 +383,7 @@ export default function ChatScreen({ route, navigation }) {
       }
       setActionProjects(projects);
     } catch {
-      Alert.alert('Error', 'Could not load projects.');
+      showAlert('Error', 'Could not load projects.');
       closeActionSheet();
     } finally {
       setActionLoading(false);
@@ -408,10 +409,10 @@ export default function ChatScreen({ route, navigation }) {
         });
         if (alreadySigned) {
           await shareProject(match.matchId, project.id);
-          Alert.alert('Project Shared', `"${project.title}" details have been shared.`);
+          showAlert('Project Shared', `"${project.title}" details have been shared.`);
         } else {
           await requestNda(match.matchId, project.id);
-          Alert.alert('NDA Request Sent', `The other party must sign the NDA for "${project.title}" before the details are shared.`);
+          showAlert('NDA Request Sent', `The other party must sign the NDA for "${project.title}" before the details are shared.`);
         }
         await load();
       } else if (actionType === 'nda') {
@@ -421,7 +422,7 @@ export default function ChatScreen({ route, navigation }) {
         return;
       }
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Action failed.');
+      showAlert('Error', e.response?.data?.error || 'Action failed.');
     }
   };
 
@@ -437,10 +438,10 @@ export default function ChatScreen({ route, navigation }) {
       if (roleSalary) roleData.salary = Number(roleSalary);
       await sendPartnerInvite(match.matchId, rolePendingProject.id, roleData);
       setRolePickerVisible(false);
-      Alert.alert('Invite Sent', `Partner invite sent for "${rolePendingProject.title}". They must sign the NDA and accept to join.`);
+      showAlert('Invite Sent', `Partner invite sent for "${rolePendingProject.title}". They must sign the NDA and accept to join.`);
       await load();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Failed to send invite.');
+      showAlert('Error', e.response?.data?.error || 'Failed to send invite.');
     } finally {
       setRoleSending(false);
     }
@@ -469,7 +470,7 @@ export default function ChatScreen({ route, navigation }) {
       setCounterVisible(false);
       await load();
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Failed to send counter offer.');
+      showAlert('Error', e.response?.data?.error || 'Failed to send counter offer.');
     } finally {
       setCounterSending(false);
     }
@@ -869,7 +870,7 @@ export default function ChatScreen({ route, navigation }) {
           onPress={() => {
             const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
             if (!isPremium) {
-              Alert.alert('Premium Required', 'Meeting proposals are a Premium feature.', [
+              showAlert('Premium Required', 'Meeting proposals are a Premium feature.', [
                 { text: 'Not now', style: 'cancel' },
                 { text: 'Upgrade', onPress: () => navigation.navigate('Premium') },
               ]);
