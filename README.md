@@ -222,7 +222,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # 21 numbered .sql files, auto-run on startup
+│   ├── migrations/        # 19 numbered .sql files, auto-run on startup
 │   ├── scripts/           # seed.js — wipes DB, reseeds 5 investors + 5 entrepreneurs
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
@@ -317,7 +317,7 @@ The backend is deployed on [Railway](https://railway.app) and auto-deploys on ev
 
 - **Backend:** Railway — auto-deploys from `main`; start command `node server.js`
 - **Frontend:** Netlify — auto-deploys from `main`; build command `npx expo export -p web`; publishes `frontend/dist/`
-- **Database:** MySQL on Railway — 21 numbered migrations run automatically on startup (idempotent)
+- **Database:** MySQL on Railway — 19 numbered migrations run automatically on startup (idempotent)
 - **File storage:** Cloudinary (photos, docs, videos, pitch decks, NDA PDFs)
 - **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — candidate scoring for feed ranking, deck review, meeting briefings
 - **Content moderation:** local word-list (no API calls)
