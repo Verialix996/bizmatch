@@ -81,13 +81,4 @@ router.get('/poll/:oid', ctrl.pollPending);
 // Google OAuth (React Native mobile flow)
 router.post('/google/mobile', authLimiter, ctrl.googleMobile);
 
-// LinkedIn OAuth
-router.get('/linkedin',
-  passport.authenticate('linkedin', { session: false })
-);
-router.get('/linkedin/callback',
-  passport.authenticate('linkedin', { session: false, failureRedirect: '/login' }),
-  ctrl.oauthCallback
-);
-
 module.exports = router;

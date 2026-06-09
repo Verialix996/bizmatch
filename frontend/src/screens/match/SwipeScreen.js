@@ -13,7 +13,7 @@ const CARD_HEIGHT = Math.round(SCREEN_HEIGHT * 0.68);
 const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.55);
 const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
-import { getFeed, swipe, getCompatibility } from '../../services/match.service';
+import { getFeed, swipe } from '../../services/match.service';
 import { getProjectFeed, swipeProject, getMyProjects } from '../../services/project.service';
 import * as WebBrowser from 'expo-web-browser';
 import useAuthStore from '../../store/authStore';
@@ -54,7 +54,7 @@ function StageBadge({ stage }) {
 }
 
 
-function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop, onCompatibility }) {
+function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop }) {
   const animatedStyle = isTop ? {
     transform: [
       { translateX: position.x },
@@ -142,11 +142,6 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
           </Text>
         ) : null}
 
-        {isTop && onCompatibility && (
-          <TouchableOpacity style={styles.compatBtn} onPress={onCompatibility} activeOpacity={0.8}>
-            <Text style={styles.compatBtnText}>🔍 Compatibility</Text>
-          </TouchableOpacity>
-        )}
       </View>
     </Animated.View>
   );
@@ -252,7 +247,7 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
   );
 }
 
-function MatchModal({ visible, matchedName, aiSummary, isProjectMatch, onClose, onMessage }) {
+function MatchModal({ visible, matchedName, isProjectMatch, onClose, onMessage }) {
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
@@ -266,9 +261,6 @@ function MatchModal({ visible, matchedName, aiSummary, isProjectMatch, onClose, 
               ? `In order to view the full details of "${matchedName}", an NDA signing is required.`
               : `You and ${matchedName} have connected.`}
           </Text>
-          {!isProjectMatch && aiSummary ? (
-            <Text style={styles.modalAiSummary}>{aiSummary}</Text>
-          ) : null}
           <TouchableOpacity style={styles.modalBtn} onPress={onMessage} activeOpacity={0.85}>
             <Text style={styles.modalBtnText}>
               {isProjectMatch ? 'GO TO CHAT' : `MESSAGE ${matchedName?.toUpperCase()}`}
@@ -276,48 +268,6 @@ function MatchModal({ visible, matchedName, aiSummary, isProjectMatch, onClose, 
           </TouchableOpacity>
           <TouchableOpacity style={styles.modalBtnSecondary} onPress={onClose} activeOpacity={0.85}>
             <Text style={styles.modalBtnSecondaryText}>KEEP SWIPING</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function CompatibilityModal({ visible, loading, score, pros, cons, name, onClose }) {
-  return (
-    <Modal transparent visible={visible} animationType="fade">
-      <View style={styles.modalBackdrop}>
-        <View style={[styles.modalBox, { alignItems: 'stretch' }]}>
-          <TouchableOpacity style={styles.compatModalClose} onPress={onClose}>
-            <Text style={styles.compatModalCloseText}>✕</Text>
-          </TouchableOpacity>
-          <Text style={[styles.modalTitle, { textAlign: 'center' }]}>{name ? `${name}'s Compatibility` : 'Compatibility'}</Text>
-          {loading ? (
-            <ActivityIndicator size="large" color={colors.primary} style={{ marginVertical: 24 }} />
-          ) : score !== null ? (
-            <>
-              <View style={styles.compatScoreRow}>
-                <Text style={styles.compatScore}>{score}</Text>
-                <Text style={styles.compatScoreLabel}>/100</Text>
-              </View>
-              {pros.length > 0 && (
-                <>
-                  <Text style={styles.compatSectionTitle}>✓ Strengths</Text>
-                  {pros.map((p, i) => <Text key={i} style={styles.compatItem}>• {p}</Text>)}
-                </>
-              )}
-              {cons.length > 0 && (
-                <>
-                  <Text style={styles.compatSectionTitle}>⚠ Watch out</Text>
-                  {cons.map((c, i) => <Text key={i} style={styles.compatItem}>• {c}</Text>)}
-                </>
-              )}
-            </>
-          ) : (
-            <Text style={[styles.modalSub, { textAlign: 'center', marginVertical: 16 }]}>Could not load compatibility score.</Text>
-          )}
-          <TouchableOpacity style={[styles.modalBtn, { marginTop: 20 }]} onPress={onClose}>
-            <Text style={styles.modalBtnText}>CLOSE</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -387,7 +337,7 @@ export default function SwipeScreen() {
   const user = useAuthStore(s => s.user);
   const isEntrepreneur = user?.role === 'entrepreneur';
 
-  const { investorMode, selectedProject, setSelectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, openProjectPicker, darkMode, isInvestorTheme } = useAppStore();
+  const { investorMode, selectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, darkMode, isInvestorTheme } = useAppStore();
   const mode = investorMode ? 'investors' : 'partners';
   const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
 
@@ -395,11 +345,9 @@ export default function SwipeScreen() {
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
-  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null, aiSummary: null, isProjectMatch: false });
-  const [lastMatchSummary, setLastMatchSummary] = useState(null);
+  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null, isProjectMatch: false });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
-  const [compatModal, setCompatModal] = useState({ visible: false, loading: false, score: null, pros: [], cons: [] });
   const [freeSwipeCount, setFreeSwipeCount] = useState(0);
   const FREE_SWIPE_LIMIT = 2;
 
@@ -473,16 +421,6 @@ export default function SwipeScreen() {
       loadFeed(mode);
     }
   }, [mode, selectedProject, loadFeed, isEntrepreneur]);
-
-  const handleCompatibility = useCallback(async (targetUserId, name) => {
-    setCompatModal({ visible: true, loading: true, score: null, pros: [], cons: [], name: name ?? '' });
-    try {
-      const res = await getCompatibility(targetUserId);
-      setCompatModal({ visible: true, loading: false, score: res.data.score ?? null, pros: res.data.pros || [], cons: res.data.cons || [], name: name ?? '' });
-    } catch {
-      setCompatModal({ visible: true, loading: false, score: null, pros: [], cons: [], name: name ?? '' });
-    }
-  }, []);
 
   const sendSwipe = useCallback(async (direction, superLike = false) => {
     if (swiping) return;
@@ -576,12 +514,11 @@ export default function SwipeScreen() {
         if (isEntrepreneur) {
           const res = await swipe(item.userId, direction, superLike);
           if (res.data.matched) {
-            setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null, aiSummary: res.data.aiSummary ?? null, isProjectMatch: false });
-            if (res.data.aiSummary) setLastMatchSummary(res.data.aiSummary);
+            setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null, isProjectMatch: false });
           }
         } else {
           const res = await swipeProject(item.projectId, direction);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null, aiSummary: null, isProjectMatch: true });
+          if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null, isProjectMatch: true });
         }
       } catch (e) {
         if (e.response?.status === 429 && e.response?.data?.upgradeRequired) {
@@ -710,7 +647,6 @@ export default function SwipeScreen() {
                 likeOpacity={likeOpacity}
                 passOpacity={passOpacity}
                 cardRotation={cardRotation}
-                onCompatibility={() => handleCompatibility(visibleCards[0].userId, visibleCards[0].name)}
               />
             ) : (
               <ProjectCard
@@ -783,37 +719,21 @@ export default function SwipeScreen() {
         </View>
       )}
 
-      {!!lastMatchSummary && (
-        <View style={styles.matchSummaryBanner}>
-          <Text style={styles.matchSummaryText}>{lastMatchSummary}</Text>
-        </View>
-      )}
       </>
       )}
 
       <MatchModal
         visible={matchModal.visible}
         matchedName={matchModal.name}
-        aiSummary={matchModal.aiSummary}
         isProjectMatch={matchModal.isProjectMatch}
-        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null, aiSummary: null, isProjectMatch: false })}
+        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null, isProjectMatch: false })}
         onMessage={() => {
           const { matchId, name, photo } = matchModal;
-          setMatchModal({ visible: false, name: '', matchId: null, photo: null, aiSummary: null, isProjectMatch: false });
+          setMatchModal({ visible: false, name: '', matchId: null, photo: null, isProjectMatch: false });
           navigation.navigate('Chat', {
             match: { matchId, name, photoUrl: photo },
           });
         }}
-      />
-
-      <CompatibilityModal
-        visible={compatModal.visible}
-        loading={compatModal.loading}
-        score={compatModal.score}
-        pros={compatModal.pros}
-        cons={compatModal.cons}
-        name={compatModal.name}
-        onClose={() => setCompatModal({ visible: false, loading: false, score: null, pros: [], cons: [], name: '' })}
       />
 
       <VideoPlayerModal
@@ -1231,31 +1151,6 @@ function makeStyles(C) { return StyleSheet.create({
     lineHeight: 20,
     fontSize: 14,
   },
-  matchSummaryBanner: {
-    marginHorizontal: 24,
-    marginTop: 12,
-    padding: 14,
-    borderRadius: 12,
-    backgroundColor: C.surface,
-    borderLeftWidth: 3,
-    borderLeftColor: C.primary,
-  },
-  matchSummaryText: {
-    color: C.primary,
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 19,
-    textAlign: 'center',
-  },
-  modalAiSummary: {
-    color: C.primary,
-    textAlign: 'center',
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 19,
-    marginBottom: 20,
-    paddingHorizontal: 8,
-  },
   modalBtn: {
     backgroundColor: C.primary,
     borderRadius: radius.md,
@@ -1433,70 +1328,6 @@ function makeStyles(C) { return StyleSheet.create({
     fontWeight: '700',
     color: C.textSecondary,
     fontSize: 14,
-  },
-
-  // Compatibility button (inside profile card)
-  compatBtn: {
-    marginTop: 10,
-    backgroundColor: C.backgroundSoft,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    alignSelf: 'flex-start',
-    borderWidth: 1,
-    borderColor: C.surfaceBorder,
-  },
-  compatBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.primary,
-  },
-
-  // Compatibility modal
-  compatModalClose: {
-    alignSelf: 'flex-end',
-    padding: 4,
-    marginBottom: 4,
-  },
-  compatModalCloseText: {
-    fontSize: 16,
-    color: C.textHint,
-    fontWeight: '600',
-  },
-  compatScoreRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'center',
-    marginVertical: 12,
-  },
-  compatScore: {
-    fontSize: 52,
-    fontWeight: '900',
-    color: C.primary,
-    letterSpacing: -2,
-    lineHeight: 56,
-  },
-  compatScoreLabel: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: C.textHint,
-    marginBottom: 8,
-    marginLeft: 4,
-  },
-  compatSectionTitle: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.textSecondary,
-    letterSpacing: 0.5,
-    textTransform: 'uppercase',
-    marginTop: 12,
-    marginBottom: 6,
-  },
-  compatItem: {
-    fontSize: 13,
-    color: C.textHint,
-    lineHeight: 19,
-    marginBottom: 4,
   },
 
   // Video player modal

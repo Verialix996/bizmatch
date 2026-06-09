@@ -1,6 +1,5 @@
 import axios from 'axios';
 import useAuthStore from '../store/authStore';
-import Constants from 'expo-constants';
 
 const API_URL = 'https://zooming-surprise-production.up.railway.app/api';
 

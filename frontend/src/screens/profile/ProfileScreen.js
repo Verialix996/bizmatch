@@ -1,6 +1,6 @@
 import {
   View, Text, StyleSheet, ScrollView,
-  TouchableOpacity, ActivityIndicator, SafeAreaView, Image, Animated, Linking, StatusBar,
+  TouchableOpacity, ActivityIndicator, SafeAreaView, Image, Linking, StatusBar,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -8,7 +8,7 @@ import useAuthStore from '../../store/authStore';
 import { API_BASE_URL } from '../../config/constants';
 import useAppStore from '../../store/appStore';
 import api from '../../services/api';
-import { colors, investorColors, investorThemeColors, typography, radius, cardShadow } from '../../theme';
+import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
 
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',

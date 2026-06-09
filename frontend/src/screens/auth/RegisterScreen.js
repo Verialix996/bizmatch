@@ -8,7 +8,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
 import { register } from '../../services/auth.service';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, brandGradient, radius } from '../../theme';
+import { brandGradient, radius } from '../../theme';
 
 export default function RegisterScreen({ navigation }) {
   const insets = useSafeAreaInsets();

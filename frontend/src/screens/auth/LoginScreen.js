@@ -9,7 +9,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { login } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, brandGradient, radius } from '../../theme';
+import { brandGradient, radius } from '../../theme';
 
 export default function LoginScreen({ navigation }) {
   const insets = useSafeAreaInsets();

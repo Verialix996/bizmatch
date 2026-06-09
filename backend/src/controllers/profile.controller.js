@@ -3,7 +3,6 @@ const UserModel = require('../models/user.model');
 const { query } = require('../config/db');
 const { uploadDoc: upload } = require('../middleware/upload');
 const { moderateText } = require('../services/moderation.service');
-const { cloudinary } = require('../config/cloudinary');
 const { preScoreUser } = require('../models/match.model');
 
 // GET /api/profile/public/:userId

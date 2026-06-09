@@ -4,7 +4,7 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 **Backend:** Live on Railway → `https://zooming-surprise-production.up.railway.app`  
 **Frontend:** Expo (React Native) — run locally, connects to Railway from any network  
-**Deploy branch:** `main-Ai_integrated` (Railway auto-deploys from this branch)
+**Deploy branch:** `main` (Railway auto-deploys from this branch)
 
 ---
 
@@ -36,7 +36,7 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - When AI score cached: AI is the dominant signal (60 pts) + stage alignment (20 pts) + budget fit (10 pts) + completeness (10 pts)
 - Math-only fallback when not yet scored: stage (40 pts) + budget (30 pts) + Jaccard domain overlap (30 pts) + completeness (10 pts)
 - Passed profiles recycle back at the bottom of the feed
-- Mutual match detection → match celebration modal with AI-generated "why you match" summary
+- Mutual match detection → match celebration modal
 - Push notification sent to matched user
 
 ### Projects
@@ -113,7 +113,7 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
    ```bash
    git clone https://github.com/Verialix996/bizmatch.git
    cd bizmatch
-   git checkout main-Ai_integrated
+   git checkout main
    ```
 
 2. **Install frontend dependencies**
@@ -220,7 +220,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 ```
 bizmatch/
 ├── backend/
-│   ├── migrations/        # Single schema file (001_schema.sql), auto-run on startup
+│   ├── migrations/        # 14 numbered .sql files (001–014), auto-run on startup
 │   ├── scripts/           # seed.js — wipes DB, reseeds 5 investors + 5 entrepreneurs
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
@@ -311,11 +311,11 @@ bizmatch/
 
 ## Deployment
 
-The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main-Ai_integrated`.
+The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main`.
 
-- **Database:** MySQL on Railway — single migration `001_schema.sql` runs automatically on startup
+- **Database:** MySQL on Railway — 14 numbered migrations run automatically on startup (idempotent)
 - **File storage:** Cloudinary (photos, docs, videos); pitch decks and NDA PDFs stored as MySQL BLOB
-- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — match scoring, summaries, deck review, meeting briefings
+- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — feed ranking, deck review, meeting briefings, compatibility scoring
 - **Content moderation:** local word-list (no API calls)
 - **Node.js service:** root directory `backend/`, start command `node server.js`
 
@@ -324,6 +324,5 @@ The backend is deployed on [Railway](https://railway.app) and auto-deploys on ev
 - Never commit `.env` files
 - AI features fail silently when `ANTHROPIC_API_KEY` is missing
 - Push notifications only work on real physical devices
-- See `FEATURE_STATUS.md` for full feature status
-- See `systems.md` for detailed technical documentation
-- See `TESTING.md` for manual testing instructions
+- See `docs/QA_CHECKLIST.md` for manual testing instructions
+- See `TECHNICAL_VIDEO_PLAN.md` for a full code walkthrough

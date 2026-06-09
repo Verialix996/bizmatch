@@ -3,7 +3,6 @@ import api from './api';
 export const getFeed         = (mode = 'investors', projectId = null) => api.get(`/match/feed?mode=${mode}${projectId ? `&projectId=${projectId}` : ''}`);
 export const swipe           = (targetUserId, direction, superLike = false) => api.post('/match/swipe', { targetUserId, direction, superLike });
 export const getMatches        = ()                           => api.get('/match/matches');
-export const getCompatibility  = (targetUserId)             => api.get(`/match/compatibility/${targetUserId}`);
 export const whoLikedMe        = ()                           => api.get('/users/me/who-liked-me');
 
 export const getConversations = ()                          => api.get('/messages');

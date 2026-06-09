@@ -1,8 +1,8 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, StyleSheet,
+  View, Text, StyleSheet,
   ActivityIndicator, TouchableOpacity, Image,
-  ScrollView, SafeAreaView, StatusBar, Alert,
+  ScrollView, SafeAreaView, StatusBar,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useFocusEffect } from '@react-navigation/native';
@@ -86,8 +86,6 @@ function ConversationRow({ item, onPress, currentUserId, readTimestamps, C, styl
         </View>
         {item.lastMessage ? (
           <Text style={styles.convPreview} numberOfLines={1}>{item.lastMessage}</Text>
-        ) : item.aiSummary ? (
-          <Text style={styles.convPreviewAi} numberOfLines={2}>{item.aiSummary}</Text>
         ) : (
           <Text style={styles.convPreviewNew}>New match — say hello!</Text>
         )}
@@ -678,12 +676,6 @@ function makeStyles(C) { return StyleSheet.create({
     color: C.primary,
     fontStyle: 'italic',
     lineHeight: 18,
-  },
-  convPreviewAi: {
-    fontSize: 12,
-    color: C.textSecondary,
-    fontStyle: 'italic',
-    lineHeight: 17,
   },
   unreadDot: {
     width: 9,

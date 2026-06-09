@@ -5,7 +5,6 @@ const {
   getJoinedProjects, getProjectsByOwner, preScoreProject,
 } = require('../models/project.model');
 const { query } = require('../config/db');
-const { sendMessage } = require('../models/message.model');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
 const Anthropic = require('@anthropic-ai/sdk');
 const { moderateText } = require('../services/moderation.service');

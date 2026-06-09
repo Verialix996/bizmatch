@@ -404,7 +404,6 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
   );
   const matchId = matchRows[0]?.id ?? null;
 
-  let aiSummary = null;
   if (matchId) {
     // Push notifications — fire and forget
     query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
@@ -417,65 +416,9 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
         emitNotification(swipedId, 'super_like', swiperId, { fromUserId: swiperId, name: rows[0]?.name || 'Someone' });
       }).catch(() => {});
     }
-    // Await AI summary with a 4-second timeout so it can be returned in the response
-    try {
-      aiSummary = await Promise.race([
-        generateMatchSummary(matchId, swiperId, swipedId),
-        new Promise(resolve => setTimeout(() => resolve(null), 4000)),
-      ]);
-    } catch { /* non-critical */ }
   }
 
-  return { matched: true, matchId, aiSummary };
-}
-
-async function generateMatchSummary(matchId, userAId, userBId) {
-  if (!process.env.ANTHROPIC_API_KEY) return;
-  try {
-    const [rowsA, rowsB] = await Promise.all([
-      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
-                    proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-             FROM users u
-             LEFT JOIN (
-               SELECT pr.user_id, pr.stage, pr.funding_needed
-               FROM projects pr
-               INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-             ) proj ON proj.user_id = u.id
-             WHERE u.id = ?`, [userAId]),
-      query(`SELECT u.name, u.role, u.bio, u.skills, u.investment_domain, u.preferred_stage, u.max_investment,
-                    proj.stage AS venture_stage, proj.funding_needed AS funding_needs
-             FROM users u
-             LEFT JOIN (
-               SELECT pr.user_id, pr.stage, pr.funding_needed
-               FROM projects pr
-               INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-             ) proj ON proj.user_id = u.id
-             WHERE u.id = ?`, [userBId]),
-    ]);
-    const a = rowsA[0]; const b = rowsB[0];
-    if (!a || !b) return;
-
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 150,
-      messages: [{
-        role: 'user',
-        content: `Two BizMatch users just mutually matched. Write a single encouraging sentence (max 25 words) explaining why they are a great fit. Be specific and concise.
-
-User A: ${a.name}, ${a.role}. Bio: ${a.bio || 'N/A'}. Stage: ${a.venture_stage || a.preferred_stage || 'N/A'}. Domain: ${a.investment_domain || 'N/A'}.
-User B: ${b.name}, ${b.role}. Bio: ${b.bio || 'N/A'}. Stage: ${b.venture_stage || b.preferred_stage || 'N/A'}. Domain: ${b.investment_domain || 'N/A'}.`,
-      }],
-    });
-    const summary = response.content[0]?.text?.trim();
-    if (summary) {
-      await query('UPDATE matches SET ai_summary = ? WHERE id = ?', [summary, matchId]);
-      return summary;
-    }
-  } catch {
-    // non-critical — silently skip if AI call fails
-  }
-  return null;
+  return { matched: true, matchId };
 }
 
 // ---------------------------------------------------------------------------
@@ -487,7 +430,6 @@ async function getMatches(userId) {
     `SELECT
        m.id AS matchId,
        m.created_at AS matchedAt,
-       m.ai_summary AS aiSummary,
        u.id AS userId,
        u.name,
        u.photo_url AS photoUrl,

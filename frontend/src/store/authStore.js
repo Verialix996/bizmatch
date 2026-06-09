@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 
-const useAuthStore = create((set, get) => ({
+const useAuthStore = create((set) => ({
   token: null,
   user: null,
   newMatchCount: 0,

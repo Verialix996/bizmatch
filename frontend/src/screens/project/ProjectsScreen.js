@@ -10,7 +10,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
   uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
-  reviewDeck, updatePartnerRole, proposeRoleChange,
+  reviewDeck, updatePartnerRole,
 } from '../../services/project.service';
 import { getMatches, sendPartnerInvite } from '../../services/match.service';
 import api from '../../services/api';
@@ -619,7 +619,6 @@ export default function ProjectsScreen({ route }) {
   const [videoUpload, setVideoUpload] = useState({ projectId: null, progress: 0 });
 
   const coFounderMatchId = route?.params?.coFounderMatchId ?? null;
-  const coFounderName    = route?.params?.coFounderName ?? null;
 
   const load = useCallback(async () => {
     setLoading(true);
