@@ -698,7 +698,7 @@ export default function ProjectsScreen({ route }) {
       });
       if (result.canceled || !result.assets?.[0]) return;
       const file = result.assets[0];
-      await uploadDeck(projectId, file.uri, file.name);
+      await uploadDeck(projectId, file.uri, file.name, file.file || null);
       load();
     } catch {
       Alert.alert('Upload Failed', 'Could not upload deck. Please try again.');
@@ -736,7 +736,7 @@ export default function ProjectsScreen({ route }) {
       setVideoUpload({ projectId, progress: 0 });
       await uploadVideo(projectId, result.assets[0].uri, (pct) => {
         setVideoUpload({ projectId, progress: pct });
-      });
+      }, result.assets[0].file || null);
       setVideoUpload({ projectId: null, progress: 0 });
       load();
     } catch {
