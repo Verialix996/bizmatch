@@ -93,12 +93,11 @@ export default function NotificationBell({ tintColor }) {
 
   const handleOpen = () => {
     setOpen(true);
-    const unreadIds = notifications.filter(n => !n.readAt).map(n => n.id);
-    if (unreadIds.length) markIds(unreadIds);
   };
 
   const handleTap = (item) => {
     setOpen(false);
+    if (!item.readAt) markIds([item.id]);
     switch (item.type) {
       case 'match':
       case 'super_like':
@@ -151,10 +150,10 @@ export default function NotificationBell({ tintColor }) {
                         <Text style={styles.rowIcon}>{TYPE_ICON[item.type] || '🔔'}</Text>
                         <View style={styles.rowBody}>
                           <Text style={styles.rowLabel}>{TYPE_LABEL[item.type] || item.type}</Text>
-                          {item.payload?.name ? (
-                            <Text style={styles.rowSub} numberOfLines={1}>{item.payload.name}</Text>
-                          ) : item.payload?.title ? (
-                            <Text style={styles.rowSub} numberOfLines={1}>{item.payload.title}</Text>
+                          {(item.payload?.name || item.payload?.fromName || item.payload?.title) ? (
+                            <Text style={styles.rowSub} numberOfLines={1}>
+                              {item.payload.name || item.payload.fromName || item.payload.title}
+                            </Text>
                           ) : null}
                         </View>
                         <Text style={styles.rowTime}>{formatTime(item.createdAt)}</Text>
@@ -173,7 +172,7 @@ export default function NotificationBell({ tintColor }) {
 }
 
 const styles = StyleSheet.create({
-  bellBtn: { position: 'relative', padding: 4 },
+  bellBtn: { position: 'relative', padding: 4, overflow: 'visible' },
   bellIcon: { fontSize: 22 },
   badge: {
     position: 'absolute',
