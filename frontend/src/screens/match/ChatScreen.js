@@ -170,19 +170,23 @@ export default function ChatScreen({ route, navigation }) {
     }
   }, [match.matchId]);
 
+  // Single full-fetch poll: picks up new messages AND read_at changes, while
+  // preserving local-only moderation_blocked bubbles the server never stored
   const poll = useCallback(async () => {
     try {
-      const res = await getMessages(match.matchId, lastIdRef.current);
-      if (res.data.length > 0) {
-        lastIdRef.current = res.data[res.data.length - 1].id;
-        setMessages(prev => {
-          const ids = new Set(prev.map(m => m.id));
-          return [...prev, ...res.data.filter(m => !ids.has(m.id))];
-        });
+      const res = await getMessages(match.matchId);
+      const newest = res.data.length > 0 ? res.data[res.data.length - 1].id : null;
+      const hasNew = newest !== null && newest !== lastIdRef.current;
+      if (newest !== null) lastIdRef.current = newest;
+      setMessages(prev => {
+        const localOnly = prev.filter(m => String(m.id).startsWith('blocked_'));
+        return [...res.data, ...localOnly];
+      });
+      if (hasNew) {
         setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
         markRead(match.matchId).catch(() => {});
       }
-    } catch (e) {
+    } catch {
       // silent — polling failure shouldn't surface to user
     }
   }, [match.matchId]);
@@ -193,21 +197,9 @@ export default function ChatScreen({ route, navigation }) {
   useEffect(() => { markMatchRead(match.matchId); }, [match.matchId, markMatchRead]);
 
   useEffect(() => {
-    const interval = setInterval(poll, 2000);
+    const interval = setInterval(poll, 3000);
     return () => clearInterval(interval);
   }, [poll]);
-
-  // Full reload every 4s to pick up read_at changes on already-fetched messages
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      try {
-        const res = await getMessages(match.matchId);
-        setMessages(res.data);
-        if (res.data.length > 0) lastIdRef.current = res.data[res.data.length - 1].id;
-      } catch { /* silent */ }
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [match.matchId]);
 
   // Poll other user's last_active_at every 30s
   const [lastActiveAt, setLastActiveAt] = useState(match.lastActiveAt);

@@ -52,8 +52,6 @@ export default function NotificationBell({ tintColor }) {
   const fetchNotifications = useCallback(async () => {
     try {
       const { data } = await api.get('/notifications');
-      const unread = data.filter(n => !n.readAt);
-      console.log('[Bell] fetched', data.length, 'total,', unread.length, 'unread', unread);
       setNotifications(data);
 
       if (seenIdsRef.current === null) {

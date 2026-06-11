@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import * as SecureStore from 'expo-secure-store';
+import * as storage from '../services/storage';
 
 const useAppStore = create((set) => ({
   investorMode: false,
@@ -25,11 +25,11 @@ const useAppStore = create((set) => ({
 
   setDarkMode: (val) => {
     set({ darkMode: val });
-    SecureStore.setItemAsync('dark_mode', val ? '1' : '0').catch(() => {});
+    storage.setItem('dark_mode', val ? '1' : '0').catch(() => {});
   },
   initDarkMode: async () => {
     try {
-      const saved = await SecureStore.getItemAsync('dark_mode');
+      const saved = await storage.getItem('dark_mode');
       if (saved === '1') set({ darkMode: true });
     } catch { /* silent */ }
   },

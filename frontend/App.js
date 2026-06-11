@@ -29,12 +29,17 @@ export const navigationRef = createNavigationContainerRef();
 function parseOAuthUrl(url) {
   if (!url || !url.startsWith('bizmatch://auth')) return null;
   const qs = url.split('?')[1] || '';
-  const params = Object.fromEntries(
-    qs.split('&').map(p => {
-      const [k, v] = p.split('=');
-      return [k, decodeURIComponent(v || '')];
-    })
-  );
+  // Manual parsing instead of URLSearchParams: RN's polyfill lacks entries iteration
+  const params = {};
+  for (const pair of qs.split('&')) {
+    if (!pair) continue;
+    const idx = pair.indexOf('=');
+    const k = idx === -1 ? pair : pair.slice(0, idx);
+    const v = idx === -1 ? '' : pair.slice(idx + 1);
+    try {
+      params[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
+    } catch { /* skip malformed pair */ }
+  }
   return params.token ? params : null;
 }
 
@@ -108,6 +113,7 @@ export default function App() {
           name: params.name,
           role: params.role,
           has_profile: params.has_profile === 'true',
+          has_seen_onboarding: params.has_seen_onboarding === '1' || params.has_seen_onboarding === 'true',
           is_premium: params.is_premium === '1' || params.is_premium === 'true' ? 1 : 0,
           premium_expires_at: params.premium_expires_at || null,
           photo_url: params.photo_url || null,

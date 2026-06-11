@@ -2,7 +2,7 @@
   "expo": {
     "name": "BizMatch",
     "slug": "bizmatch",
-    "owner": "verialix996",
+    "owner": "bizmatchapp",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -45,7 +45,7 @@
       }
     },
     "runtimeVersion": {
-      "policy": "appVersion"
+      "policy": "sdkVersion"
     },
     "updates": {
       "url": "https://u.expo.dev/b98249e7-ad5b-4a30-85d0-b90b85da71ef"

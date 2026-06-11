@@ -89,3 +89,6 @@ docs/
 backend/scripts/demo.js
 backend/scripts/seed.js
 backend/scripts/check-schema.js
+
+# ── E2E test suite (local Playwright runs, never commit) ─────────────────────
+frontend/e2e/
