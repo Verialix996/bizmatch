@@ -108,8 +108,7 @@ async function verifyEmail(req, res, next) {
     const { email, code } = req.body;
     const user = await UserModel.findByEmail(email);
 
-    const devBypass = process.env.NODE_ENV !== 'production' && code === '000000';
-    if (!user || (!devBypass && (user.otp_code !== code || new Date(user.otp_expires_at) < new Date()))) {
+    if (!user || user.otp_code !== code || new Date(user.otp_expires_at) < new Date()) {
       return res.status(400).json({ error: 'Invalid or expired code' });
     }
 

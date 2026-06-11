@@ -69,17 +69,6 @@ app.use('/api/notifications',  notificationRoutes);
 // Health check
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
-// Dev-only: delete a user by email so the demo-capture welcome clip can register fresh each run
-if (process.env.NODE_ENV !== 'production') {
-  const { query } = require('./config/db');
-  app.delete('/api/dev/user', async (req, res) => {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'email required' });
-    await query('DELETE FROM users WHERE email = ?', [email]).catch(() => {});
-    res.json({ ok: true });
-  });
-}
-
 // 404
 app.use((_req, res) => res.status(404).json({ error: 'Route not found' }));
 
