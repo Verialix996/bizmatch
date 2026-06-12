@@ -92,3 +92,8 @@ backend/scripts/check-schema.js
 
 # ── E2E test suite (local Playwright runs, never commit) ─────────────────────
 frontend/e2e/
+
+# ── Local-only folders (testing artifacts + items moved out of the repo) ─────
+not part of the repo/
+testing run screens/
+backend/scripts/seed-50-users.js

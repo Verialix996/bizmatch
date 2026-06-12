@@ -146,28 +146,9 @@ EAS builds the app in the cloud and sends a download link to your phone. Once in
 
 That's it — no backend setup needed for testing.
 
-### Test accounts (password: `Demo1234!`)
+### Test accounts
 
-Run from the repo root to reset and reseed:
-
-```bash
-node backend/scripts/seed.js
-```
-
-| ID | Email | Role | Matched With |
-|----|-------|------|-------------|
-| A | sarah.chen@bizmatch.app | Investor | F |
-| B | marcus.webb@bizmatch.app | Investor | G |
-| C | lena.fischer@bizmatch.app | Investor | H |
-| D | david.okafor@bizmatch.app | Investor | J |
-| E | priya.nair@bizmatch.app | Investor | I |
-| F | alex.rivera@bizmatch.app | Entrepreneur — TeamSync | A |
-| G | mia.johnson@bizmatch.app | Entrepreneur — CashBridge | B |
-| H | jordan.lee@bizmatch.app | Entrepreneur — VitalBand | C |
-| I | zara.ahmed@bizmatch.app | Entrepreneur — LearnArc | E |
-| J | ethan.park@bizmatch.app | Entrepreneur — ArtisanRoute | D |
-
-See `docs/DEMO_ACCOUNTS.md` for full detail on what each account is used for (gitignored).
+The database is seeded with demo accounts for evaluation. Credentials are not published here — request access from the maintainer.
 
 ### Verify the backend is live
 
@@ -190,24 +171,29 @@ Expected: `{"status":"ok"}`
 ```bash
 cd backend
 npm install
-cp .env.example .env
+cp env.example .env
 ```
 
 Fill in `.env`:
 
 | Variable | Description |
 |---|---|
+| `PORT` | Port the server listens on (default: `3000`) |
+| `NODE_ENV` | `development` or `production` |
 | `DATABASE_URL` | `mysql://root:<password>@localhost:3306/bizmatch` |
 | `JWT_SECRET` | Any long random string |
-| `GMAIL_USER` | Your Gmail address |
-| `GOOGLE_CLIENT_ID` | OAuth client ID (Gmail API) |
-| `GOOGLE_CLIENT_SECRET` | OAuth client secret |
-| `GMAIL_REFRESH_TOKEN` | OAuth refresh token |
+| `JWT_EXPIRES_IN` | Token lifetime (default: `7d`) |
+| `GOOGLE_CLIENT_ID` | Google OAuth client ID (sign-in + Gmail API) |
+| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
+| `GOOGLE_CALLBACK_URL` | OAuth redirect URI (e.g. `http://localhost:3000/api/auth/google/callback`) |
+| `GMAIL_USER` | Your Gmail address (used as the email sender) |
+| `GMAIL_REFRESH_TOKEN` | OAuth refresh token for Gmail API |
 | `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
 | `CLOUDINARY_API_KEY` | Cloudinary API key |
 | `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 | `ANTHROPIC_API_KEY` | Anthropic API key (AI features) |
-| `MAX_DAILY_BRIEFINGS` | Max AI briefings per day (default: 50) |
+| `FRONTEND_URL` | Frontend origin for CORS + OAuth redirects (e.g. `http://localhost:8081`) |
+| `BACKEND_URL` | Public backend URL used in email links (e.g. `http://localhost:3000`) |
 
 ```bash
 npm run dev
@@ -223,7 +209,7 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 bizmatch/
 ├── backend/
 │   ├── migrations/        # 19 numbered .sql files, auto-run on startup
-│   ├── scripts/           # seed.js — wipes DB, reseeds 5 investors + 5 entrepreneurs
+│   ├── scripts/           # local DB utility scripts (gitignored)
 │   ├── src/
 │   │   ├── config/        # DB, Cloudinary, Passport OAuth
 │   │   ├── controllers/   # auth, user, profile, match, message, meeting, project
@@ -264,40 +250,63 @@ bizmatch/
 | POST | `/api/auth/reset-password` | Reset with token |
 | POST | `/api/auth/2fa/setup` | Setup 2FA — returns secret + QR URI (requires auth) |
 | POST | `/api/auth/2fa/verify` | Enable 2FA — verifies TOTP during setup (requires auth) |
+| POST | `/api/auth/2fa/disable` | Disable 2FA (requires auth) |
 | POST | `/api/auth/2fa/login` | Login-time TOTP verification — returns JWT (no auth required) |
+| GET | `/api/auth/google` | Begin Google OAuth web/popup flow (`?oid=<id>&redirect=1` optional) |
+| GET | `/api/auth/google/callback` | Google OAuth callback (handled by Passport) |
+| GET | `/api/auth/poll/:oid` | Poll for OAuth result in web popup flow |
+| POST | `/api/auth/google/mobile` | Google OAuth token exchange for React Native |
 | GET | `/api/profile` | Get my profile |
+| GET | `/api/profile/public/:userId` | Get another user's public profile |
 | POST | `/api/profile` | Create profile |
 | PUT | `/api/profile` | Update profile |
 | POST | `/api/profile/upload-id` | Upload ID document |
-| GET | `/api/users/me` | Get current user |
+| POST | `/api/profile/upload-cv` | Upload CV/résumé PDF to Cloudinary |
+| GET | `/api/profile/cv` | Serve CV PDF inline (`?token=JWT`) |
+| PATCH | `/api/users/me` | Update name |
 | PATCH | `/api/users/me/role` | Switch role |
 | POST | `/api/users/me/photo` | Upload profile photo |
-| PATCH | `/api/users/me` | Update name |
 | PATCH | `/api/users/me/push-token` | Save Expo push token |
+| PATCH | `/api/users/me/onboarding` | Mark onboarding tutorial as seen |
 | POST | `/api/users/me/verify-self` | Instant self-verification (demo) |
 | POST | `/api/users/me/premium/activate` | Activate 30-day free trial |
 | DELETE | `/api/users/me/premium` | Cancel premium subscription |
 | GET | `/api/users/me/who-liked-me` | Get users who liked you (premium) |
 | DELETE | `/api/users/me` | Delete account |
+| GET | `/api/users/:id` | Get a user's public info by ID |
+| PATCH | `/api/users/:id/verification` | Set verification status (admin only) |
 | GET | `/api/match/feed` | Get AI-scored swipe feed |
 | POST | `/api/match/swipe` | Record a swipe (returns match if mutual) |
 | GET | `/api/match/matches` | Get all matches |
+| GET | `/api/match/compatibility/:targetUserId` | Get compatibility score with another user |
+| GET | `/api/match/nda-status` | Get NDA status for current user's matches |
 | GET | `/api/messages` | Get all conversations |
 | GET | `/api/messages/:matchId` | Get messages for a match (includes `read_at`) |
 | POST | `/api/messages/:matchId` | Send a message |
 | POST | `/api/messages/:matchId/read` | Mark all received messages in this chat as read |
 | POST | `/api/messages/:matchId/invite` | Send partner invite |
-| POST | `/api/messages/:matchId/invite/:id/respond` | Accept or decline invite |
+| POST | `/api/messages/:matchId/invite/:invitationId/respond` | Accept or decline a partner invite |
 | POST | `/api/messages/:matchId/nda-request` | Request NDA signing |
 | POST | `/api/messages/:matchId/nda-sign` | Sign NDA (generates PDF) |
 | POST | `/api/messages/:matchId/share-project` | Share project details |
-| GET | `/api/projects` | Get my projects |
+| POST | `/api/messages/:matchId/job-offer` | Send a job offer card |
+| POST | `/api/messages/:matchId/job-offer/respond` | Accept or decline a job offer |
+| GET | `/api/projects/mine` | Get my own projects |
+| GET | `/api/projects/joined` | Get projects I've joined as a partner |
+| GET | `/api/projects/matches` | Get project matches (entrepreneur view) |
+| GET | `/api/projects/feed` | Get project feed (investors) |
+| POST | `/api/projects/swipe` | Swipe on a project |
+| GET | `/api/projects/owner/:userId` | Get projects owned by a specific user |
+| GET | `/api/projects/:id` | Get a single project by ID |
 | POST | `/api/projects` | Create a project |
 | PUT | `/api/projects/:id` | Update a project |
 | DELETE | `/api/projects/:id` | Delete a project |
-| GET | `/api/projects/feed` | Get project feed (investors) |
-| POST | `/api/projects/:id/swipe` | Swipe on a project |
 | POST | `/api/projects/:id/upload-deck` | Upload pitch deck PDF to Cloudinary |
+| POST | `/api/projects/:id/upload-video` | Upload demo video (MP4/MOV) to Cloudinary |
+| GET | `/api/projects/:id/partners` | List project partners |
+| POST | `/api/projects/:id/partners` | Add a partner to a project |
+| DELETE | `/api/projects/:id/partners/:userId` | Remove a partner from a project |
+| PUT | `/api/projects/:id/partners/:userId/role` | Update a partner's role |
 | GET | `/api/projects/:id/deck` | Serve pitch deck PDF inline (`?token=JWT`) |
 | GET | `/api/projects/:id/nda` | Serve signed NDA PDF inline (`?token=JWT`) |
 | POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck |
@@ -327,4 +336,3 @@ The backend is deployed on [Railway](https://railway.app) and auto-deploys on ev
 - Never commit `.env` files
 - AI features fail silently when `ANTHROPIC_API_KEY` is missing
 - Push notifications (OS-level) only work on real physical devices; web uses the in-app bell
-- See `docs/QA_CHECKLIST.md` for manual testing instructions (file is gitignored)
