@@ -221,28 +221,6 @@ function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity,
             Seeking ${project.fundingNeeded.toLocaleString()}
           </Text>
         ) : null}
-
-        <View style={styles.linkRow}>
-          {project.deckUrl ? (
-            <TouchableOpacity
-              style={styles.linkBtn}
-              onPress={() => {
-                const token = useAuthStore.getState().token;
-                WebBrowser.openBrowserAsync(`${BACKEND_BASE_URL}/api/projects/${project.projectId}/deck?token=${token}`);
-              }}
-            >
-              <Text style={styles.linkBtnText}>📄 View Deck</Text>
-            </TouchableOpacity>
-          ) : null}
-          {project.videoUrl ? (
-            <TouchableOpacity
-              style={styles.linkBtn}
-              onPress={() => onWatchVideo && onWatchVideo(project.videoUrl)}
-            >
-              <Text style={styles.linkBtnText}>🎬 Watch Demo</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
       </View>
     </Animated.View>
   );
@@ -350,7 +328,7 @@ export default function SwipeScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
   const [freeSwipeCount, setFreeSwipeCount] = useState(0);
-  const FREE_SWIPE_LIMIT = 2;
+  const FREE_SWIPE_LIMIT = 20;
 
   const C = darkMode ? investorColors
           : isInvestorTheme ? investorThemeColors
@@ -677,18 +655,18 @@ export default function SwipeScreen() {
             <Text style={[styles.passBtnText, (investorMode || darkMode) && { color: C.error }]}>✕</Text>
           </TouchableOpacity>
 
-          <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center' }}>
+          <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
             <Animated.View
               pointerEvents="none"
               style={{
                 position: 'absolute',
-                width: 48, height: 48, borderRadius: 24,
+                width: 56, height: 56, borderRadius: 28,
                 borderWidth: 2, borderColor: '#FFD700',
                 opacity: superRingOpacity,
                 transform: [{ scale: superRingScale }],
               }}
             />
-            <Animated.View style={{ transform: [{ scale: superStarScale }] }}>
+            <Animated.View style={{ transform: [{ scale: superStarScale }], overflow: 'visible' }}>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.starBtn, (investorMode || darkMode) && { borderColor: C.primary, backgroundColor: C.surface }]}
                 onPress={() => {
@@ -1073,8 +1051,8 @@ function makeStyles(C) { return StyleSheet.create({
   },
   passBtn: { width: 56, height: 56 },
   passBtnText: { fontSize: 22, color: C.error },
-  starBtn: { width: 48, height: 48 },
-  starBtnText: { fontSize: 20, color: C.primary },
+  starBtn: { width: 56, height: 56 },
+  starBtnText: { fontSize: 22, color: C.primary },
   likeBtn: {
     width: 64,
     height: 64,
