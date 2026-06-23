@@ -12,6 +12,8 @@ const useAppStore = create((set) => ({
   pendingBanner: null,
   showBanner: (banner) => set({ pendingBanner: banner }),
   dismissBanner: () => set({ pendingBanner: null }),
+  activeChatMatchId: null,
+  setActiveChatMatchId: (id) => set({ activeChatMatchId: id }),
 
   enterInvestorMode: (project) => set({ investorMode: true, selectedProject: project, showProjectPicker: false }),
   exitInvestorMode: () => set({ investorMode: false, selectedProject: null }),

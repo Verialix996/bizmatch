@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, TouchableWithoutFeedback, KeyboardAvoidingView, Platform,
@@ -99,6 +100,12 @@ export default function ChatScreen({ route, navigation }) {
   const markMatchRead = useAuthStore(s => s.markMatchRead);
   const darkMode = useAppStore(s => s.darkMode);
   const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
+  const setActiveChatMatchId = useAppStore(s => s.setActiveChatMatchId);
+
+  useFocusEffect(useCallback(() => {
+    setActiveChatMatchId(match.matchId);
+    return () => setActiveChatMatchId(null);
+  }, [match.matchId, setActiveChatMatchId]));
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 

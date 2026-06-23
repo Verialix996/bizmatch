@@ -62,11 +62,16 @@ export default function NotificationBell({ tintColor }) {
       const newUnread = data.filter(n => !n.readAt && !seenIdsRef.current.has(n.id));
       if (newUnread.length > 0) {
         const newest = newUnread[0];
-        useAppStore.getState().showBanner({
-          title: TYPE_LABEL[newest.type] || 'New Notification',
-          body: (TYPE_BODY[newest.type] || (() => ''))(newest.payload),
-          data: { type: newest.type, refId: newest.refId },
-        });
+        const { activeChatMatchId } = useAppStore.getState();
+        const isChatNotifForOpenChat =
+          newest.type === 'message' && newest.refId === activeChatMatchId;
+        if (!isChatNotifForOpenChat) {
+          useAppStore.getState().showBanner({
+            title: TYPE_LABEL[newest.type] || 'New Notification',
+            body: (TYPE_BODY[newest.type] || (() => ''))(newest.payload),
+            data: { type: newest.type, refId: newest.refId },
+          });
+        }
       }
       seenIdsRef.current = new Set(data.map(n => n.id));
     } catch (err) {
