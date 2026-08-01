@@ -2,9 +2,6 @@ import { create } from 'zustand';
 import * as storage from '../services/storage';
 
 const useAppStore = create((set) => ({
-  investorMode: false,
-  selectedProject: null,
-  showProjectPicker: false,
   darkMode: false,
   isInvestorTheme: false,
   notificationTick: 0,
@@ -15,15 +12,7 @@ const useAppStore = create((set) => ({
   activeChatMatchId: null,
   setActiveChatMatchId: (id) => set({ activeChatMatchId: id }),
 
-  enterInvestorMode: (project) => set({ investorMode: true, selectedProject: project, showProjectPicker: false }),
-  exitInvestorMode: () => set({ investorMode: false, selectedProject: null }),
-  setSelectedProject: (project) => set({ selectedProject: project, showProjectPicker: false }),
-  openProjectPicker: () => set({ showProjectPicker: true }),
-  closeProjectPicker: () => set({ showProjectPicker: false }),
-
-  setInvestorTheme: (val) => set(val
-    ? { isInvestorTheme: true, investorMode: false, selectedProject: null }
-    : { isInvestorTheme: false }),
+  setInvestorTheme: (val) => set({ isInvestorTheme: !!val }),
 
   setDarkMode: (val) => {
     set({ darkMode: val });

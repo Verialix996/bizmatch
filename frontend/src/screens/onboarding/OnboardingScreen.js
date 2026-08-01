@@ -21,14 +21,14 @@ const SLIDES = [
   {
     key: '3',
     emoji: '💬',
-    title: 'Chat & NDAs',
-    subtitle: 'Message your matches, share your project, and sign NDAs to protect your ideas.',
+    title: 'Chat',
+    subtitle: 'Message your matches and share your project details directly in the conversation.',
   },
   {
     key: '4',
     emoji: '📅',
     title: 'Schedule Meetings',
-    subtitle: 'Propose in-person or virtual meetings and get an AI due-diligence briefing before you meet.',
+    subtitle: 'Propose in-person or virtual meetings with your matches.',
   },
 ];
 

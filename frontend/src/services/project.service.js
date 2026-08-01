@@ -2,9 +2,6 @@ import api from './api';
 import useAuthStore from '../store/authStore';
 import { API_BASE_URL } from '../config/constants';
 
-export const getProjectFeed    = ()                     => api.get('/projects/feed');
-export const swipeProject      = (projectId, direction) => api.post('/projects/swipe', { projectId, direction });
-export const getProjectMatches = ()                     => api.get('/projects/matches');
 export const getMyProjects     = ()                     => api.get('/projects/mine');
 export const createProject     = (data)                 => api.post('/projects', data);
 export const updateProject     = (id, data)             => api.put(`/projects/${id}`, data);
@@ -50,10 +47,4 @@ export const uploadVideo = (projectId, fileUri, onProgress, fileObj = null) =>
     xhr.send(formData);
   });
 
-export const getPartners         = (projectId)                     => api.get(`/projects/${projectId}/partners`);
-export const addPartner          = (projectId, partnerUserId, role) => api.post(`/projects/${projectId}/partners`, { partnerUserId, role });
-export const removePartner       = (projectId, partnerUserId)       => api.delete(`/projects/${projectId}/partners/${partnerUserId}`);
-export const updatePartnerRole   = (projectId, partnerUserId, role) => api.put(`/projects/${projectId}/partners/${partnerUserId}/role`, { role });
-export const getJoinedProjects = ()                         => api.get('/projects/joined');
-export const getProjectsByOwner = (userId)                  => api.get(`/projects/owner/${userId}`);
-export const reviewDeck         = (projectId)               => api.post(`/projects/${projectId}/deck-review`);
+export const reviewDeck = (projectId) => api.post(`/projects/${projectId}/deck-review`);

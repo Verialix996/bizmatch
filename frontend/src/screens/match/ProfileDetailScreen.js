@@ -5,7 +5,6 @@ import {
 import { useState, useEffect } from 'react';
 import { colors, radius, cardShadow } from '../../theme';
 import api from '../../services/api';
-import useAuthStore from '../../store/authStore';
 
 const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
@@ -62,7 +61,6 @@ function ChipRow({ items }) {
 
 export default function ProfileDetailScreen({ route, navigation }) {
   const { profile: profileParam, matchId } = route.params;
-  const user = useAuthStore(s => s.user);
 
   // When navigated from chat, only minimal data is passed. Fetch the rest.
   const [profile, setProfile] = useState(profileParam);
@@ -76,8 +74,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
   const [compatibility, setCompatibility] = useState(null);
   const [compatibilityLoading, setCompatibilityLoading] = useState(true);
   const [compatibilityVisible, setCompatibilityVisible] = useState(true);
-  const [ndaSigned, setNdaSigned] = useState(null);
-  const [teamMembers, setTeamMembers] = useState([]);
 
   useEffect(() => {
     if (!profile?.userId) { setCompatibilityLoading(false); return; }
@@ -86,20 +82,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
       .catch(() => {})
       .finally(() => setCompatibilityLoading(false));
   }, [profile?.userId]);
-
-  useEffect(() => {
-    if (!matchId || !profile?.projectId || user?.role !== 'investor') return;
-    api.get(`/match/nda-status?matchId=${matchId}&projectId=${profile.projectId}`)
-      .then(r => setNdaSigned(r.data.signed))
-      .catch(() => {});
-  }, [matchId, profile?.projectId, user?.role]);
-
-  useEffect(() => {
-    if (!profile?.projectId) return;
-    api.get(`/projects/${profile.projectId}/partners`)
-      .then(r => setTeamMembers(r.data || []))
-      .catch(() => {});
-  }, [profile?.projectId]);
 
   const roleLabel = profile.role === 'investor'
     ? `Investor · ${profile.investmentDomain || 'Multi-sector'}`
@@ -200,27 +182,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
             </>
           )}
 
-          {/* Project team members (shown when viewing a project card) */}
-          {profile.projectId && teamMembers.length > 0 && (
-            <Section title="TEAM">
-              {teamMembers.map((m, i) => (
-                <View key={i} style={styles.teamRow}>
-                  <View style={[styles.teamAvatar, { backgroundColor: colors.primary }]}>
-                    <Text style={styles.teamAvatarText}>{m.name ? m.name[0].toUpperCase() : '?'}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.teamName}>{m.name}</Text>
-                    {m.role ? (
-                      <Text style={styles.teamRole}>
-                        {m.isOwner ? 'Owner' : m.role}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              ))}
-            </Section>
-          )}
-
           {/* AI compatibility breakdown */}
           {compatibilityLoading ? (
             <View style={styles.compatCard}>
@@ -261,23 +222,6 @@ export default function ProfileDetailScreen({ route, navigation }) {
               )}
             </View>
           ) : null}
-
-          {/* NDA gate for investor viewing matched project */}
-          {matchId && user?.role === 'investor' && ndaSigned === false && (
-            <View style={styles.ndaGate}>
-              <Text style={styles.ndaGateIcon}>🔒</Text>
-              <Text style={styles.ndaGateTitle}>NDA Required</Text>
-              <Text style={styles.ndaGateBody}>Sign an NDA to unlock full project details, pitch deck, and demo video.</Text>
-              <TouchableOpacity
-                style={styles.ndaGateBtn}
-                onPress={() => navigation.navigate('Chat', {
-                  match: { matchId, name: profile.name, photoUrl: profile.photoUrl, roleType: 'entrepreneur' },
-                })}
-              >
-                <Text style={styles.ndaGateBtnText}>Go to Chat to Sign NDA</Text>
-              </TouchableOpacity>
-            </View>
-          )}
         </View>
       </ScrollView>
 
@@ -410,11 +354,6 @@ const styles = StyleSheet.create({
     letterSpacing: -0.3,
   },
 
-  teamRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
-  teamAvatar: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  teamAvatarText: { fontSize: 13, fontWeight: '800', color: '#fff' },
-  teamName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
-  teamRole: { fontSize: 11, color: colors.primary, fontWeight: '600', textTransform: 'capitalize', marginTop: 1 },
   chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: {
     backgroundColor: colors.surface,
@@ -491,27 +430,6 @@ const styles = StyleSheet.create({
   compatIconGood: { fontSize: 13, fontWeight: '800', color: '#2E7D32', marginTop: 1 },
   compatIconWarn: { fontSize: 13, fontWeight: '800', color: '#E65100', marginTop: 1 },
   compatItemText: { flex: 1, fontSize: 13, color: colors.textSecondary, lineHeight: 18 },
-
-  // NDA gate
-  ndaGate: {
-    backgroundColor: '#FFF8E1',
-    borderRadius: radius.lg,
-    padding: 20,
-    marginTop: 12,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#FFE082',
-  },
-  ndaGateIcon: { fontSize: 32, marginBottom: 8 },
-  ndaGateTitle: { fontSize: 16, fontWeight: '800', color: colors.primaryDark, marginBottom: 6 },
-  ndaGateBody: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', lineHeight: 19, marginBottom: 16 },
-  ndaGateBtn: {
-    backgroundColor: colors.primary,
-    borderRadius: radius.pill,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-  },
-  ndaGateBtnText: { color: '#fff', fontWeight: '700', fontSize: 14 },
 
   ctaBar: {
     paddingHorizontal: 24,

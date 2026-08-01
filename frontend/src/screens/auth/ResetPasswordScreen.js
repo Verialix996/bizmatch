@@ -8,9 +8,8 @@ import { resetPassword } from '../../services/auth.service';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brandGradient, radius } from '../../theme';
 
-export default function ResetPasswordScreen({ route, navigation }) {
+export default function ResetPasswordScreen({ navigation }) {
   const insets = useSafeAreaInsets();
-  const token = route?.params?.token ?? '';
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
   const [message, setMessage] = useState('');
@@ -30,11 +29,11 @@ export default function ResetPasswordScreen({ route, navigation }) {
     setError('');
     setLoading(true);
     try {
-      await resetPassword(token, password);
+      await resetPassword(password);
       setMessage('Password reset! Redirecting to login...');
       setTimeout(() => navigation.navigate('Login'), 2500);
     } catch (e) {
-      setError(e.response?.data?.error || 'Invalid or expired reset link.');
+      setError(e.message || 'Invalid or expired reset link.');
     } finally {
       setLoading(false);
     }

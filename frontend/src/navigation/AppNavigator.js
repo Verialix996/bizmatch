@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { View } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
-import { colors, investorColors, investorSwipeColors, investorThemeColors } from '../theme';
+import { colors, investorColors, investorThemeColors } from '../theme';
 import AppHeader from '../components/AppHeader';
 import InAppNotificationBanner from '../components/InAppNotificationBanner';
 import { getConversations } from '../services/match.service';
@@ -16,7 +16,6 @@ import RegisterScreen       from '../screens/auth/RegisterScreen';
 import VerifyOtpScreen      from '../screens/auth/VerifyOtpScreen';
 import ForgotPasswordScreen  from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen  from '../screens/auth/ResetPasswordScreen';
-import Verify2FAScreen      from '../screens/auth/Verify2FAScreen';
 import SwipeScreen          from '../screens/match/SwipeScreen';
 import MatchesScreen        from '../screens/match/MatchesScreen';
 import ChatScreen           from '../screens/match/ChatScreen';
@@ -55,14 +54,10 @@ function MainTabs() {
   const newMatchCount  = useAuthStore(s => s.newMatchCount);
   const setNewMatchCount = useAuthStore(s => s.setNewMatchCount);
   const currentUser    = useAuthStore(s => s.user);
-  const investorMode      = useAppStore(s => s.investorMode);
   const darkMode          = useAppStore(s => s.darkMode);
   const isInvestorTheme   = useAppStore(s => s.isInvestorTheme);
-  const [activeTab, setActiveTab] = useState('Discover');
-  const onDiscover = activeTab === 'Discover';
   const TC = darkMode ? investorColors
            : isInvestorTheme ? investorThemeColors
-           : (investorMode && onDiscover) ? investorSwipeColors
            : colors;
 
   useEffect(() => {
@@ -93,7 +88,7 @@ function MainTabs() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
-        header: () => <AppHeader showToggle={route.name === 'Discover'} />,
+        header: () => <AppHeader />,
         tabBarStyle: {
           backgroundColor: TC.tabBarBackground,
           borderTopColor: TC.tabBarBorder,
@@ -110,10 +105,10 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }}  listeners={{ focus: () => setActiveTab('Discover') }} />
-      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Messages', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} listeners={{ focus: () => setActiveTab('Matches') }} />
-      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} listeners={{ focus: () => setActiveTab('Projects') }} />
-      <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }}  listeners={{ focus: () => setActiveTab('Profile') }} />
+      <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
+      <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Messages', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
+      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
+      <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
@@ -134,7 +129,6 @@ export default function AppNavigator() {
           <Stack.Screen name="VerifyOtp"     component={VerifyOtpScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
-          <Stack.Screen name="Verify2FA"      component={Verify2FAScreen} />
         </>
       ) : (!user?.role || user?.has_profile === false) ? (
         // No profile yet — EditProfile is first so it renders immediately, no flash

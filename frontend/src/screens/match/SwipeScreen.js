@@ -1,12 +1,10 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, Animated, PanResponder,
   TouchableOpacity, ActivityIndicator, Modal, Image,
-  SafeAreaView, StatusBar, Dimensions, FlatList,
+  SafeAreaView, StatusBar, Dimensions,
 } from 'react-native';
 import { showAlert } from '../../services/alert';
-import { VideoView, useVideoPlayer } from 'expo-video';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 const CARD_WIDTH = SCREEN_WIDTH - 16;
@@ -15,24 +13,9 @@ const PHOTO_HEIGHT = Math.round(CARD_HEIGHT * 0.55);
 const MODAL_WIDTH = Math.min(300, SCREEN_WIDTH * 0.85);
 import { useNavigation } from '@react-navigation/native';
 import { getFeed, swipe } from '../../services/match.service';
-import { getProjectFeed, swipeProject, getMyProjects } from '../../services/project.service';
-import * as WebBrowser from 'expo-web-browser';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, investorSwipeColors, investorThemeColors, cardShadow, radius } from '../../theme';
-import { BACKEND_BASE_URL } from '../../config/constants';
-
-const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
-
-// Cloudinary video URLs often lack a file extension; iOS AVPlayer needs .mp4 to pick the right codec pipeline
-const toVideoUrl = url => {
-  if (!url) return null;
-  const abs = toAbsoluteUrl(url);
-  if (abs && abs.includes('cloudinary.com') && !/\.(mp4|mov|m3u8)(\?|$)/i.test(abs)) {
-    return abs + '.mp4';
-  }
-  return abs;
-};
+import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
 
 const SWIPE_THRESHOLD = 120;
 const ROTATION_FACTOR = 12;
@@ -41,7 +24,7 @@ const stageLabel = {
   idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale',
 };
 
-// Module-level styles used by sub-components (ProfileCard, ProjectCard, modals).
+// Module-level styles used by sub-components (ProfileCard, modals).
 // makeStyles is a function declaration so it is hoisted — this call is valid.
 const styles = makeStyles(colors);
 
@@ -148,85 +131,7 @@ function ProfileCard({ profile, panHandlers, position, likeOpacity, passOpacity,
   );
 }
 
-function ProjectCard({ project, panHandlers, position, likeOpacity, passOpacity, cardRotation, isTop, onWatchVideo }) {
-  const animatedStyle = isTop ? {
-    transform: [
-      { translateX: position.x },
-      { translateY: position.y },
-      { rotate: cardRotation },
-    ],
-  } : { transform: [{ scale: 0.96 }, { translateY: 12 }] };
-
-  return (
-    <Animated.View
-      style={[styles.card, animatedStyle, !isTop && styles.cardBack]}
-      {...(isTop ? panHandlers : {})}
-    >
-      <View style={styles.cardPhoto}>
-        {project.ownerPhoto ? (
-          <Image source={{ uri: project.ownerPhoto }} style={styles.photoImg} />
-        ) : (
-          <View style={styles.photoPlaceholder}>
-            <Text style={styles.photoInitial}>
-              {project.ownerName ? project.ownerName[0].toUpperCase() : '?'}
-            </Text>
-          </View>
-        )}
-        <StageBadge stage={project.stage} />
-        {project.isPremium && (
-          <View style={styles.premiumBadge}>
-            <Text style={styles.premiumBadgeText}>★ Premium</Text>
-          </View>
-        )}
-        <View style={styles.cardPhotoOverlay} />
-        <View style={styles.cardNameBlock}>
-          <Text style={styles.cardName}>{project.title}</Text>
-          <Text style={styles.cardLocation}>by {project.ownerName}</Text>
-        </View>
-        {isTop && (
-          <>
-            <Animated.View style={[styles.overlayLike, { opacity: likeOpacity }]}>
-              <Text style={styles.overlayLikeText}>LIKE</Text>
-            </Animated.View>
-            <Animated.View style={[styles.overlayPass, { opacity: passOpacity }]}>
-              <Text style={styles.overlayPassText}>PASS</Text>
-            </Animated.View>
-          </>
-        )}
-      </View>
-
-      <View style={styles.cardBody}>
-        <View style={styles.roleLabelRow}>
-          <Text style={styles.roleLabel}>
-            {project.industry ? project.industry.toUpperCase() : 'VENTURE'} · SEEKING INVESTMENT
-          </Text>
-        </View>
-
-        {project.ownerSkills?.length > 0 && (
-          <View style={styles.chipRow}>
-            {project.ownerSkills.slice(0, 3).map((s, i) => (
-              <View key={i} style={styles.chip}>
-                <Text style={styles.chipText}>{s}</Text>
-              </View>
-            ))}
-          </View>
-        )}
-
-        {project.description ? (
-          <Text style={styles.bioQuote} numberOfLines={2}>"{project.description}"</Text>
-        ) : null}
-
-        {project.fundingNeeded ? (
-          <Text style={styles.metaLine}>
-            Seeking ${project.fundingNeeded.toLocaleString()}
-          </Text>
-        ) : null}
-      </View>
-    </Animated.View>
-  );
-}
-
-function MatchModal({ visible, matchedName, isProjectMatch, onClose, onMessage }) {
+function MatchModal({ visible, matchedName, onClose, onMessage }) {
   return (
     <Modal transparent visible={visible} animationType="fade">
       <View style={styles.modalBackdrop}>
@@ -236,13 +141,11 @@ function MatchModal({ visible, matchedName, isProjectMatch, onClose, onMessage }
           </View>
           <Text style={styles.modalTitle}>It's a Match!</Text>
           <Text style={styles.modalSub}>
-            {isProjectMatch
-              ? `In order to view the full details of "${matchedName}", an NDA signing is required.`
-              : `You and ${matchedName} have connected.`}
+            You and {matchedName} have connected.
           </Text>
           <TouchableOpacity style={styles.modalBtn} onPress={onMessage} activeOpacity={0.85}>
             <Text style={styles.modalBtnText}>
-              {isProjectMatch ? 'GO TO CHAT' : `MESSAGE ${matchedName?.toUpperCase()}`}
+              MESSAGE {matchedName?.toUpperCase()}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.modalBtnSecondary} onPress={onClose} activeOpacity={0.85}>
@@ -254,93 +157,25 @@ function MatchModal({ visible, matchedName, isProjectMatch, onClose, onMessage }
   );
 }
 
-function VideoPlayerModal({ visible, player, onClose }) {
-  return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT, backgroundColor: '#000' }}>
-        <VideoView
-          player={player}
-          style={{ width: SCREEN_WIDTH, height: SCREEN_HEIGHT }}
-          contentFit="contain"
-          allowsFullscreen
-          allowsPictureInPicture
-          nativeControls
-        />
-        <SafeAreaView style={{ position: 'absolute', top: 0, left: 0, right: 0 }}>
-          <TouchableOpacity onPress={onClose} style={styles.videoCloseBtn}>
-            <Text style={styles.videoCloseBtnText}>✕  Close</Text>
-          </TouchableOpacity>
-        </SafeAreaView>
-      </View>
-    </Modal>
-  );
-}
-
-function ProjectPickerModal({ visible, projects, onSelect, onClose }) {
-  return (
-    <Modal transparent visible={visible} animationType="fade">
-      <View style={styles.pickerBackdrop}>
-        <View style={styles.pickerSheet}>
-          <Text style={styles.pickerTitle}>Find investors for which project?</Text>
-          {projects.length === 0 ? (
-            <View style={styles.pickerEmpty}>
-              <Text style={styles.pickerEmptyText}>You don't have any projects yet. Create one in the Projects tab first.</Text>
-            </View>
-          ) : (
-            <FlatList
-              data={projects}
-              keyExtractor={item => String(item.id)}
-              renderItem={({ item }) => (
-                <TouchableOpacity style={styles.pickerRow} onPress={() => onSelect(item)} activeOpacity={0.75}>
-                  <View>
-                    <Text style={styles.pickerRowTitle}>{item.title}</Text>
-                    {item.stage ? <Text style={styles.pickerRowSub}>{stageLabel[item.stage] || item.stage}</Text> : null}
-                  </View>
-                  <Text style={styles.pickerRowArrow}>›</Text>
-                </TouchableOpacity>
-              )}
-              ItemSeparatorComponent={() => <View style={styles.pickerSep} />}
-            />
-          )}
-          <TouchableOpacity style={styles.pickerCancel} onPress={onClose} activeOpacity={0.8}>
-            <Text style={styles.pickerCancelText}>Cancel</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
 export default function SwipeScreen() {
   const navigation = useNavigation();
   const user = useAuthStore(s => s.user);
-  const isEntrepreneur = user?.role === 'entrepreneur';
 
-  const { investorMode, selectedProject, showProjectPicker, closeProjectPicker, enterInvestorMode, darkMode, isInvestorTheme } = useAppStore();
-  const mode = investorMode ? 'investors' : 'partners';
+  const { darkMode, isInvestorTheme } = useAppStore();
   const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
 
-  const [myProjects, setMyProjects] = useState([]);
   const [feed, setFeed] = useState([]);
   const [loading, setLoading] = useState(true);
   const [swiping, setSwiping] = useState(false);
-  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null, isProjectMatch: false });
+  const [matchModal, setMatchModal] = useState({ visible: false, name: '', matchId: null, photo: null });
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [videoModal, setVideoModal] = useState({ visible: false, url: null });
   const [freeSwipeCount, setFreeSwipeCount] = useState(0);
   const FREE_SWIPE_LIMIT = 20;
 
   const C = darkMode ? investorColors
           : isInvestorTheme ? investorThemeColors
-          : investorMode ? investorSwipeColors
           : colors;
   const styles = useMemo(() => makeStyles(C), [C]);
-
-  const videoPlayer = useVideoPlayer(videoModal.url || '', p => { p.loop = false; });
-  useEffect(() => {
-    if (videoModal.visible && videoModal.url) videoPlayer.play();
-    else videoPlayer.pause();
-  }, [videoModal.visible, videoModal.url]);
 
   const position = useRef(new Animated.ValueXY()).current;
   const superStarScale = useRef(new Animated.Value(1)).current;
@@ -368,19 +203,10 @@ export default function SwipeScreen() {
     outputRange: [`-${ROTATION_FACTOR}deg`, '0deg', `${ROTATION_FACTOR}deg`],
   });
 
-  // Re-fetch entrepreneur's own projects every time the Discover tab gains focus,
-  // so projects created in the Projects tab are immediately available in the picker.
-  useFocusEffect(useCallback(() => {
-    if (!isEntrepreneur) return;
-    getMyProjects().then(res => setMyProjects(res.data || [])).catch(() => {});
-  }, [isEntrepreneur]));
-
-  const loadFeed = useCallback(async (feedMode, projectId = null) => {
+  const loadFeed = useCallback(async () => {
     setLoading(true);
     try {
-      const res = isEntrepreneur
-        ? await getFeed(feedMode, projectId)
-        : await getProjectFeed();
+      const res = await getFeed();
       setFeed(res.data);
       setCurrentIndex(0);
       position.setValue({ x: 0, y: 0 });
@@ -389,17 +215,11 @@ export default function SwipeScreen() {
     } finally {
       setLoading(false);
     }
-  }, [position, isEntrepreneur]);
+  }, [position]);
 
   useEffect(() => {
-    if (isEntrepreneur && mode === 'investors') {
-      // Don't auto-load: wait for project selection
-      if (!selectedProject) return;
-      loadFeed(mode, selectedProject.id);
-    } else {
-      loadFeed(mode);
-    }
-  }, [mode, selectedProject, loadFeed, isEntrepreneur]);
+    loadFeed();
+  }, [loadFeed]);
 
   const sendSwipe = useCallback(async (direction, superLike = false) => {
     if (swiping) return;
@@ -489,14 +309,9 @@ export default function SwipeScreen() {
     doCardFly(async () => {
       position.setValue({ x: 0, y: 0 });
       try {
-        if (isEntrepreneur) {
-          const res = await swipe(item.userId, direction, superLike);
-          if (res.data.matched) {
-            setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null, isProjectMatch: false });
-          }
-        } else {
-          const res = await swipeProject(item.projectId, direction);
-          if (res.data.matched) setMatchModal({ visible: true, name: item.title, matchId: res.data.matchId, photo: null, isProjectMatch: true });
+        const res = await swipe(item.userId, direction, superLike);
+        if (res.data.matched) {
+          setMatchModal({ visible: true, name: item.name, matchId: res.data.matchId, photo: item.photoUrl ?? null });
         }
       } catch (e) {
         if (e.response?.status === 429 && e.response?.data?.upgradeRequired) {
@@ -517,7 +332,7 @@ export default function SwipeScreen() {
       if (!isPremium) setFreeSwipeCount(c => c + 1);
       setSwiping(false);
     });
-  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, superRingScale, superRingOpacity, isEntrepreneur, navigation, isPremium, freeSwipeCount]);
+  }, [feed, currentIndex, swiping, position, superStarScale, superFlashOpacity, superBadgeScale, superBadgeOpacity, superParticles, superRingScale, superRingOpacity, navigation, isPremium, freeSwipeCount]);
 
   const sendSwipeRef = useRef(sendSwipe);
   useEffect(() => { sendSwipeRef.current = sendSwipe; }, [sendSwipe]);
@@ -527,9 +342,7 @@ export default function SwipeScreen() {
     onTapRef.current = () => {
       const item = feed[currentIndex];
       if (!item) return;
-      // Normalize project items so ProfileDetailScreen can render them
-      const profile = item.projectId ? { ...item, name: item.ownerName, photoUrl: item.ownerPhoto } : item;
-      navigation.navigate('ProfileDetail', { profile, matchId: null });
+      navigation.navigate('ProfileDetail', { profile: item, matchId: null });
     };
   }, [feed, currentIndex, navigation]);
 
@@ -559,19 +372,8 @@ export default function SwipeScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: C.backgroundSoft || C.background }]}>
-      <StatusBar barStyle={(investorMode || darkMode) ? 'light-content' : 'dark-content'} />
+      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
 
-      {/* Pick-project prompt — shown fullscreen centered before any project is chosen */}
-      {isEntrepreneur && mode === 'investors' && !selectedProject ? (
-        <View style={styles.pickProjectCenter}>
-          <TouchableOpacity style={styles.pickProjectBtn} onPress={() => useAppStore.getState().openProjectPicker()} activeOpacity={0.85}>
-            <Text style={styles.pickProjectIcon}>📁</Text>
-            <Text style={styles.pickProjectTitle}>Select a project</Text>
-            <Text style={styles.pickProjectSub}>Choose which project to find investors for</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-      <>
       {/* Deck */}
       <View style={styles.deckArea}>
         {loading ? (
@@ -582,7 +384,7 @@ export default function SwipeScreen() {
             <Text style={styles.emptySub}>Check back later for new matches</Text>
             <TouchableOpacity
               style={styles.refreshBtn}
-              onPress={() => loadFeed(mode, selectedProject?.id ?? null)}
+              onPress={() => loadFeed()}
               activeOpacity={0.85}
             >
               <Text style={styles.refreshBtnText}>Refresh</Text>
@@ -591,54 +393,27 @@ export default function SwipeScreen() {
         ) : (
           <View style={styles.cardStack}>
             {visibleCards[1] ? (
-              isEntrepreneur ? (
-                <ProfileCard
-                  key={`back-${visibleCards[1].userId}`}
-                  profile={visibleCards[1]}
-                  isTop={false}
-                  position={position}
-                  likeOpacity={likeOpacity}
-                  passOpacity={passOpacity}
-                  cardRotation={cardRotation}
-                />
-              ) : (
-                <ProjectCard
-                  key={`back-${visibleCards[1].projectId}`}
-                  project={visibleCards[1]}
-                  isTop={false}
-                  position={position}
-                  likeOpacity={likeOpacity}
-                  passOpacity={passOpacity}
-                  cardRotation={cardRotation}
-                  onWatchVideo={(url) => setVideoModal({ visible: true, url: toVideoUrl(url) })}
-                />
-              )
+              <ProfileCard
+                key={`back-${visibleCards[1].userId}`}
+                profile={visibleCards[1]}
+                isTop={false}
+                position={position}
+                likeOpacity={likeOpacity}
+                passOpacity={passOpacity}
+                cardRotation={cardRotation}
+              />
             ) : null}
 
-            {isEntrepreneur ? (
-              <ProfileCard
-                key={`top-${visibleCards[0].userId}`}
-                profile={visibleCards[0]}
-                isTop={true}
-                panHandlers={panResponder.panHandlers}
-                position={position}
-                likeOpacity={likeOpacity}
-                passOpacity={passOpacity}
-                cardRotation={cardRotation}
-              />
-            ) : (
-              <ProjectCard
-                key={`top-${visibleCards[0].projectId}`}
-                project={visibleCards[0]}
-                isTop={true}
-                panHandlers={panResponder.panHandlers}
-                position={position}
-                likeOpacity={likeOpacity}
-                passOpacity={passOpacity}
-                cardRotation={cardRotation}
-                onWatchVideo={(url) => setVideoModal({ visible: true, url: toVideoUrl(url) })}
-              />
-            )}
+            <ProfileCard
+              key={`top-${visibleCards[0].userId}`}
+              profile={visibleCards[0]}
+              isTop={true}
+              panHandlers={panResponder.panHandlers}
+              position={position}
+              likeOpacity={likeOpacity}
+              passOpacity={passOpacity}
+              cardRotation={cardRotation}
+            />
           </View>
         )}
       </View>
@@ -647,12 +422,12 @@ export default function SwipeScreen() {
       {!loading && visibleCards.length > 0 && (
         <View style={styles.actionRow}>
           <TouchableOpacity
-            style={[styles.actionBtn, styles.passBtn, (investorMode || darkMode) && { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
+            style={[styles.actionBtn, styles.passBtn, darkMode && { borderColor: C.surfaceBorder, backgroundColor: C.surface }]}
             onPress={() => sendSwipe('pass')}
             disabled={swiping}
             activeOpacity={0.8}
           >
-            <Text style={[styles.passBtnText, (investorMode || darkMode) && { color: C.error }]}>✕</Text>
+            <Text style={[styles.passBtnText, darkMode && { color: C.error }]}>✕</Text>
           </TouchableOpacity>
 
           <View style={{ position: 'relative', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
@@ -668,7 +443,7 @@ export default function SwipeScreen() {
             />
             <Animated.View style={{ transform: [{ scale: superStarScale }], overflow: 'visible' }}>
               <TouchableOpacity
-                style={[styles.actionBtn, styles.starBtn, (investorMode || darkMode) && { borderColor: C.primary, backgroundColor: C.surface }]}
+                style={[styles.actionBtn, styles.starBtn, darkMode && { borderColor: C.primary, backgroundColor: C.surface }]}
                 onPress={() => {
                   if (!isPremium) {
                     showAlert('Premium Feature', 'Super Like is a Premium feature. Upgrade to send unlimited Super Likes!',
@@ -681,50 +456,33 @@ export default function SwipeScreen() {
                 disabled={swiping}
                 activeOpacity={0.8}
               >
-                <Text style={[styles.starBtnText, (investorMode || darkMode) && { color: C.primary }]}>★</Text>
+                <Text style={[styles.starBtnText, darkMode && { color: C.primary }]}>★</Text>
               </TouchableOpacity>
             </Animated.View>
           </View>
 
           <TouchableOpacity
-            style={[styles.actionBtn, styles.likeBtn, (investorMode || darkMode) && { backgroundColor: C.primary, borderColor: C.primary }]}
+            style={[styles.actionBtn, styles.likeBtn, darkMode && { backgroundColor: C.primary, borderColor: C.primary }]}
             onPress={() => sendSwipe('like')}
             disabled={swiping}
             activeOpacity={0.8}
           >
-            <Text style={[styles.likeBtnText, (investorMode || darkMode) && { color: C.textOnPrimary || '#0A0F1E' }]}>♥</Text>
+            <Text style={[styles.likeBtnText, darkMode && { color: C.textOnPrimary || '#0A0F1E' }]}>♥</Text>
           </TouchableOpacity>
         </View>
-      )}
-
-      </>
       )}
 
       <MatchModal
         visible={matchModal.visible}
         matchedName={matchModal.name}
-        isProjectMatch={matchModal.isProjectMatch}
-        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null, isProjectMatch: false })}
+        onClose={() => setMatchModal({ visible: false, name: '', matchId: null, photo: null })}
         onMessage={() => {
           const { matchId, name, photo } = matchModal;
-          setMatchModal({ visible: false, name: '', matchId: null, photo: null, isProjectMatch: false });
+          setMatchModal({ visible: false, name: '', matchId: null, photo: null });
           navigation.navigate('Chat', {
             match: { matchId, name, photoUrl: photo },
           });
         }}
-      />
-
-      <VideoPlayerModal
-        visible={videoModal.visible}
-        player={videoPlayer}
-        onClose={() => setVideoModal({ visible: false, url: null })}
-      />
-
-      <ProjectPickerModal
-        visible={showProjectPicker}
-        projects={myProjects}
-        onSelect={(project) => enterInvestorMode(project)}
-        onClose={closeProjectPicker}
       />
 
       {/* Super Like gold flash overlay */}
@@ -1177,144 +935,5 @@ function makeStyles(C) { return StyleSheet.create({
     fontSize: 11,
     fontWeight: '700',
     color: C.primaryDark,
-  },
-
-  // Project pill (selected project label)
-  projectPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginHorizontal: 24,
-    marginBottom: 8,
-    backgroundColor: C.surface,
-    borderRadius: radius.pill,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    borderWidth: 1,
-    borderColor: C.surfaceBorder,
-  },
-  projectPillText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.primaryDark,
-    flex: 1,
-    marginRight: 8,
-  },
-  projectPillChange: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: C.primary,
-  },
-
-  // Pick project placeholder
-  pickProjectCenter: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-    zIndex: 10,
-  },
-  pickProjectBtn: {
-    alignItems: 'center',
-    padding: 40,
-    borderRadius: 20,
-    borderWidth: 1.5,
-    borderColor: C.surfaceBorder,
-    borderStyle: 'dashed',
-    backgroundColor: C.surface,
-    width: '90%',
-  },
-  pickProjectIcon: { fontSize: 40, marginBottom: 12 },
-  pickProjectTitle: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: C.primaryDark,
-    marginBottom: 6,
-  },
-  pickProjectSub: {
-    fontSize: 13,
-    color: C.textHint,
-    textAlign: 'center',
-    lineHeight: 18,
-  },
-
-  // Project picker modal (bottom sheet style)
-  pickerBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(2,36,102,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
-  },
-  pickerSheet: {
-    backgroundColor: C.surface,
-    borderRadius: 24,
-    padding: 24,
-    width: '100%',
-    maxHeight: '70%',
-  },
-  pickerTitle: {
-    fontSize: 17,
-    fontWeight: '800',
-    color: C.primaryDark,
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  pickerEmpty: { paddingVertical: 24, alignItems: 'center' },
-  pickerEmptyText: {
-    color: C.textHint,
-    textAlign: 'center',
-    lineHeight: 20,
-    fontSize: 14,
-  },
-  pickerRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  pickerRowTitle: {
-    fontSize: 15,
-    fontWeight: '700',
-    color: C.primaryDark,
-  },
-  pickerRowSub: {
-    fontSize: 12,
-    color: C.textHint,
-    marginTop: 2,
-  },
-  pickerRowArrow: {
-    fontSize: 22,
-    color: C.primary,
-  },
-  pickerSep: {
-    height: 1,
-    backgroundColor: C.surfaceBorder,
-  },
-  pickerCancel: {
-    marginTop: 16,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderRadius: radius.md,
-    backgroundColor: C.backgroundSoft,
-  },
-  pickerCancelText: {
-    fontWeight: '700',
-    color: C.textSecondary,
-    fontSize: 14,
-  },
-
-  // Video player modal
-  videoCloseBtn: {
-    padding: 16,
-  },
-  videoCloseBtnText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
   },
 }); }

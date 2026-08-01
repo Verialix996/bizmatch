@@ -1,96 +1,23 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  TextInput, SafeAreaView, ActivityIndicator,   Modal, FlatList, Image, StatusBar,
+  TextInput, SafeAreaView, ActivityIndicator, Modal, Image, StatusBar,
 } from 'react-native';
 import { showAlert } from '../../services/alert';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import {
   getMyProjects, createProject, updateProject, deleteProject,
-  uploadDeck, uploadVideo, getPartners, removePartner, getJoinedProjects,
-  reviewDeck, updatePartnerRole,
+  uploadDeck, uploadVideo, reviewDeck,
 } from '../../services/project.service';
-import { getMatches, sendPartnerInvite } from '../../services/match.service';
-import api from '../../services/api';
 import useAppStore from '../../store/appStore';
 import useAuthStore from '../../store/authStore';
 import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
-const PARTNER_ROLES = ['Co-Founder', 'CTO', 'CMO', 'Advisor', 'Member'];
 
-function PartnerAvatar({ name, photoUrl, size = 36, styles, C }) {
-  if (photoUrl) {
-    return (
-      <Image
-        source={{ uri: photoUrl }}
-        style={{ width: size, height: size, borderRadius: size / 2 }}
-      />
-    );
-  }
-  return (
-    <View style={[
-      styles.partnerAvatarPlaceholder,
-      { width: size, height: size, borderRadius: size / 2 },
-    ]}>
-      <Text style={{ fontSize: size * 0.38, color: '#fff', fontWeight: '700' }}>
-        {name ? name[0].toUpperCase() : '?'}
-      </Text>
-    </View>
-  );
-}
-
-function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onManagePartners, onReviewDeck, onViewDetail, videoUploadProgress, styles, C }) {
-  const [partners, setPartners] = useState([]);
-  const [removeConfirm, setRemoveConfirm] = useState(null); // { userId, name }
-  const [removing, setRemoving] = useState(false);
-  const [roleEdit, setRoleEdit] = useState(null); // { userId, name, currentRole }
-  const [roleInput, setRoleInput] = useState('');
-  const [roleSaving, setRoleSaving] = useState(false);
-
-  useFocusEffect(useCallback(() => {
-    const fetchPartners = () => {
-      getPartners(project.id)
-        .then(res => setPartners(res.data))
-        .catch(() => {});
-    };
-    fetchPartners();
-    const interval = setInterval(fetchPartners, 15000);
-    return () => clearInterval(interval);
-  }, [project.id]));
-
-  const confirmRemove = async () => {
-    if (!removeConfirm || removing) return;
-    setRemoving(true);
-    try {
-      await removePartner(project.id, removeConfirm.userId);
-      setPartners(prev => prev.filter(p => p.userId !== removeConfirm.userId));
-    } catch { /* silent */ }
-    setRemoving(false);
-    setRemoveConfirm(null);
-  };
-
-  const openRoleEdit = (partner) => {
-    const preset = PARTNER_ROLES.find(r => r.toLowerCase() === (partner.role || '').toLowerCase()) || null;
-    setRoleInput(preset);
-    setRoleEdit({ userId: partner.userId, name: partner.name });
-  };
-
-  const saveRole = async () => {
-    if (!roleEdit || roleSaving || !roleInput) return;
-    setRoleSaving(true);
-    try {
-      await updatePartnerRole(project.id, roleEdit.userId, roleInput);
-      setPartners(prev => prev.map(p => p.userId === roleEdit.userId ? { ...p, role: roleInput } : p));
-      setRoleEdit(null);
-    } catch (err) {
-      showAlert('Error', err?.response?.data?.error || 'Could not update role.');
-    }
-    setRoleSaving(false);
-  };
-
+function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, onReviewDeck, onViewDetail, videoUploadProgress, styles }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -154,53 +81,6 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
         ) : null}
       </View>
 
-      {/* Team */}
-      <View style={styles.partnersSection}>
-        <View style={styles.partnersHeader}>
-          <Text style={styles.partnersSectionLabel}>TEAM</Text>
-          <TouchableOpacity
-            onPress={() => onManagePartners(project.id)}
-            style={styles.addPartnerBtn}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.addPartnerBtnText}>+ Add Partner</Text>
-          </TouchableOpacity>
-        </View>
-        {partners.length === 0 ? (
-          <Text style={styles.noPartnersText}>No partners yet</Text>
-        ) : (
-          <View style={styles.partnerList}>
-            {partners.map(p => (
-              <View key={p.userId} style={styles.partnerItem}>
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={32} styles={styles} C={C} />
-                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                {p.isOwner ? (
-                  <View style={[styles.roleChip, styles.roleChipCEO]}>
-                    <Text style={[styles.roleChipText, styles.roleChipCEOText]}>CEO</Text>
-                  </View>
-                ) : (
-                  <TouchableOpacity onPress={() => openRoleEdit(p)} activeOpacity={0.7}>
-                    <View style={styles.roleChip}>
-                      <Text style={styles.roleChipText}>{p.role || 'Member'}</Text>
-                    </View>
-                  </TouchableOpacity>
-                )}
-                {!p.isOwner && (
-                  <TouchableOpacity
-                    onPress={() => setRemoveConfirm({ userId: p.userId, name: p.name })}
-                    style={styles.removePartnerBtn}
-                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                    activeOpacity={0.6}
-                  >
-                    <Text style={styles.removePartnerBtnText}>×</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
-
       {/* Upload row */}
       <View style={styles.uploadRow}>
         <TouchableOpacity
@@ -234,244 +114,6 @@ function ProjectCard({ project, onEdit, onDelete, onUploadDeck, onUploadVideo, o
           <Text style={styles.aiFeedbackBtnText}>✦ Get AI Deck Feedback</Text>
         </TouchableOpacity>
       ) : null}
-
-      {/* Remove partner confirmation modal */}
-      <Modal visible={!!removeConfirm} transparent animationType="fade">
-        <View style={styles.deleteOverlay}>
-          <View style={styles.deleteModal}>
-            <Text style={styles.deleteModalTitle}>Remove Partner</Text>
-            <Text style={styles.deleteModalBody}>
-              Are you sure you want to remove {removeConfirm?.name} from the project?
-            </Text>
-            <View style={styles.deleteModalActions}>
-              <TouchableOpacity
-                style={styles.deleteBtnCancel}
-                onPress={() => setRemoveConfirm(null)}
-              >
-                <Text style={styles.deleteBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteBtnConfirm}
-                onPress={confirmRemove}
-                disabled={removing}
-              >
-                <Text style={styles.deleteBtnConfirmText}>
-                  {removing ? 'Removing...' : 'Remove'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Propose role change modal */}
-      <Modal visible={!!roleEdit} transparent animationType="fade">
-        <View style={styles.deleteOverlay}>
-          <View style={styles.deleteModal}>
-            <Text style={styles.deleteModalTitle}>Change Role</Text>
-            <Text style={styles.deleteModalBody}>{roleEdit?.name}</Text>
-            <View style={styles.rolePickerSection}>
-              <Text style={styles.roleInputLabel}>New role</Text>
-              <View style={styles.rolePickerRow}>
-                {PARTNER_ROLES.map(r => {
-                  const selected = roleInput === r;
-                  return (
-                    <TouchableOpacity
-                      key={r}
-                      style={[styles.rolePickerChip, selected && styles.rolePickerChipSelected]}
-                      onPress={() => setRoleInput(r)}
-                      activeOpacity={0.75}
-                    >
-                      <Text style={[styles.rolePickerChipText, selected && styles.rolePickerChipTextSelected]}>
-                        {r}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-            </View>
-            <View style={styles.deleteModalActions}>
-              <TouchableOpacity
-                style={styles.deleteBtnCancel}
-                onPress={() => setRoleEdit(null)}
-              >
-                <Text style={styles.deleteBtnCancelText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.deleteBtnConfirm, (!roleInput || roleSaving) && { opacity: 0.5 }]}
-                onPress={saveRole}
-                disabled={!roleInput || roleSaving}
-              >
-                <Text style={styles.deleteBtnConfirmText}>
-                  {roleSaving ? 'Saving...' : 'Save'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </View>
-  );
-}
-
-function AddPartnerModal({ visible, onClose, onAdd, projectId, styles, C }) {
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [roleForInvite, setRoleForInvite] = useState(null);
-
-  useEffect(() => {
-    if (!visible || !projectId) return;
-    setRoleForInvite(null);
-    setLoading(true);
-    Promise.all([getMatches(), getPartners(projectId)])
-      .then(([matchRes, partnerRes]) => {
-        const existingIds = new Set((partnerRes.data || []).map(p => p.userId));
-        setMatches((matchRes.data || []).filter(m => !existingIds.has(m.userId)));
-      })
-      .catch(() => setMatches([]))
-      .finally(() => setLoading(false));
-  }, [visible, projectId]);
-
-  const handleAdd = async (matchId) => {
-    if (!roleForInvite) return;
-    setSending(true);
-    try {
-      await onAdd(matchId, projectId, roleForInvite);
-    } finally {
-      setSending(false);
-    }
-  };
-
-  return (
-    <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalBox}>
-          <Text style={styles.modalTitle}>Add Partner</Text>
-          <Text style={styles.modalSub}>Select a role, then pick a connection</Text>
-          <View style={styles.rolePickerSection}>
-            <Text style={styles.roleInputLabel}>Role in project</Text>
-            <View style={styles.rolePickerRow}>
-              {PARTNER_ROLES.map(r => {
-                const selected = roleForInvite === r;
-                return (
-                  <TouchableOpacity
-                    key={r}
-                    style={[styles.rolePickerChip, selected && styles.rolePickerChipSelected]}
-                    onPress={() => setRoleForInvite(r)}
-                    activeOpacity={0.75}
-                  >
-                    <Text style={[styles.rolePickerChipText, selected && styles.rolePickerChipTextSelected]}>
-                      {r}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-          {loading ? (
-            <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
-          ) : matches.length === 0 ? (
-            <Text style={styles.noPartnersText}>
-              No available matches — either you have no connections yet or they're already on this project.
-            </Text>
-          ) : (
-            <FlatList
-              data={matches}
-              keyExtractor={item => String(item.userId)}
-              style={{ maxHeight: 280, width: '100%' }}
-              renderItem={({ item }) => (
-                <TouchableOpacity
-                  style={[styles.matchPickerItem, (!roleForInvite || sending) && { opacity: 0.5 }]}
-                  onPress={() => handleAdd(item.matchId)}
-                  activeOpacity={0.7}
-                  disabled={!roleForInvite || sending}
-                >
-                  <PartnerAvatar name={item.name} photoUrl={item.photoUrl} size={42} styles={styles} C={C} />
-                  <View style={{ flex: 1, marginLeft: 12 }}>
-                    <Text style={styles.matchPickerName}>{item.name}</Text>
-                    {item.roleType ? (
-                      <Text style={styles.matchPickerRole}>{item.roleType}</Text>
-                    ) : null}
-                  </View>
-                </TouchableOpacity>
-              )}
-            />
-          )}
-          <TouchableOpacity
-            style={styles.modalCloseBtn}
-            onPress={onClose}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.modalCloseBtnText}>Close</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function JoinedProjectCard({ project, onViewDetail, styles, C }) {
-  const [partners, setPartners] = useState([]);
-  useFocusEffect(useCallback(() => {
-    getPartners(project.id).then(res => setPartners(res.data)).catch(() => {});
-  }, [project.id]));
-
-  return (
-    <View style={[styles.card, styles.joinedCard]}>
-      <View style={styles.cardHeader}>
-        {project.icon_url ? (
-          <Image source={{ uri: project.icon_url }} style={styles.projectIcon} />
-        ) : null}
-        <TouchableOpacity style={{ flex: 1 }} onPress={() => onViewDetail?.(project)} activeOpacity={0.7}>
-          <Text style={styles.cardTitle}>{project.title}</Text>
-          {project.stage ? (
-            <View style={styles.stagePill}>
-              <Text style={styles.stagePillText}>{STAGE_LABELS[project.stage] || project.stage}</Text>
-            </View>
-          ) : null}
-        </TouchableOpacity>
-        <View style={styles.joinedCEOTag}>
-          <Text style={styles.joinedCEOText}>by {project.owner_name}</Text>
-        </View>
-      </View>
-
-      {project.description ? (
-        <Text style={styles.cardDesc} numberOfLines={2}>{project.description}</Text>
-      ) : null}
-
-      <View style={styles.cardMeta}>
-        {project.industry ? (
-          <View style={styles.metaChip}>
-            <Text style={styles.metaChipText}>{project.industry}</Text>
-          </View>
-        ) : null}
-        {project.deck_url ? (
-          <View style={styles.metaChip}><Text style={styles.metaChipText}>📄 Deck</Text></View>
-        ) : null}
-        {project.video_url ? (
-          <View style={styles.metaChip}><Text style={styles.metaChipText}>🎬 Video</Text></View>
-        ) : null}
-      </View>
-
-      <View style={styles.partnersSection}>
-        <Text style={styles.partnersSectionLabel}>TEAM</Text>
-        {partners.length > 0 && (
-          <View style={[styles.partnerList, { marginTop: 8 }]}>
-            {partners.map(p => (
-              <View key={p.userId} style={styles.partnerItem}>
-                <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={32} styles={styles} C={C} />
-                <Text style={styles.partnerName} numberOfLines={1}>{p.name}</Text>
-                <View style={[styles.roleChip, p.isOwner && styles.roleChipCEO]}>
-                  <Text style={[styles.roleChipText, p.isOwner && styles.roleChipCEOText]}>
-                    {p.isOwner ? 'CEO' : (p.role || 'Member')}
-                  </Text>
-                </View>
-              </View>
-            ))}
-          </View>
-        )}
-      </View>
     </View>
   );
 }
@@ -609,26 +251,18 @@ export default function ProjectsScreen({ route }) {
   const styles = makeStyles(C);
 
   const [projects, setProjects] = useState([]);
-  const [joinedProjects, setJoinedProjects] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
-  const [partnerModal, setPartnerModal] = useState({ visible: false, projectId: null });
   const [deleteModal, setDeleteModal] = useState({ visible: false, projectId: null });
   const [deckReview, setDeckReview] = useState({ visible: false, projectId: null, feedback: null, loading: false });
   const [videoUpload, setVideoUpload] = useState({ projectId: null, progress: 0 });
 
-  const coFounderMatchId = route?.params?.coFounderMatchId ?? null;
-
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [ownRes, joinedRes] = await Promise.all([
-        getMyProjects(),
-        getJoinedProjects(),
-      ]);
-      setProjects(ownRes.data);
-      setJoinedProjects(joinedRes.data);
+      const res = await getMyProjects();
+      setProjects(res.data);
     } catch (e) {
       console.error('Failed to load projects', e);
     } finally {
@@ -637,7 +271,6 @@ export default function ProjectsScreen({ route }) {
   }, []);
 
   useFocusEffect(useCallback(() => {
-    api.post('/notifications/read', { types: ['partner_invite'] }).catch(() => {});
     load();
     if (route?.params?.startProject) {
       setShowForm(true);
@@ -649,10 +282,7 @@ export default function ProjectsScreen({ route }) {
     if (editingProject) {
       await updateProject(editingProject.id, data);
     } else {
-      const res = await createProject(data);
-      if (coFounderMatchId && res?.data?.id) {
-        sendPartnerInvite(coFounderMatchId, res.data.id, { role_title: 'Co-Founder' }).catch(() => {});
-      }
+      await createProject(data);
     }
     setShowForm(false);
     setEditingProject(null);
@@ -675,20 +305,11 @@ export default function ProjectsScreen({ route }) {
     setShowForm(true);
   };
 
-  const handleViewProject = (project, ownerOverride = null) => {
+  const handleViewProject = (project) => {
     navigation.navigate('ProjectDetail', {
       project,
-      ownerName: ownerOverride?.name ?? currentUser?.name,
+      ownerName: currentUser?.name,
     });
-  };
-
-  const handleManagePartners = (projectId) => {
-    setPartnerModal({ visible: true, projectId });
-  };
-
-  const handleAddPartner = async (matchId, projectId, role = 'Member') => {
-    await sendPartnerInvite(matchId, projectId, { role_title: role });
-    setPartnerModal({ visible: false, projectId: null });
   };
 
   const handleUploadDeck = async (projectId) => {
@@ -795,43 +416,14 @@ export default function ProjectsScreen({ route }) {
               onDelete={handleDelete}
               onUploadDeck={handleUploadDeck}
               onUploadVideo={handleUploadVideo}
-              onManagePartners={handleManagePartners}
               onReviewDeck={handleReviewDeck}
               onViewDetail={handleViewProject}
               videoUploadProgress={videoUpload.projectId === p.id ? videoUpload.progress : null}
               styles={styles}
-              C={C}
             />
           ))
         )}
-
-        {/* Projects I've Joined */}
-        {joinedProjects.length > 0 && (
-          <>
-            <View style={styles.sectionDivider}>
-              <Text style={styles.sectionDividerLabel}>PROJECTS I'VE JOINED</Text>
-            </View>
-            {joinedProjects.map(p => (
-              <JoinedProjectCard
-                key={p.id}
-                project={p}
-                onViewDetail={(proj) => handleViewProject(proj, { name: proj.owner_name, photo: proj.owner_photo, userId: proj.user_id })}
-                styles={styles}
-                C={C}
-              />
-            ))}
-          </>
-        )}
       </ScrollView>
-
-      <AddPartnerModal
-        visible={partnerModal.visible}
-        projectId={partnerModal.projectId}
-        onAdd={handleAddPartner}
-        onClose={() => setPartnerModal({ visible: false, projectId: null })}
-        styles={styles}
-        C={C}
-      />
 
       {/* New / Edit project — full-screen modal */}
       <Modal visible={showForm} animationType="slide">
@@ -867,7 +459,7 @@ export default function ProjectsScreen({ route }) {
             </View>
             {!deckReview.feedback ? (
               <>
-                <Text style={styles.deckReviewHint}>Claude will read your uploaded PDF and provide structured feedback.</Text>
+                <Text style={styles.deckReviewHint}>Our AI will read your uploaded PDF and provide structured feedback.</Text>
                 <View style={styles.deckReviewActions}>
                   <TouchableOpacity onPress={() => setDeckReview({ visible: false, projectId: null, feedback: null, loading: false })} style={styles.deckReviewCancel}>
                     <Text style={{ color: C.textHint }}>Cancel</Text>
@@ -1041,143 +633,6 @@ function makeStyles(C) {
     color: C.primary,
   },
 
-  // Partners
-  partnersSection: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: C.backgroundSoft,
-  },
-  partnersHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  partnersSectionLabel: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: C.textHint,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-  },
-  addPartnerBtn: {
-    backgroundColor: C.backgroundSoft,
-    borderRadius: radius.sm,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderWidth: 1,
-    borderColor: C.surfaceBorder,
-  },
-  addPartnerBtnText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.primary,
-  },
-  partnerList: { flexDirection: 'column', gap: 8, marginTop: 4 },
-  partnerItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  removePartnerBtn: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: C.error,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  removePartnerBtnText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '700',
-    lineHeight: 16,
-  },
-  partnerName: {
-    flex: 1,
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.textSecondary,
-  },
-  roleChip: {
-    borderRadius: radius.pill,
-    backgroundColor: C.primary + '1A',
-    borderWidth: 1,
-    borderColor: C.primary + '40',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  roleChipCEO: {
-    backgroundColor: C.textHint + '18',
-    borderColor: C.textHint + '40',
-  },
-  roleChipText: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.primary,
-    textTransform: 'capitalize',
-    letterSpacing: 0.3,
-  },
-  roleChipCEOText: {
-    color: C.textHint,
-  },
-  roleInputLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.textHint,
-    marginBottom: 8,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-  },
-  rolePickerSection: {
-    width: '100%',
-    marginBottom: 14,
-  },
-  rolePickerRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-  },
-  rolePickerChip: {
-    borderRadius: radius.pill,
-    borderWidth: 1.5,
-    borderColor: C.surfaceBorder,
-    paddingHorizontal: 14,
-    paddingVertical: 7,
-    backgroundColor: C.backgroundSoft,
-  },
-  rolePickerChipSelected: {
-    borderColor: C.primary,
-    backgroundColor: C.primary + '18',
-  },
-  rolePickerChipText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: C.textSecondary,
-  },
-  rolePickerChipTextSelected: {
-    color: C.primary,
-  },
-  roleEditInput: {
-    borderWidth: 1,
-    borderColor: C.surfaceBorder,
-    borderRadius: radius.md,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 14,
-    color: C.textPrimary,
-    backgroundColor: C.backgroundSoft,
-    width: '100%',
-    marginBottom: 16,
-  },
-  partnerAvatarPlaceholder: {
-    backgroundColor: C.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  noPartnersText: {
-    fontSize: 12,
-    color: C.textHint,
-    fontStyle: 'italic',
-  },
-
   aiFeedbackBtn: { marginTop: 8, backgroundColor: C.primaryLight || '#e8f0fe', borderRadius: radius.pill, paddingVertical: 9, paddingHorizontal: 16, alignItems: 'center' },
   aiFeedbackBtnText: { color: C.primary, fontWeight: '700', fontSize: 13 },
   deckReviewOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' },
@@ -1198,7 +653,6 @@ function makeStyles(C) {
   },
   formModalBack: { fontSize: 20, color: C.textSecondary, fontWeight: '600' },
   formModalTitle: { fontSize: 17, fontWeight: '800', color: C.primaryDark },
-  deckReviewInput: { borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, padding: 12, minHeight: 110, textAlignVertical: 'top', color: C.textPrimary, fontSize: 14, marginBottom: 12 },
   deckReviewActions: { flexDirection: 'row', gap: 10, justifyContent: 'flex-end' },
   deckReviewCancel: { paddingVertical: 10, paddingHorizontal: 16 },
   deckReviewSubmit: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 24, alignItems: 'center' },
@@ -1341,96 +795,6 @@ function makeStyles(C) {
     color: C.textHint,
     textAlign: 'center',
     lineHeight: 20,
-  },
-
-  // Modal
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(2,36,102,0.5)',
-    justifyContent: 'flex-end',
-  },
-  modalBox: {
-    backgroundColor: C.surface,
-    borderTopLeftRadius: radius.xl,
-    borderTopRightRadius: radius.xl,
-    padding: 24,
-    paddingBottom: 40,
-  },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: C.primaryDark,
-    marginBottom: 4,
-  },
-  modalSub: {
-    fontSize: 13,
-    color: C.textSecondary,
-    marginBottom: 16,
-  },
-  matchPickerItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: C.backgroundSoft,
-  },
-  matchPickerName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: C.primaryDark,
-  },
-  matchPickerRole: {
-    fontSize: 12,
-    color: C.textSecondary,
-    marginTop: 2,
-    textTransform: 'capitalize',
-  },
-  modalCloseBtn: {
-    marginTop: 16,
-    backgroundColor: C.backgroundSoft,
-    borderRadius: radius.md,
-    paddingVertical: 14,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: C.surfaceBorder,
-  },
-  modalCloseBtnText: {
-    color: C.textSecondary,
-    fontWeight: '600',
-    fontSize: 15,
-  },
-
-  // Joined projects
-  joinedCard: {
-    borderLeftWidth: 3,
-    borderLeftColor: C.primary,
-  },
-  joinedCEOTag: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    backgroundColor: C.surfaceElevated,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: C.surfaceBorder,
-  },
-  joinedCEOText: {
-    fontSize: 11,
-    color: C.textSecondary,
-    fontWeight: '600',
-  },
-
-  // Section divider
-  sectionDivider: {
-    paddingHorizontal: 24,
-    paddingTop: 20,
-    paddingBottom: 8,
-  },
-  sectionDividerLabel: {
-    fontSize: 10,
-    fontWeight: '700',
-    color: C.textHint,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
 
   // Delete confirmation modal

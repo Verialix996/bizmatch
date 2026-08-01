@@ -1,11 +1,10 @@
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  SafeAreaView, StatusBar, ActivityIndicator, Modal, Dimensions,
+  SafeAreaView, StatusBar, Modal, Dimensions,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import { useState, useEffect } from 'react';
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { getPartners } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
@@ -29,30 +28,6 @@ function toVideoUrl(url) {
   return abs;
 }
 
-function PartnerAvatar({ name, photoUrl, size = 40, C }) {
-  if (photoUrl) {
-    return (
-      <View style={{ width: size, height: size, borderRadius: size / 2, overflow: 'hidden' }}>
-        <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: C.primary, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.38 }}>
-            {name ? name[0].toUpperCase() : '?'}
-          </Text>
-        </View>
-      </View>
-    );
-  }
-  return (
-    <View style={{
-      width: size, height: size, borderRadius: size / 2,
-      backgroundColor: C.primary, justifyContent: 'center', alignItems: 'center',
-    }}>
-      <Text style={{ color: '#fff', fontWeight: '700', fontSize: size * 0.38 }}>
-        {name ? name[0].toUpperCase() : '?'}
-      </Text>
-    </View>
-  );
-}
-
 export default function ProjectDetailScreen({ route, navigation }) {
   const { project, ownerName } = route.params;
   const darkMode = useAppStore(s => s.darkMode);
@@ -60,8 +35,6 @@ export default function ProjectDetailScreen({ route, navigation }) {
   const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
   const styles = makeStyles(C);
 
-  const [partners, setPartners] = useState([]);
-  const [partnersLoading, setPartnersLoading] = useState(true);
   const [videoModal, setVideoModal] = useState(false);
 
   const videoUrl = toVideoUrl(project.video_url);
@@ -71,13 +44,6 @@ export default function ProjectDetailScreen({ route, navigation }) {
     if (videoModal && videoUrl) videoPlayer.play();
     else videoPlayer.pause();
   }, [videoModal, videoUrl]);
-
-  useEffect(() => {
-    getPartners(project.id)
-      .then(r => setPartners(r.data || []))
-      .catch(() => {})
-      .finally(() => setPartnersLoading(false));
-  }, [project.id]);
 
   const openDeck = () => {
     const token = useAuthStore.getState().token;
@@ -142,33 +108,6 @@ export default function ProjectDetailScreen({ route, navigation }) {
             </Text>
           </View>
         ) : null}
-
-        {/* Team */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>TEAM</Text>
-          {partnersLoading ? (
-            <ActivityIndicator size="small" color={C.primary} style={{ marginTop: 8 }} />
-          ) : partners.length === 0 ? (
-            <Text style={styles.emptyHint}>No team members listed yet.</Text>
-          ) : (
-            <View style={styles.partnerList}>
-              {partners.map(p => (
-                <View key={p.userId} style={styles.partnerRow}>
-                  <PartnerAvatar name={p.name} photoUrl={p.photoUrl} size={40} C={C} />
-                  <View style={styles.partnerInfo}>
-                    <Text style={styles.partnerName}>{p.name}</Text>
-                    <Text style={styles.partnerRole}>{p.isOwner ? 'CEO / Founder' : (p.role || 'Member')}</Text>
-                  </View>
-                  {p.isOwner && (
-                    <View style={styles.ceoBadge}>
-                      <Text style={styles.ceoBadgeText}>CEO</Text>
-                    </View>
-                  )}
-                </View>
-              ))}
-            </View>
-          )}
-        </View>
 
         {/* Assets */}
         {(project.deck_url || project.video_url) ? (
@@ -319,29 +258,6 @@ function makeStyles(C) {
       fontWeight: '800',
       color: C.primary,
     },
-    emptyHint: {
-      fontSize: 14,
-      color: C.textHint,
-      fontStyle: 'italic',
-    },
-
-    partnerList: { gap: 12 },
-    partnerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-    },
-    partnerInfo: { flex: 1 },
-    partnerName: { fontSize: 15, fontWeight: '700', color: C.textPrimary },
-    partnerRole: { fontSize: 13, color: C.textHint, marginTop: 1 },
-    ceoBadge: {
-      backgroundColor: C.primary,
-      borderRadius: radius.pill,
-      paddingHorizontal: 10,
-      paddingVertical: 3,
-    },
-    ceoBadgeText: { fontSize: 11, fontWeight: '800', color: '#fff' },
-
     assetRow: { flexDirection: 'row', gap: 10 },
     assetBtn: {
       flex: 1,

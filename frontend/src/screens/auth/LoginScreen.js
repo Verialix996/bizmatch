@@ -23,18 +23,14 @@ export default function LoginScreen({ navigation }) {
     setError('');
     setLoading(true);
     try {
-      const { data } = await login({ email, password });
-      if (data.requires2FA) {
-        navigation.navigate('Verify2FA', { userId: data.userId });
-      } else {
-        await setAuth(data.token, data.user);
-      }
+      const session = await login({ email, password });
+      await setAuth(session);
     } catch (err) {
-      if (err.response?.data?.needsVerification) {
+      if (err.message?.toLowerCase().includes('email not confirmed')) {
         navigation.navigate('VerifyOtp', { email });
         return;
       }
-      setError(err.response?.data?.error || 'Login failed. Please try again.');
+      setError(err.message || 'Login failed. Please try again.');
     } finally {
       setLoading(false);
     }

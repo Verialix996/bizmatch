@@ -4,7 +4,7 @@ import {
 } from 'react-native';
 import { useState } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
-import { verifyEmail, resendOtp } from '../../services/auth.service';
+import { verifySignupOtp, resendOtp } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brandGradient, radius } from '../../theme';
@@ -27,10 +27,10 @@ export default function VerifyOtpScreen({ route, navigation }) {
     setError('');
     setLoading(true);
     try {
-      const { data } = await verifyEmail(email, code);
-      await setAuth(data.token, data.user);
+      const session = await verifySignupOtp(email, code);
+      await setAuth(session);
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid code. Please try again.');
+      setError(err.message || 'Invalid code. Please try again.');
     } finally {
       setLoading(false);
     }
