@@ -1,20 +1,20 @@
 const { query } = require('../config/db');
 
-const PROFILE_FIELDS = [
-  'bio', 'skills', 'hobbies', 'role_type',
-  'portfolio_url', 'linkedin_url', 'experience', 'cv_url',
-];
+// Profile fields now live directly on public.users (merged from the old
+// user_profiles table — always 1:1 joined data, see supabase/migrations).
+// role_type is gone entirely: users.role is the single source of truth.
+const PROFILE_FIELDS = ['bio', 'skills', 'hobbies', 'portfolio_url', 'linkedin_url', 'experience', 'cv_url'];
 const INVESTOR_FIELDS = ['investment_domain', 'preferred_stage', 'max_investment'];
 
 const ProfileModel = {
   async findByUserId(userId) {
     const rows = await query(
-      `SELECT up.user_id, up.bio, up.skills, up.hobbies, up.role_type,
-              up.portfolio_url, up.linkedin_url, up.experience, up.cv_url, up.photo_url,
+      `SELECT u.id AS user_id, u.bio, u.skills, u.hobbies, u.role AS role_type,
+              u.portfolio_url, u.linkedin_url, u.experience, u.cv_url, u.photo_url,
               ip.investment_domain, ip.preferred_stage, ip.max_investment
-       FROM user_profiles up
-       LEFT JOIN investor_profiles ip ON ip.user_id = up.user_id
-       WHERE up.user_id = ?`,
+       FROM users u
+       LEFT JOIN investor_profiles ip ON ip.user_id = u.id
+       WHERE u.id = $1`,
       [userId]
     );
     return rows[0] || null;
@@ -26,51 +26,45 @@ const ProfileModel = {
 
   async upsert(userId, data) {
     const nullIfEmpty = v => (v === '' || v === undefined ? null : v);
-    const CONSTRAINED = ['preferred_stage', 'role_type'];
     const profileFields = [];
     const profileValues = [];
     for (const key of PROFILE_FIELDS) {
       if (data[key] !== undefined) {
         profileFields.push(key);
         let val = data[key];
-        if (['skills', 'hobbies'].includes(key)) val = JSON.stringify(val);
-        else if (CONSTRAINED.includes(key)) val = nullIfEmpty(val);
+        if (['skills', 'hobbies'].includes(key)) val = JSON.stringify(Array.isArray(val) ? val : []);
         profileValues.push(val);
       }
     }
     if (profileFields.length) {
-      const cols = ['user_id', ...profileFields];
-      const placeholders = cols.map(() => '?').join(', ');
-      const updates = profileFields.map(f => `${f} = VALUES(${f})`).join(', ');
+      const setClauses = profileFields.map((f, i) => `${f} = $${i + 2}`).join(', ');
       await query(
-        `INSERT INTO user_profiles (${cols.join(', ')})
-         VALUES (${placeholders})
-         ON DUPLICATE KEY UPDATE ${updates}`,
+        `UPDATE users SET ${setClauses}, updated_at = now() WHERE id = $1`,
         [userId, ...profileValues]
       );
     }
 
-    const roleType = data.role_type;
-    if (roleType === 'investor') {
+    if (data.role_type === 'investor') {
       const investorFields = [];
       const investorValues = [];
       for (const key of INVESTOR_FIELDS) {
         if (data[key] !== undefined) {
           investorFields.push(key);
-          const val = CONSTRAINED.includes(key) ? nullIfEmpty(data[key]) : data[key];
-          investorValues.push(val);
+          investorValues.push(key === 'preferred_stage' ? nullIfEmpty(data[key]) : data[key]);
         }
       }
+      const cols = ['user_id', ...investorFields];
+      const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+      const updates = investorFields.map(f => `${f} = EXCLUDED.${f}`).join(', ');
       if (investorFields.length) {
-        const cols = ['user_id', ...investorFields];
-        const placeholders = cols.map(() => '?').join(', ');
-        const updates = investorFields.map(f => `${f} = VALUES(${f})`).join(', ');
         await query(
           `INSERT INTO investor_profiles (${cols.join(', ')})
            VALUES (${placeholders})
-           ON DUPLICATE KEY UPDATE ${updates}`,
+           ON CONFLICT (user_id) DO UPDATE SET ${updates}`,
           [userId, ...investorValues]
         );
+      } else {
+        await query('INSERT INTO investor_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING', [userId]);
       }
     }
     return { userId };

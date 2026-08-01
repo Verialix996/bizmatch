@@ -1,12 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const passport = require('passport');
 const { apiLimiter } = require('./middleware/rateLimiter');
 const errorHandler = require('./middleware/errorHandler');
 const logger = require('./utils/logger');
-
-require('./config/passport');
 
 const authRoutes    = require('./routes/auth.routes');
 const userRoutes    = require('./routes/user.routes');

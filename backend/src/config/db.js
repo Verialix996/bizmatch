@@ -1,26 +1,27 @@
-const mysql = require('mysql2/promise');
+const { Pool } = require('pg');
 const logger = require('../utils/logger');
 
-const pool = mysql.createPool({
-  uri: process.env.DATABASE_URL,
+// Service-role Postgres connection (Supabase connection-pooler URI). Bypasses
+// RLS — the Express backend enforces access control at the app level, same as
+// before; RLS policies in supabase/migrations exist as defense-in-depth.
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  waitForConnections: true,
-  connectionLimit: 10,
-  timezone: '+00:00', // treat all DATETIME values as UTC
+  max: 10,
 });
 
 async function query(sql, params = []) {
   const sanitized = params.map(p => (p === undefined ? null : p));
-  const [rows] = await pool.execute(sql, sanitized);
+  const { rows } = await pool.query(sql, sanitized);
   return rows;
 }
 
 async function testConnection() {
   try {
-    await pool.execute('SELECT 1');
-    logger.info('MySQL connected');
+    await pool.query('SELECT 1');
+    logger.info('Postgres (Supabase) connected');
   } catch (err) {
-    logger.error('MySQL connection failed: ' + err.message);
+    logger.error('Postgres connection failed: ' + err.message);
     process.exit(1);
   }
 }

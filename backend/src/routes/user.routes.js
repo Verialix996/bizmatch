@@ -2,6 +2,7 @@ const router = require('express').Router();
 const { authenticate, requireVerified, requireAdmin } = require('../middleware/auth.middleware');
 const ctrl = require('../controllers/user.controller');
 
+router.get('/me',                       authenticate, ctrl.getMe);
 router.patch('/me',                     authenticate, requireVerified, ctrl.updateMe);
 router.post('/me/verify-self',          authenticate, ctrl.verifySelf);
 router.delete('/me',                    authenticate, ctrl.deleteAccount);

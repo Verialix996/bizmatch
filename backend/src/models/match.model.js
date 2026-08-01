@@ -1,5 +1,5 @@
 const { query } = require('../config/db');
-const Anthropic = require('@anthropic-ai/sdk');
+const { getModel } = require('../config/gemini');
 const { sendPushNotification } = require('../services/notification.service');
 const { emitNotification } = require('../controllers/notification.controller');
 
@@ -39,11 +39,15 @@ function jaccardScore(textA, textB, maxPts) {
   return Math.round((intersection / union) * maxPts);
 }
 
+function asArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
 function completenessBonus(profile) {
   let bonus = 0;
   if (profile.photo_url) bonus += 3;
   if ((profile.bio || '').length > 50) bonus += 4;
-  if (safeParseArray(profile.skills).length >= 2) bonus += 3;
+  if (asArray(profile.skills).length >= 2) bonus += 3;
   return bonus;
 }
 
@@ -60,10 +64,7 @@ function scoreInvestorEntrepreneur(investorProfile, entrepreneurProfile, aiScore
     score += stageScore(investorProfile.preferred_stage, entrepreneurProfile.venture_stage); // 0-40
     score += budgetScore(investorProfile.max_investment, entrepreneurProfile.funding_needs); // 0-30
     const domainText = investorProfile.investment_domain || '';
-    const entText = [
-      ...(safeParseArray(entrepreneurProfile.skills)),
-      entrepreneurProfile.bio || '',
-    ].join(' ');
+    const entText = [...asArray(entrepreneurProfile.skills), entrepreneurProfile.bio || ''].join(' ');
     score += jaccardScore(domainText, entText, 30); // 0-30
   }
 
@@ -79,13 +80,13 @@ function scoreEntrepreneurEntrepreneur(profileA, profileB, aiScore = null) {
   if (aiScore != null) {
     score += Math.round(aiScore / 100 * 60); // AI: 0-60 pts (primary)
   } else {
-    const hobbiesA = safeParseArray(profileA.hobbies).map(h => h.toLowerCase());
-    const hobbiesB = safeParseArray(profileB.hobbies).map(h => h.toLowerCase());
+    const hobbiesA = asArray(profileA.hobbies).map(h => h.toLowerCase());
+    const hobbiesB = asArray(profileB.hobbies).map(h => h.toLowerCase());
     const sharedHobbies = hobbiesA.filter(h => hobbiesB.includes(h));
     score += sharedHobbies.length * 20;
 
-    const skillsA = safeParseArray(profileA.skills).map(s => s.toLowerCase());
-    const skillsB = safeParseArray(profileB.skills).map(s => s.toLowerCase());
+    const skillsA = asArray(profileA.skills).map(s => s.toLowerCase());
+    const skillsB = asArray(profileB.skills).map(s => s.toLowerCase());
     const complementary = skillsB.filter(s => !skillsA.includes(s));
     score += complementary.length * 10;
   }
@@ -95,72 +96,57 @@ function scoreEntrepreneurEntrepreneur(profileA, profileB, aiScore = null) {
   return score;
 }
 
-function safeParseArray(value) {
-  if (!value) return [];
-  try {
-    const parsed = JSON.parse(value);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
-}
-
 // ---------------------------------------------------------------------------
 // AI scoring helpers
 // ---------------------------------------------------------------------------
 
-function buildPersonPrompt(myRole, myProfile, candidate, selectedProject = null) {
+// candidates are always entrepreneurs (see roleFilter in getFeed) — investors
+// score them as potential ventures, entrepreneurs score them as potential
+// co-founders/partners.
+function buildPersonPrompt(myRole, myProfile, candidate) {
   if (myRole === 'investor') {
     return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
 Investor: domain=${myProfile.investment_domain || 'N/A'}, preferred stage=${myProfile.preferred_stage || 'N/A'}, max invest=$${myProfile.max_investment || 0}.
-Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, industry=${candidate.project_industry || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
-  }
-  if (myRole === 'entrepreneur') {
-    const stage = selectedProject?.stage || myProfile.venture_stage || 'N/A';
-    const needs = selectedProject?.funding_needed || myProfile.funding_needs || 0;
-    const projectDesc = selectedProject ? `, project="${selectedProject.title || ''} - ${selectedProject.description || ''}"` : '';
-    return `Rate investor-entrepreneur compatibility 0-100. Reply with ONLY a number.
-Investor: domain=${candidate.investment_domain || 'N/A'}, preferred stage=${candidate.preferred_stage || 'N/A'}, max invest=$${candidate.max_investment || 0}.
-Entrepreneur: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, stage=${stage}, needs=$${needs}${projectDesc}.`;
+Entrepreneur: bio=${candidate.bio || 'N/A'}, skills=${asArray(candidate.skills).join(', ') || 'N/A'}, industry=${candidate.project_industry || 'N/A'}, stage=${candidate.venture_stage || 'N/A'}, needs=$${candidate.funding_needs || 0}.`;
   }
   return `Rate collaboration potential 0-100. Reply with ONLY a number.
-Person A: bio=${myProfile.bio || 'N/A'}, skills=${safeParseArray(myProfile.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(myProfile.hobbies).join(', ') || 'N/A'}.
-Person B: bio=${candidate.bio || 'N/A'}, skills=${safeParseArray(candidate.skills).join(', ') || 'N/A'}, hobbies=${safeParseArray(candidate.hobbies).join(', ') || 'N/A'}.`;
+Person A: bio=${myProfile.bio || 'N/A'}, skills=${asArray(myProfile.skills).join(', ') || 'N/A'}, hobbies=${asArray(myProfile.hobbies).join(', ') || 'N/A'}.
+Person B: bio=${candidate.bio || 'N/A'}, skills=${asArray(candidate.skills).join(', ') || 'N/A'}, hobbies=${asArray(candidate.hobbies).join(', ') || 'N/A'}.`;
+}
+
+async function scoreOneCandidate(model, myRole, myProfile, candidate) {
+  const result = await model.generateContent(buildPersonPrompt(myRole, myProfile, candidate));
+  const raw = result.response.text().trim();
+  const score = parseInt(raw, 10);
+  if (isNaN(score)) return null;
+  return Math.max(0, Math.min(100, score));
 }
 
 // ---------------------------------------------------------------------------
 // AI scoring — synchronous with timeout, max N candidates
 // ---------------------------------------------------------------------------
 
-async function ensureAiScores(userId, userRole, myProfile, candidates, selectedProject = null, maxNew = 10) {
-  if (!process.env.ANTHROPIC_API_KEY || !myProfile || candidates.length === 0) return;
+async function ensureAiScores(userId, userRole, myProfile, candidates, maxNew = 10) {
+  if (!process.env.GEMINI_API_KEY || !myProfile || candidates.length === 0) return;
 
   const candidateIds = candidates.map(c => c.user_id);
-  const placeholders = candidateIds.map(() => '?').join(',');
   const cached = await query(
-    `SELECT candidate_id FROM ai_match_scores WHERE user_id = ? AND candidate_id IN (${placeholders})`,
-    [userId, ...candidateIds]
+    'SELECT candidate_id FROM ai_match_scores WHERE user_id = $1 AND candidate_id = ANY($2::uuid[])',
+    [userId, candidateIds]
   );
   const cachedSet = new Set(cached.map(r => r.candidate_id));
   const uncached = candidates.filter(c => !cachedSet.has(c.user_id)).slice(0, maxNew);
 
   if (uncached.length === 0) return;
 
-  const client = new Anthropic();
+  const model = getModel();
 
   await Promise.allSettled(
     uncached.map(async (candidate) => {
-      const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 5,
-        messages: [{ role: 'user', content: buildPersonPrompt(userRole, myProfile, candidate, selectedProject) }],
-      });
-      const raw = response.content[0]?.text?.trim();
-      const score = parseInt(raw, 10);
-      if (isNaN(score)) return;
-      const clamped = Math.max(0, Math.min(100, score));
+      const clamped = await scoreOneCandidate(model, userRole, myProfile, candidate);
+      if (clamped == null) return;
       await query(
-        'INSERT IGNORE INTO ai_match_scores (user_id, candidate_id, score) VALUES (?, ?, ?)',
+        'INSERT INTO ai_match_scores (user_id, candidate_id, score) VALUES ($1, $2, $3) ON CONFLICT (user_id, candidate_id) DO NOTHING',
         [userId, candidate.user_id, clamped]
       );
     })
@@ -172,61 +158,45 @@ async function ensureAiScores(userId, userRole, myProfile, candidates, selectedP
 // ---------------------------------------------------------------------------
 
 async function preScoreUser(userId) {
-  if (!process.env.ANTHROPIC_API_KEY) return;
+  if (!process.env.GEMINI_API_KEY) return;
 
   const meRows = await query(
-    `SELECT u.role, profile.bio, profile.skills, profile.hobbies,
-            investor.investment_domain, investor.preferred_stage, investor.max_investment,
-            proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+    `SELECT u.role, u.bio, u.skills, u.hobbies,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment
      FROM users u
-     LEFT JOIN user_profiles profile ON profile.user_id = u.id
      LEFT JOIN investor_profiles investor ON investor.user_id = u.id
-     LEFT JOIN (
-       SELECT pr.user_id, pr.stage, pr.funding_needed
-       FROM projects pr
-       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-     ) proj ON proj.user_id = u.id
-     WHERE u.id = ?`,
+     WHERE u.id = $1`,
     [userId]
   );
   const me = meRows[0];
   if (!me) return;
 
-  const opposingRole = me.role === 'investor' ? 'entrepreneur' : 'investor';
+  // Candidates are always entrepreneurs — investors evaluate them as ventures,
+  // entrepreneurs evaluate them as potential co-founders/partners.
   const candidates = await query(
-    `SELECT u.id AS user_id, profile.bio, profile.skills, profile.hobbies, u.role AS role_type,
-            investor.investment_domain, investor.preferred_stage, investor.max_investment,
+    `SELECT u.id AS user_id, u.bio, u.skills, u.hobbies, u.photo_url,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
-     LEFT JOIN user_profiles profile ON profile.user_id = u.id
-     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
-     LEFT JOIN (
-       SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
-       FROM projects pr
-       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-     ) proj ON proj.user_id = u.id
-     WHERE u.role = ? AND u.deleted_at IS NULL AND u.id != ?`,
-    [opposingRole, userId]
+     LEFT JOIN LATERAL (
+       SELECT p.stage, p.funding_needed, p.industry
+       FROM projects p WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
+     ) proj ON true
+     WHERE u.role = 'entrepreneur' AND u.deleted_at IS NULL AND u.id != $1`,
+    [userId]
   );
   if (!candidates.length) return;
 
-  await query('DELETE FROM ai_match_scores WHERE user_id = ?', [userId]);
+  await query('DELETE FROM ai_match_scores WHERE user_id = $1', [userId]);
 
-  const client = new Anthropic();
+  const model = getModel();
   for (let i = 0; i < candidates.length; i += 10) {
     const batch = candidates.slice(i, i + 10);
     await Promise.allSettled(batch.map(async (candidate) => {
-      const response = await client.messages.create({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 5,
-        messages: [{ role: 'user', content: buildPersonPrompt(me.role, me, candidate) }],
-      });
-      const raw = response.content[0]?.text?.trim();
-      const score = parseInt(raw, 10);
-      if (isNaN(score)) return;
-      const clamped = Math.max(0, Math.min(100, score));
+      const clamped = await scoreOneCandidate(model, me.role, me, candidate);
+      if (clamped == null) return;
       await query(
-        'INSERT IGNORE INTO ai_match_scores (user_id, candidate_id, score) VALUES (?, ?, ?)',
+        'INSERT INTO ai_match_scores (user_id, candidate_id, score) VALUES ($1, $2, $3) ON CONFLICT (user_id, candidate_id) DO NOTHING',
         [userId, candidate.user_id, clamped]
       );
     }));
@@ -237,69 +207,45 @@ async function preScoreUser(userId) {
 // Feed
 // ---------------------------------------------------------------------------
 
-async function getFeed(userId, userRole, mode = 'investors', projectId = null, limit = 20) {
-  const allSwiped = await query(
-    'SELECT swiped_id, direction FROM swipes WHERE swiper_id = ?',
-    [userId]
-  );
+// Candidate pool is always entrepreneurs: investors browse ventures/founders,
+// and entrepreneurs default to browsing other entrepreneurs (co-founder
+// search) now that the investor-browsing toggle is gone.
+async function getFeed(userId, userRole, limit = 20) {
+  const allSwiped = await query('SELECT swiped_id, direction FROM swipes WHERE swiper_id = $1', [userId]);
 
   const passedIds = allSwiped.filter(r => r.direction === 'pass').map(r => r.swiped_id);
   const likedIds  = allSwiped.filter(r => r.direction === 'like').map(r => r.swiped_id);
   const excludeIds = [userId, ...likedIds];
-  const placeholders = excludeIds.map(() => '?').join(',');
-
-  const roleFilter = (mode === 'partners' || userRole === 'investor') ? 'entrepreneur' : 'investor';
 
   const candidates = await query(
-    `SELECT u.id AS user_id, u.name, profile.photo_url, app.is_premium, app.premium_expires_at,
-            profile.bio, profile.skills, profile.hobbies, profile.role_type,
-            investor.investment_domain, investor.preferred_stage, investor.max_investment,
+    `SELECT u.id AS user_id, u.name, u.photo_url, u.is_premium, u.premium_expires_at,
+            u.bio, u.skills, u.hobbies, u.role AS role_type,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
-     LEFT JOIN user_profiles profile ON profile.user_id = u.id
-     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
-     LEFT JOIN user_app_state app ON app.user_id = u.id
-     LEFT JOIN (
-       SELECT pr.user_id, pr.stage, pr.funding_needed, pr.industry
-       FROM projects pr
-       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-     ) proj ON proj.user_id = u.id
-     WHERE u.role = ?
+     LEFT JOIN LATERAL (
+       SELECT p.stage, p.funding_needed, p.industry
+       FROM projects p WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
+     ) proj ON true
+     WHERE u.role = 'entrepreneur'
        AND u.deleted_at IS NULL
-       AND u.id NOT IN (${placeholders})`,
-    [roleFilter, ...excludeIds]
+       AND u.id != ALL($1::uuid[])`,
+    [excludeIds]
   );
 
   const myProfileRows = await query(
-    `SELECT u.id, u.role, profile.photo_url, profile.bio, profile.skills, profile.hobbies, profile.role_type,
-            investor.investment_domain, investor.preferred_stage, investor.max_investment,
-            proj.stage AS venture_stage, proj.funding_needed AS funding_needs
+    `SELECT u.id, u.role, u.photo_url, u.bio, u.skills, u.hobbies,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment
      FROM users u
-     LEFT JOIN user_profiles profile ON profile.user_id = u.id
      LEFT JOIN investor_profiles investor ON investor.user_id = u.id
-     LEFT JOIN (
-       SELECT pr.user_id, pr.stage, pr.funding_needed
-       FROM projects pr
-       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-     ) proj ON proj.user_id = u.id
-     WHERE u.id = ?`,
+     WHERE u.id = $1`,
     [userId]
   );
   const myProfile = myProfileRows[0];
 
-  // If a specific project was selected, load it for more accurate scoring
-  let selectedProject = null;
-  if (projectId && userRole === 'entrepreneur') {
-    const pRows = await query(
-      'SELECT stage, funding_needed, title, description, industry FROM projects WHERE id = ? AND user_id = ? AND is_active = 1',
-      [projectId, userId]
-    );
-    selectedProject = pRows[0] || null;
-  }
-
   // Ensure AI scores exist for up to 10 uncached candidates before scoring (5s timeout fallback)
   await Promise.race([
-    ensureAiScores(userId, userRole, myProfile, candidates, selectedProject, 10),
+    ensureAiScores(userId, userRole, myProfile, candidates, 10),
     new Promise(resolve => setTimeout(resolve, 5000)),
   ]).catch(() => {});
 
@@ -307,10 +253,9 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
   const aiScoreMap = new Map();
   if (candidates.length > 0) {
     const cIds = candidates.map(c => c.user_id);
-    const cPlaceholders = cIds.map(() => '?').join(',');
     const aiRows = await query(
-      `SELECT candidate_id, score FROM ai_match_scores WHERE user_id = ? AND candidate_id IN (${cPlaceholders})`,
-      [userId, ...cIds]
+      'SELECT candidate_id, score FROM ai_match_scores WHERE user_id = $1 AND candidate_id = ANY($2::uuid[])',
+      [userId, cIds]
     );
     aiRows.forEach(r => aiScoreMap.set(r.candidate_id, r.score));
   }
@@ -322,37 +267,20 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
     isPremium: !!(c.is_premium && c.premium_expires_at && new Date(c.premium_expires_at) > new Date()),
     role: c.role_type,
     bio: c.bio,
-    skills: safeParseArray(c.skills),
-    hobbies: safeParseArray(c.hobbies),
+    skills: asArray(c.skills),
+    hobbies: asArray(c.hobbies),
     ventureStage: c.venture_stage,
     fundingNeeds: c.funding_needs,
-    investmentDomain: c.investment_domain,
-    preferredStage: c.preferred_stage,
-    maxInvestment: c.max_investment,
     score,
     aiScore: aiScoreMap.get(c.user_id) ?? null,
   });
 
   const calcScore = (c) => {
     const aiScore = aiScoreMap.has(c.user_id) ? aiScoreMap.get(c.user_id) : null;
-    if (userRole === 'investor' && c.role_type === 'entrepreneur') {
-      return myProfile ? scoreInvestorEntrepreneur(myProfile, c, aiScore) : 0;
-    } else if (userRole === 'entrepreneur' && c.role_type === 'investor') {
-      if (!myProfile) return 0;
-      if (selectedProject) {
-        // Score investor against the selected project's specifics
-        const projectProxy = {
-          ...myProfile,
-          venture_stage: selectedProject.stage,
-          funding_needs: selectedProject.funding_needed,
-        };
-        return scoreInvestorEntrepreneur(c, projectProxy, aiScore);
-      }
-      return scoreInvestorEntrepreneur(c, myProfile, aiScore);
-    } else if (userRole === 'entrepreneur' && c.role_type === 'entrepreneur') {
-      return myProfile ? scoreEntrepreneurEntrepreneur(myProfile, c, aiScore) : 0;
-    }
-    return 0;
+    if (!myProfile) return 0;
+    return userRole === 'investor'
+      ? scoreInvestorEntrepreneur(myProfile, c, aiScore)
+      : scoreEntrepreneurEntrepreneur(myProfile, c, aiScore);
   };
 
   const fresh  = candidates.filter(c => !passedIds.includes(c.user_id));
@@ -370,62 +298,39 @@ async function getFeed(userId, userRole, mode = 'investors', projectId = null, l
 async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
   await query(
     `INSERT INTO swipes (swiper_id, swiped_id, direction, is_super_like)
-     VALUES (?, ?, ?, ?)
-     ON DUPLICATE KEY UPDATE direction = VALUES(direction), is_super_like = VALUES(is_super_like), created_at = NOW()`,
-    [swiperId, swipedId, direction, isSuperLike ? 1 : 0]
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (swiper_id, swiped_id) DO UPDATE SET
+       direction = EXCLUDED.direction, is_super_like = EXCLUDED.is_super_like, created_at = now()`,
+    [swiperId, swipedId, direction, isSuperLike]
   );
 
   if (direction !== 'like') return { matched: false };
 
   const theirSwipe = await query(
-    `SELECT direction FROM swipes
-     WHERE swiper_id = ? AND swiped_id = ? AND direction = 'like'`,
+    `SELECT direction FROM swipes WHERE swiper_id = $1 AND swiped_id = $2 AND direction = 'like'`,
     [swipedId, swiperId]
   );
-
-  let projectMatchRow = null;
-  if (!theirSwipe[0]) {
-    // No mutual profile swipe — check if the swiped investor already liked one of this entrepreneur's projects
-    const projectLike = await query(
-      `SELECT ps.project_id FROM project_swipes ps
-       JOIN projects p ON p.id = ps.project_id
-       WHERE ps.investor_id = ? AND p.user_id = ? AND p.is_active = 1 AND ps.direction = 'like'
-       LIMIT 1`,
-      [swipedId, swiperId]
-    );
-    if (!projectLike[0]) return { matched: false };
-    projectMatchRow = { investorId: swipedId, projectId: projectLike[0].project_id, entrepreneurId: swiperId };
-  }
+  if (!theirSwipe[0]) return { matched: false };
 
   const [u1, u2] = swiperId < swipedId ? [swiperId, swipedId] : [swipedId, swiperId];
 
   await query(
-    'INSERT IGNORE INTO matches (user1_id, user2_id) VALUES (?, ?)',
+    'INSERT INTO matches (user1_id, user2_id) VALUES ($1, $2) ON CONFLICT (user1_id, user2_id) DO NOTHING',
     [u1, u2]
   );
 
-  if (projectMatchRow) {
-    await query(
-      'INSERT IGNORE INTO project_matches (investor_id, project_id, user_id) VALUES (?, ?, ?)',
-      [projectMatchRow.investorId, projectMatchRow.projectId, projectMatchRow.entrepreneurId]
-    );
-  }
-
-  const matchRows = await query(
-    'SELECT id FROM matches WHERE user1_id = ? AND user2_id = ?',
-    [u1, u2]
-  );
+  const matchRows = await query('SELECT id FROM matches WHERE user1_id = $1 AND user2_id = $2', [u1, u2]);
   const matchId = matchRows[0]?.id ?? null;
 
   if (matchId) {
     // Push notifications — fire and forget
-    query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
+    query('SELECT name FROM users WHERE id = $1', [swiperId]).then(rows => {
       const name = rows[0]?.name || 'Someone';
       sendPushNotification(swipedId, '🎉 New Match!', `You matched with ${name}!`, { matchId });
       emitNotification(swipedId, 'match', matchId, { matchId, name });
     }).catch(() => {});
     if (isSuperLike) {
-      query('SELECT name FROM users WHERE id = ?', [swiperId]).then(rows => {
+      query('SELECT name FROM users WHERE id = $1', [swiperId]).then(rows => {
         emitNotification(swipedId, 'super_like', swiperId, { fromUserId: swiperId, name: rows[0]?.name || 'Someone' });
       }).catch(() => {});
     }
@@ -441,29 +346,28 @@ async function recordSwipe(swiperId, swipedId, direction, isSuperLike = false) {
 async function getMatches(userId) {
   return await query(
     `SELECT
-       m.id AS matchId,
-       m.created_at AS matchedAt,
-       u.id AS userId,
+       m.id AS "matchId",
+       m.created_at AS "matchedAt",
+       u.id AS "userId",
        u.name,
-       profile.photo_url AS photoUrl,
+       u.photo_url AS "photoUrl",
        u.role,
-       profile.bio,
-       profile.role_type AS roleType,
-       investor.investment_domain AS investmentDomain,
-       proj.stage AS ventureStage
+       u.bio,
+       u.role AS "roleType",
+       investor.investment_domain AS "investmentDomain",
+       proj.stage AS "ventureStage"
      FROM matches m
-     JOIN users u ON u.id = CASE WHEN m.user1_id = ? THEN m.user2_id ELSE m.user1_id END
-     LEFT JOIN user_profiles profile ON profile.user_id = u.id
+     JOIN users u ON u.id = CASE WHEN m.user1_id = $1 THEN m.user2_id ELSE m.user1_id END
      LEFT JOIN investor_profiles investor ON investor.user_id = u.id
-     LEFT JOIN (
-       SELECT pr.user_id, pr.stage
-       FROM projects pr
-       INNER JOIN (SELECT user_id, MAX(id) AS max_id FROM projects WHERE is_active = 1 GROUP BY user_id) lp ON pr.id = lp.max_id
-     ) proj ON proj.user_id = u.id
-     WHERE (m.user1_id = ? OR m.user2_id = ?)
+     LEFT JOIN LATERAL (
+       SELECT p.stage FROM projects p
+       WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
+     ) proj ON true
+     WHERE (m.user1_id = $1 OR m.user2_id = $1)
        AND u.deleted_at IS NULL
      ORDER BY m.created_at DESC`,
-    [userId, userId, userId]
+    [userId]
   );
 }
 

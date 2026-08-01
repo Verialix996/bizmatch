@@ -4,6 +4,16 @@ const { cloudinary } = require('../config/cloudinary');
 const { query } = require('../config/db');
 const { moderateText } = require('../services/moderation.service');
 
+// GET /api/users/me
+async function getMe(req, res, next) {
+  try {
+    const { password_hash: _password_hash, ...safe } = req.user;
+    res.json(safe);
+  } catch (err) {
+    next(err);
+  }
+}
+
 // PATCH /api/users/me
 async function updateMe(req, res, next) {
   try {
@@ -36,13 +46,7 @@ async function getUser(req, res, next) {
   try {
     const user = await UserModel.findById(req.params.id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-    const {
-      password_hash: _password_hash,
-      otp_code: _otp_code,
-      reset_token: _reset_token,
-      two_factor_secret: _two_factor_secret,
-      ...safe
-    } = user;
+    const { password_hash: _password_hash, ...safe } = user;
     res.json(safe);
   } catch (err) {
     next(err);
@@ -98,7 +102,7 @@ async function savePushToken(req, res, next) {
   try {
     const { pushToken } = req.body;
     if (!pushToken) return res.status(400).json({ error: 'pushToken required' });
-    await query('UPDATE user_app_state SET push_token = ? WHERE user_id = ?', [pushToken, req.user.id]);
+    await query('UPDATE user_activity SET push_token = $1 WHERE user_id = $2', [pushToken, req.user.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
@@ -106,32 +110,25 @@ async function savePushToken(req, res, next) {
 // POST /api/users/me/premium/activate
 async function activatePremium(req, res, next) {
   try {
-    await query(
-      "UPDATE user_app_state SET is_premium = 1, premium_expires_at = DATE_ADD(NOW(), INTERVAL 30 DAY) WHERE user_id = ?",
+    const rows = await query(
+      "UPDATE users SET is_premium = true, premium_expires_at = now() + interval '30 days' WHERE id = $1 RETURNING premium_expires_at",
       [req.user.id]
     );
-    const expiresAt = new Date(Date.now() + 30 * 86400000);
-    res.json({ ok: true, expiresAt });
+    res.json({ ok: true, expiresAt: rows[0].premium_expires_at });
   } catch (err) { next(err); }
 }
 
 // GET /api/users/me/who-liked-me  (premium only)
 async function whoLikedMe(req, res, next) {
   try {
-    const userRows = await query(
-      'SELECT is_premium, premium_expires_at FROM user_app_state WHERE user_id = ?',
-      [req.user.id]
-    );
-    const u = userRows[0];
-    const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
+    const isPremium = req.user.is_premium && new Date(req.user.premium_expires_at) > new Date();
     if (!isPremium) return res.status(403).json({ error: 'Premium required' });
 
     const rows = await query(
-      `SELECT u.id, u.name, up.photo_url AS photoUrl, s.is_super_like AS isSuperLike
+      `SELECT u.id, u.name, u.photo_url AS "photoUrl", s.is_super_like AS "isSuperLike"
        FROM swipes s
        JOIN users u ON u.id = s.swiper_id
-       LEFT JOIN user_profiles up ON up.user_id = s.swiper_id
-       WHERE s.swiped_id = ? AND s.direction = 'like' AND u.deleted_at IS NULL`,
+       WHERE s.swiped_id = $1 AND s.direction = 'like' AND u.deleted_at IS NULL`,
       [req.user.id]
     );
     res.json(rows);
@@ -141,10 +138,7 @@ async function whoLikedMe(req, res, next) {
 // DELETE /api/users/me/premium — cancel premium subscription
 async function cancelPremium(req, res, next) {
   try {
-    await query(
-      'UPDATE user_app_state SET is_premium = 0, premium_expires_at = NULL WHERE user_id = ?',
-      [req.user.id]
-    );
+    await query('UPDATE users SET is_premium = false, premium_expires_at = NULL WHERE id = $1', [req.user.id]);
     res.json({ ok: true });
   } catch (err) { next(err); }
 }
@@ -152,10 +146,7 @@ async function cancelPremium(req, res, next) {
 // POST /api/users/me/verify-self  — skip ID review, mark as verified instantly (demo)
 async function verifySelf(req, res, next) {
   try {
-    await query(
-      "UPDATE users SET verification_status = 'verified' WHERE id = ?",
-      [req.user.id]
-    );
+    await query("UPDATE users SET verification_status = 'verified' WHERE id = $1", [req.user.id]);
     res.json({ ok: true, verification_status: 'verified' });
   } catch (err) { next(err); }
 }
@@ -168,4 +159,8 @@ async function markOnboardingSeen(req, res, next) {
   } catch (err) { next(err); }
 }
 
-module.exports = { updateMe, deleteAccount, getUser, setVerificationStatus, setRole, uploadPhoto, savePushToken, activatePremium, cancelPremium, whoLikedMe, verifySelf, markOnboardingSeen };
+module.exports = {
+  getMe, updateMe, deleteAccount, getUser, setVerificationStatus, setRole,
+  uploadPhoto, savePushToken, activatePremium, cancelPremium, whoLikedMe,
+  verifySelf, markOnboardingSeen,
+};
