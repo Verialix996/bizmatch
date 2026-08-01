@@ -291,7 +291,7 @@ All paths below are relative to `${SUPABASE_URL}/functions/v1` (e.g. `/match/fee
 - **Backend:** Supabase Edge Functions — `npx supabase functions deploy <name> --no-verify-jwt` per function (see Local Setup above); no server to host, no `PORT`/`node server.js` involved
 - **Frontend:** Netlify (web) / EAS (native) — build command `npx expo export -p web`, publishes `frontend/dist/`; Netlify's build environment needs `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set (Expo inlines `EXPO_PUBLIC_*` vars at build time, so runtime-only env vars won't work)
 - **Database / Auth / Storage:** Supabase — schema pushed via `supabase db push` (see Local Setup above), not run automatically at boot
-- **AI:** Google Gemini (`gemini-flash-latest`), called via `fetch` to the REST API — feed ranking, deck review, compatibility score
+- **AI:** Google Gemini (`gemini-flash-latest`), called via `fetch` to the REST API — feed ranking, deck review, compatibility score, team cohesion challenge generation/review, challenge description drafting
 - **Content moderation:** local word-list (no API calls)
 - **Rate limiting:** Postgres-table-backed (`rate_limits`), since Edge Functions are stateless/multi-instance — no in-memory store
 
