@@ -4,10 +4,12 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 **This is the `mvp-lean` branch** — a trimmed-down fork of the original BizMatch build. Partner invitations, job offers, the NDA e-signature system, AI meeting briefings, 2FA, and the investor project-swipe feed have all been removed to focus on the core matching/chat/meetings loop. The data layer has also moved from MySQL + custom JWT auth to **Supabase** (Postgres + Auth + Storage), and AI features now run on **Gemini** instead of Claude.
 
-**Backend:** Node/Express, deployed on Railway (or run locally)  
-**Frontend:** Expo (React Native) — run locally or build via EAS  
+The backend has since moved a second time: from a Node/Express server (originally hosted on Railway) to **Supabase Edge Functions** — there is no standalone server to deploy or host anymore. The legacy `backend/` Express app is kept in the repo for local reference but is no longer deployed; all traffic goes to the Edge Functions in `supabase/functions/`.
+
+**Backend:** [Supabase Edge Functions](https://supabase.com/docs/guides/functions) (Deno) — one function per route group, deployed via `supabase functions deploy`  
+**Frontend:** Expo (React Native) — deployed to Netlify (web) or run locally  
 **Database / Auth / Storage:** [Supabase](https://supabase.com)  
-**AI:** Google Gemini (`@google/generative-ai`)
+**AI:** Google Gemini, called directly via the REST API (no SDK, to stay Deno-compatible)
 
 ---
 
@@ -41,7 +43,7 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 ### Projects
 - Entrepreneurs create and manage project cards (single owner — no team/partner roster)
 - Public / private visibility toggle
-- Pitch deck upload (PDF) and demo video upload — both on Supabase Storage, served via a backend proxy endpoint that accepts a JWT token in the query string for direct browser navigation
+- Pitch deck upload (PDF) and demo video upload — both on Supabase Storage, served via an Edge Function proxy that accepts a JWT token in the query string for direct browser navigation
 - **AI Deck Review** — upload a PDF, get back an overall score (1–10), strengths, weaknesses, and suggestions; Gemini reads the actual PDF content, not just a description; non-pitch documents receive a score of 1
 
 ### Messaging
@@ -104,43 +106,43 @@ These existed in the original build and were deliberately cut to keep the MVP le
 
 ### Prerequisites
 - [Node.js](https://nodejs.org) v18+
+- The [Supabase CLI](https://supabase.com/docs/guides/cli) (`npx supabase`, no global install needed)
 - A [Supabase](https://supabase.com) project (free tier is fine)
 - A [Gemini API key](https://aistudio.google.com/apikey) (free)
 
 ### 1. Set up Supabase
 
 1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
-2. Push the schema: from the repo root, `cd backend && npm run migrate` (runs `supabase db push` using your `DATABASE_URL`)
-3. In **Authentication → Providers**, enable **Email** (with "Confirm email" on, for OTP verification) and optionally **Google** (using a Google Cloud OAuth Client ID/Secret)
+2. `npx supabase login`, then `npx supabase link --project-ref <your-project-ref>`
+3. Push the schema: `npx supabase db push --db-url "<your DATABASE_URL>" --yes`
+4. In **Authentication → Providers**, enable **Email** (with "Confirm email" on, for OTP verification) and optionally **Google** (using a Google Cloud OAuth Client ID/Secret)
 
-### 2. Backend
+### 2. Edge Functions (backend)
 
-```bash
-cd backend
-npm install
-cp env.example .env
-```
-
-Fill in `.env`:
-
-| Variable | Description |
-|---|---|
-| `PORT` | Port the server listens on (default: `3000`) |
-| `NODE_ENV` | `development` or `production` |
-| `SUPABASE_URL` | Project Settings → API |
-| `SUPABASE_PUBLISHABLE_KEY` | Project Settings → API (publishable/anon key) |
-| `SUPABASE_SECRET_KEY` | Project Settings → API (secret/service_role key — backend only, never expose) |
-| `DATABASE_URL` | Project Settings → Database → Connection string (session pooler, port 5432) |
-| `GEMINI_API_KEY` | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — powers feed ranking, deck review, compatibility score |
-| `FRONTEND_URL` | Frontend origin for CORS (e.g. `http://localhost:8081`) |
+Set secrets (these are read by every function via `Deno.env.get`, see `supabase/functions/_shared/`):
 
 ```bash
-node scripts/setup-storage-buckets.js   # one-time: creates the photos/cvs/decks/videos buckets
-node scripts/seed.js                    # optional: seeds demo accounts (password: Demo1234!)
-npm run dev
+npx supabase secrets set \
+  DATABASE_URL="<transaction-mode pooler URL, port 6543>" \
+  GEMINI_API_KEY="<your Gemini key>" \
+  FRONTEND_URL="<your deployed frontend origin, comma-separated if several>"
 ```
 
-Server runs on `http://localhost:3000`. Schema migrations are applied via `npm run migrate` (Supabase CLI), not automatically on boot.
+`SUPABASE_URL` and the service-role key are auto-injected by the platform — no need to set them.
+
+Deploy all 8 functions (each corresponds to one Express route group from the old backend):
+
+```bash
+for fn in auth users profile match messages projects meetings notifications; do
+  npx supabase functions deploy "$fn" --no-verify-jwt
+done
+```
+
+`--no-verify-jwt` is required — every function does its own auth verification in `_shared/auth.ts` (it needs the full `public.users` row, not just JWT claims), and two endpoints (`profile/cv`, `projects/:id/deck`) accept the token as a `?token=` query param for direct browser navigation, which platform-level JWT verification doesn't support.
+
+Run locally with `npx supabase functions serve` (needs Docker); functions are then reachable at `http://127.0.0.1:54321/functions/v1/<name>`.
+
+Optional local dev tools (gitignored, not part of the deployed app): `backend/scripts/setup-storage-buckets.js` (one-time bucket creation) and `backend/scripts/seed.js` (demo accounts, password `Demo1234!`).
 
 ### 3. Frontend
 
@@ -153,9 +155,8 @@ Set these as `EXPO_PUBLIC_*` env vars (or in a `.env` picked up by Expo):
 
 | Variable | Description |
 |---|---|
-| `EXPO_PUBLIC_BACKEND_URL` | Your backend URL (default points at the original Railway deployment) |
-| `EXPO_PUBLIC_SUPABASE_URL` | Same as backend's `SUPABASE_URL` |
-| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Same as backend's `SUPABASE_PUBLISHABLE_KEY` (safe for client bundles) |
+| `EXPO_PUBLIC_SUPABASE_URL` | Same project URL used to deploy the Edge Functions — also used to build `API_BASE_URL` (`${SUPABASE_URL}/functions/v1`) |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Project's publishable/anon key (safe for client bundles) |
 
 ```bash
 npx expo start --clear
@@ -170,9 +171,23 @@ Scan the QR code with [Expo Go](https://expo.dev/go), or build a dev client with
 ```
 bizmatch/
 ├── supabase/
-│   └── migrations/        # Postgres schema, applied via Supabase CLI (supabase db push)
-├── backend/
-│   ├── scripts/           # seed.js, setup-storage-buckets.js (local-only, gitignored)
+│   ├── migrations/        # Postgres schema, applied via Supabase CLI (supabase db push)
+│   ├── config.toml         # verify_jwt = false per function (see Edge Functions setup above)
+│   └── functions/          # the deployed backend — one Edge Function per route group
+│       ├── _shared/        # auth, cors, db (postgres.js pool), gemini (REST fetch), storage,
+│       │                   # moderation, notifications, rateLimit, router, serve, background (waitUntil),
+│       │                   # matchModel (feed/swipe/scoring, shared with profile's preScoreUser),
+│       │                   # messageService (shared by messages + meetings)
+│       ├── auth/            # POST /precheck-name
+│       ├── users/           # /me, role, photo, premium, who-liked-me, admin verification
+│       ├── profile/         # public profile, my profile CRUD, CV upload/serve
+│       ├── match/           # feed, swipe, matches, compatibility
+│       ├── messages/        # conversations, messages, send, read, share-project
+│       ├── projects/        # CRUD, deck/video upload, deck-review (AI), serve-deck
+│       ├── meetings/        # propose, list, respond, reschedule
+│       └── notifications/   # list, mark-read
+├── backend/                # legacy Express app — kept for local reference, NOT deployed
+│   ├── scripts/            # seed.js, setup-storage-buckets.js (local-only, gitignored)
 │   ├── src/
 │   │   ├── config/        # db (pg pool), supabase (Auth client), gemini, storage
 │   │   ├── controllers/   # auth, user, profile, match, message, meeting, project, notification
@@ -202,65 +217,69 @@ bizmatch/
 
 ## API Endpoints
 
+All paths below are relative to `${SUPABASE_URL}/functions/v1` (e.g. `/match/feed` → `https://<ref>.supabase.co/functions/v1/match/feed`).
+
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/precheck-name` | Moderation check on display name, called before `supabase.auth.signUp` |
-| GET | `/api/profile` | Get my profile |
-| GET | `/api/profile/public/:userId` | Get another user's public profile |
-| POST | `/api/profile` | Create profile |
-| PUT | `/api/profile` | Update profile |
-| POST | `/api/profile/upload-cv` | Upload CV/résumé PDF |
-| GET | `/api/profile/cv` | Serve CV PDF inline (`?token=<Supabase JWT>`) |
-| GET | `/api/users/me` | Get my merged profile row |
-| PATCH | `/api/users/me` | Update name |
-| PATCH | `/api/users/me/role` | Switch role |
-| POST | `/api/users/me/photo` | Upload profile photo (base64) |
-| PATCH | `/api/users/me/push-token` | Save Expo push token |
-| PATCH | `/api/users/me/onboarding` | Mark onboarding tutorial as seen |
-| POST | `/api/users/me/verify-self` | Instant self-verification (demo) |
-| POST | `/api/users/me/premium/activate` | Activate 30-day free trial |
-| DELETE | `/api/users/me/premium` | Cancel premium subscription |
-| GET | `/api/users/me/who-liked-me` | Get users who liked you (premium) |
-| DELETE | `/api/users/me` | Delete account |
-| GET | `/api/users/:id` | Get a user's public info by ID |
-| PATCH | `/api/users/:id/verification` | Set verification status (admin only) |
-| GET | `/api/match/feed` | Get AI-scored swipe feed |
-| POST | `/api/match/swipe` | Record a swipe (returns match if mutual) |
-| GET | `/api/match/matches` | Get all matches |
-| GET | `/api/match/compatibility/:targetUserId` | Get compatibility score with another user |
-| GET | `/api/messages` | Get all conversations |
-| GET | `/api/messages/:matchId` | Get messages for a match (includes `read_at`) |
-| POST | `/api/messages/:matchId` | Send a message |
-| POST | `/api/messages/:matchId/read` | Mark all received messages in this chat as read |
-| POST | `/api/messages/:matchId/share-project` | Share project details (no signing step) |
-| GET | `/api/projects/mine` | Get my own projects |
-| GET | `/api/projects/:id` | Get a single project by ID |
-| POST | `/api/projects` | Create a project |
-| PUT | `/api/projects/:id` | Update a project |
-| DELETE | `/api/projects/:id` | Delete a project |
-| POST | `/api/projects/:id/upload-deck` | Upload pitch deck PDF |
-| POST | `/api/projects/:id/upload-video` | Upload demo video |
-| GET | `/api/projects/:id/deck` | Serve pitch deck PDF inline (`?token=<Supabase JWT>`) |
-| POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck |
-| POST | `/api/meetings` | Propose a meeting (Premium only) |
-| GET | `/api/meetings` | List my meetings |
-| PUT | `/api/meetings/:id` | Confirm / decline / cancel meeting |
-| PATCH | `/api/meetings/:id/reschedule` | Suggest a new meeting time |
-| GET | `/api/notifications` | Get all notifications (last 50) |
-| POST | `/api/notifications/read` | Mark notifications as read (`{ ids }` or `{ types }`) |
+| POST | `/auth/precheck-name` | Moderation check on display name, called before `supabase.auth.signUp` |
+| GET | `/profile` | Get my profile |
+| GET | `/profile/public/:userId` | Get another user's public profile |
+| POST | `/profile` | Create profile |
+| PUT | `/profile` | Update profile |
+| POST | `/profile/upload-cv` | Upload CV/résumé PDF |
+| GET | `/profile/cv` | Serve CV PDF inline (`?token=<Supabase JWT>`) |
+| GET | `/users/me` | Get my merged profile row |
+| PATCH | `/users/me` | Update name |
+| PATCH | `/users/me/role` | Switch role |
+| POST | `/users/me/photo` | Upload profile photo (base64) |
+| PATCH | `/users/me/push-token` | Save Expo push token |
+| PATCH | `/users/me/onboarding` | Mark onboarding tutorial as seen |
+| POST | `/users/me/verify-self` | Instant self-verification (demo) |
+| POST | `/users/me/premium/activate` | Activate 30-day free trial |
+| DELETE | `/users/me/premium` | Cancel premium subscription |
+| GET | `/users/me/who-liked-me` | Get users who liked you (premium) |
+| DELETE | `/users/me` | Delete account |
+| GET | `/users/:id` | Get a user's public info by ID |
+| PATCH | `/users/:id/verification` | Set verification status (admin only) |
+| GET | `/match/feed` | Get AI-scored swipe feed |
+| POST | `/match/swipe` | Record a swipe (returns match if mutual) |
+| GET | `/match/matches` | Get all matches |
+| GET | `/match/compatibility/:targetUserId` | Get compatibility score with another user |
+| GET | `/messages` | Get all conversations |
+| GET | `/messages/:matchId` | Get messages for a match (includes `read_at`) |
+| POST | `/messages/:matchId` | Send a message |
+| POST | `/messages/:matchId/read` | Mark all received messages in this chat as read |
+| POST | `/messages/:matchId/share-project` | Share project details (no signing step) |
+| GET | `/projects/mine` | Get my own projects |
+| GET | `/projects/:id` | Get a single project by ID |
+| POST | `/projects` | Create a project |
+| PUT | `/projects/:id` | Update a project |
+| DELETE | `/projects/:id` | Delete a project |
+| POST | `/projects/:id/upload-deck` | Upload pitch deck PDF |
+| POST | `/projects/:id/upload-video` | Upload demo video |
+| GET | `/projects/:id/deck` | Serve pitch deck PDF inline (`?token=<Supabase JWT>`) |
+| POST | `/projects/:id/deck-review` | Get AI feedback on pitch deck |
+| POST | `/meetings` | Propose a meeting (Premium only) |
+| GET | `/meetings` | List my meetings |
+| PUT | `/meetings/:id` | Confirm / decline / cancel meeting |
+| PATCH | `/meetings/:id/reschedule` | Suggest a new meeting time |
+| GET | `/notifications` | Get all notifications (last 50) |
+| POST | `/notifications/read` | Mark notifications as read (`{ ids }` or `{ types }`) |
 
 ---
 
 ## Deployment
 
-- **Backend:** Railway (or any Node host) — start command `node server.js`
-- **Frontend:** Netlify (web) / EAS (native) — build command `npx expo export -p web`, publishes `frontend/dist/`
+- **Backend:** Supabase Edge Functions — `npx supabase functions deploy <name> --no-verify-jwt` per function (see Local Setup above); no server to host, no `PORT`/`node server.js` involved
+- **Frontend:** Netlify (web) / EAS (native) — build command `npx expo export -p web`, publishes `frontend/dist/`; Netlify's build environment needs `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` set (Expo inlines `EXPO_PUBLIC_*` vars at build time, so runtime-only env vars won't work)
 - **Database / Auth / Storage:** Supabase — schema pushed via `supabase db push` (see Local Setup above), not run automatically at boot
-- **AI:** Google Gemini (`gemini-flash-latest`) — feed ranking, deck review, compatibility score
+- **AI:** Google Gemini (`gemini-flash-latest`), called via `fetch` to the REST API — feed ranking, deck review, compatibility score
 - **Content moderation:** local word-list (no API calls)
+- **Rate limiting:** Postgres-table-backed (`rate_limits`), since Edge Functions are stateless/multi-instance — no in-memory store
 
 ## Notes
 
-- Never commit `.env` files
+- Never commit `.env` files or Supabase secrets
 - AI features return `503` when `GEMINI_API_KEY` is missing or invalid
 - `backend/scripts/seed.js` and `setup-storage-buckets.js` are gitignored — local dev tools, not part of the deployed app
+- The `backend/` Express app is no longer deployed anywhere — it's kept in the repo as a reference for the pre-Edge-Functions architecture, since the Edge Functions in `supabase/functions/` are direct ports of its controllers/models
