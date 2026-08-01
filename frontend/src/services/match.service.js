@@ -9,4 +9,4 @@ export const getConversations = ()                          => api.get('/message
 export const getMessages      = (matchId, after = null)     => api.get(`/messages/${matchId}${after != null ? `?after=${after}` : ''}`);
 export const sendMessage      = (matchId, body)             => api.post(`/messages/${matchId}`, { body });
 export const markRead         = (matchId)                   => api.post(`/messages/${matchId}/read`);
-export const shareProject     = (matchId, projectId)        => api.post(`/messages/${matchId}/share-project`, { projectId });
+export const shareSubmission  = (matchId, challengeId, teamId) => api.post(`/messages/${matchId}/share-submission`, { challengeId, teamId });

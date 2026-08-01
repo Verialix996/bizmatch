@@ -3,16 +3,16 @@ import { useFocusEffect } from '@react-navigation/native';
 import {
   View, Text, StyleSheet, FlatList, TextInput,
   TouchableOpacity, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Image, StatusBar, Modal, Linking, Dimensions,
+  ActivityIndicator, Image, StatusBar, Modal, Dimensions,
 } from 'react-native';
 import { showAlert } from '../../services/alert';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { getMessages, sendMessage, markRead, shareProject } from '../../services/match.service';
+import { getMessages, sendMessage, markRead, shareSubmission } from '../../services/match.service';
 import api from '../../services/api';
-import { getMyProjects } from '../../services/project.service';
+import { getSignupsMine } from '../../services/challenge.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
@@ -116,12 +116,9 @@ export default function ChatScreen({ route, navigation }) {
   const lastIdRef = useRef(null);
 
   // "+" action sheet state
-  const [actionSheet, setActionSheet] = useState(null); // null | 'menu' | 'pick-project'
-  const [actionProjects, setActionProjects] = useState([]);
+  const [actionSheet, setActionSheet] = useState(null); // null | 'menu' | 'pick-submission'
+  const [actionSubmissions, setActionSubmissions] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
-
-  // Project detail popup
-  const [detailProject, setDetailProject] = useState(null);
 
   // Inline video player
   const [videoModal, setVideoModal] = useState({ visible: false, url: null });
@@ -221,26 +218,26 @@ export default function ChatScreen({ route, navigation }) {
   };
 
   const openActionMenu = () => setActionSheet('menu');
-  const closeActionSheet = () => { setActionSheet(null); setActionProjects([]); };
+  const closeActionSheet = () => { setActionSheet(null); setActionSubmissions([]); };
 
-  const pickProjectToShare = async () => {
+  const pickSubmissionToShare = async () => {
     setActionLoading(true);
-    setActionSheet('pick-project');
+    setActionSheet('pick-submission');
     try {
-      const res = await getMyProjects();
-      setActionProjects(res.data);
+      const res = await getSignupsMine();
+      setActionSubmissions((res.data || []).filter(s => s.challenge_type === 'hackathon' && s.status === 'submitted'));
     } catch {
-      showAlert('Error', 'Could not load projects.');
+      showAlert('Error', 'Could not load submissions.');
       closeActionSheet();
     } finally {
       setActionLoading(false);
     }
   };
 
-  const handleShareProject = async (project) => {
+  const handleShareSubmission = async (signup) => {
     closeActionSheet();
     try {
-      const res = await shareProject(match.matchId, project.id);
+      const res = await shareSubmission(match.matchId, signup.challenge_id, signup.team_id);
       const msg = res.data;
       if (msg?.id) lastIdRef.current = msg.id;
       setMessages(prev => {
@@ -249,7 +246,7 @@ export default function ChatScreen({ route, navigation }) {
       });
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
     } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'Could not share project.');
+      showAlert('Error', e.response?.data?.error || 'Could not share submission.');
     }
   };
 
@@ -257,24 +254,20 @@ export default function ChatScreen({ route, navigation }) {
     const meta = tryParseJson(item.metadata) || {};
     const type = item.message_type;
 
-    if (type === 'project_shared') {
+    if (type === 'submission_shared') {
       return (
         <View style={[styles.actionCard, styles.projectSharedCard]}>
-          <Text style={styles.actionCardTitle}>📁 Project Shared</Text>
-          <TouchableOpacity onPress={() => setDetailProject(meta)} activeOpacity={0.7}>
-            <Text style={[styles.projectSharedTitle, { textDecorationLine: 'underline' }]}>{meta.title || 'Untitled Project'}</Text>
-          </TouchableOpacity>
-          {meta.industry || meta.stage ? (
-            <Text style={styles.projectSharedMeta}>
-              {[meta.stage, meta.industry].filter(Boolean).join(' · ')}
-            </Text>
-          ) : null}
+          <Text style={styles.actionCardTitle}>🏆 Submission Shared</Text>
+          <Text style={styles.projectSharedTitle}>{meta.challengeTitle || 'Challenge'}</Text>
+          <Text style={styles.projectSharedMeta}>
+            {[meta.teamName, meta.overallScore != null ? `AI score ${meta.overallScore}/10` : null].filter(Boolean).join(' · ')}
+          </Text>
           <TouchableOpacity
             style={styles.viewDetailsBtn}
-            onPress={() => setDetailProject(meta)}
+            onPress={() => navigation.navigate('ChallengeDetail', { challengeId: meta.challengeId })}
             activeOpacity={0.85}
           >
-            <Text style={styles.viewDetailsBtnText}>View Full Details</Text>
+            <Text style={styles.viewDetailsBtnText}>View Challenge</Text>
           </TouchableOpacity>
           <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
         </View>
@@ -533,11 +526,11 @@ export default function ChatScreen({ route, navigation }) {
               <>
                 <Text style={styles.sheetTitle}>Chat Actions</Text>
                 {user?.role === 'entrepreneur' && (
-                  <TouchableOpacity style={styles.sheetItem} onPress={pickProjectToShare} activeOpacity={0.8}>
-                    <Text style={styles.sheetItemIcon}>📁</Text>
+                  <TouchableOpacity style={styles.sheetItem} onPress={pickSubmissionToShare} activeOpacity={0.8}>
+                    <Text style={styles.sheetItemIcon}>🏆</Text>
                     <View>
-                      <Text style={styles.sheetItemLabel}>Share Project Info</Text>
-                      <Text style={styles.sheetItemSub}>Share one of your projects in this chat</Text>
+                      <Text style={styles.sheetItemLabel}>Share Submission</Text>
+                      <Text style={styles.sheetItemSub}>Share one of your team's challenge submissions</Text>
                     </View>
                   </TouchableOpacity>
                 )}
@@ -546,24 +539,24 @@ export default function ChatScreen({ route, navigation }) {
                 </TouchableOpacity>
               </>
             )}
-            {actionSheet === 'pick-project' && (
+            {actionSheet === 'pick-submission' && (
               <>
-                <Text style={styles.sheetTitle}>Pick a Project to Share</Text>
+                <Text style={styles.sheetTitle}>Pick a Submission to Share</Text>
                 {actionLoading ? (
                   <ActivityIndicator color={C.primary} style={{ marginVertical: 24 }} />
-                ) : actionProjects.length === 0 ? (
-                  <Text style={styles.sheetEmpty}>No projects found.</Text>
+                ) : actionSubmissions.length === 0 ? (
+                  <Text style={styles.sheetEmpty}>No submitted entries found.</Text>
                 ) : (
                   <FlatList
-                    data={actionProjects}
+                    data={actionSubmissions}
                     keyExtractor={item => String(item.id)}
                     style={{ maxHeight: 300 }}
                     renderItem={({ item }) => (
-                      <TouchableOpacity style={styles.sheetItem} onPress={() => handleShareProject(item)} activeOpacity={0.8}>
-                        <Text style={styles.sheetItemIcon}>📁</Text>
+                      <TouchableOpacity style={styles.sheetItem} onPress={() => handleShareSubmission(item)} activeOpacity={0.8}>
+                        <Text style={styles.sheetItemIcon}>🏆</Text>
                         <View style={{ flex: 1 }}>
-                          <Text style={styles.sheetItemLabel}>{item.title}</Text>
-                          {item.industry ? <Text style={styles.sheetItemSub}>{item.industry}</Text> : null}
+                          <Text style={styles.sheetItemLabel}>{item.challenge_title}</Text>
+                          {item.team_name ? <Text style={styles.sheetItemSub}>{item.team_name}</Text> : null}
                         </View>
                       </TouchableOpacity>
                     )}
@@ -577,65 +570,6 @@ export default function ChatScreen({ route, navigation }) {
           </View>
         </Modal>
       </KeyboardAvoidingView>
-
-      {/* Project detail popup */}
-      <Modal visible={!!detailProject} transparent animationType="fade" onRequestClose={() => setDetailProject(null)}>
-        <View style={styles.detailBackdrop}>
-          <View style={styles.detailBox}>
-            <Text style={styles.detailTitle}>{detailProject?.title}</Text>
-
-            {(detailProject?.stage || detailProject?.industry) ? (
-              <Text style={styles.detailMeta}>
-                {[detailProject?.stage, detailProject?.industry].filter(Boolean).join(' · ')}
-              </Text>
-            ) : null}
-
-            {detailProject?.description ? (
-              <Text style={styles.detailDesc}>{detailProject.description}</Text>
-            ) : null}
-
-            {detailProject?.fundingNeeded ? (
-              <Text style={styles.detailFunding}>
-                💰 Seeking ${Number(detailProject.fundingNeeded).toLocaleString()}
-              </Text>
-            ) : null}
-
-            {(detailProject?.deckUrl || detailProject?.videoUrl) ? (
-              <View style={styles.detailLinks}>
-                {detailProject?.deckUrl ? (
-                  <TouchableOpacity
-                    style={styles.detailLinkBtn}
-                    onPress={() => {
-                      const token = useAuthStore.getState().token;
-                      Linking.openURL(`${API_BASE_URL}/projects/${detailProject.projectId}/deck?token=${token}`);
-                    }}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.detailLinkBtnText}>📄 View Pitch Deck</Text>
-                  </TouchableOpacity>
-                ) : null}
-                {detailProject?.videoUrl ? (
-                  <TouchableOpacity
-                    style={styles.detailLinkBtn}
-                    onPress={() => setVideoModal({ visible: true, url: toVideoUrl(detailProject.videoUrl) })}
-                    activeOpacity={0.85}
-                  >
-                    <Text style={styles.detailLinkBtnText}>🎬 Watch Demo Video</Text>
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            ) : null}
-
-            <TouchableOpacity
-              style={styles.detailCloseBtn}
-              onPress={() => setDetailProject(null)}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.detailCloseBtnText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
 
       {/* Inline video player */}
       <Modal
@@ -955,7 +889,7 @@ function makeStyles(C) {
     marginVertical: 24,
   },
 
-  // project_shared card
+  // submission_shared card
   projectSharedCard: {
     borderColor: C.primary,
     borderWidth: 1.5,
@@ -985,76 +919,7 @@ function makeStyles(C) {
     fontSize: 13,
   },
 
-  // Project detail popup
-  detailBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(2,36,102,0.55)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  detailBox: {
-    backgroundColor: C.surface,
-    borderRadius: radius.xl,
-    padding: 24,
-    width: '100%',
-    maxWidth: 420,
-  },
-  detailTitle: {
-    fontSize: 20,
-    fontWeight: '800',
-    color: C.primaryDark,
-    marginBottom: 4,
-  },
-  detailMeta: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: C.textSecondary,
-    textTransform: 'capitalize',
-    marginBottom: 12,
-  },
-  detailDesc: {
-    fontSize: 14,
-    color: C.textSecondary,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  detailFunding: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: C.primaryDark,
-    marginBottom: 16,
-  },
-  detailLinks: {
-    gap: 10,
-    marginBottom: 20,
-  },
-  detailLinkBtn: {
-    backgroundColor: C.backgroundSoft,
-    borderRadius: radius.md,
-    paddingVertical: 13,
-    alignItems: 'center',
-    borderWidth: 1.5,
-    borderColor: C.primary,
-  },
-  detailLinkBtnText: {
-    color: C.primary,
-    fontWeight: '700',
-    fontSize: 14,
-  },
-  detailCloseBtn: {
-    backgroundColor: C.primary,
-    borderRadius: radius.pill,
-    paddingVertical: 14,
-    alignItems: 'center',
-  },
-  detailCloseBtnText: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 15,
-  },
-
-  // Action cards (project shared, meetings)
+  // Action cards (submission shared, meetings)
   bubbleBlocked: {
     backgroundColor: '#FEE2E2',
     borderWidth: 1.5,

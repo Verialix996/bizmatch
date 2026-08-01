@@ -87,8 +87,8 @@ async function send(req: Request, params: Record<string, string>): Promise<Respo
   return json(msg, 201);
 }
 
-// POST /functions/v1/messages/:matchId/share-project  { projectId }
-async function shareProject(req: Request, params: Record<string, string>): Promise<Response> {
+// POST /functions/v1/messages/:matchId/share-submission  { challengeId, teamId }
+async function shareSubmission(req: Request, params: Record<string, string>): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const verifyErr = requireVerified(user);
@@ -96,9 +96,9 @@ async function shareProject(req: Request, params: Record<string, string>): Promi
 
   const matchId = params.matchId;
   const reqBody = await req.json().catch(() => ({}));
-  const { projectId } = reqBody as { projectId?: string | number };
+  const { challengeId, teamId } = reqBody as { challengeId?: string | number; teamId?: string | number };
 
-  if (!matchId || !projectId) return json({ error: "matchId and projectId required" }, 400);
+  if (!matchId || !challengeId || !teamId) return json({ error: "matchId, challengeId, and teamId are required" }, 400);
 
   const matchRows = await query(
     "SELECT id FROM matches WHERE id = $1 AND (user1_id = $2 OR user2_id = $2)",
@@ -106,26 +106,36 @@ async function shareProject(req: Request, params: Record<string, string>): Promi
   );
   if (!matchRows[0]) return json({ error: "Not part of this match" }, 403);
 
-  const projectRows = await query<Record<string, unknown>>(
-    "SELECT * FROM projects WHERE id = $1 AND user_id = $2 AND is_active = true",
-    [projectId, user.id],
+  const memberRows = await query(
+    "SELECT 1 FROM team_members WHERE team_id = $1 AND user_id = $2 AND status = 'accepted'",
+    [teamId, user.id],
   );
-  if (!projectRows[0]) return json({ error: "Project not found or not yours" }, 403);
-  const project = projectRows[0];
+  if (!memberRows[0]) return json({ error: "Not a member of this team" }, 403);
+
+  const rows = await query<Record<string, unknown>>(
+    `SELECT cs.deck_url, cs.video_url, cs.ai_review, c.title AS challenge_title, t.name AS team_name
+     FROM challenge_signups cs
+     JOIN challenges c ON c.id = cs.challenge_id
+     JOIN teams t ON t.id = cs.team_id
+     WHERE cs.challenge_id = $1 AND cs.team_id = $2`,
+    [challengeId, teamId],
+  );
+  if (!rows[0]) return json({ error: "Submission not found" }, 404);
+  const submission = rows[0];
+  const aiReview = submission.ai_review as { overallScore?: number } | null;
 
   const msg = await sendMessage(
     matchId, user.id,
-    `Project details shared: "${project.title}"`,
-    "project_shared",
+    `Submission shared: "${submission.challenge_title}"`,
+    "submission_shared",
     {
-      projectId: project.id,
-      title: project.title,
-      description: project.description || null,
-      industry: project.industry || null,
-      stage: project.stage || null,
-      fundingNeeded: project.funding_needed || null,
-      deckUrl: project.deck_url || null,
-      videoUrl: project.video_url || null,
+      challengeId,
+      teamId,
+      challengeTitle: submission.challenge_title,
+      teamName: submission.team_name,
+      deckUrl: submission.deck_url || null,
+      videoUrl: submission.video_url || null,
+      overallScore: aiReview?.overallScore ?? null,
     },
   );
 
@@ -147,7 +157,7 @@ async function markRead(req: Request, params: Record<string, string>): Promise<R
 
 serveFunction(FN, [
   route(FN, "GET", "", conversations),
-  route(FN, "POST", "/:matchId/share-project", shareProject),
+  route(FN, "POST", "/:matchId/share-submission", shareSubmission),
   route(FN, "POST", "/:matchId/read", markRead),
   route(FN, "GET", "/:matchId", listMessages),
   route(FN, "POST", "/:matchId", send),

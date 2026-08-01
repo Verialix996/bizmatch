@@ -23,8 +23,10 @@ import ProfileDetailScreen  from '../screens/match/ProfileDetailScreen';
 import ProfileScreen        from '../screens/profile/ProfileScreen';
 import EditProfileScreen    from '../screens/profile/EditProfileScreen';
 import AccountSettings      from '../screens/profile/AccountSettings';
-import ProjectsScreen       from '../screens/project/ProjectsScreen';
-import ProjectDetailScreen  from '../screens/project/ProjectDetailScreen';
+import ChallengesScreen         from '../screens/challenge/ChallengesScreen';
+import ChallengeDetailScreen    from '../screens/challenge/ChallengeDetailScreen';
+import SubmissionScreen         from '../screens/challenge/SubmissionScreen';
+import OfferNegotiationScreen   from '../screens/challenge/OfferNegotiationScreen';
 import MeetingScreen        from '../screens/meeting/MeetingScreen';
 import MeetingDetailScreen  from '../screens/meeting/MeetingDetailScreen';
 import ProposeMeetingScreen from '../screens/meeting/ProposeMeetingScreen';
@@ -44,10 +46,10 @@ export const linking = {
 };
 
 const TAB_ICONS = {
-  Discover:  ['compass',       'compass-outline'],
-  Matches:   ['chatbubbles',   'chatbubbles-outline'],
-  Projects:  ['folder',        'folder-outline'],
-  Profile:   ['person-circle', 'person-circle-outline'],
+  Discover:   ['compass',       'compass-outline'],
+  Matches:    ['chatbubbles',   'chatbubbles-outline'],
+  Challenges: ['trophy',        'trophy-outline'],
+  Profile:    ['person-circle', 'person-circle-outline'],
 };
 
 function MainTabs() {
@@ -107,7 +109,7 @@ function MainTabs() {
     >
       <Tab.Screen name="Discover"  component={SwipeScreen}    options={{ tabBarLabel: 'Discover' }} />
       <Tab.Screen name="Matches"   component={MatchesScreen}  options={{ tabBarLabel: 'Messages', tabBarBadge: newMatchCount > 0 ? newMatchCount : undefined }} />
-      <Tab.Screen name="Projects"  component={ProjectsScreen} options={{ tabBarLabel: 'Projects' }} />
+      <Tab.Screen name="Challenges" component={ChallengesScreen} options={{ tabBarLabel: 'Challenges' }} />
       <Tab.Screen name="Profile"   component={ProfileScreen}  options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
@@ -138,7 +140,9 @@ export default function AppNavigator() {
           <Stack.Screen name="Main"             component={MainTabs} />
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
-          <Stack.Screen name="ProjectDetail"    component={ProjectDetailScreen} />
+          <Stack.Screen name="ChallengeDetail"  component={ChallengeDetailScreen} />
+          <Stack.Screen name="Submission"       component={SubmissionScreen} />
+          <Stack.Screen name="OfferNegotiation" component={OfferNegotiationScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
           <Stack.Screen name="Meetings"         component={MeetingScreen} />
           <Stack.Screen name="MeetingDetail"    component={MeetingDetailScreen} />
@@ -154,7 +158,9 @@ export default function AppNavigator() {
           <Stack.Screen name="Main"             component={MainTabs} />
           <Stack.Screen name="Chat"             component={ChatScreen} />
           <Stack.Screen name="ProfileDetail"    component={ProfileDetailScreen} />
-          <Stack.Screen name="ProjectDetail"    component={ProjectDetailScreen} />
+          <Stack.Screen name="ChallengeDetail"  component={ChallengeDetailScreen} />
+          <Stack.Screen name="Submission"       component={SubmissionScreen} />
+          <Stack.Screen name="OfferNegotiation" component={OfferNegotiationScreen} />
           <Stack.Screen name="EditProfile"      component={EditProfileScreen} />
           <Stack.Screen name="AccountSettings"  component={AccountSettings} />
           <Stack.Screen name="Meetings"         component={MeetingScreen} />

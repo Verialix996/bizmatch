@@ -88,9 +88,9 @@ async function compatibility(req: Request, params: Record<string, string>): Prom
     FROM users u
     LEFT JOIN investor_profiles ip ON ip.user_id = u.id
     LEFT JOIN LATERAL (
-      SELECT p.stage, p.funding_needed FROM projects p
-      WHERE p.user_id = u.id AND p.is_active = true
-      ORDER BY p.id DESC LIMIT 1
+      SELECT t.stage, t.funding_needed FROM team_members tm JOIN teams t ON t.id = tm.team_id AND t.is_active = true
+      WHERE tm.user_id = u.id AND tm.status = 'accepted'
+      ORDER BY t.created_at DESC LIMIT 1
     ) proj ON true
     WHERE u.id = $1`;
 

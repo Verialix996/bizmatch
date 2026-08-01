@@ -6,8 +6,8 @@ project_id = "bizmatch-main"
 
 # Every function does its own JWT verification via _shared/auth.ts (it needs
 # the full public.users row, not just JWT claims — see supabase/functions/_shared/auth.ts),
-# so platform-level verification is redundant and would break the two
-# ?token=-in-query-string endpoints (profile/cv, projects/:id/deck).
+# so platform-level verification is redundant and would break the
+# ?token=-in-query-string profile/cv endpoint (hit via direct browser navigation).
 [functions.auth]
 verify_jwt = false
 [functions.users]
@@ -18,7 +18,7 @@ verify_jwt = false
 verify_jwt = false
 [functions.messages]
 verify_jwt = false
-[functions.projects]
+[functions.challenges]
 verify_jwt = false
 [functions.meetings]
 verify_jwt = false

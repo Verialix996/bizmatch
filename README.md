@@ -40,19 +40,20 @@ The backend has since moved a second time: from a Node/Express server (originall
 - Mutual match detection → match celebration modal
 - Push notification sent to matched user
 
-### Projects
-- Entrepreneurs create and manage project cards (single owner — no team/partner roster)
-- Public / private visibility toggle
-- Pitch deck upload (PDF) and demo video upload — both on Supabase Storage, served via an Edge Function proxy that accepts a JWT token in the query string for direct browser navigation
-- **AI Deck Review** — upload a PDF, get back an overall score (1–10), strengths, weaknesses, and suggestions; Gemini reads the actual PDF content, not just a description; non-pitch documents receive a score of 1
+### Teams & Challenges
+- **Team formation** — an entrepreneur can form a team and invite anyone they've already matched with (star topology: only the team's creator invites; invitees don't need to be matched with each other)
+- **AI Cohesion Challenge** — the moment a team reaches 2 accepted members, Gemini auto-generates a private exercise tailored to the team's combined listed skills; the team writes a response and gets AI feedback + a 0–100 cohesion score. Completing this is required before the team can apply to any investor hackathon.
+- **Investor-posted hackathons** — investors create open, time-boxed challenges (title, description — optionally AI-drafted, judging criteria, investment teaser, submission deadline); any team can browse and sign up
+- **Submissions** — teams submit a pitch deck (PDF) + demo video + description per challenge; Gemini reviews the deck content directly and returns an overall score (1–10), strengths, weaknesses, and suggestions
+- **Winner selection & investment offers** — after the deadline, the investor picks a winning team and sends a structured offer (amount, equity %, valuation, terms); the team can accept, decline, or counter-offer, with a full multi-round negotiation history
 
 ### Messaging
 - Chat screen for every mutual match, updates via 3-second polling
-- Structured message cards: project sharing, meeting proposals/responses
+- Structured message cards: submission sharing, meeting proposals/responses
 - Date dividers, timestamps, unread blue dot per conversation
 - **Read receipts** — ✓ (sent) / ✓✓ (read) indicators; ✓✓ gated behind Premium
 - **Last seen** — chat header shows "Active now" (< 2 min) or "Last seen Xm/h/d ago" based on real activity
-- **Share Project** — entrepreneurs can share a project's full details directly in chat once matched (no signing step)
+- **Share Submission** — entrepreneurs can share one of their team's submitted challenge entries directly in chat once matched
 - Push notification on new message (real device only)
 
 ### Meeting System
@@ -80,7 +81,7 @@ The backend has since moved a second time: from a Node/Express server (originall
 - **Web version** uses an in-app notification bell that polls every 5 s
 
 ### Content Moderation
-- Profile bios, chat messages, and project descriptions screened before saving
+- Profile bios, chat messages, team names, challenge text, submission descriptions, and offer terms screened before saving
 - Local word-list (hate speech, sexual content, threats, spam triggers) — instant response, no API calls
 
 ### File Storage
@@ -99,6 +100,7 @@ These existed in the original build and were deliberately cut to keep the MVP le
 - Two-factor authentication (TOTP)
 - Investor project-swipe feed (investors now discover entrepreneurs through the same person-to-person feed everyone else uses)
 - ID document upload (was a non-functional stub)
+- **Standalone Projects tab** — replaced entirely by Teams & Challenges (see above); the old `projects` table/Storage objects still exist for historical data but the feature and its Edge Function are gone
 
 ---
 
@@ -130,15 +132,15 @@ npx supabase secrets set \
 
 `SUPABASE_URL` and the service-role key are auto-injected by the platform — no need to set them.
 
-Deploy all 8 functions (each corresponds to one Express route group from the old backend):
+Deploy all 8 functions:
 
 ```bash
-for fn in auth users profile match messages projects meetings notifications; do
+for fn in auth users profile match messages challenges meetings notifications; do
   npx supabase functions deploy "$fn" --no-verify-jwt
 done
 ```
 
-`--no-verify-jwt` is required — every function does its own auth verification in `_shared/auth.ts` (it needs the full `public.users` row, not just JWT claims), and two endpoints (`profile/cv`, `projects/:id/deck`) accept the token as a `?token=` query param for direct browser navigation, which platform-level JWT verification doesn't support.
+`--no-verify-jwt` is required — every function does its own auth verification in `_shared/auth.ts` (it needs the full `public.users` row, not just JWT claims), and `profile/cv` accepts the token as a `?token=` query param for direct browser navigation, which platform-level JWT verification doesn't support.
 
 Run locally with `npx supabase functions serve` (needs Docker); functions are then reachable at `http://127.0.0.1:54321/functions/v1/<name>`.
 
@@ -182,8 +184,10 @@ bizmatch/
 │       ├── users/           # /me, role, photo, premium, who-liked-me, admin verification
 │       ├── profile/         # public profile, my profile CRUD, CV upload/serve
 │       ├── match/           # feed, swipe, matches, compatibility
-│       ├── messages/        # conversations, messages, send, read, share-project
-│       ├── projects/        # CRUD, deck/video upload, deck-review (AI), serve-deck
+│       ├── messages/        # conversations, messages, send, read, share-submission
+│       ├── challenges/      # teams (create/invite/respond), AI cohesion challenge,
+│       │                   # hackathons (CRUD, AI draft), signups/submissions (deck/video/AI-review),
+│       │                   # winner selection, investment offer negotiation
 │       ├── meetings/        # propose, list, respond, reschedule
 │       └── notifications/   # list, mark-read
 ├── backend/                # local dev tools only — the Express app itself has been
@@ -203,8 +207,8 @@ bizmatch/
 │   │   │   ├── onboarding/# OnboardingScreen
 │   │   │   ├── premium/   # PremiumScreen
 │   │   │   ├── profile/   # ProfileScreen, EditProfileScreen, AccountSettings
-│   │   │   └── project/   # ProjectsScreen, ProjectDetailScreen
-│   │   ├── services/      # api (axios), supabase (client), auth.service, match.service, project.service
+│   │   │   └── challenge/ # ChallengesScreen, ChallengeDetailScreen, SubmissionScreen, OfferNegotiationScreen
+│   │   ├── services/      # api (axios), supabase (client), auth.service, match.service, team.service, challenge.service
 │   │   ├── store/         # Zustand (auth + app state)
 │   │   └── utils/         # pushNotifications.native.js / .web.js (platform stubs)
 │   └── App.js
@@ -246,16 +250,33 @@ All paths below are relative to `${SUPABASE_URL}/functions/v1` (e.g. `/match/fee
 | GET | `/messages/:matchId` | Get messages for a match (includes `read_at`) |
 | POST | `/messages/:matchId` | Send a message |
 | POST | `/messages/:matchId/read` | Mark all received messages in this chat as read |
-| POST | `/messages/:matchId/share-project` | Share project details (no signing step) |
-| GET | `/projects/mine` | Get my own projects |
-| GET | `/projects/:id` | Get a single project by ID |
-| POST | `/projects` | Create a project |
-| PUT | `/projects/:id` | Update a project |
-| DELETE | `/projects/:id` | Delete a project |
-| POST | `/projects/:id/upload-deck` | Upload pitch deck PDF |
-| POST | `/projects/:id/upload-video` | Upload demo video |
-| GET | `/projects/:id/deck` | Serve pitch deck PDF inline (`?token=<Supabase JWT>`) |
-| POST | `/projects/:id/deck-review` | Get AI feedback on pitch deck |
+| POST | `/messages/:matchId/share-submission` | Share a challenge submission (`{challengeId, teamId}`) |
+| POST | `/challenges/teams` | Create a team |
+| PUT | `/challenges/teams/:id` | Update team venture profile (stage/industry/funding) |
+| POST | `/challenges/teams/:id/invite` | Invite a matched user to the team |
+| POST | `/challenges/teams/:id/respond` | Accept/decline a team invite |
+| POST | `/challenges/teams/:id/leave` | Leave a team (non-creator only) |
+| GET | `/challenges/teams/mine` | Get my team(s) |
+| GET | `/challenges/teams/invites/mine` | Get my pending team invites |
+| GET | `/challenges/teams/:id` | Get a team's details/members |
+| POST | `/challenges/challenges` | Create a hackathon challenge (investor) |
+| POST | `/challenges/challenges/draft-description` | AI-draft a challenge description (investor) |
+| GET | `/challenges/challenges/open` | List open hackathon challenges |
+| GET | `/challenges/challenges/mine` | Get my created challenges (investor) |
+| GET | `/challenges/challenges/:id` | Get a challenge's details |
+| POST | `/challenges/challenges/:id/signup` | Sign a team up for a hackathon (requires completed cohesion test) |
+| GET | `/challenges/challenges/:id/signups` | View all signups/submissions (investor, owner only) |
+| POST | `/challenges/challenges/:id/select-winner` | Select the winning team (investor, after deadline) |
+| POST | `/challenges/challenges/:id/offers` | Create the first investment offer (investor) |
+| POST | `/challenges/challenges/:id/offers/counter` | Counter-offer (either party) |
+| POST | `/challenges/challenges/:id/offers/accept` | Accept the current pending offer |
+| POST | `/challenges/challenges/:id/offers/decline` | Decline the current pending offer |
+| GET | `/challenges/challenges/:id/offers` | Get the full negotiation history |
+| POST | `/challenges/signups/:id/upload-deck` | Upload a submission's pitch deck PDF |
+| POST | `/challenges/signups/:id/upload-video` | Upload a submission's demo video |
+| POST | `/challenges/signups/:id/ai-review` | Get AI feedback (deck review for hackathons, cohesion score for the team's cohesion test) |
+| POST | `/challenges/signups/:id/submit` | Submit an entry |
+| GET | `/challenges/signups/mine` | Get my team's signups across all challenges |
 | POST | `/meetings` | Propose a meeting (Premium only) |
 | GET | `/meetings` | List my meetings |
 | PUT | `/meetings/:id` | Confirm / decline / cancel meeting |
