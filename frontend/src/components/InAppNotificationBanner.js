@@ -9,7 +9,6 @@ const TYPE_ICON = {
   message:        '💬',
   meeting:        '📅',
   super_like:     '⭐',
-  partner_invite: '📋',
 };
 
 const DISMISS_AFTER_MS = 4500;

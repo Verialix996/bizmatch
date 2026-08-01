@@ -12,7 +12,6 @@ const TYPE_ICON = {
   message:        '💬',
   meeting:        '📅',
   super_like:     '⭐',
-  partner_invite: '📋',
 };
 
 const TYPE_LABEL = {
@@ -20,7 +19,6 @@ const TYPE_LABEL = {
   message:        'New Message',
   meeting:        'Meeting Invitation',
   super_like:     'Super Like',
-  partner_invite: 'Partner Invitation',
 };
 
 function formatTime(dateStr) {
@@ -38,7 +36,6 @@ const TYPE_BODY = {
   message:        (p) => p?.fromName ? `New message from ${p.fromName}` : 'You have a new message.',
   meeting:        (p) => p?.title || 'A meeting has been proposed.',
   super_like:     (p) => p?.name ? `${p.name} super liked you!` : 'Someone super liked you!',
-  partner_invite: (p) => p?.title || 'New partner invitation.',
 };
 
 export default function NotificationBell({ tintColor }) {
@@ -113,9 +110,6 @@ export default function NotificationBell({ tintColor }) {
         break;
       case 'meeting':
         navigation.navigate('Meetings');
-        break;
-      case 'partner_invite':
-        navigation.navigate('Projects');
         break;
     }
   };
