@@ -2,38 +2,36 @@
 
 A Tinder-style matchmaking platform for entrepreneurs and investors.
 
-**Backend:** Live on Railway → `https://zooming-surprise-production.up.railway.app`  
-**Frontend (web):** Live on Netlify → `https://bizmatchapp.netlify.app`  
-**Frontend (native):** Expo (React Native) — run locally or build via EAS, connects to Railway from any network  
-**Deploy branch:** `main` (Railway and Netlify both auto-deploy from this branch)
+**This is the `mvp-lean` branch** — a trimmed-down fork of the original BizMatch build. Partner invitations, job offers, the NDA e-signature system, AI meeting briefings, 2FA, and the investor project-swipe feed have all been removed to focus on the core matching/chat/meetings loop. The data layer has also moved from MySQL + custom JWT auth to **Supabase** (Postgres + Auth + Storage), and AI features now run on **Gemini** instead of Claude.
+
+**Backend:** Node/Express, deployed on Railway (or run locally)  
+**Frontend:** Expo (React Native) — run locally or build via EAS  
+**Database / Auth / Storage:** [Supabase](https://supabase.com)  
+**AI:** Google Gemini (`@google/generative-ai`)
 
 ---
 
 ## Features
 
 ### Authentication
-- Email & password registration with OTP email verification (Gmail API)
-- Login with JWT session management (7-day tokens, persisted across app restarts)
-- Forgot password / reset password via email link (1-hour expiry)
-- Google OAuth sign-in
-- Two-factor authentication (TOTP) — QR code setup + verification screen
-- **Account lockout** — 5 consecutive failed logins locks the account for 15 minutes
+- Email & password registration with OTP email verification, forgot/reset password — all handled by **Supabase Auth** (no custom backend auth endpoints)
+- Google OAuth sign-in via Supabase's native provider
+- Session persistence and token refresh handled by the Supabase client SDK
 
 ### Profiles
 - Role selection: Entrepreneur or Investor
 - Entrepreneur profile: bio, skills (bubble tags), hobbies
 - Investor profile: bio, investment domain, preferred stage, max investment
 - Shared extended fields: portfolio URL, LinkedIn, experience, CV upload
-- Profile photo upload (stored on Cloudinary CDN)
+- Profile photo upload (Supabase Storage)
 - **Profile completeness score** — progress bar (0–100%) with colour coding and inline hints
 - **One-click identity verification** — "Verify Account" button instantly marks account as verified (demo bypass)
 - Change role at any time from Account Settings
 
 ### Swipe & Matching
 - Tinder-style swipe deck — swipe right to like, left to pass
-- Entrepreneurs can toggle between "Find Investors" and "Find Partners" modes
-- Investors see entrepreneur profiles and project cards
-- **AI-driven feed ranking** — Claude Haiku scores each candidate pair 0–100 in the background; scores cached in `ai_match_scores`; feed reranks on subsequent loads
+- Entrepreneurs browse other entrepreneurs by default; investors browse entrepreneur profiles
+- **AI-driven feed ranking** — Gemini scores each candidate pair 0–100 in the background; scores cached in `ai_match_scores`; feed reranks on subsequent loads
 - When AI score cached: AI is the dominant signal (60 pts) + stage alignment (20 pts) + budget fit (10 pts) + completeness (10 pts)
 - Math-only fallback when not yet scored: stage (40 pts) + budget (30 pts) + Jaccard domain overlap (30 pts) + completeness (10 pts)
 - Passed profiles recycle back at the bottom of the feed
@@ -41,37 +39,27 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 - Push notification sent to matched user
 
 ### Projects
-- Entrepreneurs create and manage project cards
-- Public / private visibility toggle (private projects hidden from investor feed)
-- Pitch deck upload (PDF) — stored on Cloudinary; served via a backend proxy endpoint that accepts a JWT token in the query string for direct browser navigation
-- Demo video upload (MP4/MOV) via Cloudinary
-- Investors swipe on project cards (separate from person-to-person matching)
-- Partner system: invite other entrepreneurs to join a project
-- **AI Deck Review** — upload a PDF, get back an overall score (1–10), strengths, weaknesses, and suggestions; Claude reads the actual PDF content, not just a description; non-pitch documents receive a score of 1
+- Entrepreneurs create and manage project cards (single owner — no team/partner roster)
+- Public / private visibility toggle
+- Pitch deck upload (PDF) and demo video upload — both on Supabase Storage, served via a backend proxy endpoint that accepts a JWT token in the query string for direct browser navigation
+- **AI Deck Review** — upload a PDF, get back an overall score (1–10), strengths, weaknesses, and suggestions; Gemini reads the actual PDF content, not just a description; non-pitch documents receive a score of 1
 
 ### Messaging
-- Chat screen for every mutual match
-- Message updates via 3-second polling
-- Structured message cards: partner invites, NDA requests, project sharing, meeting proposals
+- Chat screen for every mutual match, updates via 3-second polling
+- Structured message cards: project sharing, meeting proposals/responses
 - Date dividers, timestamps, unread blue dot per conversation
 - **Read receipts** — ✓ (sent) / ✓✓ (read) indicators; ✓✓ gated behind Premium
 - **Last seen** — chat header shows "Active now" (< 2 min) or "Last seen Xm/h/d ago" based on real activity
+- **Share Project** — entrepreneurs can share a project's full details directly in chat once matched (no signing step)
 - Push notification on new message (real device only)
-
-### NDA System
-- Entrepreneur requests NDA via chat
-- Investor signs NDA → backend generates a real PDF (pdfkit) with names, project title, standard clauses, and date
-- PDF uploaded to Cloudinary; served via `GET /api/projects/:id/nda?token=JWT`; "View NDA Document →" link appears in chat
-- After signing, full project details are automatically shared in chat
 
 ### Meeting System
 - **Premium-only** — meeting proposals require an active premium subscription
 - Meeting types: Virtual (video link) or In-Person (address with autocomplete via Nominatim/OpenStreetMap)
 - Proposal appears as a card in chat; receiver can confirm, decline, or suggest a new time
-- **Meeting rescheduling** — "Suggest New Time" pre-fills the proposal form with original details; new proposal sent with roles swapped
+- **Meeting rescheduling** — pre-fills the proposal form with original details; new proposal sent with roles swapped
 - Both proposer and receiver can cancel; receiver can cancel only after meeting is confirmed
 - Meetings tab shows all upcoming meetings with status badges
-- **AI Due Diligence Briefing** — Claude Haiku generates a 5-section prep report (person summary, match rationale, talking points, questions to ask, watch out for); cached per meeting; daily usage limit enforced
 
 ### Premium System
 - **Free trial** — "Activate Free Trial (30 days)" button; no real payment required
@@ -83,90 +71,49 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 ### Onboarding Tutorial
 - 4-slide walkthrough for first-time users (shown once after role is set)
-- Skip button on any slide; "Get Started" on the final slide
-- Never shown again after completion
 
 ### Push Notifications
 - New match and new message alerts when app is backgrounded (native only)
 - Real physical device required for OS-level push (not simulators)
-- **Web version** uses an in-app notification bell that polls every 5 s — no device or service worker needed
+- **Web version** uses an in-app notification bell that polls every 5 s
 
-### AI Content Moderation
+### Content Moderation
 - Profile bios, chat messages, and project descriptions screened before saving
-- Uses a local word-list (hate speech, sexual content, threats, spam triggers) — instant response, no API calls
-- Inappropriate content rejected with a user-facing reason
+- Local word-list (hate speech, sexual content, threats, spam triggers) — instant response, no API calls
 
 ### File Storage
-- Profile photos, ID docs, and demo videos stored on Cloudinary — survives Railway redeploys
-- **Pitch decks** stored on Cloudinary; **NDA PDFs** generated by PDFKit and uploaded to Cloudinary — backend proxy endpoints serve both inline (`?token=JWT`) for mobile compatibility
+- Profile photos, CVs, pitch decks, and demo videos stored on **Supabase Storage** (public buckets: `photos`, `cvs`, `decks`, `videos`)
 
 ---
 
-## Testing the App
+## Removed in this fork
 
-### What you need
-- [Node.js](https://nodejs.org) v18 or higher
-- [Expo Go](https://expo.dev/go) on your phone **or** a dev build (see below)
-- Any WiFi or mobile data — **no need to be on the same network as the backend**
+These existed in the original build and were deliberately cut to keep the MVP lean:
 
-### Option A — Expo Go (quick, limited)
-
-1. **Clone the repo**
-   ```bash
-   git clone https://github.com/Verialix996/bizmatch.git
-   cd bizmatch
-   git checkout main
-   ```
-
-2. **Install frontend dependencies**
-   ```bash
-   cd frontend
-   npm install
-   ```
-
-3. **Start the frontend**
-   ```bash
-   npx expo start --clear
-   ```
-
-4. **Open in Expo Go** — scan the QR code with the Expo Go app
-
-> Expo Go doesn't support all native modules. Push notifications and video upload require a dev build.
-
-### Option B — Dev Build (recommended for full testing)
-
-```bash
-npm install -g eas-cli
-cd frontend
-eas login          # log in with your Expo account
-eas build --profile development --platform ios    # or android
-```
-
-EAS builds the app in the cloud and sends a download link to your phone. Once installed, use `eas update` to push JS changes without rebuilding.
-
-That's it — no backend setup needed for testing.
-
-### Test accounts
-
-The database is seeded with demo accounts for evaluation. Credentials are not published here — request access from the maintainer.
-
-### Verify the backend is live
-
-```bash
-curl https://zooming-surprise-production.up.railway.app/health
-```
-
-Expected: `{"status":"ok"}`
+- Partner invitations (equity/salary negotiation) and the project team/partner roster
+- Job offers (entrepreneur ↔ entrepreneur)
+- NDA system (request/sign, AI-drafted legal text, PDF generation, NDA gate on project details)
+- AI meeting due-diligence briefings
+- Two-factor authentication (TOTP)
+- Investor project-swipe feed (investors now discover entrepreneurs through the same person-to-person feed everyone else uses)
+- ID document upload (was a non-functional stub)
 
 ---
 
-## Running the Backend Locally (optional)
+## Local Setup
 
 ### Prerequisites
-- MySQL installed and running locally
-- A database named `bizmatch`
+- [Node.js](https://nodejs.org) v18+
+- A [Supabase](https://supabase.com) project (free tier is fine)
+- A [Gemini API key](https://aistudio.google.com/apikey) (free)
 
-### Setup
+### 1. Set up Supabase
+
+1. Create a project at [supabase.com/dashboard](https://supabase.com/dashboard)
+2. Push the schema: from the repo root, `cd backend && npm run migrate` (runs `supabase db push` using your `DATABASE_URL`)
+3. In **Authentication → Providers**, enable **Email** (with "Confirm email" on, for OTP verification) and optionally **Google** (using a Google Cloud OAuth Client ID/Secret)
+
+### 2. Backend
 
 ```bash
 cd backend
@@ -180,26 +127,41 @@ Fill in `.env`:
 |---|---|
 | `PORT` | Port the server listens on (default: `3000`) |
 | `NODE_ENV` | `development` or `production` |
-| `DATABASE_URL` | `mysql://root:<password>@localhost:3306/bizmatch` |
-| `JWT_SECRET` | Any long random string |
-| `JWT_EXPIRES_IN` | Token lifetime (default: `7d`) |
-| `GOOGLE_CLIENT_ID` | Google OAuth client ID (sign-in + Gmail API) |
-| `GOOGLE_CLIENT_SECRET` | Google OAuth client secret |
-| `GOOGLE_CALLBACK_URL` | OAuth redirect URI (e.g. `http://localhost:3000/api/auth/google/callback`) |
-| `GMAIL_USER` | Your Gmail address (used as the email sender) |
-| `GMAIL_REFRESH_TOKEN` | OAuth refresh token for Gmail API |
-| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
-| `CLOUDINARY_API_KEY` | Cloudinary API key |
-| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
-| `ANTHROPIC_API_KEY` | Anthropic API key (AI features) |
-| `FRONTEND_URL` | Frontend origin for CORS + OAuth redirects (e.g. `http://localhost:8081`) |
-| `BACKEND_URL` | Public backend URL used in email links (e.g. `http://localhost:3000`) |
+| `SUPABASE_URL` | Project Settings → API |
+| `SUPABASE_PUBLISHABLE_KEY` | Project Settings → API (publishable/anon key) |
+| `SUPABASE_SECRET_KEY` | Project Settings → API (secret/service_role key — backend only, never expose) |
+| `DATABASE_URL` | Project Settings → Database → Connection string (session pooler, port 5432) |
+| `GEMINI_API_KEY` | Free key from [aistudio.google.com/apikey](https://aistudio.google.com/apikey) — powers feed ranking, deck review, compatibility score |
+| `FRONTEND_URL` | Frontend origin for CORS (e.g. `http://localhost:8081`) |
 
 ```bash
+node scripts/setup-storage-buckets.js   # one-time: creates the photos/cvs/decks/videos buckets
+node scripts/seed.js                    # optional: seeds demo accounts (password: Demo1234!)
 npm run dev
 ```
 
-Server runs on `http://localhost:3000`. Migrations run automatically on startup.
+Server runs on `http://localhost:3000`. Schema migrations are applied via `npm run migrate` (Supabase CLI), not automatically on boot.
+
+### 3. Frontend
+
+```bash
+cd frontend
+npm install
+```
+
+Set these as `EXPO_PUBLIC_*` env vars (or in a `.env` picked up by Expo):
+
+| Variable | Description |
+|---|---|
+| `EXPO_PUBLIC_BACKEND_URL` | Your backend URL (default points at the original Railway deployment) |
+| `EXPO_PUBLIC_SUPABASE_URL` | Same as backend's `SUPABASE_URL` |
+| `EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Same as backend's `SUPABASE_PUBLISHABLE_KEY` (safe for client bundles) |
+
+```bash
+npx expo start --clear
+```
+
+Scan the QR code with [Expo Go](https://expo.dev/go), or build a dev client with `eas build --profile development`.
 
 ---
 
@@ -207,32 +169,32 @@ Server runs on `http://localhost:3000`. Migrations run automatically on startup.
 
 ```
 bizmatch/
+├── supabase/
+│   └── migrations/        # Postgres schema, applied via Supabase CLI (supabase db push)
 ├── backend/
-│   ├── migrations/        # 19 numbered .sql files, auto-run on startup
-│   ├── scripts/           # local DB utility scripts (gitignored)
+│   ├── scripts/           # seed.js, setup-storage-buckets.js (local-only, gitignored)
 │   ├── src/
-│   │   ├── config/        # DB, Cloudinary, Passport OAuth
-│   │   ├── controllers/   # auth, user, profile, match, message, meeting, project
-│   │   ├── middleware/     # auth, upload (Cloudinary multer)
-│   │   ├── models/        # match, message, meeting, project
+│   │   ├── config/        # db (pg pool), supabase (Auth client), gemini, storage
+│   │   ├── controllers/   # auth, user, profile, match, message, meeting, project, notification
+│   │   ├── middleware/     # auth (Supabase JWT verify), upload (multer memory storage), rateLimiter
+│   │   ├── models/        # user, profile, match, message, meeting, project
 │   │   ├── routes/        # API route definitions
-│   │   └── services/      # email (Gmail API), notification (Expo push), moderation (AI)
+│   │   └── services/      # notification (Expo push), moderation (word-list)
 │   └── server.js
 ├── frontend/
 │   ├── src/
 │   │   ├── navigation/    # AppNavigator (tabs + stacks)
 │   │   ├── screens/
-│   │   │   ├── auth/      # Login, Register, Verify2FA, ForgotPassword
-│   │   │   ├── match/     # SwipeScreen, MatchesScreen, ChatScreen
+│   │   │   ├── auth/      # Welcome, Login, Register, VerifyOtp, ForgotPassword, ResetPassword
+│   │   │   ├── match/     # SwipeScreen, MatchesScreen, ChatScreen, ProfileDetailScreen
 │   │   │   ├── meeting/   # MeetingScreen, MeetingDetailScreen, ProposeMeetingScreen
 │   │   │   ├── onboarding/# OnboardingScreen
 │   │   │   ├── premium/   # PremiumScreen
-│   │   │   ├── profile/   # ProfileScreen, EditProfile
-│   │   │   └── project/   # ProjectsScreen, CreateProject, EditProject
-│   │   ├── services/      # API calls (axios), alert utility
+│   │   │   ├── profile/   # ProfileScreen, EditProfileScreen, AccountSettings
+│   │   │   └── project/   # ProjectsScreen, ProjectDetailScreen
+│   │   ├── services/      # api (axios), supabase (client), auth.service, match.service, project.service
 │   │   ├── store/         # Zustand (auth + app state)
 │   │   └── utils/         # pushNotifications.native.js / .web.js (platform stubs)
-│   ├── stubs/             # react-devtools-core stub for Metro web builds
 │   └── App.js
 ```
 
@@ -242,30 +204,17 @@ bizmatch/
 
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/api/auth/register` | Register new user |
-| POST | `/api/auth/login` | Login |
-| POST | `/api/auth/verify-email` | Verify OTP code |
-| POST | `/api/auth/resend-otp` | Resend OTP |
-| POST | `/api/auth/forgot-password` | Request password reset |
-| POST | `/api/auth/reset-password` | Reset with token |
-| POST | `/api/auth/2fa/setup` | Setup 2FA — returns secret + QR URI (requires auth) |
-| POST | `/api/auth/2fa/verify` | Enable 2FA — verifies TOTP during setup (requires auth) |
-| POST | `/api/auth/2fa/disable` | Disable 2FA (requires auth) |
-| POST | `/api/auth/2fa/login` | Login-time TOTP verification — returns JWT (no auth required) |
-| GET | `/api/auth/google` | Begin Google OAuth web/popup flow (`?oid=<id>&redirect=1` optional) |
-| GET | `/api/auth/google/callback` | Google OAuth callback (handled by Passport) |
-| GET | `/api/auth/poll/:oid` | Poll for OAuth result in web popup flow |
-| POST | `/api/auth/google/mobile` | Google OAuth token exchange for React Native |
+| POST | `/api/auth/precheck-name` | Moderation check on display name, called before `supabase.auth.signUp` |
 | GET | `/api/profile` | Get my profile |
 | GET | `/api/profile/public/:userId` | Get another user's public profile |
 | POST | `/api/profile` | Create profile |
 | PUT | `/api/profile` | Update profile |
-| POST | `/api/profile/upload-id` | Upload ID document |
-| POST | `/api/profile/upload-cv` | Upload CV/résumé PDF to Cloudinary |
-| GET | `/api/profile/cv` | Serve CV PDF inline (`?token=JWT`) |
+| POST | `/api/profile/upload-cv` | Upload CV/résumé PDF |
+| GET | `/api/profile/cv` | Serve CV PDF inline (`?token=<Supabase JWT>`) |
+| GET | `/api/users/me` | Get my merged profile row |
 | PATCH | `/api/users/me` | Update name |
 | PATCH | `/api/users/me/role` | Switch role |
-| POST | `/api/users/me/photo` | Upload profile photo |
+| POST | `/api/users/me/photo` | Upload profile photo (base64) |
 | PATCH | `/api/users/me/push-token` | Save Expo push token |
 | PATCH | `/api/users/me/onboarding` | Mark onboarding tutorial as seen |
 | POST | `/api/users/me/verify-self` | Instant self-verification (demo) |
@@ -279,42 +228,24 @@ bizmatch/
 | POST | `/api/match/swipe` | Record a swipe (returns match if mutual) |
 | GET | `/api/match/matches` | Get all matches |
 | GET | `/api/match/compatibility/:targetUserId` | Get compatibility score with another user |
-| GET | `/api/match/nda-status` | Get NDA status for current user's matches |
 | GET | `/api/messages` | Get all conversations |
 | GET | `/api/messages/:matchId` | Get messages for a match (includes `read_at`) |
 | POST | `/api/messages/:matchId` | Send a message |
 | POST | `/api/messages/:matchId/read` | Mark all received messages in this chat as read |
-| POST | `/api/messages/:matchId/invite` | Send partner invite |
-| POST | `/api/messages/:matchId/invite/:invitationId/respond` | Accept or decline a partner invite |
-| POST | `/api/messages/:matchId/nda-request` | Request NDA signing |
-| POST | `/api/messages/:matchId/nda-sign` | Sign NDA (generates PDF) |
-| POST | `/api/messages/:matchId/share-project` | Share project details |
-| POST | `/api/messages/:matchId/job-offer` | Send a job offer card |
-| POST | `/api/messages/:matchId/job-offer/respond` | Accept or decline a job offer |
+| POST | `/api/messages/:matchId/share-project` | Share project details (no signing step) |
 | GET | `/api/projects/mine` | Get my own projects |
-| GET | `/api/projects/joined` | Get projects I've joined as a partner |
-| GET | `/api/projects/matches` | Get project matches (entrepreneur view) |
-| GET | `/api/projects/feed` | Get project feed (investors) |
-| POST | `/api/projects/swipe` | Swipe on a project |
-| GET | `/api/projects/owner/:userId` | Get projects owned by a specific user |
 | GET | `/api/projects/:id` | Get a single project by ID |
 | POST | `/api/projects` | Create a project |
 | PUT | `/api/projects/:id` | Update a project |
 | DELETE | `/api/projects/:id` | Delete a project |
-| POST | `/api/projects/:id/upload-deck` | Upload pitch deck PDF to Cloudinary |
-| POST | `/api/projects/:id/upload-video` | Upload demo video (MP4/MOV) to Cloudinary |
-| GET | `/api/projects/:id/partners` | List project partners |
-| POST | `/api/projects/:id/partners` | Add a partner to a project |
-| DELETE | `/api/projects/:id/partners/:userId` | Remove a partner from a project |
-| PUT | `/api/projects/:id/partners/:userId/role` | Update a partner's role |
-| GET | `/api/projects/:id/deck` | Serve pitch deck PDF inline (`?token=JWT`) |
-| GET | `/api/projects/:id/nda` | Serve signed NDA PDF inline (`?token=JWT`) |
+| POST | `/api/projects/:id/upload-deck` | Upload pitch deck PDF |
+| POST | `/api/projects/:id/upload-video` | Upload demo video |
+| GET | `/api/projects/:id/deck` | Serve pitch deck PDF inline (`?token=<Supabase JWT>`) |
 | POST | `/api/projects/:id/deck-review` | Get AI feedback on pitch deck |
 | POST | `/api/meetings` | Propose a meeting (Premium only) |
 | GET | `/api/meetings` | List my meetings |
-| PUT | `/api/meetings/:id` | Confirm / decline meeting |
+| PUT | `/api/meetings/:id` | Confirm / decline / cancel meeting |
 | PATCH | `/api/meetings/:id/reschedule` | Suggest a new meeting time |
-| GET | `/api/meetings/:id/briefing` | Get AI due diligence briefing |
 | GET | `/api/notifications` | Get all notifications (last 50) |
 | POST | `/api/notifications/read` | Mark notifications as read (`{ ids }` or `{ types }`) |
 
@@ -322,17 +253,14 @@ bizmatch/
 
 ## Deployment
 
-The backend is deployed on [Railway](https://railway.app) and auto-deploys on every push to `main`.
-
-- **Backend:** Railway — auto-deploys from `main`; start command `node server.js`
-- **Frontend:** Netlify — auto-deploys from `main`; build command `npx expo export -p web`; publishes `frontend/dist/`
-- **Database:** MySQL on Railway — 19 numbered migrations run automatically on startup (idempotent)
-- **File storage:** Cloudinary (photos, docs, videos, pitch decks, NDA PDFs)
-- **AI:** Anthropic Claude API (`claude-haiku-4-5-20251001`) — candidate scoring for feed ranking, deck review, meeting briefings
+- **Backend:** Railway (or any Node host) — start command `node server.js`
+- **Frontend:** Netlify (web) / EAS (native) — build command `npx expo export -p web`, publishes `frontend/dist/`
+- **Database / Auth / Storage:** Supabase — schema pushed via `supabase db push` (see Local Setup above), not run automatically at boot
+- **AI:** Google Gemini (`gemini-flash-latest`) — feed ranking, deck review, compatibility score
 - **Content moderation:** local word-list (no API calls)
 
 ## Notes
 
 - Never commit `.env` files
-- AI features fail silently when `ANTHROPIC_API_KEY` is missing
-- Push notifications (OS-level) only work on real physical devices; web uses the in-app bell
+- AI features return `503` when `GEMINI_API_KEY` is missing or invalid
+- `backend/scripts/seed.js` and `setup-storage-buckets.js` are gitignored — local dev tools, not part of the deployed app
