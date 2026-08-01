@@ -88,9 +88,15 @@ export async function signInWithGoogle() {
 
 // After any successful auth event, fetch our own app-side profile row
 // (role, premium, has_seen_onboarding, etc. — not part of Supabase's auth.users).
+// Passes the token explicitly rather than relying on the axios interceptor's
+// authStore read — at this point the store's token isn't set yet (setAuth
+// only sets it after this call resolves), so the interceptor would send no
+// Authorization header at all.
 export async function fetchProfile(session) {
   if (!session) return null;
-  const { data } = await api.get('/users/me');
+  const { data } = await api.get('/users/me', {
+    headers: { Authorization: `Bearer ${session.access_token}` },
+  });
   return { session, profile: data };
 }
 
