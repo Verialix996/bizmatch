@@ -44,6 +44,7 @@ const mine = async (req, res, next) => {
 // GET /api/projects/:id
 const getOne = async (req, res, next) => {
   try {
+    if (!/^\d+$/.test(req.params.id)) return res.status(404).json({ error: 'Project not found' });
     const project = await getProjectById(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     res.json(project);
