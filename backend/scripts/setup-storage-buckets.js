@@ -2,7 +2,11 @@
 // expects (photos/cvs/decks/videos). Safe to re-run — skips buckets that
 // already exist.
 require('dotenv').config();
-const supabase = require('../src/config/supabase');
+const { createClient } = require('@supabase/supabase-js');
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SECRET_KEY, {
+  auth: { autoRefreshToken: false, persistSession: false },
+});
 
 const BUCKETS = ['photos', 'cvs', 'decks', 'videos'];
 

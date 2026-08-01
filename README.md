@@ -4,7 +4,7 @@ A Tinder-style matchmaking platform for entrepreneurs and investors.
 
 **This is the `mvp-lean` branch** — a trimmed-down fork of the original BizMatch build. Partner invitations, job offers, the NDA e-signature system, AI meeting briefings, 2FA, and the investor project-swipe feed have all been removed to focus on the core matching/chat/meetings loop. The data layer has also moved from MySQL + custom JWT auth to **Supabase** (Postgres + Auth + Storage), and AI features now run on **Gemini** instead of Claude.
 
-The backend has since moved a second time: from a Node/Express server (originally hosted on Railway) to **Supabase Edge Functions** — there is no standalone server to deploy or host anymore. The legacy `backend/` Express app is kept in the repo for local reference but is no longer deployed; all traffic goes to the Edge Functions in `supabase/functions/`.
+The backend has since moved a second time: from a Node/Express server (originally hosted on Railway) to **Supabase Edge Functions** — there is no standalone server to deploy or host anymore. The legacy Express app's source has been archived to `deletion candidate/backend/` (staged for removal, not deleted); `backend/` now only holds local dev scripts. All traffic goes to the Edge Functions in `supabase/functions/`.
 
 **Backend:** [Supabase Edge Functions](https://supabase.com/docs/guides/functions) (Deno) — one function per route group, deployed via `supabase functions deploy`  
 **Frontend:** Expo (React Native) — deployed to Netlify (web) or run locally  
@@ -186,16 +186,13 @@ bizmatch/
 │       ├── projects/        # CRUD, deck/video upload, deck-review (AI), serve-deck
 │       ├── meetings/        # propose, list, respond, reschedule
 │       └── notifications/   # list, mark-read
-├── backend/                # legacy Express app — kept for local reference, NOT deployed
-│   ├── scripts/            # seed.js, setup-storage-buckets.js (local-only, gitignored)
-│   ├── src/
-│   │   ├── config/        # db (pg pool), supabase (Auth client), gemini, storage
-│   │   ├── controllers/   # auth, user, profile, match, message, meeting, project, notification
-│   │   ├── middleware/     # auth (Supabase JWT verify), upload (multer memory storage), rateLimiter
-│   │   ├── models/        # user, profile, match, message, meeting, project
-│   │   ├── routes/        # API route definitions
-│   │   └── services/      # notification (Expo push), moderation (word-list)
-│   └── server.js
+├── backend/                # local dev tools only — the Express app itself has been
+│   │                       # archived (see deletion candidate/), not deployed anywhere
+│   ├── scripts/            # seed.js, setup-storage-buckets.js (standalone, gitignored),
+│   │   └── e2e/            # live E2E test suite against the deployed app (see docs/E2E_TEST_PLAN.md)
+│   ├── package.json        # deps for the scripts above (@supabase/supabase-js, pg, dotenv, Gemini)
+│   └── env.example
+├── deletion candidate/      # staged-for-removal files kept for review, not deleted — see its README
 ├── frontend/
 │   ├── src/
 │   │   ├── navigation/    # AppNavigator (tabs + stacks)
@@ -281,5 +278,5 @@ All paths below are relative to `${SUPABASE_URL}/functions/v1` (e.g. `/match/fee
 
 - Never commit `.env` files or Supabase secrets
 - AI features return `503` when `GEMINI_API_KEY` is missing or invalid
-- `backend/scripts/seed.js` and `setup-storage-buckets.js` are gitignored — local dev tools, not part of the deployed app
-- The `backend/` Express app is no longer deployed anywhere — it's kept in the repo as a reference for the pre-Edge-Functions architecture, since the Edge Functions in `supabase/functions/` are direct ports of its controllers/models
+- `backend/scripts/seed.js` and `setup-storage-buckets.js` are gitignored, standalone local dev tools — not part of the deployed app
+- The legacy Express app is archived at `deletion candidate/backend/` (staged for review/removal, not deleted) — the Edge Functions in `supabase/functions/` are direct ports of its controllers/models, so it's kept only as a reference until confirmed safe to delete for good
