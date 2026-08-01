@@ -19,8 +19,9 @@ create table public.matches (
   unique (user1_id, user2_id)
 );
 
--- message_type is narrowed to ('text','project_shared') as part of the MVP
--- trim: partner_invite/nda_*/job_offer message kinds no longer exist.
+-- message_type is narrowed to ('text','project_shared','meeting_proposal',
+-- 'meeting_response') as part of the MVP trim: partner_invite/nda_*/job_offer
+-- message kinds no longer exist.
 create table public.messages (
   id            bigint generated always as identity primary key,
   match_id      bigint not null references public.matches(id) on delete cascade,
