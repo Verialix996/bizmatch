@@ -1,13 +1,11 @@
 const {
   createProject, getProjectsByUser, getProjectById, updateProject, deleteProject,
-  getProjectFeed, swipeProject, getProjectMatches,
-  getProjectPartners, addProjectPartner, removeProjectPartner, updatePartnerRole,
-  getJoinedProjects, getProjectsByOwner, preScoreProject,
 } = require('../models/project.model');
 const { query } = require('../config/db');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
-const Anthropic = require('@anthropic-ai/sdk');
+const { getModel } = require('../config/gemini');
 const { moderateText } = require('../services/moderation.service');
+const supabase = require('../config/supabase');
 
 // POST /api/projects/:id/upload-deck — uploads to Cloudinary, stores URL
 const uploadDeck = [
@@ -16,10 +14,7 @@ const uploadDeck = [
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
       const url = req.file.path; // Cloudinary secure URL
-      await query(
-        'UPDATE projects SET deck_url = ? WHERE id = ? AND user_id = ?',
-        [url, Number(req.params.id), req.user.id]
-      );
+      await query('UPDATE projects SET deck_url = $1 WHERE id = $2 AND user_id = $3', [url, req.params.id, req.user.id]);
       res.json({ deck_url: url });
     } catch (err) { next(err); }
   },
@@ -32,70 +27,11 @@ const uploadVideo = [
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
       const fileUrl = req.file.path;
-      await query('UPDATE projects SET video_url = ? WHERE id = ? AND user_id = ?',
-        [fileUrl, Number(req.params.id), req.user.id]);
+      await query('UPDATE projects SET video_url = $1 WHERE id = $2 AND user_id = $3', [fileUrl, req.params.id, req.user.id]);
       res.json({ video_url: fileUrl });
     } catch (err) { next(err); }
   },
 ];
-
-// GET /api/projects/feed  — investor only
-const feed = async (req, res, next) => {
-  try {
-    if (req.user.role !== 'investor') {
-      return res.status(403).json({ error: 'Only investors can browse the project feed' });
-    }
-    res.json(await getProjectFeed(req.user.id));
-  } catch (err) { next(err); }
-};
-
-// GET /api/projects/matches
-const matches = async (req, res, next) => {
-  try {
-    res.json(await getProjectMatches(req.user.id, req.user.role));
-  } catch (err) { next(err); }
-};
-
-const DAILY_SWIPE_LIMIT = 20;
-
-// POST /api/projects/swipe
-const swipe = async (req, res, next) => {
-  try {
-    if (req.user.role !== 'investor') {
-      return res.status(403).json({ error: 'Only investors can swipe on projects' });
-    }
-    const { projectId, direction } = req.body;
-    if (!projectId || !['like', 'pass'].includes(direction)) {
-      return res.status(400).json({ error: 'projectId and direction (like|pass) required' });
-    }
-
-    const userRows = await query(
-      `SELECT is_premium, premium_expires_at,
-              IF(swipe_count_date = CURDATE(), swipe_count, 0) AS today_count
-       FROM user_app_state WHERE user_id = ?`,
-      [req.user.id]
-    );
-    const u = userRows[0];
-    const isPremium = u?.is_premium && new Date(u?.premium_expires_at) > new Date();
-
-    if (!isPremium) {
-      if ((u?.today_count ?? 0) >= DAILY_SWIPE_LIMIT) {
-        return res.status(429).json({ error: 'Daily swipe limit reached', upgradeRequired: true });
-      }
-      await query(
-        `UPDATE user_app_state SET
-           swipe_count = IF(swipe_count_date = CURDATE(), swipe_count + 1, 1),
-           swipe_count_date = CURDATE()
-         WHERE user_id = ?`,
-        [req.user.id]
-      );
-    }
-
-    const result = await swipeProject(req.user.id, Number(projectId), direction);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
-  } catch (err) { next(err); }
-};
 
 // GET /api/projects/mine — entrepreneur's own projects
 const mine = async (req, res, next) => {
@@ -107,7 +43,7 @@ const mine = async (req, res, next) => {
 // GET /api/projects/:id
 const getOne = async (req, res, next) => {
   try {
-    const project = await getProjectById(Number(req.params.id));
+    const project = await getProjectById(req.params.id);
     if (!project) return res.status(404).json({ error: 'Project not found' });
     res.json(project);
   } catch (err) { next(err); }
@@ -129,7 +65,6 @@ const create = async (req, res, next) => {
     }
     const project = await createProject(req.user.id, req.body);
     res.status(201).json(project);
-    preScoreProject(project.id).catch(() => {});
   } catch (err) { next(err); }
 };
 
@@ -144,100 +79,41 @@ const update = async (req, res, next) => {
       const mod = await moderateText(description);
       if (!mod.ok) return res.status(400).json({ error: `Description flagged by moderation: ${mod.reason}` });
     }
-    const project = await updateProject(Number(req.params.id), req.user.id, req.body);
+    const project = await updateProject(req.params.id, req.user.id, req.body);
     res.json(project);
-    preScoreProject(Number(req.params.id)).catch(() => {});
   } catch (err) { next(err); }
 };
 
 // DELETE /api/projects/:id
 const remove = async (req, res, next) => {
   try {
-    await deleteProject(Number(req.params.id), req.user.id);
+    await deleteProject(req.params.id, req.user.id);
     res.json({ message: 'Project removed' });
-  } catch (err) { next(err); }
-};
-
-// GET /api/projects/:id/partners
-const listPartners = async (req, res, next) => {
-  try {
-    res.json(await getProjectPartners(Number(req.params.id)));
-  } catch (err) { next(err); }
-};
-
-// POST /api/projects/:id/partners  { partnerUserId, role? }
-const addPartner = async (req, res, next) => {
-  try {
-    const { partnerUserId, role } = req.body;
-    if (!partnerUserId) return res.status(400).json({ error: 'partnerUserId required' });
-    const result = await addProjectPartner(Number(req.params.id), req.user.id, Number(partnerUserId), role);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
-  } catch (err) { next(err); }
-};
-
-// PUT /api/projects/:id/partners/:userId/role  { role }
-const patchPartnerRole = async (req, res, next) => {
-  try {
-    const { role } = req.body;
-    if (!role || !role.trim()) return res.status(400).json({ error: 'role required' });
-    const result = await updatePartnerRole(Number(req.params.id), req.user.id, Number(req.params.userId), role);
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
-  } catch (err) { next(err); }
-};
-
-// DELETE /api/projects/:id/partners/:userId
-const removePartner = async (req, res, next) => {
-  try {
-    const result = await removeProjectPartner(Number(req.params.id), req.user.id, Number(req.params.userId));
-    if (result.error) return res.status(400).json({ error: result.error });
-    res.json(result);
-  } catch (err) { next(err); }
-};
-
-// GET /api/projects/joined — projects the current user is a partner on
-const joined = async (req, res, next) => {
-  try {
-    res.json(await getJoinedProjects(req.user.id));
-  } catch (err) { next(err); }
-};
-
-// GET /api/projects/owner/:userId — public project list for a user (for NDA/invite flows)
-const byOwner = async (req, res, next) => {
-  try {
-    res.json(await getProjectsByOwner(Number(req.params.userId)));
   } catch (err) { next(err); }
 };
 
 // POST /api/projects/:id/deck-review
 const reviewDeck = async (req, res, next) => {
   try {
-    const projectId = Number(req.params.id);
+    const projectId = req.params.id;
     const userId = req.user.id;
 
-    if (!process.env.ANTHROPIC_API_KEY) return res.status(503).json({ error: 'AI review not configured' });
+    if (!process.env.GEMINI_API_KEY) return res.status(503).json({ error: 'AI review not configured' });
 
-    const rows = await query('SELECT * FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
+    const rows = await query('SELECT * FROM projects WHERE id = $1 AND user_id = $2', [projectId, userId]);
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
     // Fetch deck from Cloudinary URL
     const deckUrl = rows[0].deck_url;
-    if (!deckUrl) return res.status(400).json({ error: 'Pitch deck not found. Please re-upload the PDF.' });
     const pdfRes = await fetch(deckUrl);
     if (!pdfRes.ok) return res.status(502).json({ error: 'Failed to fetch pitch deck from storage' });
     const base64 = Buffer.from(await pdfRes.arrayBuffer()).toString('base64');
 
-    const client = new Anthropic();
-    const response = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
-      max_tokens: 2048,
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: base64 } },
-          { type: 'text', text: `You are an experienced startup investor reviewing a pitch deck for investment readiness.
+    const model = getModel();
+    const result = await model.generateContent([
+      { inlineData: { mimeType: 'application/pdf', data: base64 } },
+      { text: `You are an experienced startup investor reviewing a pitch deck for investment readiness.
 
 Evaluate the document ONLY as a business pitch deck against these standard investor criteria:
 1. Problem statement — is a clear real-world problem defined?
@@ -253,11 +129,9 @@ If the document is NOT a business pitch deck (e.g. it is a spreadsheet, equation
 
 Respond ONLY with valid JSON, no markdown:
 {"strengths":["..."],"weaknesses":["..."],"suggestions":["..."],"overallScore":7}` },
-        ],
-      }],
-    });
+    ]);
 
-    const raw = response.content[0]?.text?.trim() || '{}';
+    const raw = result.response.text().trim();
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
     try {
       res.json(JSON.parse(cleaned));
@@ -270,14 +144,14 @@ Respond ONLY with valid JSON, no markdown:
 };
 
 // GET /api/projects/:id/deck — proxy from Cloudinary with correct Content-Type
-const jwt = require('jsonwebtoken');
 const serveDeck = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1] || req.query.token;
     if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    try { jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
+    const { data, error } = await supabase.auth.getUser(token);
+    if (error || !data?.user) return res.status(401).json({ error: 'Invalid token' });
 
-    const rows = await query('SELECT deck_url FROM projects WHERE id = ?', [Number(req.params.id)]);
+    const rows = await query('SELECT deck_url FROM projects WHERE id = $1', [req.params.id]);
     if (!rows[0]) return res.status(404).json({ error: 'Project not found' });
     const deckUrl = rows[0].deck_url;
     if (!deckUrl) return res.status(404).json({ error: 'No pitch deck uploaded' });
@@ -291,29 +165,4 @@ const serveDeck = async (req, res, next) => {
   } catch (err) { next(err); }
 };
 
-// GET /api/projects/:id/nda — serve signed NDA PDF from DB (signer or project owner)
-const serveNda = async (req, res, next) => {
-  try {
-    const token = req.headers.authorization?.split(' ')[1] || req.query.token;
-    if (!token) return res.status(401).json({ error: 'Unauthorized' });
-    let decoded;
-    try { decoded = jwt.verify(token, process.env.JWT_SECRET); } catch { return res.status(401).json({ error: 'Invalid token' }); }
-
-    const projectId = Number(req.params.id);
-    const userId = decoded.id;
-
-    let rows = await query('SELECT document_url FROM project_ndas WHERE project_id = ? AND user_id = ?', [projectId, userId]);
-
-    if (!rows[0]) {
-      const ownerCheck = await query('SELECT id FROM projects WHERE id = ? AND user_id = ?', [projectId, userId]);
-      if (!ownerCheck[0]) return res.status(403).json({ error: 'Not authorized' });
-      rows = await query('SELECT document_url FROM project_ndas WHERE project_id = ? LIMIT 1', [projectId]);
-    }
-
-    if (!rows[0]?.document_url) return res.status(404).json({ error: 'NDA not found' });
-
-    return res.redirect(rows[0].document_url);
-  } catch (err) { next(err); }
-};
-
-module.exports = { feed, matches, swipe, mine, joined, byOwner, getOne, create, update, remove, uploadDeck, uploadVideo, listPartners, addPartner, removePartner, patchPartnerRole, reviewDeck, serveDeck, serveNda };
+module.exports = { mine, getOne, create, update, remove, uploadDeck, uploadVideo, reviewDeck, serveDeck };
