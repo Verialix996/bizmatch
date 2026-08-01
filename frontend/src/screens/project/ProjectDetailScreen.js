@@ -8,7 +8,7 @@ import { VideoView, useVideoPlayer } from 'expo-video';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
-import { BACKEND_BASE_URL } from '../../config/constants';
+import { API_BASE_URL } from '../../config/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -16,7 +16,7 @@ const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', s
 
 function toAbsoluteUrl(url) {
   if (!url) return null;
-  return url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`;
+  return url.startsWith('http') ? url : `${API_BASE_URL}${url}`;
 }
 
 function toVideoUrl(url) {
@@ -47,7 +47,7 @@ export default function ProjectDetailScreen({ route, navigation }) {
 
   const openDeck = () => {
     const token = useAuthStore.getState().token;
-    WebBrowser.openBrowserAsync(`${BACKEND_BASE_URL}/api/projects/${project.id}/deck?token=${token}`);
+    WebBrowser.openBrowserAsync(`${API_BASE_URL}/projects/${project.id}/deck?token=${token}`);
   };
 
   const displayOwner = ownerName || project.owner_name;

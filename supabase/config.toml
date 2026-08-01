@@ -4,6 +4,27 @@
 # working directory name when running `supabase init`.
 project_id = "bizmatch-main"
 
+# Every function does its own JWT verification via _shared/auth.ts (it needs
+# the full public.users row, not just JWT claims — see supabase/functions/_shared/auth.ts),
+# so platform-level verification is redundant and would break the two
+# ?token=-in-query-string endpoints (profile/cv, projects/:id/deck).
+[functions.auth]
+verify_jwt = false
+[functions.users]
+verify_jwt = false
+[functions.profile]
+verify_jwt = false
+[functions.match]
+verify_jwt = false
+[functions.messages]
+verify_jwt = false
+[functions.projects]
+verify_jwt = false
+[functions.meetings]
+verify_jwt = false
+[functions.notifications]
+verify_jwt = false
+
 [api]
 enabled = true
 # Port to use for the API URL.

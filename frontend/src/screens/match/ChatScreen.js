@@ -16,9 +16,9 @@ import { getMyProjects } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
-import { BACKEND_BASE_URL } from '../../config/constants';
+import { API_BASE_URL } from '../../config/constants';
 
-const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
+const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${API_BASE_URL}${url}`);
 
 const toVideoUrl = url => {
   if (!url) return null;
@@ -607,7 +607,7 @@ export default function ChatScreen({ route, navigation }) {
                     style={styles.detailLinkBtn}
                     onPress={() => {
                       const token = useAuthStore.getState().token;
-                      Linking.openURL(`${BACKEND_BASE_URL}/api/projects/${detailProject.projectId}/deck?token=${token}`);
+                      Linking.openURL(`${API_BASE_URL}/projects/${detailProject.projectId}/deck?token=${token}`);
                     }}
                     activeOpacity={0.85}
                   >
