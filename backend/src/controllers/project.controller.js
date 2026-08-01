@@ -3,17 +3,18 @@ const {
 } = require('../models/project.model');
 const { query } = require('../config/db');
 const { uploadDeck: deckUpload, uploadVideo: videoUpload } = require('../middleware/upload');
+const { uploadBuffer, BUCKETS } = require('../config/storage');
 const { getModel } = require('../config/gemini');
 const { moderateText } = require('../services/moderation.service');
 const supabase = require('../config/supabase');
 
-// POST /api/projects/:id/upload-deck — uploads to Cloudinary, stores URL
+// POST /api/projects/:id/upload-deck — uploads to Supabase Storage, stores URL
 const uploadDeck = [
   deckUpload,
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const url = req.file.path; // Cloudinary secure URL
+      const url = await uploadBuffer(BUCKETS.deck, `${req.user.id}/${req.params.id}-${Date.now()}.pdf`, req.file.buffer, 'application/pdf');
       await query('UPDATE projects SET deck_url = $1 WHERE id = $2 AND user_id = $3', [url, req.params.id, req.user.id]);
       res.json({ deck_url: url });
     } catch (err) { next(err); }
@@ -26,9 +27,9 @@ const uploadVideo = [
   async (req, res, next) => {
     try {
       if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-      const fileUrl = req.file.path;
-      await query('UPDATE projects SET video_url = $1 WHERE id = $2 AND user_id = $3', [fileUrl, req.params.id, req.user.id]);
-      res.json({ video_url: fileUrl });
+      const url = await uploadBuffer(BUCKETS.video, `${req.user.id}/${req.params.id}-${Date.now()}.mp4`, req.file.buffer, req.file.mimetype || 'video/mp4');
+      await query('UPDATE projects SET video_url = $1 WHERE id = $2 AND user_id = $3', [url, req.params.id, req.user.id]);
+      res.json({ video_url: url });
     } catch (err) { next(err); }
   },
 ];
@@ -104,7 +105,7 @@ const reviewDeck = async (req, res, next) => {
     if (!rows[0]) return res.status(403).json({ error: 'Project not found or not yours' });
     if (!rows[0].deck_url) return res.status(400).json({ error: 'Upload a pitch deck first' });
 
-    // Fetch deck from Cloudinary URL
+    // Fetch deck from Supabase Storage URL
     const deckUrl = rows[0].deck_url;
     const pdfRes = await fetch(deckUrl);
     if (!pdfRes.ok) return res.status(502).json({ error: 'Failed to fetch pitch deck from storage' });
@@ -143,7 +144,7 @@ Respond ONLY with valid JSON, no markdown:
   }
 };
 
-// GET /api/projects/:id/deck — proxy from Cloudinary with correct Content-Type
+// GET /api/projects/:id/deck — proxy from Supabase Storage with correct Content-Type
 const serveDeck = async (req, res, next) => {
   try {
     const token = req.headers.authorization?.split(' ')[1] || req.query.token;

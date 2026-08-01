@@ -1,6 +1,6 @@
 const UserModel = require('../models/user.model');
 const logger = require('../utils/logger');
-const { cloudinary } = require('../config/cloudinary');
+const { uploadBuffer, BUCKETS } = require('../config/storage');
 const { query } = require('../config/db');
 const { moderateText } = require('../services/moderation.service');
 
@@ -78,20 +78,21 @@ async function setRole(req, res, next) {
   }
 }
 
-// POST /api/users/me/photo  — accepts base64 data URI, uploads to Cloudinary
+// POST /api/users/me/photo  — accepts base64 data URI, uploads to Supabase Storage
 async function uploadPhoto(req, res, next) {
   try {
     const { photo } = req.body;
     if (!photo) return res.status(400).json({ error: 'No image provided' });
 
-    const result = await cloudinary.uploader.upload(photo, {
-      folder: 'bizmatch/photos',
-      resource_type: 'image',
-      allowed_formats: ['jpg', 'jpeg', 'png'],
-    });
+    const match = /^data:(image\/(?:jpe?g|png));base64,(.+)$/.exec(photo);
+    if (!match) return res.status(400).json({ error: 'Image must be a base64 JPEG or PNG data URI' });
+    const [, mimeType, base64Data] = match;
+    const buffer = Buffer.from(base64Data, 'base64');
+    const ext = mimeType === 'image/png' ? 'png' : 'jpg';
 
-    await UserModel.updatePhoto(req.user.id, result.secure_url);
-    res.json({ photo_url: result.secure_url });
+    const url = await uploadBuffer(BUCKETS.photo, `${req.user.id}-${Date.now()}.${ext}`, buffer, mimeType);
+    await UserModel.updatePhoto(req.user.id, url);
+    res.json({ photo_url: url });
   } catch (err) {
     next(err);
   }

@@ -1,6 +1,7 @@
 const ProfileModel = require('../models/profile.model');
 const { query } = require('../config/db');
 const supabase = require('../config/supabase');
+const { uploadBuffer, BUCKETS } = require('../config/storage');
 const { moderateText } = require('../services/moderation.service');
 const { preScoreUser } = require('../models/match.model');
 
@@ -113,11 +114,11 @@ async function updateProfile(req, res, next) {
   }
 }
 
-// POST /api/profile/upload-cv  — uploads to Cloudinary, stores URL
+// POST /api/profile/upload-cv  — uploads to Supabase Storage, stores URL
 async function uploadCv(req, res, next) {
   try {
     if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
-    const url = req.file.path; // Cloudinary secure URL
+    const url = await uploadBuffer(BUCKETS.cv, `${req.user.id}-${Date.now()}.pdf`, req.file.buffer, 'application/pdf');
     await query('UPDATE users SET cv_url = $1 WHERE id = $2', [url, req.user.id]);
     res.json({ cv_url: url });
   } catch (err) {
@@ -125,7 +126,7 @@ async function uploadCv(req, res, next) {
   }
 }
 
-// GET /api/profile/cv — proxy from Cloudinary with correct Content-Type (fixes octet-stream delivery)
+// GET /api/profile/cv — proxy from Supabase Storage with correct Content-Type
 async function serveCv(req, res, next) {
   try {
     const token = req.headers.authorization?.split(' ')[1] || req.query.token;
