@@ -18,7 +18,13 @@ function omitPasswordHash(user: Record<string, unknown>) {
 async function getMe(req: Request): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
-  return json(omitPasswordHash(user));
+  // has_seen_onboarding lives on user_activity, not users — the frontend reads
+  // it off this response to decide whether to show the onboarding walkthrough.
+  const activityRows = await query<{ has_seen_onboarding: boolean }>(
+    "SELECT has_seen_onboarding FROM user_activity WHERE user_id = $1",
+    [user.id],
+  );
+  return json({ ...omitPasswordHash(user), has_seen_onboarding: activityRows[0]?.has_seen_onboarding ?? false });
 }
 
 // PATCH /functions/v1/users/me  { name }

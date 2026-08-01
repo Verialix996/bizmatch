@@ -319,7 +319,9 @@ export async function recordSwipe(swiperId: string, swipedId: string, direction:
     if (isSuperLike) {
       background((async () => {
         const rows = await query<{ name: string }>("SELECT name FROM users WHERE id = $1", [swiperId]);
-        await emitNotification(swipedId, "super_like", swiperId, { fromUserId: swiperId, name: rows[0]?.name || "Someone" });
+        // ref_id is a bigint column — pass matchId, not swiperId (a uuid), which
+        // silently fails the insert (caught in emitNotification's try/catch).
+        await emitNotification(swipedId, "super_like", matchId, { fromUserId: swiperId, matchId, name: rows[0]?.name || "Someone" });
       })());
     }
   }

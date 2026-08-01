@@ -13,12 +13,17 @@ async function precheckName(name) {
 
 export async function register({ name, email, password, role }) {
   await precheckName(name);
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: { data: { name, role } },
   });
   if (error) throw error;
+  // Supabase returns 200 with an empty identities array for an already-registered
+  // email instead of an error, to avoid leaking which emails are registered.
+  if (data?.user && data.user.identities?.length === 0) {
+    throw new Error('An account with this email already exists. Try signing in instead.');
+  }
 }
 
 export async function login({ email, password }) {
