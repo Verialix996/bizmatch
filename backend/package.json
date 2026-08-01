@@ -10,7 +10,6 @@
     "seed": "node scripts/seed.js"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.95.1",
     "@google/generative-ai": "^0.24.1",
     "@supabase/supabase-js": "^2.111.0",
     "cloudinary": "^1.41.3",
