@@ -9,6 +9,9 @@ const useAppStore = create((set) => ({
   pendingBanner: null,
   showBanner: (banner) => set({ pendingBanner: banner }),
   dismissBanner: () => set({ pendingBanner: null }),
+  pendingAlert: null,
+  showAlertModal: (alert) => set({ pendingAlert: alert }),
+  dismissAlertModal: () => set({ pendingAlert: null }),
   activeChatMatchId: null,
   setActiveChatMatchId: (id) => set({ activeChatMatchId: id }),
 

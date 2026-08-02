@@ -8,6 +8,7 @@ import useAppStore from '../store/appStore';
 import { colors, investorColors, investorThemeColors } from '../theme';
 import AppHeader from '../components/AppHeader';
 import InAppNotificationBanner from '../components/InAppNotificationBanner';
+import AlertModal from '../components/AlertModal';
 import { getConversations } from '../services/match.service';
 
 import WelcomeScreen        from '../screens/auth/WelcomeScreen';
@@ -171,6 +172,7 @@ export default function AppNavigator() {
       )}
     </Stack.Navigator>
     <InAppNotificationBanner />
+    <AlertModal />
     </View>
   );
 }
