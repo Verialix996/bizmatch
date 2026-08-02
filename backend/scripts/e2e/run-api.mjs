@@ -481,120 +481,93 @@ async function main() {
     assert(r.status === 404, `expected 404, got ${r.status}`);
   });
 
-  let testProject = null;
-  let noDeckProject = null;
   const pitchPdf = pitchDeckPdf();
-  if (MUTATING) {
-    await test("4.1", "entrepreneur creates a disposable test project", async () => {
-      const r = await call(sessions.Mia, "POST", "/projects", { title: `E2E Project ${Date.now()}`, description: "Temporary project created by the live E2E pass", stage: "idea", funding_needed: 123456, industry: "Testing", visibility: "public" });
-      assert(r.status === 201 && r.data?.id, `expected 201 project, got ${r.status}`);
-      testProject = r.data;
-    });
-    const nd = await call(sessions.Mia, "POST", "/projects", { title: `E2E No Deck ${Date.now()}`, description: "Temporary no-deck project", stage: "idea", visibility: "private" });
-    if (nd.status === 201) noDeckProject = nd.data;
-  } else skipped("4.1", "run with --mutating");
-  await test("4.2", "investor project creation is blocked", async () => {
-    const r = await call(sessions.Sarah, "POST", "/projects", { title: "Investor must not create" });
+  await test("4.2", "investor team creation is blocked", async () => {
+    const r = await call(sessions.Sarah, "POST", "/challenges/teams", { name: "Investor must not create" });
     assert(r.status === 403 && /Only entrepreneurs/i.test(r.data?.error || ""), `expected 403, got ${r.status}`);
   });
-  await test("4.3", "project title and description moderation reject writes", async () => {
-    const create = await call(sessions.Mia, "POST", "/projects", { title: "fuckboy", description: "blocked" });
-    assert(create.status === 400, `expected create 400, got ${create.status}`);
-    if (testProject) {
-      const update = await call(sessions.Mia, "PUT", `/projects/${testProject.id}`, { ...testProject, title: testProject.title, description: "fuckboy" });
-      assert(update.status === 400, `expected update 400, got ${update.status}`);
-    }
+  await test("4.4", "team name moderation rejects create", async () => {
+    const r = await call(sessions.Mia, "POST", "/challenges/teams", { name: "fuckboy" });
+    assert(r.status === 400, `expected 400, got ${r.status}`);
   });
-  if (testProject) {
-    await test("4.4", "project edit persists", async () => {
-      const r = await call(sessions.Mia, "PUT", `/projects/${testProject.id}`, { ...testProject, title: `${testProject.title} Edited`, visibility: "public" });
-      assert(r.status === 200 && r.data?.title?.endsWith("Edited"), `expected edited project, got ${r.status}`);
-      testProject = r.data;
-      const get = await call(sessions.Mia, "GET", `/projects/${testProject.id}`);
-      assert(get.data?.title === testProject.title, "edit did not persist");
+  const myTeams = await call(sessions.Alex, "GET", "/challenges/teams/mine");
+  const teamSyncSquad = myTeams.data?.find((t) => t.name === "TeamSync Squad") || myTeams.data?.[0];
+  await test("4.13", "non-member is blocked from reading a team", async () => {
+    assert(teamSyncSquad?.id, "existing team unavailable");
+    const r = await call(sessions.Marcus, "GET", `/challenges/teams/${teamSyncSquad.id}`);
+    assert(r.status === 403 && /Not a member/i.test(r.data?.error || ""), `expected 403, got ${r.status}`);
+  });
+  await test("4.7", "non-creator member cannot invite (star topology)", async () => {
+    assert(teamSyncSquad?.id, "existing team unavailable");
+    const r = await call(sessions.Mia, "POST", `/challenges/teams/${teamSyncSquad.id}/invite`, { userId: me.Marcus.id });
+    assert(r.status === 403 && /Only the team creator/i.test(r.data?.error || ""), `expected 403, got ${r.status}`);
+  });
+  await test("4.5", "inviting an unmatched user is blocked", async () => {
+    const r = await call(sessions.Alex, "POST", "/challenges/teams", { name: `E2E blocked-invite check ${Date.now()}` });
+    if (r.status !== 201) return skipped("4.5", `team create returned ${r.status}`);
+    const inv = await call(sessions.Alex, "POST", `/challenges/teams/${r.data.id}/invite`, { userId: me.Marcus.id });
+    assert(inv.status === 403 && /must have a match/i.test(inv.data?.error || ""), `expected 403, got ${inv.status}`);
+  });
+  await test("4.51", "non-numeric team id returns 404, not 500", async () => {
+    const r = await call(sessions.Sarah, "GET", "/challenges/teams/abc");
+    assert(r.status === 404, `expected 404, got ${r.status}`);
+  });
+  const myChallenges = await call(sessions.Sarah, "GET", "/challenges/challenges/mine");
+  await test("4.20", "entrepreneur challenge creation is blocked", async () => {
+    const r = await call(sessions.Alex, "POST", "/challenges/challenges", { title: "Entrepreneur must not create", submissionDeadline: new Date(Date.now() + 86_400_000).toISOString() });
+    assert(r.status === 403 && /Only investors/i.test(r.data?.error || ""), `expected 403, got ${r.status}`);
+  });
+  await test("4.21", "challenge creation requires title and deadline", async () => {
+    const r = await call(sessions.Sarah, "POST", "/challenges/challenges", { title: "" });
+    assert(r.status === 400, `expected 400, got ${r.status}`);
+  });
+  if (MUTATING) {
+    let openChallenge = null;
+    await test("4.19", "investor creates a hackathon challenge", async () => {
+      const r = await call(sessions.Sarah, "POST", "/challenges/challenges", { title: `E2E Hackathon ${Date.now()}`, description: "Temporary challenge created by the live E2E pass", submissionDeadline: new Date(Date.now() + 3_600_000).toISOString() });
+      assert(r.status === 201 && r.data?.id, `expected 201 challenge, got ${r.status}`);
+      openChallenge = r.data;
+      const mine = await call(sessions.Sarah, "GET", "/challenges/challenges/mine");
+      assert(mine.data?.some((c) => c.id === openChallenge.id), "created challenge missing from mine");
     });
-    await test("4.6", "private visibility persists and remains readable (display-only)", async () => {
-      const r = await call(sessions.Mia, "PUT", `/projects/${testProject.id}`, { ...testProject, visibility: "private" });
-      assert(r.status === 200 && r.data?.visibility === "private", `expected private, got ${r.status}`);
-      testProject = r.data;
-      const other = await call(sessions.Marcus, "GET", `/projects/${testProject.id}`);
-      assert(other.status === 200, `expected current display-only read behavior, got ${other.status}`);
-      return { visibility: "private", unmatchedReadStatus: other.status, note: "visibility is not enforced at read time" };
+    await test("4.24", "open challenges list includes the new hackathon", async () => {
+      const r = await call(sessions.Mia, "GET", "/challenges/challenges/open");
+      assert(r.status === 200 && r.data?.some((c) => c.id === openChallenge?.id), `expected new challenge in open list, got ${r.status}`);
     });
-    await test("4.13", "deck review without upload is rejected", async () => {
-      const r = await call(sessions.Mia, "POST", `/projects/${noDeckProject?.id || testProject.id}/deck-review`, undefined, { timeoutMs: 90_000 });
-      assert(r.status === 400 && /Upload a pitch deck first/i.test(r.data?.error || ""), `expected 400 no-deck, got ${r.status}`);
-    });
-    await test("4.7", "pitch deck PDF uploads under 20 MiB", async () => {
-      const r = await call(sessions.Mia, "POST", `/projects/${testProject.id}/upload-deck`, formFile("deck", pitchPdf, "e2e-pitch.pdf", "application/pdf"));
-      assert(r.status === 200 && r.data?.deck_url, `expected deck_url, got ${r.status}`);
-      testProject.deck_url = r.data.deck_url;
-    });
-    if (LARGE_UPLOADS) {
-      await test("4.8", "deck over 20 MiB is rejected", async () => {
-        const r = await call(sessions.Mia, "POST", `/projects/${testProject.id}/upload-deck`, formFile("deck", new Uint8Array(20 * 1024 * 1024 + 1), "oversize.pdf", "application/pdf"), { timeoutMs: 120_000 });
-        assert(r.status === 413, `expected 413, got ${r.status}`);
+    if (teamSyncSquad?.id && openChallenge?.id) {
+      let signupId = null;
+      await test("4.25", "cohesion-complete team can sign up for an open hackathon", async () => {
+        const r = await call(sessions.Alex, "POST", `/challenges/challenges/${openChallenge.id}/signup`, { teamId: teamSyncSquad.id });
+        assert([200, 201].includes(r.status), `expected signup success, got ${r.status}: ${JSON.stringify(r.data)}`);
+        signupId = r.data?.id;
       });
-    } else skipped("4.8", "run with --large-uploads");
-    await test("4.9", "small demo video uploads", async () => {
-      const r = await call(sessions.Mia, "POST", `/projects/${testProject.id}/upload-video`, formFile("video", Buffer.from("e2e-video-fixture"), "e2e.mp4", "video/mp4"));
-      assert(r.status === 200 && r.data?.video_url, `expected video_url, got ${r.status}`);
-      testProject.video_url = r.data.video_url;
-    });
-    if (LARGE_UPLOADS) {
-      await test("4.10", "video over 100 MiB is rejected once without retry", async () => {
-        const r = await call(sessions.Mia, "POST", `/projects/${testProject.id}/upload-video`, formFile("video", new Uint8Array(100 * 1024 * 1024 + 1), "oversize.mp4", "video/mp4"), { timeoutMs: 180_000 });
-        assert(r.status === 413, `expected 413 (app or platform), got ${r.status}`);
-        return { layer: /json/i.test(r.headers.get("content-type") || "") ? "application" : "platform", ...lastExchange };
-      });
-    } else skipped("4.10", "run with --large-uploads");
-    await test("4.11", "matched viewer streams deck via token query", async () => {
-      const r = await request("GET project deck by query token", `${API}/projects/${testProject.id}/deck?token=${encodeURIComponent(sessions.Marcus.access_token)}`);
-      assert(r.status === 200 && /^application\/pdf/i.test(r.headers.get("content-type") || ""), `expected 200 PDF, got ${r.status}`);
-    });
-    await test("4.12", "AI deck review returns documented shape", async () => {
-      const r = await call(sessions.Mia, "POST", `/projects/${testProject.id}/deck-review`, undefined, { timeoutMs: 120_000 });
-      assert(r.status === 200, `expected 200, got ${r.status}`);
-      assert(Array.isArray(r.data?.strengths) && Array.isArray(r.data?.weaknesses) && Array.isArray(r.data?.suggestions), "missing review arrays");
-      assert(Number.isFinite(r.data?.overallScore) && r.data.overallScore >= 2 && r.data.overallScore <= 10, `score out of range: ${r.data?.overallScore}`);
-    });
-    await test("4.14", "unrelated PDF is classified with score 1", async () => {
-      const unrelated = tinyPdf("A random grocery list: apples bread milk. This is not a company presentation.");
-      const up = await call(sessions.Mia, "POST", `/projects/${testProject.id}/upload-deck`, formFile("deck", unrelated, "unrelated.pdf", "application/pdf"));
-      assert(up.status === 200, `upload failed ${up.status}`);
-      const r = await call(sessions.Mia, "POST", `/projects/${testProject.id}/deck-review`, undefined, { timeoutMs: 120_000 });
-      assert(r.status === 200 && r.data?.overallScore === 1, `expected score 1, got ${r.status}/${r.data?.overallScore}`);
+      if (signupId) {
+        await test("4.28", "pitch deck PDF uploads to a challenge signup", async () => {
+          const r = await call(sessions.Alex, "POST", `/challenges/signups/${signupId}/upload-deck`, formFile("deck", pitchPdf, "e2e-pitch.pdf", "application/pdf"));
+          assert(r.status === 200 && r.data?.deck_url, `expected deck_url, got ${r.status}`);
+        });
+        await test("4.31", "submit without a video is rejected", async () => {
+          const r = await call(sessions.Alex, "POST", `/challenges/signups/${signupId}/submit`, { description: "E2E entry description" });
+          assert(r.status === 400 && /deck and demo video/i.test(r.data?.error || ""), `expected 400, got ${r.status}`);
+        });
+      } else skipped("4.28", "signup did not return an id");
+    } else skipped("4.25", "requires an existing cohesion-complete team");
+    await test("4.36", "select winner before deadline is rejected", async () => {
+      const r = await call(sessions.Sarah, "POST", `/challenges/challenges/${openChallenge.id}/select-winner`, { teamId: teamSyncSquad?.id ?? "1" });
+      assert(r.status === 400 && /Deadline hasn't passed/i.test(r.data?.error || ""), `expected 400, got ${r.status}`);
     });
   } else {
-    for (const id of ["4.4", "4.5", "4.6", "4.7", "4.8", "4.9", "4.10", "4.11", "4.12", "4.13", "4.14"]) skipped(id, "requires --mutating test project");
+    for (const id of ["4.19", "4.24", "4.25", "4.36"]) skipped(id, "run with --mutating");
   }
-  blocked("4.15", "requires backend redeploy with GEMINI_API_KEY missing");
-  await test("4.16", "nonexistent numeric project id returns 404", async () => {
-    const r = await call(sessions.Sarah, "GET", "/projects/999999999");
-    assert(r.status === 404, `expected 404, got ${r.status}`);
-  });
-  await test("4.17", "non-numeric project id returns 404, not 500", async () => {
-    const r = await call(sessions.Sarah, "GET", "/projects/abc");
-    assert(r.status === 404, `expected 404, got ${r.status}`);
-  });
-  await test("4.18", "cross-user edit and delete affect no owner row", async () => {
-    const alexProjects = await call(sessions.Alex, "GET", "/projects/mine");
-    const teamSync = alexProjects.data?.find((p) => p.title === "TeamSync") || alexProjects.data?.[0];
-    assert(teamSync?.id, "TeamSync project unavailable");
-    const edit = await call(sessions.Mia, "PUT", `/projects/${teamSync.id}`, { ...teamSync, title: "Unauthorized edit" });
-    assert(edit.status === 200 && edit.data === null, `cross-edit unexpectedly changed row: ${JSON.stringify(edit.data)}`);
-    const del = await call(sessions.Mia, "DELETE", `/projects/${teamSync.id}`);
-    assert(del.status === 200, `cross-delete endpoint failed ${del.status}`);
-    const verify = await call(sessions.Alex, "GET", `/projects/${teamSync.id}`);
-    assert(verify.status === 200 && verify.data?.is_active === true && verify.data?.title === teamSync.title, "owner project was changed by cross-user operation");
+  await test("4.18", "signup without cohesion completion is gated", async () => {
+    const fresh = await call(sessions.Mia, "POST", "/challenges/teams", { name: `E2E gate-check ${Date.now()}` });
+    if (fresh.status !== 201 || !myChallenges.data?.[0]?.id) return skipped("4.18", "requires a fresh team and an existing challenge");
+    const r = await call(sessions.Mia, "POST", `/challenges/challenges/${myChallenges.data[0].id}/signup`, { teamId: fresh.data.id });
+    assert(r.status === 403 && /cohesion challenge first/i.test(r.data?.error || ""), `expected 403, got ${r.status}`);
   });
 
   const sarahMatches = await call(sessions.Sarah, "GET", "/match/matches");
   const sarahAlex = findMatch(sarahMatches.data, me.Alex.id);
-  const alexProjects = await call(sessions.Alex, "GET", "/projects/mine");
-  const miaProjects = await call(sessions.Mia, "GET", "/projects/mine");
-  const teamSync = alexProjects.data?.find((p) => p.title === "TeamSync") || alexProjects.data?.[0];
-  const cashBridge = miaProjects.data?.find((p) => p.title === "CashBridge") || miaProjects.data?.[0];
   await test("5.1", "conversation list includes Sarah–Alex with preview", async () => {
     const r = await call(sessions.Sarah, "GET", "/messages");
     const c = r.data?.find((x) => x.userId === me.Alex.id);
@@ -634,20 +607,7 @@ async function main() {
     });
   } else skipped("5.6", "requires mutating send in 5.3");
   blocked("5.7", "premium read-receipt distinction is UI-only; API correctly exposes read_at to both roles");
-  if (MUTATING) {
-    await test("5.8", "owner shares TeamSync with full project metadata", async () => {
-      assert(teamSync?.id, "TeamSync unavailable");
-      const r = await call(sessions.Alex, "POST", `/messages/${sarahAlex.matchId}/share-project`, { projectId: teamSync.id });
-      const metadata = typeof r.data?.metadata === "string" ? JSON.parse(r.data.metadata) : r.data?.metadata;
-      assert(r.status === 201 && r.data?.message_type === "project_shared" && metadata?.title === teamSync.title, `expected project card message, got ${r.status}`);
-    });
-  } else skipped("5.8", "run with --mutating");
-  await test("5.9", "sharing another user's project is blocked", async () => {
-    assert(cashBridge?.id, "CashBridge unavailable");
-    const r = await call(sessions.Alex, "POST", `/messages/${sarahAlex.matchId}/share-project`, { projectId: cashBridge.id });
-    assert(r.status === 403 && /not yours/i.test(r.data?.error || ""), `expected 403, got ${r.status}`);
-  });
-  await test("5.10", "after parameter returns only higher ids in ascending order", async () => {
+  await test("5.8", "after parameter returns only higher ids in ascending order", async () => {
     const all = await call(sessions.Sarah, "GET", `/messages/${sarahAlex.matchId}`);
     assert(all.data?.length >= 2, "not enough messages for after test");
     const pivot = all.data[Math.max(0, all.data.length - 2)].id;
@@ -655,7 +615,7 @@ async function main() {
     assert(r.status === 200 && r.data.every((m) => m.id > pivot), "after returned an old message");
     assert(r.data.every((m, i, a) => i === 0 || a[i - 1].id < m.id), "after result not ascending");
   });
-  blocked("5.11", "requires two concurrent browser sessions and a timed polling observation");
+  blocked("5.9", "requires two concurrent browser sessions and a timed polling observation");
 
   const marcusMatches = await call(sessions.Marcus, "GET", "/match/matches");
   const marcusMia = findMatch(marcusMatches.data, me.Mia.id);
@@ -884,8 +844,8 @@ async function main() {
     const probes = [
       ["auth", "POST", "/auth/precheck-name", { name: "Reachability Probe" }],
       ["users", "GET", "/users/me"], ["profile", "GET", "/profile"], ["match", "GET", "/match/feed"],
-      ["messages", "GET", "/messages"], ["projects", "GET", "/projects/mine"], ["meetings", "GET", "/meetings"],
-      ["notifications", "GET", "/notifications"],
+      ["messages", "GET", "/messages"], ["meetings", "GET", "/meetings"],
+      ["notifications", "GET", "/notifications"], ["challenges", "GET", "/challenges/teams/mine"],
     ];
     const observed = [];
     for (const [name, method, route, body] of probes) {
@@ -910,18 +870,6 @@ async function main() {
     return { updateElapsedMs: update.elapsedMs, feedCount: feed.data.length, populatedAiScores: feed.data.filter((c) => c.aiScore != null).length };
   });
   blocked("11.10", "requires DB access/admin activity view; no end-user endpoint exposes last_active_at");
-
-  if (testProject) {
-    await test("4.5", "soft-delete hides project from mine but direct GET still returns inactive row", async () => {
-      const del = await call(sessions.Mia, "DELETE", `/projects/${testProject.id}`);
-      assert(del.status === 200, `delete failed ${del.status}`);
-      const mine = await call(sessions.Mia, "GET", "/projects/mine");
-      assert(!mine.data.some((p) => p.id === testProject.id), "soft-deleted project remains in mine");
-      const direct = await call(sessions.Mia, "GET", `/projects/${testProject.id}`);
-      assert(direct.status === 200 && direct.data?.is_active === false, `direct GET expected inactive row, got ${direct.status}`);
-    });
-  }
-  if (noDeckProject) await call(sessions.Mia, "DELETE", `/projects/${noDeckProject.id}`);
 
   if (AUTH_RATE_LIMIT) {
     await test("1.15", "precheck-name stops at first 429 after the fixed-window allowance", async () => {

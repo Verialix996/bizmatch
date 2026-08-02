@@ -24,7 +24,7 @@ export default function RegisterScreen({ navigation }) {
       await register(data);
       navigation.navigate('VerifyOtp', { email: data.email });
     } catch (err) {
-      setError(err.response?.data?.error || 'Registration failed. Please try again.');
+      setError(err.response?.data?.error || err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
