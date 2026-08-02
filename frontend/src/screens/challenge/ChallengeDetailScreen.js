@@ -25,7 +25,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
   const [challenge, setChallenge] = useState(null);
   const [signups, setSignups] = useState([]);
   const [mySignup, setMySignup] = useState(null);
-  const [myTeam, setMyTeam] = useState(null);
+  const [myTeams, setMyTeams] = useState([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -39,7 +39,7 @@ export default function ChallengeDetailScreen({ route, navigation }) {
       } else {
         const [mineRes, teamsRes] = await Promise.all([getSignupsMine(), getMyTeams()]);
         setMySignup((mineRes.data || []).find(s => String(s.challenge_id) === String(challengeId)) || null);
-        setMyTeam(teamsRes.data?.[0] || null);
+        setMyTeams(teamsRes.data || []);
       }
     } catch (e) {
       console.error('Failed to load challenge', e);
@@ -50,10 +50,9 @@ export default function ChallengeDetailScreen({ route, navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const handleSignup = async () => {
-    if (!myTeam) return showAlert('No team', 'Form a team first from the Challenges tab.');
+  const handleSignup = async (teamId) => {
     try {
-      await signupTeam(challengeId, myTeam.id);
+      await signupTeam(challengeId, teamId);
       load();
     } catch (e) {
       showAlert('Could not sign up', e.response?.data?.error || 'Try again.');
@@ -149,9 +148,17 @@ export default function ChallengeDetailScreen({ route, navigation }) {
           <View style={styles.section}>
             <Text style={styles.sectionLabel}>YOUR TEAM'S STATUS</Text>
             {!mySignup ? (
-              <TouchableOpacity style={styles.smallBtn} onPress={handleSignup}>
-                <Text style={styles.smallBtnText}>Sign Up</Text>
-              </TouchableOpacity>
+              myTeams.length === 0 ? (
+                <Text style={styles.bodyText}>Form a team first from the Challenges tab.</Text>
+              ) : (
+                myTeams.map(t => (
+                  <TouchableOpacity key={t.id} style={[styles.smallBtn, { marginTop: 8 }]} onPress={() => handleSignup(t.id)}>
+                    <Text style={styles.smallBtnText}>
+                      {myTeams.length > 1 ? `Sign Up with ${t.name}` : 'Sign Up'}
+                    </Text>
+                  </TouchableOpacity>
+                ))
+              )
             ) : mySignup.status !== 'submitted' ? (
               <TouchableOpacity
                 style={styles.smallBtn}
@@ -162,10 +169,10 @@ export default function ChallengeDetailScreen({ route, navigation }) {
             ) : (
               <>
                 <Text style={styles.bodyText}>Submitted ✓</Text>
-                {challenge.status === 'winner_selected' && String(challenge.winning_team_id) === String(myTeam?.id) ? (
+                {challenge.status === 'winner_selected' && String(challenge.winning_team_id) === String(mySignup.team_id) ? (
                   <TouchableOpacity
                     style={[styles.smallBtn, { marginTop: 12 }]}
-                    onPress={() => navigation.navigate('OfferNegotiation', { challengeId, teamId: myTeam.id })}
+                    onPress={() => navigation.navigate('OfferNegotiation', { challengeId, teamId: mySignup.team_id })}
                   >
                     <Text style={styles.smallBtnText}>🎉 View Investment Offer</Text>
                   </TouchableOpacity>

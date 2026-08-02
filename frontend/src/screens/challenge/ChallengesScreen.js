@@ -39,15 +39,14 @@ export default function ChallengesScreen() {
 function EntrepreneurChallenges({ C, styles, darkMode }) {
   const navigation = useNavigation();
   const [loading, setLoading] = useState(true);
-  const [team, setTeam] = useState(null);
+  const [teams, setTeams] = useState([]);
   const [invites, setInvites] = useState([]);
   const [matches, setMatches] = useState([]);
   const [openChallenges, setOpenChallenges] = useState([]);
   const [mySignups, setMySignups] = useState([]);
   const [showTeamForm, setShowTeamForm] = useState(false);
-  const [showInvitePicker, setShowInvitePicker] = useState(false);
-  const [cohesionResponse, setCohesionResponse] = useState('');
-  const [submittingCohesion, setSubmittingCohesion] = useState(false);
+  const [inviteTeamId, setInviteTeamId] = useState(null);
+  const [signupPicker, setSignupPicker] = useState(null); // challengeId while choosing which team to sign up with
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -55,7 +54,7 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
       const [teamsRes, invitesRes, matchesRes, openRes, signupsRes] = await Promise.all([
         getMyTeams(), getMyPendingInvites(), getMatches(), getOpenChallenges(), getSignupsMine(),
       ]);
-      setTeam(teamsRes.data?.[0] || null);
+      setTeams(teamsRes.data || []);
       setInvites(invitesRes.data || []);
       setMatches(matchesRes.data || []);
       setOpenChallenges(openRes.data || []);
@@ -69,9 +68,9 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const cohesionSignup = mySignups.find(s => s.challenge_type === 'cohesion_test');
-  const cohesionDone = cohesionSignup?.status === 'submitted';
-  const acceptedCount = team?.members?.filter(m => m.status === 'accepted').length || 0;
+  const cohesionSignupFor = (teamId) => mySignups.find(s => s.challenge_type === 'cohesion_test' && String(s.team_id) === String(teamId));
+  const acceptedCountFor = (team) => team.members?.filter(m => m.status === 'accepted').length || 0;
+  const cohesionDoneFor = (teamId) => cohesionSignupFor(teamId)?.status === 'submitted';
 
   const handleCreateTeam = async (data) => {
     await createTeam(data);
@@ -81,8 +80,8 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
 
   const handleInvite = async (userId) => {
     try {
-      await inviteToTeam(team.id, userId);
-      setShowInvitePicker(false);
+      await inviteToTeam(inviteTeamId, userId);
+      setInviteTeamId(null);
       showAlert('Invite Sent', 'They’ll see it as a pending invite.');
       load();
     } catch (e) {
@@ -95,29 +94,36 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
     load();
   };
 
-  const handleSubmitCohesion = async () => {
-    if (!cohesionResponse.trim()) return;
-    setSubmittingCohesion(true);
+  const handleSubmitCohesion = async (teamId, response) => {
+    const signup = cohesionSignupFor(teamId);
+    if (!signup || !response.trim()) return;
     try {
-      await submitEntry(cohesionSignup.id, cohesionResponse.trim());
-      await getSubmissionAiReview(cohesionSignup.id);
+      await submitEntry(signup.id, response.trim());
+      await getSubmissionAiReview(signup.id);
       load();
     } catch (e) {
       showAlert('Error', e.response?.data?.error || 'Could not submit.');
-    } finally {
-      setSubmittingCohesion(false);
     }
   };
 
-  const handleSignup = async (challengeId) => {
-    if (!team) return showAlert('Form a team first', 'You need a team before applying.');
+  const doSignup = async (challengeId, teamId) => {
     try {
-      await signupTeam(challengeId, team.id);
+      await signupTeam(challengeId, teamId);
+      setSignupPicker(null);
       showAlert('Signed up!', 'Head to My Applications to submit your entry.');
       load();
     } catch (e) {
       showAlert('Could not sign up', e.response?.data?.error || 'Try again.');
     }
+  };
+
+  const handleSignup = (challengeId) => {
+    if (teams.length === 0) return showAlert('Form a team first', 'You need a team before applying.');
+    if (teams.length === 1) return doSignup(challengeId, teams[0].id);
+    const eligible = teams.filter(t => cohesionDoneFor(t.id));
+    if (eligible.length === 0) return showAlert('Complete cohesion first', 'None of your teams have completed their cohesion challenge yet.');
+    if (eligible.length === 1) return doSignup(challengeId, eligible[0].id);
+    setSignupPicker(challengeId);
   };
 
   if (loading) {
@@ -128,7 +134,8 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
     );
   }
 
-  const gateActive = !!team && acceptedCount >= 2 && !cohesionDone;
+  const anyGatedTeam = teams.find(t => acceptedCountFor(t) >= 2 && !cohesionDoneFor(t.id));
+  const gateActive = !!anyGatedTeam && teams.every(t => acceptedCountFor(t) < 2 || !cohesionDoneFor(t.id));
 
   return (
     <SafeAreaView style={styles.container}>
@@ -162,8 +169,8 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>My Team</Text>
-          {!team ? (
+          <Text style={styles.sectionTitle}>My Teams</Text>
+          {teams.length === 0 ? (
             <View style={styles.card}>
               <Text style={styles.cardDesc}>Form a team with someone you've matched with to start competing in challenges.</Text>
               <TouchableOpacity style={[styles.saveBtn, { marginTop: 12 }]} onPress={() => setShowTeamForm(true)}>
@@ -171,66 +178,48 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
               </TouchableOpacity>
             </View>
           ) : (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>{team.name}</Text>
-              {team.members?.map(m => (
-                <Text key={m.user_id} style={styles.cardDesc}>
-                  {m.name} — {m.status}
-                </Text>
+            <>
+              {teams.map(t => (
+                <View key={t.id} style={styles.card}>
+                  <Text style={styles.cardTitle}>{t.name}</Text>
+                  {t.members?.map(m => (
+                    <Text key={m.user_id} style={styles.cardDesc}>
+                      {m.name} — {m.status}
+                    </Text>
+                  ))}
+                  <TouchableOpacity style={[styles.uploadBtn, { marginTop: 10 }]} onPress={() => setInviteTeamId(t.id)}>
+                    <Text style={styles.uploadBtnText}>+ Invite a match</Text>
+                  </TouchableOpacity>
+                </View>
               ))}
-              <TouchableOpacity style={[styles.uploadBtn, { marginTop: 10 }]} onPress={() => setShowInvitePicker(true)}>
-                <Text style={styles.uploadBtnText}>+ Invite a match</Text>
+              <TouchableOpacity style={[styles.uploadBtn, { marginHorizontal: 16, marginBottom: 12 }]} onPress={() => setShowTeamForm(true)}>
+                <Text style={styles.uploadBtnText}>+ Create another team</Text>
               </TouchableOpacity>
-            </View>
+            </>
           )}
         </View>
 
-        {team && acceptedCount >= 2 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Team Cohesion Challenge</Text>
-            <View style={styles.card}>
-              {!cohesionSignup ? (
-                <Text style={styles.cardDesc}>Generating your team's cohesion exercise…</Text>
-              ) : (
-                <>
-                  <Text style={styles.cardDesc}>{cohesionSignup.challenge_type === 'cohesion_test' ? undefined : null}</Text>
-                  {!cohesionDone ? (
-                    <>
-                      <Text style={styles.fieldLabel}>YOUR RESPONSE</Text>
-                      <TextInput
-                        style={[styles.input, styles.inputMultiline]}
-                        multiline
-                        value={cohesionResponse}
-                        onChangeText={setCohesionResponse}
-                        placeholder="Write how your team would tackle this..."
-                        placeholderTextColor={C.textHint}
-                      />
-                      <TouchableOpacity style={[styles.saveBtn, { marginTop: 12 }]} onPress={handleSubmitCohesion} disabled={submittingCohesion}>
-                        {submittingCohesion ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Submit Response</Text>}
-                      </TouchableOpacity>
-                    </>
-                  ) : (
-                    <>
-                      <Text style={styles.metaChipText}>✓ Completed</Text>
-                      {cohesionSignup.ai_review?.feedback ? (
-                        <>
-                          <Text style={[styles.cardDesc, { marginTop: 8 }]}>{cohesionSignup.ai_review.feedback}</Text>
-                          <Text style={styles.deckFeedbackScore}>Cohesion Score: {cohesionSignup.ai_review.cohesionScore}/100</Text>
-                        </>
-                      ) : null}
-                    </>
-                  )}
-                </>
-              )}
-            </View>
+        {teams.filter(t => acceptedCountFor(t) >= 2).map(t => (
+          <View key={t.id} style={styles.section}>
+            <Text style={styles.sectionTitle}>{teams.length > 1 ? `${t.name} — Cohesion Challenge` : 'Team Cohesion Challenge'}</Text>
+            <CohesionCard
+              signup={cohesionSignupFor(t.id)}
+              onSubmit={(response) => handleSubmitCohesion(t.id, response)}
+              styles={styles}
+              C={C}
+            />
           </View>
-        )}
+        ))}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Open Challenges</Text>
           {gateActive && (
             <View style={styles.bannerWarning}>
-              <Text style={styles.bannerWarningText}>Complete your team cohesion challenge before applying to hackathons.</Text>
+              <Text style={styles.bannerWarningText}>
+                {teams.length > 1
+                  ? `Complete ${anyGatedTeam.name}'s cohesion challenge before applying to hackathons.`
+                  : 'Complete your team cohesion challenge before applying to hackathons.'}
+              </Text>
             </View>
           )}
           {openChallenges.length === 0 ? (
@@ -277,7 +266,7 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
         </SafeAreaView>
       </Modal>
 
-      <Modal visible={showInvitePicker} transparent animationType="fade">
+      <Modal visible={!!inviteTeamId} transparent animationType="fade">
         <View style={styles.deleteOverlay}>
           <View style={styles.deleteModal}>
             <Text style={styles.deleteModalTitle}>Invite a Match</Text>
@@ -290,13 +279,80 @@ function EntrepreneurChallenges({ C, styles, darkMode }) {
                 </TouchableOpacity>
               ))}
             </ScrollView>
-            <TouchableOpacity style={styles.deleteBtnCancel} onPress={() => setShowInvitePicker(false)}>
+            <TouchableOpacity style={styles.deleteBtnCancel} onPress={() => setInviteTeamId(null)}>
+              <Text style={styles.deleteBtnCancelText}>Close</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal visible={!!signupPicker} transparent animationType="fade">
+        <View style={styles.deleteOverlay}>
+          <View style={styles.deleteModal}>
+            <Text style={styles.deleteModalTitle}>Sign Up With Which Team?</Text>
+            <ScrollView style={{ maxHeight: 300 }}>
+              {teams.filter(t => cohesionDoneFor(t.id)).map(t => (
+                <TouchableOpacity key={t.id} style={styles.card} onPress={() => doSignup(signupPicker, t.id)}>
+                  <Text style={styles.cardTitle}>{t.name}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+            <TouchableOpacity style={styles.deleteBtnCancel} onPress={() => setSignupPicker(null)}>
               <Text style={styles.deleteBtnCancelText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
     </SafeAreaView>
+  );
+}
+
+function CohesionCard({ signup, onSubmit, styles, C }) {
+  const [response, setResponse] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const done = signup?.status === 'submitted';
+
+  const submit = async () => {
+    if (!response.trim()) return;
+    setSubmitting(true);
+    try {
+      await onSubmit(response.trim());
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <View style={styles.card}>
+      {!signup ? (
+        <Text style={styles.cardDesc}>Generating your team's cohesion exercise…</Text>
+      ) : !done ? (
+        <>
+          <Text style={styles.fieldLabel}>YOUR RESPONSE</Text>
+          <TextInput
+            style={[styles.input, styles.inputMultiline]}
+            multiline
+            value={response}
+            onChangeText={setResponse}
+            placeholder="Write how your team would tackle this..."
+            placeholderTextColor={C.textHint}
+          />
+          <TouchableOpacity style={[styles.saveBtn, { marginTop: 12 }]} onPress={submit} disabled={submitting}>
+            {submitting ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.saveBtnText}>Submit Response</Text>}
+          </TouchableOpacity>
+        </>
+      ) : (
+        <>
+          <Text style={styles.metaChipText}>✓ Completed</Text>
+          {signup.ai_review?.feedback ? (
+            <>
+              <Text style={[styles.cardDesc, { marginTop: 8 }]}>{signup.ai_review.feedback}</Text>
+              <Text style={styles.deckFeedbackScore}>Cohesion Score: {signup.ai_review.cohesionScore}/100</Text>
+            </>
+          ) : null}
+        </>
+      )}
+    </View>
   );
 }
 
