@@ -14,6 +14,9 @@ const useAppStore = create((set) => ({
   dismissBanner: () => set({ pendingBanner: null }),
   activeChatMatchId: null,
   setActiveChatMatchId: (id) => set({ activeChatMatchId: id }),
+  pendingAlert: null,
+  showAlertModal: (alert) => set({ pendingAlert: alert }),
+  dismissAlertModal: () => set({ pendingAlert: null }),
 
   enterInvestorMode: (project) => set({ investorMode: true, selectedProject: project, showProjectPicker: false }),
   exitInvestorMode: () => set({ investorMode: false, selectedProject: null }),

@@ -8,6 +8,7 @@ import useAppStore from '../store/appStore';
 import { colors, investorColors, investorSwipeColors, investorThemeColors } from '../theme';
 import AppHeader from '../components/AppHeader';
 import InAppNotificationBanner from '../components/InAppNotificationBanner';
+import AlertModal from '../components/AlertModal';
 import { getConversations } from '../services/match.service';
 
 import WelcomeScreen        from '../screens/auth/WelcomeScreen';
@@ -16,7 +17,6 @@ import RegisterScreen       from '../screens/auth/RegisterScreen';
 import VerifyOtpScreen      from '../screens/auth/VerifyOtpScreen';
 import ForgotPasswordScreen  from '../screens/auth/ForgotPasswordScreen';
 import ResetPasswordScreen  from '../screens/auth/ResetPasswordScreen';
-import Verify2FAScreen      from '../screens/auth/Verify2FAScreen';
 import SwipeScreen          from '../screens/match/SwipeScreen';
 import MatchesScreen        from '../screens/match/MatchesScreen';
 import ChatScreen           from '../screens/match/ChatScreen';
@@ -134,7 +134,6 @@ export default function AppNavigator() {
           <Stack.Screen name="VerifyOtp"     component={VerifyOtpScreen} />
           <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
           <Stack.Screen name="ResetPassword"  component={ResetPasswordScreen} />
-          <Stack.Screen name="Verify2FA"      component={Verify2FAScreen} />
         </>
       ) : (!user?.role || user?.has_profile === false) ? (
         // No profile yet — EditProfile is first so it renders immediately, no flash
@@ -171,6 +170,7 @@ export default function AppNavigator() {
       )}
     </Stack.Navigator>
     <InAppNotificationBanner />
+    <AlertModal />
     </View>
   );
 }

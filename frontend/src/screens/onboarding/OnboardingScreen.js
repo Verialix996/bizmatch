@@ -21,8 +21,8 @@ const SLIDES = [
   {
     key: '3',
     emoji: '💬',
-    title: 'Chat & NDAs',
-    subtitle: 'Message your matches, share your project, and sign NDAs to protect your ideas.',
+    title: 'Chat',
+    subtitle: 'Message your matches and share your project details directly in the conversation.',
   },
   {
     key: '4',
@@ -37,9 +37,12 @@ export default function OnboardingScreen({ navigation }) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const setHasSeenOnboarding = useAuthStore(s => s.setHasSeenOnboarding);
 
-  const finish = () => {
+  const finish = async () => {
     setHasSeenOnboarding();
-    api.patch('/users/me/onboarding').catch(() => {});
+    // Awaited (not fire-and-forget) so the flag is durably persisted before
+    // navigating — a fresh login elsewhere re-fetches this from the server,
+    // and a shown-once-ever screen can afford one awaited request.
+    await api.patch('/users/me/onboarding').catch(() => {});
     navigation.reset({ index: 0, routes: [{ name: 'Main' }] });
   };
 

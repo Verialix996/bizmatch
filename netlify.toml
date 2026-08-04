@@ -13,6 +13,10 @@
 # Secret values (EXPO_TOKEN etc.) must be set in the Netlify dashboard.
 [build.environment]
   NODE_VERSION = "20"
+  # Supabase URL + publishable key are safe in client bundles (not secrets) —
+  # required at build time since Expo inlines EXPO_PUBLIC_* vars statically.
+  EXPO_PUBLIC_SUPABASE_URL = "https://luuhaczovcphtqvvwvkv.supabase.co"
+  EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_I6ryHJO7wrcx1If8Cf9xgw_GylgPhln"
 
 # ─── SPA routing ─────────────────────────────────────────────────────────────
 # All paths fall back to index.html so React Navigation handles routing.

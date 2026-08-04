@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { View, ActivityIndicator, Linking } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { NavigationContainer, createNavigationContainerRef } from '@react-navigation/native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import * as Device from 'expo-device';
@@ -26,23 +26,6 @@ setNotificationHandler({
 
 export const navigationRef = createNavigationContainerRef();
 
-function parseOAuthUrl(url) {
-  if (!url || !url.startsWith('bizmatch://auth')) return null;
-  const qs = url.split('?')[1] || '';
-  // Manual parsing instead of URLSearchParams: RN's polyfill lacks entries iteration
-  const params = {};
-  for (const pair of qs.split('&')) {
-    if (!pair) continue;
-    const idx = pair.indexOf('=');
-    const k = idx === -1 ? pair : pair.slice(0, idx);
-    const v = idx === -1 ? '' : pair.slice(idx + 1);
-    try {
-      params[decodeURIComponent(k)] = decodeURIComponent(v.replace(/\+/g, ' '));
-    } catch { /* skip malformed pair */ }
-  }
-  return params.token ? params : null;
-}
-
 async function registerForPushNotifications() {
   if (!Device.isDevice) return;
   const { status } = await requestPermissionsAsync();
@@ -58,7 +41,6 @@ export default function App() {
   const token = useAuthStore(s => s.token);
   const isRestoring = useAuthStore(s => s.isRestoring);
   const restoreAuth = useAuthStore(s => s.restoreAuth);
-  const setAuth = useAuthStore(s => s.setAuth);
 
   const initDarkMode = useAppStore(s => s.initDarkMode);
   const setInvestorTheme = useAppStore(s => s.setInvestorTheme);
@@ -101,34 +83,6 @@ export default function App() {
       responseSub.remove();
     };
   }, []);
-
-  // Handle bizmatch://auth?token=... deep links (Google OAuth redirect on Android)
-  useEffect(() => {
-    const handleUrl = ({ url }) => {
-      const params = parseOAuthUrl(url);
-      if (params) {
-        setAuth(params.token, {
-          id: Number(params.userId),
-          email: params.email,
-          name: params.name,
-          role: params.role,
-          has_profile: params.has_profile === 'true',
-          has_seen_onboarding: params.has_seen_onboarding === '1' || params.has_seen_onboarding === 'true',
-          is_premium: params.is_premium === '1' || params.is_premium === 'true' ? 1 : 0,
-          premium_expires_at: params.premium_expires_at || null,
-          photo_url: params.photo_url || null,
-        });
-      }
-    };
-
-    // Handle URL if the app was opened from a cold start via the deep link
-    Linking.getInitialURL().then(url => {
-      if (url) handleUrl({ url });
-    });
-
-    const sub = Linking.addEventListener('url', handleUrl);
-    return () => sub.remove();
-  }, [setAuth]);
 
   if (isRestoring) {
     return (
