@@ -396,16 +396,29 @@ async function main() {
       assert(after.status === 200, `feed reload failed ${after.status}`);
       return { targetStillRecycled: after.data.some((c) => c.userId === passTarget) };
     });
-    await test("3.4", "one-sided like returns matched false", async () => {
-      await call(sessions.Alex, "POST", "/match/swipe", { targetUserId: me.Marcus.id, direction: "pass" });
-      const r = await call(sessions.Marcus, "POST", "/match/swipe", { targetUserId: me.Alex.id, direction: "like" });
-      assert(r.status === 200 && r.data?.matched === false, `expected matched false, got ${JSON.stringify(r.data)}`);
-    });
-    await test("3.5", "mutual likes create or return a Marcus–Mia match", async () => {
-      await call(sessions.Mia, "POST", "/match/swipe", { targetUserId: me.Marcus.id, direction: "like" });
-      const r = await call(sessions.Marcus, "POST", "/match/swipe", { targetUserId: me.Mia.id, direction: "like" });
-      assert(r.status === 200 && r.data?.matched === true && r.data?.matchId, `expected mutual match, got ${JSON.stringify(r.data)}`);
-    });
+    // Marcus is a free (non-premium) seed account used deliberately here to
+    // exercise the ordinary one-sided/mutual match path — but that means
+    // repeated same-day --mutating runs against this same account can burn
+    // through his real 20/day swipe allowance (itself proof 3.9's limit
+    // enforcement works). Treat that specific condition as blocked, not a
+    // functional failure — a fresh calendar day resolves it on its own.
+    const isDailyLimitHit = (r) => r.status === 429 && r.data?.upgradeRequired === true;
+    const marcusLimitReason = "Marcus already hit today's free daily swipe limit from repeated --mutating runs; resets next day";
+    await call(sessions.Alex, "POST", "/match/swipe", { targetUserId: me.Marcus.id, direction: "pass" });
+    const marcusOneSided = await call(sessions.Marcus, "POST", "/match/swipe", { targetUserId: me.Alex.id, direction: "like" });
+    if (isDailyLimitHit(marcusOneSided)) {
+      blocked("3.4", marcusLimitReason);
+      blocked("3.5", marcusLimitReason);
+    } else {
+      await test("3.4", "one-sided like returns matched false", async () => {
+        assert(marcusOneSided.status === 200 && marcusOneSided.data?.matched === false, `expected matched false, got ${JSON.stringify(marcusOneSided.data)}`);
+      });
+      await test("3.5", "mutual likes create or return a Marcus–Mia match", async () => {
+        await call(sessions.Mia, "POST", "/match/swipe", { targetUserId: me.Marcus.id, direction: "like" });
+        const r = await call(sessions.Marcus, "POST", "/match/swipe", { targetUserId: me.Mia.id, direction: "like" });
+        assert(r.status === 200 && r.data?.matched === true && r.data?.matchId, `expected mutual match, got ${JSON.stringify(r.data)}`);
+      });
+    }
   } else {
     for (const id of ["3.3", "3.4", "3.5"]) skipped(id, "run with --mutating");
   }
