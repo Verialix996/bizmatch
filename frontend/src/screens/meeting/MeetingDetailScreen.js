@@ -9,11 +9,31 @@ import useAuthStore from '../../store/authStore';
 import { colors, radius, typography, cardShadow } from '../../theme';
 import api from '../../services/api';
 
+function Section({ title, children }) {
+  return (
+    <View style={styles.section}>
+      <Text style={styles.sectionTitle}>{title}</Text>
+      {children}
+    </View>
+  );
+}
+
+function BulletList({ items }) {
+  return items.map((item, i) => (
+    <View key={i} style={styles.bulletRow}>
+      <Text style={styles.bullet}>{'•'}</Text>
+      <Text style={styles.bulletText}>{item}</Text>
+    </View>
+  ));
+}
+
 export default function MeetingDetailScreen({ route, navigation }) {
   const { meeting: initialMeeting } = route.params;
   const user = useAuthStore(s => s.user);
   const [meeting, setMeeting] = useState(initialMeeting);
   const [loadingAction, setLoadingAction] = useState(false);
+  const [briefing, setBriefing] = useState(null);
+  const [loadingBriefing, setLoadingBriefing] = useState(false);
 
   const isProposer = meeting.proposer_id === user?.id;
   const isReceiver = meeting.receiver_id === user?.id;
@@ -32,6 +52,17 @@ export default function MeetingDetailScreen({ route, navigation }) {
       showAlert('Error', err.response?.data?.error || 'Action failed.');
     }
     setLoadingAction(false);
+  };
+
+  const fetchBriefing = async () => {
+    setLoadingBriefing(true);
+    try {
+      const { data } = await api.get(`/meetings/${meeting.id}/briefing`);
+      setBriefing(data);
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not generate briefing.');
+    }
+    setLoadingBriefing(false);
   };
 
   return (
@@ -168,6 +199,49 @@ export default function MeetingDetailScreen({ route, navigation }) {
         </TouchableOpacity>
       )}
 
+      <TouchableOpacity style={styles.briefingBtn} onPress={fetchBriefing} disabled={loadingBriefing}>
+        {loadingBriefing ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : (
+          <>
+            <Ionicons name="sparkles" size={18} color={colors.primary} />
+            <Text style={styles.briefingBtnText}>Get AI Briefing on {otherName}</Text>
+          </>
+        )}
+      </TouchableOpacity>
+
+      {briefing && (
+        <View style={styles.briefingCard}>
+          <Text style={styles.briefingHeader}>AI Due Diligence Briefing</Text>
+
+          <Section title={`About ${otherName}`}>
+            <Text style={styles.bodyText}>{briefing.personSummary}</Text>
+          </Section>
+
+          <Section title="Why You Matched">
+            <Text style={styles.bodyText}>{briefing.matchRationale}</Text>
+          </Section>
+
+          {briefing.talkingPoints?.length > 0 && (
+            <Section title="Talking Points">
+              <BulletList items={briefing.talkingPoints} />
+            </Section>
+          )}
+
+          {briefing.questionsToAsk?.length > 0 && (
+            <Section title="Questions to Ask">
+              <BulletList items={briefing.questionsToAsk} />
+            </Section>
+          )}
+
+          {briefing.watchOutFor?.length > 0 && (
+            <Section title="Watch Out For">
+              <BulletList items={briefing.watchOutFor} />
+            </Section>
+          )}
+        </View>
+      )}
+
     </ScrollView>
     </SafeAreaView>
   );
@@ -191,4 +265,14 @@ const styles = StyleSheet.create({
   actionRow:    { flexDirection: 'row', gap: 12, marginBottom: 16 },
   actionBtn:    { flex: 1, borderRadius: radius.pill, paddingVertical: 13, alignItems: 'center', justifyContent: 'center' },
   actionBtnText:{ ...typography.titleSmall, color: '#fff' },
+  briefingBtn:  { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: colors.surfaceElevated, borderRadius: radius.lg, padding: 16, marginBottom: 16, justifyContent: 'center' },
+  briefingBtnText: { ...typography.titleSmall, color: colors.primary },
+  briefingCard: { backgroundColor: colors.surface, borderRadius: radius.xl, padding: 20, ...cardShadow },
+  briefingHeader: { ...typography.titleMedium, color: colors.primaryDark, marginBottom: 16 },
+  section:      { marginBottom: 16 },
+  sectionTitle: { ...typography.titleSmall, color: colors.textPrimary, marginBottom: 6 },
+  bodyText:     { ...typography.bodyMedium, color: colors.textSecondary, lineHeight: 21 },
+  bulletRow:    { flexDirection: 'row', gap: 8, marginBottom: 4 },
+  bullet:       { ...typography.bodyMedium, color: colors.primary, marginTop: 1 },
+  bulletText:   { ...typography.bodyMedium, color: colors.textSecondary, flex: 1 },
 });

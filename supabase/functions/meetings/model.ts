@@ -55,3 +55,7 @@ export async function updateMeetingStatus(id: string | number, status: string) {
   await query("UPDATE meetings SET status = $1 WHERE id = $2", [status, id]);
   return getMeetingById(id);
 }
+
+export async function saveBriefing(id: string | number, briefing: Record<string, unknown>) {
+  await query("UPDATE meetings SET briefing = $1 WHERE id = $2", [JSON.stringify(briefing), id]);
+}

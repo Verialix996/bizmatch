@@ -6,7 +6,8 @@ import { serveFunction } from "../_shared/serve.ts";
 import { sendMessage } from "../_shared/messageService.ts";
 import { emitNotification } from "../_shared/notifications.ts";
 import { background } from "../_shared/background.ts";
-import { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus } from "./model.ts";
+import { generateText, isGeminiConfigured } from "../_shared/gemini.ts";
+import { createMeeting, getMeetingById, getMeetingsForUser, updateMeetingStatus, saveBriefing } from "./model.ts";
 
 const FN = "meetings";
 
@@ -180,9 +181,81 @@ async function reschedule(req: Request, params: Record<string, string>): Promise
   return json(updated);
 }
 
+const BRIEFING_PROMPT_HEADER = `You are a business meeting preparation assistant for BizMatch. Given the profile below of the person the user is about to meet, produce a concise prep report.
+
+Respond ONLY with valid JSON, no markdown:
+{"personSummary":"...","matchRationale":"...","talkingPoints":["..."],"questionsToAsk":["..."],"watchOutFor":["..."]}`;
+
+// GET /functions/v1/meetings/:id/briefing
+async function briefing(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const verifyErr = requireVerified(user);
+  if (verifyErr) return verifyErr;
+
+  const meeting = await getMeetingById(params.id) as Record<string, unknown> | null;
+  if (!meeting) return json({ error: "Meeting not found" }, 404);
+  if (meeting.proposer_id !== user.id && meeting.receiver_id !== user.id) {
+    return json({ error: "Not part of this meeting" }, 403);
+  }
+
+  if (meeting.briefing) return json(meeting.briefing);
+
+  if (!isGeminiConfigured()) return json({ error: "AI briefing not configured" }, 503);
+
+  const otherId = meeting.proposer_id === user.id ? meeting.receiver_id : meeting.proposer_id;
+
+  const otherRows = await query<Record<string, unknown>>(
+    `SELECT u.name, u.role, u.bio, u.skills, u.hobbies, u.role AS role_type,
+            ip.investment_domain, ip.preferred_stage, ip.max_investment
+     FROM users u
+     LEFT JOIN investor_profiles ip ON ip.user_id = u.id
+     WHERE u.id = $1`,
+    [otherId],
+  );
+  const other = otherRows[0];
+  if (!other) return json({ error: "User not found" }, 404);
+
+  const projectRows = await query<Record<string, unknown>>(
+    `SELECT title, stage, industry, funding_needed
+     FROM projects WHERE user_id = $1 AND is_active = true
+     ORDER BY created_at DESC LIMIT 3`,
+    [otherId],
+  );
+
+  const skillsList = Array.isArray(other.skills) ? (other.skills as string[]).join(", ") : "";
+  const projectsList = projectRows.map((p) =>
+    `- ${p.title} (${p.stage || "N/A"}, ${p.industry || "N/A"}, seeking $${p.funding_needed || 0})`
+  ).join("\n") || "None listed";
+
+  const prompt = `${BRIEFING_PROMPT_HEADER}
+
+Name: ${other.name}
+Role: ${other.role}
+Bio: ${other.bio || "N/A"}
+Skills: ${skillsList || "N/A"}
+Investment domain: ${other.investment_domain || "N/A"}
+Preferred stage: ${other.preferred_stage || "N/A"}
+Max investment: $${other.max_investment || 0}
+Recent projects:
+${projectsList}`;
+
+  let parsed: Record<string, unknown>;
+  try {
+    const raw = (await generateText(prompt)).replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+    parsed = JSON.parse(raw);
+  } catch {
+    return json({ error: "AI returned an unexpected format. Please try again." }, 500);
+  }
+
+  await saveBriefing(params.id, parsed);
+  return json(parsed);
+}
+
 serveFunction(FN, [
   route(FN, "POST", "", propose),
   route(FN, "GET", "", list),
+  route(FN, "GET", "/:id/briefing", briefing),
   route(FN, "PUT", "/:id", respond),
   route(FN, "PATCH", "/:id/reschedule", reschedule),
 ]);
