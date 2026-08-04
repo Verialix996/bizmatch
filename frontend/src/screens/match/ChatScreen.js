@@ -10,24 +10,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 import { VideoView, useVideoPlayer } from 'expo-video';
-import { getMessages, sendMessage, markRead, respondToInvite, signNda, sendPartnerInvite, requestNda, shareProject, sendJobOffer, respondToJobOffer } from '../../services/match.service';
+import { getMessages, sendMessage, markRead, respondToInvite, sendPartnerInvite, shareProject } from '../../services/match.service';
 import api from '../../services/api';
-import { getMyProjects, getProjectsByOwner } from '../../services/project.service';
+import { getMyProjects } from '../../services/project.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, cardShadow, radius } from '../../theme';
-import { BACKEND_BASE_URL } from '../../config/constants';
 
-const toAbsoluteUrl = url => (!url ? null : url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`);
-
-const toVideoUrl = url => {
-  if (!url) return null;
-  const abs = toAbsoluteUrl(url);
-  if (abs && abs.includes('cloudinary.com') && !/\.(mp4|mov|m3u8)(\?|$)/i.test(abs)) {
-    return abs + '.mp4';
-  }
-  return abs;
-};
+// Project deck/video URLs come back as absolute Supabase Storage URLs already.
+const toVideoUrl = url => url || null;
 
 function parseUTC(dateStr) {
   if (!dateStr) return new Date(NaN);
@@ -118,24 +109,12 @@ export default function ChatScreen({ route, navigation }) {
 
   // "+" action sheet state
   const [actionSheet, setActionSheet] = useState(null); // null | 'menu' | 'pick-project'
-  const [actionType, setActionType] = useState(null);   // 'invite' | 'share' | 'nda'
+  const [actionType, setActionType] = useState(null);   // 'invite' | 'share'
   const [actionProjects, setActionProjects] = useState([]);
   const [actionLoading, setActionLoading] = useState(false);
 
   // Project detail popup
   const [detailProject, setDetailProject] = useState(null);
-
-  // NDA preview modal
-  const [ndaPreviewVisible, setNdaPreviewVisible] = useState(false);
-  const [ndaPreviewItem, setNdaPreviewItem] = useState(null);
-  const [ndaSenderProject, setNdaSenderProject] = useState(null); // set when investor is signing as sender
-  const [ndaSigning, setNdaSigning] = useState(false);
-
-  // Job offer modal
-  const [jobOfferVisible, setJobOfferVisible] = useState(false);
-  const [jobOfferTitle, setJobOfferTitle] = useState('');
-  const [jobOfferDesc, setJobOfferDesc] = useState('');
-  const [jobOfferSending, setJobOfferSending] = useState(false);
 
   // Role picker modal (for partner invite)
   const [rolePickerVisible, setRolePickerVisible] = useState(false);
@@ -272,20 +251,6 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
-  const handleSignNdaAndAccept = async (item) => {
-    const meta = tryParseJson(item.metadata);
-    if (!meta) return;
-    try {
-      const ndaRes = await signNda(match.matchId, meta.projectId);
-      const acceptRes = await respondToInvite(match.matchId, meta.invitationId, true);
-      const responseMsg = acceptRes.data.message;
-      if (responseMsg) lastIdRef.current = responseMsg.id;
-      appendMessages(...[ndaRes.data, responseMsg].filter(Boolean));
-    } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'Could not accept invite.');
-    }
-  };
-
   const handleDeclineInvite = async (item) => {
     const meta = tryParseJson(item.metadata);
     if (!meta) return;
@@ -299,69 +264,6 @@ export default function ChatScreen({ route, navigation }) {
     }
   };
 
-  const handleSignNda = async (item) => {
-    const meta = tryParseJson(item.metadata);
-    if (!meta) return;
-    setNdaSigning(true);
-    try {
-      const res = await signNda(match.matchId, meta.projectId);
-      if (res.data?.id) lastIdRef.current = res.data.id;
-      appendMessages(res.data);
-      setNdaPreviewVisible(false);
-      setNdaPreviewItem(null);
-      // Reload to pick up the auto-shared project_shared message and updated nda_signed
-      await load();
-    } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'Could not agree to NDA.');
-    } finally {
-      setNdaSigning(false);
-    }
-  };
-
-  const handleSenderRequestNda = async () => {
-    if (!ndaSenderProject) return;
-    const project = ndaSenderProject;
-    setNdaSigning(true);
-    try {
-      const res = await requestNda(match.matchId, project.id);
-      if (res.data?.id) lastIdRef.current = res.data.id;
-      appendMessages(res.data);
-      setNdaPreviewVisible(false);
-      setNdaSenderProject(null);
-    } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'Could not send NDA request.');
-    } finally {
-      setNdaSigning(false);
-    }
-  };
-
-  const handleSendJobOffer = async () => {
-    if (!jobOfferTitle.trim()) return;
-    setJobOfferSending(true);
-    try {
-      const res = await sendJobOffer(match.matchId, jobOfferTitle.trim(), jobOfferDesc.trim());
-      if (res.data?.id) lastIdRef.current = res.data.id;
-      appendMessages(res.data);
-      setJobOfferVisible(false);
-      setJobOfferTitle('');
-      setJobOfferDesc('');
-    } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'Could not send job offer.');
-    } finally {
-      setJobOfferSending(false);
-    }
-  };
-
-  const handleRespondToJobOffer = async (item, accepted) => {
-    try {
-      const res = await respondToJobOffer(match.matchId, item.id, accepted);
-      if (res.data?.id) lastIdRef.current = res.data.id;
-      appendMessages(res.data);
-    } catch (e) {
-      showAlert('Error', e.response?.data?.error || 'Could not respond.');
-    }
-  };
-
   const openActionMenu = () => setActionSheet('menu');
   const closeActionSheet = () => { setActionSheet(null); setActionType(null); setActionProjects([]); };
 
@@ -370,17 +272,8 @@ export default function ChatScreen({ route, navigation }) {
     setActionLoading(true);
     setActionSheet('pick-project');
     try {
-      let projects;
-      if (type === 'nda') {
-        // Investor requests NDA → pick from match's (entrepreneur's) projects
-        const res = await getProjectsByOwner(match.userId);
-        projects = res.data;
-      } else {
-        // Entrepreneur: invite or share → pick from own projects
-        const res = await getMyProjects();
-        projects = res.data;
-      }
-      setActionProjects(projects);
+      const res = await getMyProjects();
+      setActionProjects(res.data);
     } catch {
       showAlert('Error', 'Could not load projects.');
       closeActionSheet();
@@ -402,23 +295,9 @@ export default function ChatScreen({ route, navigation }) {
         setRolePickerVisible(true);
         return;
       } else if (actionType === 'share') {
-        const alreadySigned = messages.some(m => {
-          if (m.message_type !== 'nda_signed') return false;
-          return (tryParseJson(m.metadata) || {}).projectId === project.id;
-        });
-        if (alreadySigned) {
-          await shareProject(match.matchId, project.id);
-          showAlert('Project Shared', `"${project.title}" details have been shared.`);
-        } else {
-          await requestNda(match.matchId, project.id);
-          showAlert('NDA Request Sent', `The other party must sign the NDA for "${project.title}" before the details are shared.`);
-        }
+        await shareProject(match.matchId, project.id);
+        showAlert('Project Shared', `"${project.title}" details have been shared.`);
         await load();
-      } else if (actionType === 'nda') {
-        // Show NDA terms modal — sender must agree before the request is sent
-        setNdaSenderProject(project);
-        setNdaPreviewVisible(true);
-        return;
       }
     } catch (e) {
       showAlert('Error', e.response?.data?.error || 'Action failed.');
@@ -437,7 +316,7 @@ export default function ChatScreen({ route, navigation }) {
       if (roleSalary) roleData.salary = Number(roleSalary);
       await sendPartnerInvite(match.matchId, rolePendingProject.id, roleData);
       setRolePickerVisible(false);
-      showAlert('Invite Sent', `Partner invite sent for "${rolePendingProject.title}". They must sign the NDA and accept to join.`);
+      showAlert('Invite Sent', `Partner invite sent for "${rolePendingProject.title}".`);
       await load();
     } catch (e) {
       showAlert('Error', e.response?.data?.error || 'Failed to send invite.');
@@ -488,11 +367,6 @@ export default function ChatScreen({ route, navigation }) {
         // Only count responses that came after this invite message (ignores old rejections on re-invites)
         return new Date(m.created_at) >= new Date(item.created_at);
       });
-      const hasSignedNda = messages.some(m => {
-        if (m.message_type !== 'nda_signed') return false;
-        const mm = tryParseJson(m.metadata) || {};
-        return String(mm.projectId) === String(meta.projectId);
-      });
       const isCounter = meta.counterOffer === true;
       return (
         <View style={styles.actionCard}>
@@ -508,21 +382,14 @@ export default function ChatScreen({ route, navigation }) {
               {meta.salary != null ? <Text style={styles.roleDetailText}>Salary: ${meta.salary.toLocaleString()}/yr</Text> : null}
             </View>
           )}
-          {!hasSignedNda && (
-            <Text style={styles.actionCardNote}>
-              Signing the NDA is required before accepting.
-            </Text>
-          )}
           {!isOwn && !alreadyResponded && (
             <View style={styles.actionCardBtns}>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnAccept]}
-                onPress={() => hasSignedNda ? handleAcceptInvite(item) : handleSignNdaAndAccept(item)}
+                onPress={() => handleAcceptInvite(item)}
                 activeOpacity={0.85}
               >
-                <Text style={styles.actionBtnAcceptText}>
-                  {hasSignedNda ? 'Accept' : 'Sign NDA & Accept'}
-                </Text>
+                <Text style={styles.actionBtnAcceptText}>Accept</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.actionBtn, styles.actionBtnDecline]}
@@ -562,68 +429,6 @@ export default function ChatScreen({ route, navigation }) {
               ? 'Partner has joined the project.'
               : 'Partner declined the invitation.'}
           </Text>
-          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
-        </View>
-      );
-    }
-
-    if (type === 'nda_request') {
-      const alreadySigned = messages.some(m => {
-        if (m.message_type !== 'nda_signed') return false;
-        const mm = tryParseJson(m.metadata) || {};
-        return mm.projectId === meta.projectId;
-      });
-      const isSender = item.sender_id === user?.id;
-      return (
-        <View style={styles.actionCard}>
-          <Text style={styles.actionCardTitle}>NDA Requested</Text>
-          <Text style={styles.actionCardBody}>
-            Access requested for{'\n'}
-            <Text style={styles.actionCardProject}>{meta.projectTitle || 'a project'}</Text>
-          </Text>
-          {!alreadySigned && isSender && (
-            <Text style={styles.actionCardStatus}>
-              You've signed. Waiting for {match.name} to agree.
-            </Text>
-          )}
-          {!alreadySigned && !isSender && (
-            <View style={{ marginTop: 10 }}>
-              <View style={styles.ndaInlineTerms}>
-                <Text style={styles.ndaInlineTerm}>• Confidentiality: Keep all disclosed information strictly confidential.</Text>
-                <Text style={styles.ndaInlineTerm}>• Non-Use: Use only to evaluate this business relationship.</Text>
-                <Text style={styles.ndaInlineTerm}>• Duration: 2 years from date of agreement.</Text>
-                <Text style={styles.ndaInlineTerm}>• Governing Law: State of Israel.</Text>
-              </View>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnAccept, { marginTop: 10 }]}
-                onPress={() => { setNdaPreviewItem(item); setNdaPreviewVisible(true); }}
-                activeOpacity={0.85}
-              >
-                <Text style={styles.actionBtnAcceptText}>Review & Agree</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {alreadySigned && (
-            <Text style={styles.actionCardStatus}>Both parties agreed ✓</Text>
-          )}
-          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
-        </View>
-      );
-    }
-
-    if (type === 'nda_signed') {
-      return (
-        <View style={[styles.actionCard, styles.actionCardResponse]}>
-          <Text style={styles.actionCardTitle}>NDA Signed ✅</Text>
-          <Text style={styles.actionCardBody}>Full project details are now accessible.</Text>
-          {meta.projectId ? (
-            <TouchableOpacity onPress={() => {
-              const token = useAuthStore.getState().token;
-              Linking.openURL(`${BACKEND_BASE_URL}/api/projects/${meta.projectId}/nda?token=${token}`);
-            }}>
-              <Text style={styles.ndaViewLink}>View NDA Document →</Text>
-            </TouchableOpacity>
-          ) : null}
           <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
         </View>
       );
@@ -682,52 +487,6 @@ export default function ChatScreen({ route, navigation }) {
           >
             <Text style={styles.viewDetailsBtnText}>View Meeting</Text>
           </TouchableOpacity>
-          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
-        </View>
-      );
-    }
-
-    if (type === 'job_offer') {
-      const alreadyResponded = messages.some(m => {
-        if (m.message_type !== 'job_offer_response') return false;
-        const mm = tryParseJson(m.metadata) || {};
-        return mm.originalMessageId === item.id;
-      });
-      return (
-        <View style={[styles.actionCard, { borderLeftColor: '#7B1FA2' }]}>
-          <Text style={[styles.actionCardTitle, { color: '#7B1FA2' }]}>💼 Job Offer</Text>
-          <Text style={styles.actionCardBody}>{meta.roleTitle}</Text>
-          {meta.description ? <Text style={[styles.actionCardBody, { fontSize: 12 }]}>{meta.description}</Text> : null}
-          {!isOwn && !alreadyResponded && (
-            <View style={styles.actionBtnRow}>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnAccept]}
-                onPress={() => handleRespondToJobOffer(item, true)}
-              >
-                <Text style={styles.actionBtnAcceptText}>Accept</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.actionBtn, styles.actionBtnDecline]}
-                onPress={() => handleRespondToJobOffer(item, false)}
-              >
-                <Text style={styles.actionBtnDeclineText}>Decline</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-          {alreadyResponded && <Text style={styles.actionCardStatus}>Responded</Text>}
-          <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
-        </View>
-      );
-    }
-
-    if (type === 'job_offer_response') {
-      const accepted = meta.accepted === true;
-      return (
-        <View style={[styles.actionCard, styles.actionCardResponse]}>
-          <Text style={[styles.actionCardTitle, { color: accepted ? C.success : C.error }]}>
-            💼 {accepted ? 'Job Offer Accepted' : 'Job Offer Declined'}
-          </Text>
-          {meta.roleTitle ? <Text style={styles.actionCardBody}>{meta.roleTitle}</Text> : null}
           <Text style={styles.actionCardTime}>{formatTime(item.created_at)}</Text>
         </View>
       );
@@ -964,41 +723,23 @@ export default function ChatScreen({ route, navigation }) {
                       <Text style={styles.sheetItemIcon}>📁</Text>
                       <View>
                         <Text style={styles.sheetItemLabel}>Share Project Info</Text>
-                        <Text style={styles.sheetItemSub}>Requests NDA — details shared automatically once signed</Text>
+                        <Text style={styles.sheetItemSub}>Share one of your projects in this chat</Text>
                       </View>
                     </TouchableOpacity>
                   </>
-                )}
-                {match.roleType === 'entrepreneur' && (
-                  <TouchableOpacity style={styles.sheetItem} onPress={() => pickProjectFor('nda')} activeOpacity={0.8}>
-                    <Text style={styles.sheetItemIcon}>📄</Text>
-                    <View>
-                      <Text style={styles.sheetItemLabel}>Request NDA</Text>
-                      <Text style={styles.sheetItemSub}>Request access to their project details</Text>
-                    </View>
-                  </TouchableOpacity>
                 )}
                 {user?.role === 'entrepreneur' && match.roleType === 'entrepreneur' && (
-                  <>
-                    <TouchableOpacity
-                      style={styles.sheetItem}
-                      onPress={() => { closeActionSheet(); navigation.navigate('Projects', { screen: 'Projects', params: { startProject: true, coFounderMatchId: match.matchId, coFounderName: match.name } }); }}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.sheetItemIcon}>💡</Text>
-                      <View>
-                        <Text style={styles.sheetItemLabel}>Start a Project Together</Text>
-                        <Text style={styles.sheetItemSub}>Create a new project with {match.name} as co-founder</Text>
-                      </View>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.sheetItem} onPress={() => { closeActionSheet(); setJobOfferVisible(true); }} activeOpacity={0.8}>
-                      <Text style={styles.sheetItemIcon}>💼</Text>
-                      <View>
-                        <Text style={styles.sheetItemLabel}>Propose Job</Text>
-                        <Text style={styles.sheetItemSub}>Send a job offer or collaboration proposal</Text>
-                      </View>
-                    </TouchableOpacity>
-                  </>
+                  <TouchableOpacity
+                    style={styles.sheetItem}
+                    onPress={() => { closeActionSheet(); navigation.navigate('Projects', { screen: 'Projects', params: { startProject: true, coFounderMatchId: match.matchId, coFounderName: match.name } }); }}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.sheetItemIcon}>💡</Text>
+                    <View>
+                      <Text style={styles.sheetItemLabel}>Start a Project Together</Text>
+                      <Text style={styles.sheetItemSub}>Create a new project with {match.name} as co-founder</Text>
+                    </View>
+                  </TouchableOpacity>
                 )}
                 <TouchableOpacity style={styles.sheetCancel} onPress={closeActionSheet} activeOpacity={0.8}>
                   <Text style={styles.sheetCancelText}>Cancel</Text>
@@ -1068,10 +809,7 @@ export default function ChatScreen({ route, navigation }) {
                 {detailProject?.deckUrl ? (
                   <TouchableOpacity
                     style={styles.detailLinkBtn}
-                    onPress={() => {
-                      const token = useAuthStore.getState().token;
-                      Linking.openURL(`${BACKEND_BASE_URL}/api/projects/${detailProject.projectId}/deck?token=${token}`);
-                    }}
+                    onPress={() => Linking.openURL(detailProject.deckUrl)}
                     activeOpacity={0.85}
                   >
                     <Text style={styles.detailLinkBtnText}>📄 View Pitch Deck</Text>
@@ -1123,115 +861,6 @@ export default function ChatScreen({ route, navigation }) {
               <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>✕  Close</Text>
             </TouchableOpacity>
           </SafeAreaView>
-        </View>
-      </Modal>
-
-      {/* Job offer modal */}
-      <Modal visible={jobOfferVisible} transparent animationType="fade" onRequestClose={() => setJobOfferVisible(false)}>
-        <View style={styles.ndaOverlay}>
-          <View style={styles.ndaModal}>
-            <Text style={styles.ndaModalTitle}>Propose a Job / Collaboration</Text>
-            <Text style={styles.ndaModalSub}>Send a formal proposal to your match</Text>
-            <Text style={[styles.ndaClauseTitle, { marginBottom: 6 }]}>ROLE / POSITION TITLE</Text>
-            <TextInput
-              style={[styles.jobInput]}
-              placeholder="e.g. Co-founder, CTO, Lead Developer..."
-              placeholderTextColor={C.textHint}
-              value={jobOfferTitle}
-              onChangeText={setJobOfferTitle}
-              maxLength={80}
-            />
-            <Text style={[styles.ndaClauseTitle, { marginBottom: 6, marginTop: 12 }]}>DESCRIPTION (optional)</Text>
-            <TextInput
-              style={[styles.jobInput, { height: 80, textAlignVertical: 'top' }]}
-              placeholder="Describe the role, expectations, or collaboration details..."
-              placeholderTextColor={C.textHint}
-              value={jobOfferDesc}
-              onChangeText={setJobOfferDesc}
-              multiline
-              maxLength={400}
-            />
-            <View style={[styles.ndaModalActions, { marginTop: 16 }]}>
-              <TouchableOpacity
-                style={styles.ndaCancelBtn}
-                onPress={() => { setJobOfferVisible(false); setJobOfferTitle(''); setJobOfferDesc(''); }}
-              >
-                <Text style={styles.ndaCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.ndaSignBtn, (!jobOfferTitle.trim() || jobOfferSending) && { opacity: 0.5 }]}
-                onPress={handleSendJobOffer}
-                disabled={!jobOfferTitle.trim() || jobOfferSending}
-              >
-                <Text style={styles.ndaSignBtnText}>{jobOfferSending ? 'Sending…' : 'Send Offer'}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* NDA preview modal — used for sender (sign & send request) and receiver (agree) */}
-      <Modal visible={ndaPreviewVisible} transparent animationType="fade" onRequestClose={() => { if (ndaSigning) return; setNdaPreviewVisible(false); setNdaPreviewItem(null); setNdaSenderProject(null); }}>
-        <View style={styles.ndaOverlay}>
-          <View style={styles.ndaModal}>
-            <Text style={styles.ndaModalTitle}>Non-Disclosure Agreement</Text>
-            {ndaSenderProject ? (
-              <Text style={styles.ndaModalSub}>
-                By signing, you agree to these terms as the requesting party. The other party must also agree before the NDA document is generated.
-              </Text>
-            ) : (
-              <Text style={styles.ndaModalSub}>
-                Review the key terms below. Tapping "Sign NDA" records your agreement and generates the final NDA document.
-              </Text>
-            )}
-            <View style={styles.ndaClauseList}>
-              <View style={styles.ndaClause}>
-                <Text style={styles.ndaClauseTitle}>Confidentiality</Text>
-                <Text style={styles.ndaClauseBody}>You agree to keep all disclosed information strictly confidential and not share it with third parties.</Text>
-              </View>
-              <View style={styles.ndaClause}>
-                <Text style={styles.ndaClauseTitle}>Non-Use</Text>
-                <Text style={styles.ndaClauseBody}>You may not use the disclosed information for any purpose other than evaluating a potential business relationship.</Text>
-              </View>
-              <View style={styles.ndaClause}>
-                <Text style={styles.ndaClauseTitle}>Duration</Text>
-                <Text style={styles.ndaClauseBody}>This agreement remains in effect for 2 years from the date of signing.</Text>
-              </View>
-              <View style={styles.ndaClause}>
-                <Text style={styles.ndaClauseTitle}>Governing Law</Text>
-                <Text style={styles.ndaClauseBody}>This agreement is governed by the laws of the State of Israel.</Text>
-              </View>
-            </View>
-            <View style={styles.ndaModalActions}>
-              <TouchableOpacity
-                style={[styles.ndaCancelBtn, ndaSigning && { opacity: 0.4 }]}
-                onPress={() => { if (ndaSigning) return; setNdaPreviewVisible(false); setNdaPreviewItem(null); setNdaSenderProject(null); }}
-                disabled={ndaSigning}
-              >
-                <Text style={styles.ndaCancelBtnText}>Cancel</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.ndaSignBtn, ndaSigning && { opacity: 0.7 }]}
-                onPress={() => {
-                  if (ndaSigning) return;
-                  if (ndaSenderProject) {
-                    handleSenderRequestNda();
-                  } else {
-                    if (ndaPreviewItem) handleSignNda(ndaPreviewItem);
-                  }
-                }}
-                disabled={ndaSigning}
-              >
-                {ndaSigning ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <Text style={styles.ndaSignBtnText}>
-                    {ndaSenderProject ? 'Sign & Send Request' : 'Sign NDA'}
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
       </Modal>
 

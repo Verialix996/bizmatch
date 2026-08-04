@@ -54,7 +54,7 @@ function NewMatchBubble({ item, onPress, C, styles }) {
   );
 }
 
-function ConversationRow({ item, onPress, currentUserId, C, styles, showPersonName }) {
+function ConversationRow({ item, onPress, currentUserId, C, styles }) {
   const roleLabel = item.roleType === 'investor' ? 'INVESTOR' : 'ENTREPRENEUR';
   const domain = item.investmentDomain || item.ventureStage || '';
   const hasUnread = item.lastMessage && item.lastMessageSenderId !== currentUserId && !item.lastMessageReadAt;
@@ -64,21 +64,13 @@ function ConversationRow({ item, onPress, currentUserId, C, styles, showPersonNa
       <Avatar photoUrl={item.photoUrl} name={item.name} size={50} C={C} />
       <View style={styles.convBody}>
         <View style={styles.convHeader}>
-          <Text style={styles.convName}>
-            {(!showPersonName && item.projectName) ? item.projectName : item.name}
-          </Text>
+          <Text style={styles.convName}>{item.name}</Text>
           <Text style={styles.convTime}>{timeAgo(item.lastMessageAt || item.matchedAt)}</Text>
         </View>
         <View style={styles.convChipRow}>
-          {item.projectName ? (
-            <View style={styles.convChip}>
-              <Text style={styles.convChipText}>📁 {item.projectName}</Text>
-            </View>
-          ) : (
-            <View style={styles.convChip}>
-              <Text style={styles.convChipText}>{roleLabel}{domain ? ` · ${domain}` : ''}</Text>
-            </View>
-          )}
+          <View style={styles.convChip}>
+            <Text style={styles.convChipText}>{roleLabel}{domain ? ` · ${domain}` : ''}</Text>
+          </View>
         </View>
         {item.lastMessage ? (
           <Text style={styles.convPreview} numberOfLines={1}>{item.lastMessage}</Text>
@@ -166,25 +158,6 @@ export default function MatchesScreen({ navigation }) {
 
   const newMatches = conversations.filter(c => !c.lastMessage);
   const withMessages = conversations.filter(c => c.lastMessage);
-  const isInvestor = currentUser?.role === 'investor';
-
-  // Investor: project chats = matches where investor swiped on a project
-  const projectConvs = withMessages.filter(c => c.projectName && c.projectInvestorId === currentUser?.id);
-  // Investor: all other convs (regular profile swipes)
-  const peopleConvs = withMessages.filter(c => !c.projectName || c.projectInvestorId !== currentUser?.id);
-
-  // Entrepreneur: partner chats = non-project matches (looking for co-founders)
-  const partnerConvs = withMessages.filter(c => !c.projectName);
-  // Entrepreneur: group investor convs by project
-  const investorConvsByProject = withMessages
-    .filter(c => c.projectName && c.projectInvestorId !== currentUser?.id)
-    .reduce((acc, conv) => {
-      const key = String(conv.projectId);
-      if (!acc[key]) acc[key] = { name: conv.projectName, convs: [] };
-      acc[key].convs.push(conv);
-      return acc;
-    }, {});
-  const projectGroups = Object.values(investorConvsByProject);
 
   if (loading) {
     return (
@@ -339,100 +312,23 @@ export default function MatchesScreen({ navigation }) {
               </View>
             )}
 
-            {isInvestor ? (
-              <>
-                {/* Investor: PROJECT CHATS — matches via project swipe */}
-                {projectConvs.length > 0 && (
-                  <View style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionLabel}>PROJECT CHATS</Text>
-                      <View style={[styles.badge, styles.badgeProject]}>
-                        <Text style={styles.badgeText}>📁 {projectConvs.length}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.convList}>
-                      {projectConvs.map((item, idx) => (
-                        <ConversationRow
-                          key={`pc-${idx}-${item.matchId}`}
-                          item={item}
-                          currentUserId={currentUser?.id}
-                          
-                          C={C} styles={styles}
-                          showPersonName
-                          onPress={() => navigation.navigate('Chat', { match: item })}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                )}
-                {/* Investor: ALL CONVERSATIONS — regular profile swipes */}
-                {(peopleConvs.length > 0 || projectConvs.length === 0) && (
-                  <View style={styles.section}>
-                    <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
-                      {projectConvs.length > 0 ? 'ALL CONVERSATIONS' : 'ALL CONVERSATIONS'}
-                    </Text>
-                    <View style={styles.convList}>
-                      {(peopleConvs.length > 0 ? peopleConvs : withMessages).map((item, idx) => (
-                        <ConversationRow
-                          key={`ac-${idx}-${item.matchId}`}
-                          item={item}
-                          currentUserId={currentUser?.id}
-                          
-                          C={C} styles={styles}
-                          onPress={() => navigation.navigate('Chat', { match: item })}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                )}
-              </>
-            ) : (
-              <>
-                {/* Entrepreneur: one section per project with investor convs */}
-                {projectGroups.map(group => (
-                  <View key={group.name} style={styles.section}>
-                    <View style={styles.sectionHeader}>
-                      <Text style={styles.sectionLabel}>📁 {group.name.toUpperCase()}</Text>
-                      <View style={[styles.badge, styles.badgeProject]}>
-                        <Text style={styles.badgeText}>{group.convs.length} INVESTOR{group.convs.length !== 1 ? 'S' : ''}</Text>
-                      </View>
-                    </View>
-                    <View style={styles.convList}>
-                      {group.convs.map((item, idx) => (
-                        <ConversationRow
-                          key={`gc-${idx}-${item.matchId}`}
-                          item={item}
-                          currentUserId={currentUser?.id}
-                          
-                          C={C} styles={styles}
-                          showPersonName
-                          onPress={() => navigation.navigate('Chat', { match: item })}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                ))}
-                {/* Entrepreneur: PARTNER CHATS — non-project matches */}
-                {(partnerConvs.length > 0 || projectGroups.length === 0) && (
-                  <View style={styles.section}>
-                    <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
-                      {projectGroups.length > 0 ? 'PARTNER CHATS' : 'ALL CONVERSATIONS'}
-                    </Text>
-                    <View style={styles.convList}>
-                      {(partnerConvs.length > 0 ? partnerConvs : withMessages).map((item, idx) => (
-                        <ConversationRow
-                          key={`ec-${idx}-${item.matchId}`}
-                          item={item}
-                          currentUserId={currentUser?.id}
-                          
-                          C={C} styles={styles}
-                          onPress={() => navigation.navigate('Chat', { match: item })}
-                        />
-                      ))}
-                    </View>
-                  </View>
-                )}
-              </>
+            {withMessages.length > 0 && (
+              <View style={styles.section}>
+                <Text style={[styles.sectionLabel, { paddingHorizontal: 24, marginBottom: 4 }]}>
+                  ALL CONVERSATIONS
+                </Text>
+                <View style={styles.convList}>
+                  {withMessages.map((item, idx) => (
+                    <ConversationRow
+                      key={`ac-${idx}-${item.matchId}`}
+                      item={item}
+                      currentUserId={currentUser?.id}
+                      C={C} styles={styles}
+                      onPress={() => navigation.navigate('Chat', { match: item })}
+                    />
+                  ))}
+                </View>
+              </View>
             )}
           </>
         )}
@@ -533,9 +429,6 @@ function makeStyles(C) { return StyleSheet.create({
   },
   badgePremium: {
     backgroundColor: '#F5A623',
-  },
-  badgeProject: {
-    backgroundColor: C.success || '#2E7D32',
   },
   badgeText: {
     fontSize: 10,
@@ -640,19 +533,11 @@ function makeStyles(C) { return StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 2,
   },
-  convChipProject: {
-    backgroundColor: (C.success || '#2E7D32') + '22',
-    borderWidth: 1,
-    borderColor: C.success || '#2E7D32',
-  },
   convChipText: {
     fontSize: 10,
     fontWeight: '600',
     color: C.textSecondary,
     letterSpacing: 0.3,
-  },
-  convChipTextProject: {
-    color: C.success || '#2E7D32',
   },
   convPreview: {
     fontSize: 13,
