@@ -162,10 +162,9 @@ export async function preScoreUser(userId: string): Promise<void> {
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
      LEFT JOIN LATERAL (
-       SELECT t.stage, t.funding_needed, t.industry
-       FROM team_members tm JOIN teams t ON t.id = tm.team_id AND t.is_active = true
-       WHERE tm.user_id = u.id AND tm.status = 'accepted'
-       ORDER BY t.created_at DESC LIMIT 1
+       SELECT p.stage, p.funding_needed, p.industry
+       FROM projects p WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
      ) proj ON true
      WHERE u.role = 'entrepreneur' AND u.deleted_at IS NULL AND u.id != $1`,
     [userId],
@@ -191,7 +190,7 @@ export async function preScoreUser(userId: string): Promise<void> {
 // Feed
 // ---------------------------------------------------------------------------
 
-export async function getFeed(userId: string, userRole: string, limit = 20) {
+export async function getFeed(userId: string, userRole: string, mode = "investors", projectId: string | number | null = null, limit = 20) {
   const allSwiped = await query<{ swiped_id: string; direction: string }>(
     "SELECT swiped_id, direction FROM swipes WHERE swiper_id = $1",
     [userId],
@@ -201,21 +200,27 @@ export async function getFeed(userId: string, userRole: string, limit = 20) {
   const likedIds = allSwiped.filter((r) => r.direction === "like").map((r) => r.swiped_id);
   const excludeIds = [userId, ...likedIds];
 
+  // Investors only ever browse entrepreneurs; entrepreneurs browse investors by
+  // default ("investors" mode) or other entrepreneurs ("partners" mode, i.e.
+  // co-founder search).
+  const roleFilter = (mode === "partners" || userRole === "investor") ? "entrepreneur" : "investor";
+
   const candidates = await query<Record<string, unknown>>(
     `SELECT u.id AS user_id, u.name, u.photo_url, u.is_premium, u.premium_expires_at,
             u.bio, u.skills, u.hobbies, u.role AS role_type,
+            investor.investment_domain, investor.preferred_stage, investor.max_investment,
             proj.stage AS venture_stage, proj.funding_needed AS funding_needs, proj.industry AS project_industry
      FROM users u
+     LEFT JOIN investor_profiles investor ON investor.user_id = u.id
      LEFT JOIN LATERAL (
-       SELECT t.stage, t.funding_needed, t.industry
-       FROM team_members tm JOIN teams t ON t.id = tm.team_id AND t.is_active = true
-       WHERE tm.user_id = u.id AND tm.status = 'accepted'
-       ORDER BY t.created_at DESC LIMIT 1
+       SELECT p.stage, p.funding_needed, p.industry
+       FROM projects p WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
      ) proj ON true
-     WHERE u.role = 'entrepreneur'
+     WHERE u.role = $2
        AND u.deleted_at IS NULL
        AND u.id != ALL($1::uuid[])`,
-    [excludeIds],
+    [excludeIds, roleFilter],
   );
 
   const myProfileRows = await query<Record<string, unknown>>(
@@ -227,6 +232,17 @@ export async function getFeed(userId: string, userRole: string, limit = 20) {
     [userId],
   );
   const myProfile = myProfileRows[0];
+
+  // If the entrepreneur selected a specific project, score investor candidates
+  // against that project's specifics rather than their overall profile.
+  let selectedProject: Record<string, unknown> | null = null;
+  if (projectId && userRole === "entrepreneur") {
+    const pRows = await query<Record<string, unknown>>(
+      "SELECT stage, funding_needed FROM projects WHERE id = $1 AND user_id = $2 AND is_active = true",
+      [projectId, userId],
+    );
+    selectedProject = pRows[0] || null;
+  }
 
   await Promise.race([
     ensureAiScores(userId, userRole, myProfile, candidates, 10),
@@ -255,6 +271,9 @@ export async function getFeed(userId: string, userRole: string, limit = 20) {
     hobbies: asArray(c.hobbies),
     ventureStage: c.venture_stage,
     fundingNeeds: c.funding_needs,
+    investmentDomain: c.investment_domain,
+    preferredStage: c.preferred_stage,
+    maxInvestment: c.max_investment,
     score,
     aiScore: aiScoreMap.get(c.user_id) ?? null,
   });
@@ -263,6 +282,19 @@ export async function getFeed(userId: string, userRole: string, limit = 20) {
   const calcScore = (c: any) => {
     const aiScore = aiScoreMap.has(c.user_id) ? aiScoreMap.get(c.user_id)! : null;
     if (!myProfile) return 0;
+    if (userRole === "investor" && c.role_type === "entrepreneur") {
+      return scoreInvestorEntrepreneur(myProfile, c, aiScore);
+    }
+    if (userRole === "entrepreneur" && c.role_type === "investor") {
+      if (selectedProject) {
+        const projectProxy = { ...myProfile, venture_stage: selectedProject.stage, funding_needs: selectedProject.funding_needed };
+        return scoreInvestorEntrepreneur(c, projectProxy, aiScore);
+      }
+      return scoreInvestorEntrepreneur(c, myProfile, aiScore);
+    }
+    if (userRole === "entrepreneur" && c.role_type === "entrepreneur") {
+      return scoreEntrepreneurEntrepreneur(myProfile, c, aiScore);
+    }
     return userRole === "investor"
       ? scoreInvestorEntrepreneur(myProfile, c, aiScore)
       : scoreEntrepreneurEntrepreneur(myProfile, c, aiScore);
@@ -352,9 +384,9 @@ export async function getMatches(userId: string) {
      JOIN users u ON u.id = CASE WHEN m.user1_id = $1 THEN m.user2_id ELSE m.user1_id END
      LEFT JOIN investor_profiles investor ON investor.user_id = u.id
      LEFT JOIN LATERAL (
-       SELECT t.stage FROM team_members tm JOIN teams t ON t.id = tm.team_id AND t.is_active = true
-       WHERE tm.user_id = u.id AND tm.status = 'accepted'
-       ORDER BY t.created_at DESC LIMIT 1
+       SELECT p.stage FROM projects p
+       WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
      ) proj ON true
      WHERE (m.user1_id = $1 OR m.user2_id = $1)
        AND u.deleted_at IS NULL

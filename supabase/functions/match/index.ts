@@ -9,14 +9,18 @@ import { getFeed, recordSwipe, getMatches } from "../_shared/matchModel.ts";
 const FN = "match";
 const DAILY_SWIPE_LIMIT = 20;
 
-// GET /functions/v1/match/feed
+// GET /functions/v1/match/feed?mode=investors|partners&projectId=
 async function feed(req: Request): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const verifyErr = requireVerified(user);
   if (verifyErr) return verifyErr;
 
-  const candidates = await getFeed(user.id, user.role as string);
+  const url = new URL(req.url);
+  const mode = url.searchParams.get("mode") === "partners" ? "partners" : "investors";
+  const projectId = url.searchParams.get("projectId");
+
+  const candidates = await getFeed(user.id, user.role as string, mode, projectId);
   return json(candidates);
 }
 
@@ -88,9 +92,9 @@ async function compatibility(req: Request, params: Record<string, string>): Prom
     FROM users u
     LEFT JOIN investor_profiles ip ON ip.user_id = u.id
     LEFT JOIN LATERAL (
-      SELECT t.stage, t.funding_needed FROM team_members tm JOIN teams t ON t.id = tm.team_id AND t.is_active = true
-      WHERE tm.user_id = u.id AND tm.status = 'accepted'
-      ORDER BY t.created_at DESC LIMIT 1
+      SELECT p.stage, p.funding_needed FROM projects p
+      WHERE p.user_id = u.id AND p.is_active = true
+      ORDER BY p.id DESC LIMIT 1
     ) proj ON true
     WHERE u.id = $1`;
 

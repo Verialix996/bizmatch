@@ -57,9 +57,9 @@ export async function getConversations(userId: string) {
      JOIN users u ON u.id = (CASE WHEN m.user1_id = $1 THEN m.user2_id ELSE m.user1_id END)
      LEFT JOIN investor_profiles ip ON ip.user_id = u.id
      LEFT JOIN LATERAL (
-       SELECT t.stage FROM team_members tm JOIN teams t ON t.id = tm.team_id AND t.is_active = true
-       WHERE tm.user_id = u.id AND tm.status = 'accepted'
-       ORDER BY t.created_at DESC LIMIT 1
+       SELECT p.stage FROM projects p
+       WHERE p.user_id = u.id AND p.is_active = true
+       ORDER BY p.id DESC LIMIT 1
      ) ent_proj ON true
      LEFT JOIN LATERAL (
        SELECT * FROM messages WHERE match_id = m.id ORDER BY id DESC LIMIT 1

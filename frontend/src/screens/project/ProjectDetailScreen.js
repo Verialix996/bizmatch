@@ -6,27 +6,16 @@ import * as WebBrowser from 'expo-web-browser';
 import { useState, useEffect } from 'react';
 import { VideoView, useVideoPlayer } from 'expo-video';
 import { getPartners } from '../../services/project.service';
-import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, investorThemeColors, radius, cardShadow } from '../../theme';
-import { BACKEND_BASE_URL } from '../../config/constants';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const STAGE_LABELS = { idea: 'Idea Stage', mvp: 'MVP Stage', growth: 'Growth', scale: 'Scale' };
 
-function toAbsoluteUrl(url) {
-  if (!url) return null;
-  return url.startsWith('http') ? url : `${BACKEND_BASE_URL}${url}`;
-}
-
+// deck/video URLs come back as absolute Supabase Storage URLs already.
 function toVideoUrl(url) {
-  if (!url) return null;
-  const abs = toAbsoluteUrl(url);
-  if (abs && abs.includes('cloudinary.com') && !/\.(mp4|mov|m3u8)(\?|$)/i.test(abs)) {
-    return abs + '.mp4';
-  }
-  return abs;
+  return url || null;
 }
 
 function PartnerAvatar({ name, photoUrl, size = 40, C }) {
@@ -80,8 +69,7 @@ export default function ProjectDetailScreen({ route, navigation }) {
   }, [project.id]);
 
   const openDeck = () => {
-    const token = useAuthStore.getState().token;
-    WebBrowser.openBrowserAsync(`${BACKEND_BASE_URL}/api/projects/${project.id}/deck?token=${token}`);
+    WebBrowser.openBrowserAsync(project.deck_url);
   };
 
   const displayOwner = ownerName || project.owner_name;
