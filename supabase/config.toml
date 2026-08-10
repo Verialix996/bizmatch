@@ -26,6 +26,8 @@ verify_jwt = false
 verify_jwt = false
 [functions.matches]
 verify_jwt = false
+[functions.teams]
+verify_jwt = false
 [functions.notifications]
 verify_jwt = false
 

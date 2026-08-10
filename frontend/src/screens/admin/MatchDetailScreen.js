@@ -137,9 +137,18 @@ export default function MatchDetailScreen({ route, navigation }) {
           })}
         </View>
 
-        <TouchableOpacity style={[styles.btnSecondary, recomputing && styles.btnDisabled]} onPress={handleRecompute} disabled={recomputing} activeOpacity={0.85}>
-          {recomputing ? <ActivityIndicator color={C.primary} /> : <Text style={styles.btnSecondaryText}>Recompute</Text>}
-        </TouchableOpacity>
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={[styles.btnSecondary, { flex: 1 }, recomputing && styles.btnDisabled]} onPress={handleRecompute} disabled={recomputing} activeOpacity={0.85}>
+            {recomputing ? <ActivityIndicator color={C.primary} /> : <Text style={styles.btnSecondaryText}>Recompute</Text>}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.btnPrimary, { flex: 1 }]}
+            onPress={() => navigation.navigate('TeamCreation', { founderIds: [a, b] })}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.btnPrimaryText}>Create Team</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -179,6 +188,7 @@ function makeStyles(C) {
     dimLabel: { ...typography.bodyMedium, color: C.textPrimary },
     dimValues: { ...typography.bodySmall, color: C.textSecondary },
 
+    actionsRow: { flexDirection: 'row', gap: 12 },
     btnPrimary: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 14, paddingHorizontal: 24, alignItems: 'center' },
     btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
     btnSecondary: { backgroundColor: C.surface, borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: C.surfaceBorder },

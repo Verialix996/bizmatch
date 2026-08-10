@@ -11,9 +11,13 @@ import {
   buildEmptyState,
   checkDealBreakers,
   computeCompatibility,
+  computeTeamDimensionScores,
+  computeTeamComplementarity,
+  computeTeamProfile,
   DIMENSIONS,
   type EvidenceRow,
   type CompatibilityFounderInput,
+  type TeamMemberInput,
 } from "./founderScoring.ts";
 
 // Section 29's worked example: Execution has self-report + evaluator +
@@ -198,4 +202,58 @@ Deno.test("computeCompatibility: two founders with no evidence yet score 0 with 
   const result = computeCompatibility(founderA, founderB);
   assertEquals(result.score, 0);
   assert(result.explanation.risks.some((r) => r.includes("Not enough evidence")));
+});
+
+// --- Phase 3: Team DNA / Team Profile ------------------------------------
+
+function teamMember(id: string, evidence: EvidenceRow[], capabilities: TeamMemberInput["capabilities"]): TeamMemberInput {
+  return { founderId: id, dimensions: computeAllDimensionScores(evidence), capabilities };
+}
+
+Deno.test("computeTeamDimensionScores: averages members' scores, confidence is the weakest contributor", () => {
+  const members: TeamMemberInput[] = [
+    teamMember("a", [
+      { dimension: "execution", source_type: "evaluator", score: 90, weight: 1.0 },
+      { dimension: "execution", source_type: "peer", score: 90, weight: 0.8 },
+      { dimension: "execution", source_type: "activity", score: 90, weight: 1.25 },
+      { dimension: "execution", source_type: "work_trial", score: 90, weight: 1.25 },
+    ], []),
+    teamMember("b", [{ dimension: "execution", source_type: "self", score: 70, weight: 0.5 }], []),
+  ];
+  const result = computeTeamDimensionScores(members);
+  assertEquals(result.execution.score, 80); // (90+70)/2
+  assertEquals(result.execution.confidence, "low"); // member b's self-only evidence caps the team
+  assertEquals(result.integrity.score, null); // no member has any integrity evidence
+});
+
+Deno.test("computeTeamComplementarity: gaps are needs nobody on the team provides", () => {
+  const members: TeamMemberInput[] = [
+    teamMember("a", [], [{ kind: "provide", capability: "Engineering" }, { kind: "need", capability: "Sales" }]),
+    teamMember("b", [], [{ kind: "provide", capability: "Product" }, { kind: "need", capability: "Fundraising" }]),
+  ];
+  const { complementarySkills, capabilityGaps } = computeTeamComplementarity(members);
+  assertEquals(complementarySkills, ["engineering", "product"]);
+  assertEquals(capabilityGaps, ["fundraising", "sales"]);
+});
+
+Deno.test("computeTeamProfile: aggregates dimension scores, complementarity, and pairwise friction", () => {
+  const members: TeamMemberInput[] = [
+    teamMember("a", [
+      { dimension: "execution", source_type: "evaluator", score: 85, weight: 1.0 },
+    ], [{ kind: "provide", capability: "Engineering" }]),
+    teamMember("b", [
+      { dimension: "execution", source_type: "evaluator", score: 65, weight: 1.0 },
+    ], [{ kind: "provide", capability: "Sales" }]),
+  ];
+  const pairwise = [
+    computeCompatibility(
+      { dimensions: members[0].dimensions, capabilities: members[0].capabilities, dealBreakers: [] },
+      { dimensions: members[1].dimensions, capabilities: members[1].capabilities, dealBreakers: ["Not full-time"] },
+    ),
+  ];
+  const profile = computeTeamProfile(members, pairwise);
+  assertEquals(profile.dimensionScores.execution.score, 75);
+  assertEquals(profile.complementarySkills, ["engineering", "sales"]);
+  assert(profile.compatibility != null);
+  assert(profile.potentialFriction.some((r) => r.includes("deal breaker")));
 });

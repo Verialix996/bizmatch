@@ -433,3 +433,103 @@ export function computeCompatibility(
     requiresAdminReview: dealBreakerCheck.requiresAdminReview,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 3: Team DNA / Team Profile
+// ---------------------------------------------------------------------------
+//
+// Extends the two-founder Compatibility Engine above to a whole team.
+// Confidence-per-dimension can't just average like score can — a team's
+// belief about a dimension is only as strong as its weakest-evidenced
+// member on that dimension, so it takes the lowest confidence level among
+// contributing members rather than an average.
+
+export interface TeamMemberInput {
+  founderId: string;
+  dimensions: Record<EvidenceDimension, DimensionResult>;
+  capabilities: CapabilityLite[];
+}
+
+export interface TeamDimensionResult {
+  dimension: EvidenceDimension;
+  score: number | null;
+  confidence: ConfidenceLevel | null;
+}
+
+const CONFIDENCE_RANK: Record<ConfidenceLevel, number> = { low: 0, medium: 1, high: 2 };
+
+export function computeTeamDimensionScores(
+  members: TeamMemberInput[],
+): Record<EvidenceDimension, TeamDimensionResult> {
+  const result = {} as Record<EvidenceDimension, TeamDimensionResult>;
+  for (const dim of DIMENSIONS) {
+    const contributing = members
+      .map((m) => m.dimensions[dim])
+      .filter((d): d is DimensionResult => d != null && d.score != null);
+    if (contributing.length === 0) {
+      result[dim] = { dimension: dim, score: null, confidence: null };
+      continue;
+    }
+    const score = Math.round(contributing.reduce((sum, d) => sum + (d.score as number), 0) / contributing.length);
+    const confidence = contributing.reduce<ConfidenceLevel>(
+      (worst, d) => (CONFIDENCE_RANK[d.confidence as ConfidenceLevel] < CONFIDENCE_RANK[worst] ? (d.confidence as ConfidenceLevel) : worst),
+      "high",
+    );
+    result[dim] = { dimension: dim, score, confidence };
+  }
+  return result;
+}
+
+// What every member provides, minus what nobody on the team provides but
+// at least one member needs — the same complementarity idea as the
+// two-founder engine, generalized to N members via set union instead of
+// a single pairwise coverage fraction.
+export function computeTeamComplementarity(
+  members: TeamMemberInput[],
+): { complementarySkills: string[]; capabilityGaps: string[] } {
+  const provideSet = new Set<string>();
+  const needSet = new Set<string>();
+  for (const m of members) {
+    for (const c of m.capabilities) {
+      (c.kind === "provide" ? provideSet : needSet).add(normalizeCapability(c.capability));
+    }
+  }
+  const complementarySkills = [...provideSet].sort();
+  const capabilityGaps = [...needSet].filter((n) => !provideSet.has(n)).sort();
+  return { complementarySkills, capabilityGaps };
+}
+
+export interface TeamProfile {
+  dimensionScores: Record<EvidenceDimension, TeamDimensionResult>;
+  strengths: EvidenceDimension[];
+  potentialGaps: EvidenceDimension[];
+  complementarySkills: string[];
+  capabilityGaps: string[];
+  compatibility: number | null;
+  potentialFriction: string[];
+}
+
+const TEAM_STRENGTH_THRESHOLD = 75;
+const TEAM_GAP_THRESHOLD = 50;
+
+// `pairwiseResults` is the team's set of already-computed
+// CompatibilityResults for every member pair (from founder_compatibility) —
+// this function doesn't recompute pairwise compatibility itself, it just
+// aggregates what's already been computed, same division of labor as
+// computeProfileConfidence not re-deriving evidence.
+export function computeTeamProfile(
+  members: TeamMemberInput[],
+  pairwiseResults: CompatibilityResult[],
+): TeamProfile {
+  const dimensionScores = computeTeamDimensionScores(members);
+  const strengths = DIMENSIONS.filter((d) => (dimensionScores[d].score ?? -1) >= TEAM_STRENGTH_THRESHOLD);
+  const potentialGaps = DIMENSIONS.filter((d) => dimensionScores[d].score != null && (dimensionScores[d].score as number) < TEAM_GAP_THRESHOLD);
+  const { complementarySkills, capabilityGaps } = computeTeamComplementarity(members);
+
+  const compatibility = pairwiseResults.length > 0
+    ? Math.round(pairwiseResults.reduce((sum, r) => sum + r.score, 0) / pairwiseResults.length)
+    : null;
+  const potentialFriction = [...new Set(pairwiseResults.flatMap((r) => r.explanation.risks))];
+
+  return { dimensionScores, strengths, potentialGaps, complementarySkills, capabilityGaps, compatibility, potentialFriction };
+}

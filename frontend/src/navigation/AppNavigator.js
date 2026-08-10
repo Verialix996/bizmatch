@@ -21,6 +21,8 @@ import ActivitiesListScreen from '../screens/admin/ActivitiesListScreen';
 import ActivityDetailScreen from '../screens/admin/ActivityDetailScreen';
 import MatchingScreen       from '../screens/admin/MatchingScreen';
 import MatchDetailScreen    from '../screens/admin/MatchDetailScreen';
+import TeamCreationScreen   from '../screens/admin/TeamCreationScreen';
+import TeamProfileScreen    from '../screens/admin/TeamProfileScreen';
 import AccountSettings      from '../screens/profile/AccountSettings';
 
 const Stack = createNativeStackNavigator();
@@ -48,6 +50,8 @@ function AdminNavigator() {
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Matching" component={MatchingScreen} options={{ headerShown: false }} />
       <Stack.Screen name="MatchDetail" component={MatchDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TeamCreation" component={TeamCreationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TeamProfile" component={TeamProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ComingSoon" component={ComingSoonScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AccountSettings" component={AccountSettings} options={{ headerShown: false }} />
     </Stack.Navigator>
@@ -63,6 +67,7 @@ function FounderNavigator() {
       <Stack.Screen name="FounderProfile" component={FounderProfileScreen} options={{ header: () => <AppHeader /> }} />
       <Stack.Screen name="Activities" component={ActivitiesListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="TeamProfile" component={TeamProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AccountSettings" component={AccountSettings} options={{ headerShown: false }} />
     </Stack.Navigator>
   );

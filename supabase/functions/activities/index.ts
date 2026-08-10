@@ -14,7 +14,11 @@ async function listActivities(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const programIdParam = url.searchParams.get("programId");
-  const activities = await ActivitiesModel.list(programIdParam ? Number(programIdParam) : null);
+  const teamIdParam = url.searchParams.get("teamId");
+  const activities = await ActivitiesModel.list(
+    programIdParam ? Number(programIdParam) : null,
+    teamIdParam ? Number(teamIdParam) : null,
+  );
   return json(activities);
 }
 

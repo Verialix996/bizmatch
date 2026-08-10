@@ -19,12 +19,12 @@ export const FoundersModel = {
   // team status. No profile-completion %, no evaluation counts, no bulk
   // actions (those were explicitly excluded from the MVP screen spec).
   async list(programId: number | null, search: string | null): Promise<FounderListItem[]> {
-    // team_founders doesn't exist until Phase 3 — every founder is
-    // "looking_for_team" until then.
     const rows = await query<Record<string, unknown>>(
-      `SELECT u.id, u.name, u.photo_url, fp.role_title, fp.status, fp.program_id
+      `SELECT u.id, u.name, u.photo_url, fp.role_title, fp.status, fp.program_id,
+              (tf.team_id IS NOT NULL) AS in_team
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
+       LEFT JOIN team_founders tf ON tf.founder_id = u.id
        WHERE u.role = 'founder' AND u.deleted_at IS NULL
          AND ($1::bigint IS NULL OR fp.program_id = $1)
          AND ($2::text IS NULL OR u.name ILIKE '%' || $2 || '%')
@@ -37,7 +37,7 @@ export const FoundersModel = {
       photoUrl: r.photo_url as string | null,
       role: r.role_title as string | null,
       status: r.status as string | null,
-      teamStatus: "looking_for_team",
+      teamStatus: r.in_team ? "in_team" : "looking_for_team",
     }));
   },
 
@@ -70,8 +70,10 @@ export const FoundersModel = {
       `SELECT label FROM deal_breakers WHERE founder_id = $1 ORDER BY label`,
       [founderId],
     );
-    // teams/team_founders don't exist until Phase 3 — no team lookup yet.
-    const inTeamRows: { team_id: number; name: string }[] = [];
+    const inTeamRows = await query<{ team_id: number; name: string }>(
+      `SELECT t.id AS team_id, t.name FROM team_founders tf JOIN teams t ON t.id = tf.team_id WHERE tf.founder_id = $1`,
+      [founderId],
+    );
 
     return {
       id: base.id,

@@ -90,6 +90,12 @@ export default function AdminDashboardScreen({ navigation }) {
             onPress={() => navigation.navigate('Activities')}
             styles={styles}
           />
+          <ActionCard
+            label="Create Team"
+            icon="🧑‍🤝‍🧑"
+            onPress={() => navigation.navigate('TeamCreation', {})}
+            styles={styles}
+          />
         </View>
 
         {/* Needs Attention */}

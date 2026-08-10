@@ -529,6 +529,61 @@ async function main() {
     assert(r.status === 403, `expected 403, got ${r.status}`);
   });
 
+  // ── 11. Teams (Phase 3) ──────────────────────────────────────────────
+  let teamId;
+  if (MUTATING) {
+    await test("11.1", "admin can preview a team before creating it", async () => {
+      const r = await call(sessions.Evaluator, "GET", `/teams/preview?founderIds=${me.Alex.id},${me.Mia.id}`);
+      assert(r.status === 200 && r.data?.profile, `expected 200 with profile, got ${r.status}`);
+      return { profile: r.data.profile };
+    });
+    await test("11.2", "admin can create a team", async () => {
+      const r = await call(sessions.Evaluator, "POST", "/teams", {
+        name: `E2E Team ${Date.now()}`, founderIds: [me.Alex.id, me.Mia.id],
+      });
+      assert(r.status === 201 && r.data?.id, `expected 201 with id, got ${r.status}`);
+      teamId = r.data.id;
+      return { teamId };
+    });
+    await test("11.3", "team detail includes members and a computed profile", async () => {
+      const r = await call(sessions.Evaluator, "GET", `/teams/${teamId}`);
+      assert(r.status === 200, `expected 200, got ${r.status}`);
+      assert(r.data.members?.length === 2, `expected 2 members, got ${r.data.members?.length}`);
+      assert(r.data.profile && "compatibility" in r.data.profile, "team profile missing");
+      return r.data;
+    });
+    await test("11.4", "a team member can view their own team, a non-member founder cannot", async () => {
+      const own = await call(sessions.Alex, "GET", `/teams/${teamId}`);
+      assert(own.status === 200, `expected 200 for own team, got ${own.status}`);
+      const other = await call(sessions.Sarah, "GET", `/teams/${teamId}`);
+      assert(other.status === 403, `expected 403, got ${other.status}`);
+    });
+    await test("11.5", "admin can trigger a Team DNA recompute", async () => {
+      const r = await call(sessions.Evaluator, "POST", `/teams/${teamId}/recompute`);
+      assert(r.status === 200 && r.data?.profile, `expected 200 with profile, got ${r.status}`);
+    });
+    await test("11.6", "non-admin cannot create a team", async () => {
+      const r = await call(sessions.Sarah, "POST", "/teams", { name: "Hijacked", founderIds: [me.Sarah.id, me.Marcus.id] });
+      assert(r.status === 403, `expected 403, got ${r.status}`);
+    });
+    await test("11.7", "founders list reflects in_team status for a team member", async () => {
+      const r = await call(sessions.Evaluator, "GET", "/founders?search=Alex");
+      assert(r.status === 200 && r.data[0]?.teamStatus === "in_team", `expected in_team, got ${r.data[0]?.teamStatus}`);
+    });
+    await test("11.8", "cleanup: admin can delete the E2E team", async () => {
+      const r = await call(sessions.Evaluator, "DELETE", `/teams/${teamId}`);
+      assert(r.status === 200, `expected 200, got ${r.status}`);
+      const after = await call(sessions.Evaluator, "GET", "/founders?search=Alex");
+      assert(after.data[0]?.teamStatus === "looking_for_team", "team membership was not cleaned up");
+    });
+  } else {
+    for (const id of ["11.1", "11.2", "11.3", "11.4", "11.5", "11.6", "11.7", "11.8"]) skipped(id, "run with --mutating");
+  }
+  await test("11.9", "any authenticated founder can list teams", async () => {
+    const r = await call(sessions.Sarah, "GET", "/teams");
+    assert(r.status === 200 && Array.isArray(r.data), `expected array, got ${r.status}`);
+  });
+
   // ── 7. Cross-cutting ─────────────────────────────────────────────────
   await test("7.1", "protected endpoint rejects missing Authorization", async () => {
     const r = await call(null, "GET", "/founders", undefined, { noAuth: true });
@@ -544,7 +599,7 @@ async function main() {
       ["assessments", "GET", `/assessments?founderId=${me.Sarah.id}`], ["founder-dna", "GET", `/founder-dna/${me.Sarah.id}`],
       ["users", "GET", "/users/me"], ["notifications", "GET", "/notifications"],
       ["activities", "GET", "/activities"], ["peer-feedback", "GET", `/peer-feedback?founderId=${me.Sarah.id}`],
-      ["matches", "GET", `/matches/top?founderId=${me.Sarah.id}`],
+      ["matches", "GET", `/matches/top?founderId=${me.Sarah.id}`], ["teams", "GET", "/teams"],
     ];
     const observed = [];
     for (const [name, method, route] of probes) {

@@ -120,6 +120,11 @@ export default function FounderProfileScreen({ route, navigation }) {
               {founder?.ventureName ? (
                 <Text style={[styles.venture, { color: C.textSecondary }]}>Venture: {founder.ventureName}</Text>
               ) : null}
+              {founder?.team ? (
+                <TouchableOpacity onPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })} activeOpacity={0.75}>
+                  <Text style={[styles.venture, { color: C.primary, fontWeight: '700' }]}>Team: {founder.team.name} →</Text>
+                </TouchableOpacity>
+              ) : null}
             </View>
 
             <View style={styles.card}>

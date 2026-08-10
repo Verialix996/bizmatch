@@ -57,7 +57,7 @@ async function getDashboard(req: Request): Promise<Response> {
   );
   const teamsRows = await query<{ count: string }>(
     "SELECT count(*)::int AS count FROM teams",
-  ).catch(() => [{ count: "0" }]); // teams table doesn't exist until Phase 3
+  );
 
   const recentAssessments = await query<Record<string, unknown>>(
     `SELECT ea.submitted_at, u.name AS founder_name, ev.name AS evaluator_name
