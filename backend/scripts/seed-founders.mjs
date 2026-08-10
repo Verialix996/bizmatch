@@ -130,6 +130,7 @@ async function main() {
   console.log("Seeding evaluator/admin account...");
   const evaluatorId = await upsertAuthUser(EVALUATOR.email, EVALUATOR.name, "founder");
   await pool.query("update public.users set role = 'admin' where id = $1", [evaluatorId]);
+  await pool.query("update public.user_activity set has_seen_onboarding = true where user_id = $1", [evaluatorId]);
   console.log(`  evaluator: ${EVALUATOR.email} (${evaluatorId}) -> admin`);
 
   console.log("Seeding founder accounts + profiles...");
@@ -137,6 +138,15 @@ async function main() {
   for (const f of FOUNDERS) {
     const id = await upsertAuthUser(f.email, f.name, "founder");
     founderIds[f.email] = id;
+
+    // has_seen_onboarding (user_activity) is a separate flag from
+    // founder_profiles.onboarding_completed_at — the frontend's nav gate
+    // reads the former, so a fully-profiled seed account still gets routed
+    // into the onboarding wizard unless this is also set.
+    await pool.query(
+      "update public.user_activity set has_seen_onboarding = true where user_id = $1",
+      [id],
+    );
 
     await pool.query(
       `insert into public.founder_profiles (user_id, role_title, venture_name, industry, location, current_stage, commitment_hours, commitment_type, commitment_risk_appetite, status, onboarding_completed_at)
