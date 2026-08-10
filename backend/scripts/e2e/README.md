@@ -1,10 +1,39 @@
 # BizMatch live E2E runners
 
-These scripts test the deployed Netlify/Supabase application described in
-`docs/E2E_TEST_PLAN.md`. They read `backend/.env` at runtime and never print or
-write the publishable key or access tokens.
+These scripts test the deployed Netlify/Supabase application. They read
+`backend/.env` at runtime and never print or write the publishable key or
+access tokens.
 
-Run the API pass from the repository root:
+## Founder Profile pivot (current)
+
+`run-api-founders.mjs` tests the `founder-profile-pivot` branch's API surface
+(`founders`, `evidence`, `assessments`, `founder-dna`) against the
+`bizmatch-pivot` Supabase project. Requires seed data from
+`node backend/scripts/seed-founders.mjs` to already exist (one admin +
+Sarah/Marcus/Alex/Mia founders).
+
+```bash
+node backend/scripts/e2e/run-api-founders.mjs --mutating
+```
+
+Same `--mutating` convention as below: the default run is read-only and
+rejected-write checks; `--mutating` adds the stateful cases (profile/
+capability/status writes, evidence, assessments), restoring seeded values in
+`finally` blocks. Mia is deliberately kept mostly evidence-free across runs to
+exercise the "not enough evidence yet" empty state (case 6.2) — don't add
+assessments for her outside test 5.1's own execution/ego evidence.
+
+## Swipe-app suite (superseded)
+
+`run-api.mjs`, `run-browser.mjs`, `verify-*.mjs`, and `docs/E2E_TEST_PLAN.md`
+test the old swipe/matching app (match, messages, meetings, projects,
+premium). Those Edge Functions were deleted in the founder-profile pivot —
+**`run-api.mjs` will now fail entirely** if run with `backend/.env` pointed at
+`bizmatch-pivot` (it always was; nothing here still targets the original
+`supabase-full` project). Keep for reference against that branch; don't run
+against `bizmatch-pivot`.
+
+Run the (superseded) swipe-app API pass from the repository root:
 
 ```bash
 node backend/scripts/e2e/run-api.mjs --mutating --auth-rate-limit --large-uploads
