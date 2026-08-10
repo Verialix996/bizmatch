@@ -1,0 +1,92 @@
+import { authenticate, requireAdmin } from "../_shared/auth.ts";
+import { json } from "../_shared/respond.ts";
+import { route } from "../_shared/router.ts";
+import { serveFunction } from "../_shared/serve.ts";
+import { ActivitiesModel } from "./model.ts";
+
+const FN = "activities";
+const ACTIVITY_TYPES = ["hackathon", "workshop", "interview", "team_challenge", "work_trial"];
+
+// GET /functions/v1/activities?programId=  (MVP screen 5 — any authenticated founder can see the roster)
+async function listActivities(req: Request): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+
+  const url = new URL(req.url);
+  const programIdParam = url.searchParams.get("programId");
+  const activities = await ActivitiesModel.list(programIdParam ? Number(programIdParam) : null);
+  return json(activities);
+}
+
+// GET /functions/v1/activities/:id
+async function getActivity(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+
+  const activity = await ActivitiesModel.get(Number(params.id));
+  if (!activity) return json({ error: "Activity not found" }, 404);
+  return json(activity);
+}
+
+// POST /functions/v1/activities  (admin)  { programId?, type, title, description?, scheduledAt? }
+async function createActivity(req: Request): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const body = await req.json().catch(() => ({}));
+  const { type, title } = body as { type?: string; title?: string };
+  if (!type || !ACTIVITY_TYPES.includes(type)) return json({ error: `type must be one of ${ACTIVITY_TYPES.join(", ")}` }, 400);
+  if (!title) return json({ error: "title is required" }, 400);
+
+  const id = await ActivitiesModel.create(body);
+  return json({ id }, 201);
+}
+
+// PATCH /functions/v1/activities/:id  (admin)
+async function updateActivity(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const body = await req.json().catch(() => ({}));
+  await ActivitiesModel.update(Number(params.id), body);
+  return json({ ok: true });
+}
+
+// PUT /functions/v1/activities/:id/participants  (admin)  { founderIds: string[] }
+async function setParticipants(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const body = await req.json().catch(() => ({}));
+  const { founderIds } = body as { founderIds?: string[] };
+  await ActivitiesModel.setParticipants(Number(params.id), founderIds ?? []);
+  return json({ ok: true });
+}
+
+// PUT /functions/v1/activities/:id/evaluators  (admin)  { evaluatorIds: string[] }
+async function setEvaluators(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const body = await req.json().catch(() => ({}));
+  const { evaluatorIds } = body as { evaluatorIds?: string[] };
+  await ActivitiesModel.setEvaluators(Number(params.id), evaluatorIds ?? []);
+  return json({ ok: true });
+}
+
+serveFunction(FN, [
+  route(FN, "GET", "", listActivities),
+  route(FN, "POST", "", createActivity),
+  route(FN, "GET", "/:id", getActivity),
+  route(FN, "PATCH", "/:id", updateActivity),
+  route(FN, "PUT", "/:id/participants", setParticipants),
+  route(FN, "PUT", "/:id/evaluators", setEvaluators),
+]);

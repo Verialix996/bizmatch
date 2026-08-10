@@ -20,6 +20,12 @@ verify_jwt = false
 verify_jwt = false
 [functions.founder-dna]
 verify_jwt = false
+[functions.activities]
+verify_jwt = false
+[functions.peer-feedback]
+verify_jwt = false
+[functions.matches]
+verify_jwt = false
 [functions.notifications]
 verify_jwt = false
 

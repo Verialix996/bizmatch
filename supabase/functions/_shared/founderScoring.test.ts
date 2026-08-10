@@ -9,8 +9,11 @@ import {
   computeProfileConfidence,
   detectContradiction,
   buildEmptyState,
+  checkDealBreakers,
+  computeCompatibility,
   DIMENSIONS,
   type EvidenceRow,
+  type CompatibilityFounderInput,
 } from "./founderScoring.ts";
 
 // Section 29's worked example: Execution has self-report + evaluator +
@@ -116,4 +119,83 @@ Deno.test("buildEmptyState: lists still-needed sources for a fresh founder", () 
   const summary = buildEmptyState(dimensionResults);
   assert(summary.present.includes("Self assessment"));
   assert(summary.stillNeeded.includes("Evaluator assessment"));
+});
+
+// --- Phase 2: Matching / Compatibility Engine ---------------------------
+
+Deno.test("checkDealBreakers: no flags when neither founder listed any", () => {
+  const result = checkDealBreakers({ dealBreakers: [] }, { dealBreakers: [] });
+  assertEquals(result.flags, []);
+  assertEquals(result.requiresAdminReview, false);
+});
+
+Deno.test("checkDealBreakers: any stated deal breaker routes the pair to admin review", () => {
+  const result = checkDealBreakers(
+    { dealBreakers: ["Not full-time"] },
+    { dealBreakers: [] },
+  );
+  assertEquals(result.flags, ["Not full-time"]);
+  assertEquals(result.requiresAdminReview, true);
+});
+
+function founderInput(
+  evidence: EvidenceRow[],
+  capabilities: CompatibilityFounderInput["capabilities"],
+  dealBreakers: string[] = [],
+): CompatibilityFounderInput {
+  return { dimensions: computeAllDimensionScores(evidence), capabilities, dealBreakers };
+}
+
+Deno.test("computeCompatibility: complementary capabilities and aligned values score high", () => {
+  const richEvidence = (dimension: EvidenceRow["dimension"], score: number): EvidenceRow[] => [
+    { dimension, source_type: "evaluator", score, weight: 1.0 },
+    { dimension, source_type: "peer", score, weight: 0.8 },
+  ];
+  const founderA = founderInput(
+    [
+      ...richEvidence("values", 85),
+      ...richEvidence("integrity", 85),
+      ...richEvidence("communication", 80),
+      ...richEvidence("conflict", 80),
+      ...richEvidence("resilience", 80),
+    ],
+    [
+      { kind: "provide", capability: "Engineering" },
+      { kind: "need", capability: "Sales" },
+    ],
+  );
+  const founderB = founderInput(
+    [
+      ...richEvidence("values", 82),
+      ...richEvidence("integrity", 88),
+      ...richEvidence("communication", 78),
+      ...richEvidence("conflict", 82),
+      ...richEvidence("resilience", 79),
+    ],
+    [
+      { kind: "provide", capability: "Sales" },
+      { kind: "need", capability: "Engineering" },
+    ],
+  );
+  const result = computeCompatibility(founderA, founderB);
+  assert(result.score >= 80, `expected a high compatibility score, got ${result.score}`);
+  assert(result.explanation.positives.length > 0);
+  assertEquals(result.requiresAdminReview, false);
+  assertEquals(result.dealBreakerFlags, []);
+});
+
+Deno.test("computeCompatibility: a stated deal breaker forces admin review regardless of score", () => {
+  const founderA = founderInput([], [], ["Must be full-time"]);
+  const founderB = founderInput([], []);
+  const result = computeCompatibility(founderA, founderB);
+  assertEquals(result.requiresAdminReview, true);
+  assert(result.explanation.risks.some((r) => r.includes("deal breaker")));
+});
+
+Deno.test("computeCompatibility: two founders with no evidence yet score 0 with a risk note, not a fabricated match", () => {
+  const founderA = founderInput([], []);
+  const founderB = founderInput([], []);
+  const result = computeCompatibility(founderA, founderB);
+  assertEquals(result.score, 0);
+  assert(result.explanation.risks.some((r) => r.includes("Not enough evidence")));
 });

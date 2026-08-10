@@ -63,6 +63,7 @@ function YesNoInput({ value, onChange, C }) {
 
 export default function EvaluationScreen({ route, navigation }) {
   const founderId = route.params?.founderId;
+  const activityId = route.params?.activityId;
   const darkMode = useAppStore(s => s.darkMode);
   const C = darkMode ? investorColors : colors;
   const styles2 = makeStyles(C);
@@ -90,7 +91,7 @@ export default function EvaluationScreen({ route, navigation }) {
         answer: answers[q.key],
         criteriaTag: q.dimension,
       }));
-      await submitAssessment({ founderId, notes: notes.trim() || null, items });
+      await submitAssessment({ founderId, activityId: activityId ?? null, notes: notes.trim() || null, items });
       showAlert('Evaluation Submitted', 'Data added to founder profile.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);

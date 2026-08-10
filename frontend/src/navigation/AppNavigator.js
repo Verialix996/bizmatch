@@ -17,6 +17,10 @@ import FounderListScreen    from '../screens/admin/FounderListScreen';
 import FounderProfileScreen from '../screens/founders/FounderProfileScreen';
 import EvaluationScreen     from '../screens/founders/EvaluationScreen';
 import ComingSoonScreen     from '../screens/founders/ComingSoonScreen';
+import ActivitiesListScreen from '../screens/admin/ActivitiesListScreen';
+import ActivityDetailScreen from '../screens/admin/ActivityDetailScreen';
+import MatchingScreen       from '../screens/admin/MatchingScreen';
+import MatchDetailScreen    from '../screens/admin/MatchDetailScreen';
 import AccountSettings      from '../screens/profile/AccountSettings';
 
 const Stack = createNativeStackNavigator();
@@ -40,6 +44,10 @@ function AdminNavigator() {
       <Stack.Screen name="FounderList" component={FounderListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="FounderProfile" component={FounderProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Evaluation" component={EvaluationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Activities" component={ActivitiesListScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="Matching" component={MatchingScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="MatchDetail" component={MatchDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ComingSoon" component={ComingSoonScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AccountSettings" component={AccountSettings} options={{ headerShown: false }} />
     </Stack.Navigator>
@@ -53,6 +61,8 @@ function FounderNavigator() {
   return (
     <Stack.Navigator>
       <Stack.Screen name="FounderProfile" component={FounderProfileScreen} options={{ header: () => <AppHeader /> }} />
+      <Stack.Screen name="Activities" component={ActivitiesListScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="AccountSettings" component={AccountSettings} options={{ headerShown: false }} />
     </Stack.Navigator>
   );

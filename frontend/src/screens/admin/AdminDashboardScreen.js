@@ -81,19 +81,13 @@ export default function AdminDashboardScreen({ navigation }) {
           <ActionCard
             label="Go to Matching"
             icon="🤝"
-            onPress={() => navigation.navigate('ComingSoon', {
-              title: 'Matching',
-              description: 'Suggested matches with scores and explanations arrive in Phase 2, once activities and peer feedback are in place.',
-            })}
+            onPress={() => navigation.navigate('Matching', {})}
             styles={styles}
           />
           <ActionCard
             label="Create Activity"
             icon="📅"
-            onPress={() => navigation.navigate('ComingSoon', {
-              title: 'Activities',
-              description: 'Logging interviews, workshops, and team challenges arrives in Phase 2.',
-            })}
+            onPress={() => navigation.navigate('Activities')}
             styles={styles}
           />
         </View>

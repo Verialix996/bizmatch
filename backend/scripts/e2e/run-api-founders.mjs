@@ -428,6 +428,107 @@ async function main() {
     });
   } else skipped("6.4", "run with --mutating");
 
+  // ── 8. Activities (Phase 2) ──────────────────────────────────────────
+  let activityId;
+  if (MUTATING) {
+    await test("8.1", "admin can create an activity", async () => {
+      const r = await call(sessions.Evaluator, "POST", "/activities", {
+        type: "workshop", title: `E2E Workshop ${Date.now()}`, description: "E2E-created activity",
+      });
+      assert(r.status === 201 && r.data?.id, `expected 201 with id, got ${r.status}`);
+      activityId = r.data.id;
+      return { activityId };
+    });
+    await test("8.2", "admin can assign participants and evaluators", async () => {
+      const r1 = await call(sessions.Evaluator, "PUT", `/activities/${activityId}/participants`, { founderIds: [me.Sarah.id, me.Marcus.id] });
+      assert(r1.status === 200, `expected 200, got ${r1.status}`);
+      const r2 = await call(sessions.Evaluator, "PUT", `/activities/${activityId}/evaluators`, { evaluatorIds: [me.Evaluator.id] });
+      assert(r2.status === 200, `expected 200, got ${r2.status}`);
+      const detail = await call(sessions.Evaluator, "GET", `/activities/${activityId}`);
+      assert(detail.data.participants.length === 2, "participants not persisted");
+      assert(detail.data.evaluators.length === 1, "evaluators not persisted");
+    });
+    await test("8.3", "admin can update activity status", async () => {
+      const r = await call(sessions.Evaluator, "PATCH", `/activities/${activityId}`, { status: "active" });
+      assert(r.status === 200, `expected 200, got ${r.status}`);
+      const detail = await call(sessions.Evaluator, "GET", `/activities/${activityId}`);
+      assert(detail.data.status === "active", `expected active, got ${detail.data.status}`);
+    });
+    await test("8.4", "non-admin cannot create an activity", async () => {
+      const r = await call(sessions.Sarah, "POST", "/activities", { type: "workshop", title: "Hijacked" });
+      assert(r.status === 403, `expected 403, got ${r.status}`);
+    });
+    await test("8.5", "invalid activity type is rejected", async () => {
+      const r = await call(sessions.Evaluator, "POST", "/activities", { type: "bogus", title: "x" });
+      assert(r.status === 400, `expected 400, got ${r.status}`);
+    });
+  } else {
+    for (const id of ["8.1", "8.2", "8.3", "8.4", "8.5"]) skipped(id, "run with --mutating");
+  }
+  await test("8.6", "any authenticated founder can list activities", async () => {
+    const r = await call(sessions.Sarah, "GET", "/activities");
+    assert(r.status === 200 && Array.isArray(r.data), `expected array, got ${r.status}`);
+  });
+
+  // ── 9. Peer Feedback (Phase 2) ───────────────────────────────────────
+  if (MUTATING) {
+    await test("9.1", "a founder can submit peer feedback about another founder", async () => {
+      const r = await call(sessions.Sarah, "POST", "/peer-feedback", {
+        founderId: me.Marcus.id, activityId, dimension: "communication", score: 78, observation: "E2E peer feedback",
+      });
+      assert(r.status === 201 && r.data?.id, `expected 201 with id, got ${r.status}`);
+      return { feedbackId: r.data.id };
+    });
+    await test("9.2", "peer feedback fans out into evidence at weight 0.8", async () => {
+      const r = await call(sessions.Evaluator, "GET", `/evidence?founderId=${me.Marcus.id}&dimension=communication&source=peer`);
+      assert(r.status === 200 && r.data.length > 0, `expected at least one peer evidence row, got ${r.status}`);
+      assert(Number(r.data[0].weight) === 0.8, `expected weight 0.8, got ${r.data[0].weight}`);
+    });
+    await test("9.3", "a founder cannot give peer feedback about themselves", async () => {
+      const r = await call(sessions.Sarah, "POST", "/peer-feedback", { founderId: me.Sarah.id, dimension: "execution", score: 80 });
+      assert(r.status === 400, `expected 400, got ${r.status}`);
+    });
+  } else {
+    for (const id of ["9.1", "9.2", "9.3"]) skipped(id, "run with --mutating");
+  }
+  await test("9.4", "founder cannot list another founder's peer feedback", async () => {
+    const r = await call(sessions.Sarah, "GET", `/peer-feedback?founderId=${me.Marcus.id}`);
+    assert(r.status === 403, `expected 403, got ${r.status}`);
+  });
+
+  // ── 10. Matches (Phase 2) ────────────────────────────────────────────
+  if (MUTATING) {
+    await test("10.1", "admin can trigger a match recompute for a founder", async () => {
+      const r = await call(sessions.Evaluator, "POST", "/matches/recompute", { founderId: me.Sarah.id });
+      assert(r.status === 200, `expected 200, got ${r.status}`);
+    });
+    await test("10.2", "top matches returns a scored, sorted list", async () => {
+      const r = await call(sessions.Evaluator, "GET", `/matches/top?founderId=${me.Sarah.id}`);
+      assert(r.status === 200 && Array.isArray(r.data), `expected array, got ${r.status}`);
+      const scores = r.data.map((m) => m.score);
+      const sorted = [...scores].sort((a, b) => b - a);
+      assert(JSON.stringify(scores) === JSON.stringify(sorted), "matches not sorted by score desc");
+      return { count: r.data.length, scores };
+    });
+    await test("10.3", "compare returns a dimension breakdown and explanation for a computed pair", async () => {
+      const r = await call(sessions.Evaluator, "GET", `/matches/compare?a=${me.Sarah.id}&b=${me.Marcus.id}`);
+      assert(r.status === 200, `expected 200, got ${r.status}`);
+      assert(r.data.dimension_breakdown && r.data.explanation, "compare response missing breakdown/explanation");
+    });
+    await test("10.4", "founder can recompute their own matches but not another founder's", async () => {
+      const own = await call(sessions.Sarah, "POST", "/matches/recompute", { founderId: me.Sarah.id });
+      assert(own.status === 200, `expected 200 for own recompute, got ${own.status}`);
+      const other = await call(sessions.Sarah, "POST", "/matches/recompute", { founderId: me.Marcus.id });
+      assert(other.status === 403, `expected 403, got ${other.status}`);
+    });
+  } else {
+    for (const id of ["10.1", "10.2", "10.3", "10.4"]) skipped(id, "run with --mutating");
+  }
+  await test("10.5", "non-admin cannot compare two founders", async () => {
+    const r = await call(sessions.Sarah, "GET", `/matches/compare?a=${me.Sarah.id}&b=${me.Marcus.id}`);
+    assert(r.status === 403, `expected 403, got ${r.status}`);
+  });
+
   // ── 7. Cross-cutting ─────────────────────────────────────────────────
   await test("7.1", "protected endpoint rejects missing Authorization", async () => {
     const r = await call(null, "GET", "/founders", undefined, { noAuth: true });
@@ -442,6 +543,8 @@ async function main() {
       ["founders", "GET", "/founders/dashboard"], ["evidence", "GET", `/evidence?founderId=${me.Sarah.id}`],
       ["assessments", "GET", `/assessments?founderId=${me.Sarah.id}`], ["founder-dna", "GET", `/founder-dna/${me.Sarah.id}`],
       ["users", "GET", "/users/me"], ["notifications", "GET", "/notifications"],
+      ["activities", "GET", "/activities"], ["peer-feedback", "GET", `/peer-feedback?founderId=${me.Sarah.id}`],
+      ["matches", "GET", `/matches/top?founderId=${me.Sarah.id}`],
     ];
     const observed = [];
     for (const [name, method, route] of probes) {

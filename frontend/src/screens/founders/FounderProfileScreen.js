@@ -146,6 +146,13 @@ export default function FounderProfileScreen({ route, navigation }) {
                     {statusUpdating ? 'Updating…' : 'Change Status'}
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.btnSecondary}
+                  onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
+                  activeOpacity={0.85}
+                >
+                  <Text style={styles.btnSecondaryText}>View Matches</Text>
+                </TouchableOpacity>
               </View>
             )}
           </View>

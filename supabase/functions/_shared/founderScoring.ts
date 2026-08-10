@@ -259,3 +259,177 @@ export function buildEmptyState(
     profileConfidence: computeProfileConfidence(dimensionResults),
   };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 2: Matching / Compatibility Engine
+// ---------------------------------------------------------------------------
+//
+// Not literally specified as a formula anywhere in the source docs (section
+// 26's Scoring Architecture stops at the single-founder DNA/Confidence
+// layer) — this is a from-scratch but narrowly-scoped design for Phase 2,
+// built to be explainable (every component maps to a positive/risk bullet
+// on the Matching screen) and to degrade gracefully when a founder has
+// little evidence yet, rather than fabricating precision from empty data.
+
+export interface CapabilityLite {
+  kind: "provide" | "need";
+  capability: string;
+}
+
+export interface CompatibilityFounderInput {
+  dimensions: Record<EvidenceDimension, DimensionResult>;
+  capabilities: CapabilityLite[];
+  dealBreakers: string[]; // deal_breakers.label
+}
+
+export interface DealBreakerCheckResult {
+  flags: string[]; // union of both founders' raw deal-breaker labels
+  requiresAdminReview: boolean;
+}
+
+// The deal_breakers table stores free-text labels (spec section 25's
+// rationale for normalizing it: "the match engine needs to reason over
+// individual deal breakers"). Free text can't be safely auto-matched
+// against a candidate's profile without a false-negative risk (missing a
+// real dealbreaker reads far worse than an unnecessary admin glance) — so
+// this engine surfaces every stated deal breaker for a pair as a flag and
+// routes the pair to admin review whenever either side has any, rather
+// than guessing whether they're actually triggered. Runs first and
+// short-circuits nothing computationally, but its `requiresAdminReview`
+// output gates how the pair is presented on the Matching screen.
+export function checkDealBreakers(
+  founderA: Pick<CompatibilityFounderInput, "dealBreakers">,
+  founderB: Pick<CompatibilityFounderInput, "dealBreakers">,
+): DealBreakerCheckResult {
+  const flags = [...founderA.dealBreakers, ...founderB.dealBreakers];
+  return {
+    flags,
+    requiresAdminReview: flags.length > 0,
+  };
+}
+
+function normalizeCapability(c: string): string {
+  return c.trim().toLowerCase();
+}
+
+// What fraction of A's stated needs are covered by B's stated provides,
+// averaged with the reverse direction. 100 = every need on both sides is
+// covered by the other founder; null when neither side listed any needs
+// (nothing to be complementary about).
+function complementarityScore(
+  a: CompatibilityFounderInput,
+  b: CompatibilityFounderInput,
+): number | null {
+  const provides = (f: CompatibilityFounderInput) =>
+    new Set(f.capabilities.filter((c) => c.kind === "provide").map((c) => normalizeCapability(c.capability)));
+  const needs = (f: CompatibilityFounderInput) =>
+    f.capabilities.filter((c) => c.kind === "need").map((c) => normalizeCapability(c.capability));
+
+  const coverage = (needer: CompatibilityFounderInput, provider: CompatibilityFounderInput): number | null => {
+    const needList = needs(needer);
+    if (needList.length === 0) return null;
+    const provideSet = provides(provider);
+    const covered = needList.filter((n) => provideSet.has(n)).length;
+    return (covered / needList.length) * 100;
+  };
+
+  const aNeedsCoveredByB = coverage(a, b);
+  const bNeedsCoveredByA = coverage(b, a);
+  const parts = [aNeedsCoveredByB, bNeedsCoveredByA].filter((v): v is number => v != null);
+  if (parts.length === 0) return null;
+  return Math.round(parts.reduce((s, v) => s + v, 0) / parts.length);
+}
+
+// How close two founders sit on a set of dimensions, 100 = identical,
+// 0 = maximally apart (a 100-point gap). Only considers dimensions where
+// both founders have a non-null score; null if none overlap.
+function dimensionAlignment(
+  a: Record<EvidenceDimension, DimensionResult>,
+  b: Record<EvidenceDimension, DimensionResult>,
+  dims: EvidenceDimension[],
+): number | null {
+  const gaps: number[] = [];
+  for (const dim of dims) {
+    const scoreA = a[dim]?.score;
+    const scoreB = b[dim]?.score;
+    if (scoreA == null || scoreB == null) continue;
+    gaps.push(100 - Math.abs(scoreA - scoreB));
+  }
+  if (gaps.length === 0) return null;
+  return Math.round(gaps.reduce((s, v) => s + v, 0) / gaps.length);
+}
+
+export interface CompatibilityResult {
+  score: number;
+  dimensionBreakdown: Record<EvidenceDimension, { a: number | null; b: number | null; gap: number | null }>;
+  explanation: { positives: string[]; risks: string[] };
+  dealBreakerFlags: string[];
+  requiresAdminReview: boolean;
+}
+
+const COMPLEMENTARITY_WEIGHT = 0.4;
+const VALUES_ALIGNMENT_WEIGHT = 0.35;
+const WORK_STYLE_ALIGNMENT_WEIGHT = 0.25;
+const VALUES_DIMENSIONS: EvidenceDimension[] = ["values", "integrity"];
+const WORK_STYLE_DIMENSIONS: EvidenceDimension[] = ["communication", "conflict", "resilience"];
+
+export function computeCompatibility(
+  founderA: CompatibilityFounderInput,
+  founderB: CompatibilityFounderInput,
+): CompatibilityResult {
+  const dealBreakerCheck = checkDealBreakers(founderA, founderB);
+
+  const complementarity = complementarityScore(founderA, founderB);
+  const valuesAlignment = dimensionAlignment(founderA.dimensions, founderB.dimensions, VALUES_DIMENSIONS);
+  const workStyleAlignment = dimensionAlignment(founderA.dimensions, founderB.dimensions, WORK_STYLE_DIMENSIONS);
+
+  const weighted: Array<[number | null, number]> = [
+    [complementarity, COMPLEMENTARITY_WEIGHT],
+    [valuesAlignment, VALUES_ALIGNMENT_WEIGHT],
+    [workStyleAlignment, WORK_STYLE_ALIGNMENT_WEIGHT],
+  ];
+  const available = weighted.filter((w): w is [number, number] => w[0] != null);
+  const weightTotal = available.reduce((sum, [, w]) => sum + w, 0);
+  const score = weightTotal > 0
+    ? Math.round(available.reduce((sum, [v, w]) => sum + v * w, 0) / weightTotal)
+    : 0;
+
+  const dimensionBreakdown = {} as CompatibilityResult["dimensionBreakdown"];
+  for (const dim of DIMENSIONS) {
+    const a = founderA.dimensions[dim]?.score ?? null;
+    const b = founderB.dimensions[dim]?.score ?? null;
+    dimensionBreakdown[dim] = { a, b, gap: a != null && b != null ? Math.abs(a - b) : null };
+  }
+
+  const positives: string[] = [];
+  const risks: string[] = [];
+  if (complementarity != null && complementarity >= 70) {
+    positives.push("Strong capability complementarity — what each founder needs, the other provides.");
+  } else if (complementarity != null && complementarity < 30) {
+    risks.push("Little capability complementarity — their needs and provides barely overlap.");
+  }
+  if (valuesAlignment != null && valuesAlignment >= 80) {
+    positives.push("Closely aligned values and integrity signals.");
+  } else if (valuesAlignment != null && valuesAlignment < 50) {
+    risks.push("Diverging values/integrity signals — worth probing before pairing.");
+  }
+  if (workStyleAlignment != null && workStyleAlignment >= 80) {
+    positives.push("Compatible communication, conflict, and resilience profiles.");
+  } else if (workStyleAlignment != null && workStyleAlignment < 50) {
+    risks.push("Work-style gap on communication/conflict/resilience — may cause friction.");
+  }
+  if (dealBreakerCheck.requiresAdminReview) {
+    risks.push("One or both founders have stated deal breakers — needs admin review before pairing.");
+  }
+  if (available.length === 0) {
+    risks.push("Not enough evidence on either founder yet to compute a meaningful match.");
+  }
+
+  return {
+    score,
+    dimensionBreakdown,
+    explanation: { positives, risks },
+    dealBreakerFlags: dealBreakerCheck.flags,
+    requiresAdminReview: dealBreakerCheck.requiresAdminReview,
+  };
+}

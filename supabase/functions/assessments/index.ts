@@ -6,6 +6,7 @@ import { serveFunction } from "../_shared/serve.ts";
 import { background } from "../_shared/background.ts";
 import { SOURCE_WEIGHTS, type EvidenceDimension } from "../_shared/founderScoring.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
+import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
 
 const FN = "assessments";
 
@@ -75,6 +76,7 @@ async function submitAssessment(req: Request): Promise<Response> {
   }
 
   background(recomputeFounderDna(founderId));
+  background(recomputeMatchesForFounder(founderId));
 
   return json({ id: assessmentId }, 201);
 }

@@ -6,6 +6,7 @@ import { serveFunction } from "../_shared/serve.ts";
 import { background } from "../_shared/background.ts";
 import { SOURCE_WEIGHTS, type EvidenceSource, type EvidenceDimension } from "../_shared/founderScoring.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
+import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
 
 const FN = "evidence";
 
@@ -40,6 +41,7 @@ async function createEvidence(req: Request): Promise<Response> {
   const evidenceId = Number(rows[0].id);
 
   background(recomputeFounderDna(founderId, evidenceId));
+  background(recomputeMatchesForFounder(founderId));
 
   return json({ id: evidenceId }, 201);
 }
@@ -60,7 +62,7 @@ async function listEvidence(req: Request): Promise<Response> {
   const sign = url.searchParams.get("sign");
 
   const rows = await query<Record<string, unknown>>(
-    `SELECT e.id, e.source_type, e.dimension, e.signal, e.score, e.confidence,
+    `SELECT e.id, e.source_type, e.dimension, e.signal, e.score, e.confidence, e.weight,
             e.observation, e.is_negative, e.created_at,
             ev.name AS evaluator_name
      FROM evidence e
