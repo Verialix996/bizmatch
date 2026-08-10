@@ -2,13 +2,11 @@ import {
   View, Text, TextInput, TouchableOpacity, Switch,
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, StatusBar
 } from 'react-native';
-import { showAlert } from '../../services/alert';
 import { useState } from 'react';
 import api from '../../services/api';
-import { cancelPremium } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, investorThemeColors, typography, radius, cardShadow } from '../../theme';
+import { colors, investorColors, typography, radius, cardShadow } from '../../theme';
 
 export default function AccountSettingsScreen({ navigation }) {
   const user = useAuthStore(s => s.user);
@@ -16,8 +14,7 @@ export default function AccountSettingsScreen({ navigation }) {
   const logout = useAuthStore(s => s.logout);
   const darkMode = useAppStore(s => s.darkMode);
   const setDarkMode = useAppStore(s => s.setDarkMode);
-  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
-  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
   const [name, setName] = useState(user?.name || '');
@@ -26,34 +23,6 @@ export default function AccountSettingsScreen({ navigation }) {
   const [success, setSuccess] = useState('');
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(user?.verification_status || 'none');
-
-  // Premium state
-  const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
-  const [premiumLoading, setPremiumLoading] = useState(false);
-
-  const handleCancelPremium = () => {
-    showAlert(
-      'Cancel Subscription',
-      'Are you sure you want to cancel your Premium subscription? You will lose access immediately.',
-      [
-        { text: 'Keep Premium', style: 'cancel' },
-        {
-          text: 'Cancel Subscription', style: 'destructive',
-          onPress: async () => {
-            setPremiumLoading(true);
-            try {
-              await cancelPremium();
-              updateUser({ ...user, is_premium: 0, premium_expires_at: null });
-            } catch {
-              showAlert('Error', 'Could not cancel subscription. Please try again.');
-            } finally {
-              setPremiumLoading(false);
-            }
-          },
-        },
-      ]
-    );
-  };
 
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -230,47 +199,6 @@ export default function AccountSettingsScreen({ navigation }) {
           )}
         </View>
 
-        {/* Subscriptions */}
-        <View style={[styles.card, isPremium && styles.premiumCard]}>
-          <Text style={styles.sectionLabel}>SUBSCRIPTIONS</Text>
-          {isPremium ? (
-            <>
-              <View style={styles.premiumTagRow}>
-                <View style={styles.premiumTag}>
-                  <Text style={styles.premiumTagText}>✦ PREMIUM</Text>
-                </View>
-              </View>
-              <View style={styles.premiumBadgeRow}>
-                <Text style={styles.premiumCrown}>👑</Text>
-                <Text style={styles.premiumBadgeText}>Premium Member</Text>
-              </View>
-              <Text style={styles.premiumExpiry}>
-                Expires {new Date(user.premium_expires_at).toLocaleDateString()}
-              </Text>
-              <TouchableOpacity
-                style={styles.btnCancel}
-                onPress={handleCancelPremium}
-                disabled={premiumLoading}
-              >
-                {premiumLoading
-                  ? <ActivityIndicator color={C.textSecondary} />
-                  : <Text style={styles.btnCancelText}>Cancel Subscription</Text>
-                }
-              </TouchableOpacity>
-            </>
-          ) : (
-            <>
-              <Text style={styles.dangerText}>You are on the Free plan.</Text>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                onPress={() => navigation.navigate('Premium')}
-              >
-                <Text style={styles.btnPrimaryText}>Upgrade to Premium</Text>
-              </TouchableOpacity>
-            </>
-          )}
-        </View>
-
         {/* Appearance */}
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>APPEARANCE</Text>
@@ -354,20 +282,6 @@ function makeStyles(C) { return StyleSheet.create({
   btnPrimary: { backgroundColor: C.buttonPrimary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
   btnDisabled: { opacity: 0.7 },
   btnPrimaryText: { color: C.buttonPrimaryText, ...typography.labelLarge },
-  premiumCard: { borderWidth: 2, borderColor: '#D4AF37', backgroundColor: C.surface },
-  premiumTagRow: { marginBottom: 12 },
-  premiumTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#D4AF37',
-    borderRadius: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-  },
-  premiumTagText: { color: '#fff', fontSize: 11, fontWeight: '800', letterSpacing: 1.2 },
-  premiumBadgeRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 8, gap: 8 },
-  premiumCrown: { fontSize: 22 },
-  premiumBadgeText: { ...typography.titleSmall, color: '#B8860B', fontWeight: '700' },
-  premiumExpiry: { ...typography.bodySmall, color: C.textSecondary, marginBottom: 20 },
   btnCancel: {
     borderWidth: 1, borderColor: C.surfaceBorder,
     borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center',

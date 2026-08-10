@@ -1,0 +1,63 @@
+import api from './api';
+
+// Founders List (MVP screen 3)
+export const listFounders = (params) => api.get('/founders', { params });
+
+// Admin Dashboard (MVP screen 2)
+export const getDashboard = () => api.get('/founders/dashboard');
+
+// Founder Profile (MVP screen 4) — admin or self
+export const getFounder = (founderId) => api.get(`/founders/${founderId}`);
+export const updateFounderProfile = (founderId, payload) => api.put(`/founders/${founderId}/profile`, payload);
+export const updateFounderCapabilities = (founderId, kind, items) =>
+  api.put(`/founders/${founderId}/capabilities`, { kind, items });
+export const updatePartnerRequirements = (founderId, payload) =>
+  api.put(`/founders/${founderId}/partner-requirements`, payload);
+export const updateDealBreakers = (founderId, labels) =>
+  api.put(`/founders/${founderId}/deal-breakers`, { labels });
+export const completeOnboarding = (founderId) => api.post(`/founders/${founderId}/onboarding/complete`);
+export const setFounderStatus = (founderId, status) => api.patch(`/founders/${founderId}/status`, { status });
+export const assignProgram = (founderId, programId) => api.patch(`/founders/${founderId}/program`, { programId });
+
+export const uploadFounderCv = (founderId, uri, fileName) => {
+  const form = new FormData();
+  form.append('cv', { uri, name: fileName, type: 'application/pdf' });
+  return api.post(`/founders/${founderId}/cv`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
+
+// Founder Insights (MVP screen 7) — derived from evidence, distinct from Profile
+export const getFounderInsights = (founderId) => api.get(`/founder-dna/${founderId}`);
+
+// Evidence (MVP screen 4/7 timeline, filters)
+export const listEvidence = (founderId, filters) =>
+  api.get('/evidence', { params: { founderId, ...filters } });
+
+// Interview / Evaluation (MVP screen 6)
+export const submitAssessment = (payload) => api.post('/assessments', payload);
+export const listAssessments = (founderId) => api.get('/assessments', { params: { founderId } });
+
+// 13-item capability list (spec section 4) — shared frontend constant, matches
+// the founders/model.ts comment: intentionally not a DB enum, tunable product config.
+export const CAPABILITIES = [
+  'Engineering', 'Product', 'UX/UI', 'Sales', 'GTM', 'Marketing',
+  'Operations', 'Finance', 'Fundraising', 'Domain Expertise',
+  'Community', 'Network / Introductions', 'Leadership',
+];
+
+export const DIMENSIONS = [
+  'execution', 'integrity', 'commitment', 'communication',
+  'conflict', 'resilience', 'ego', 'values',
+];
+
+export const DIMENSION_LABELS = {
+  execution: 'Execution',
+  integrity: 'Integrity',
+  commitment: 'Commitment',
+  communication: 'Communication',
+  conflict: 'Conflict',
+  resilience: 'Resilience',
+  ego: 'Ego / Learning',
+  values: 'Values',
+};

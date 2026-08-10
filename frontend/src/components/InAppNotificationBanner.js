@@ -5,11 +5,10 @@ import { useNavigation } from '@react-navigation/native';
 import useAppStore from '../store/appStore';
 
 const TYPE_ICON = {
-  match:          '🤝',
-  message:        '💬',
-  meeting:        '📅',
-  super_like:     '⭐',
-  partner_invite: '📋',
+  evidence_added:        '📊',
+  assessment_requested:  '📝',
+  match_ready:           '🤝',
+  deal_breaker_flagged:  '⚠️',
 };
 
 const DISMISS_AFTER_MS = 4500;
@@ -55,8 +54,9 @@ export default function InAppNotificationBanner() {
     clearTimeout(timerRef.current);
     const banner = currentRef.current;
     dismissBanner();
-    if (banner?.data?.type === 'meeting') navigation.navigate('Meetings');
-    else navigation.navigate('Matches');
+    if (banner?.data?.founderId) {
+      navigation.navigate('FounderProfile', { founderId: banner.data.founderId });
+    }
   };
 
   const handleDismiss = () => {

@@ -8,19 +8,17 @@ import api from '../services/api';
 import useAppStore from '../store/appStore';
 
 const TYPE_ICON = {
-  match:          '🤝',
-  message:        '💬',
-  meeting:        '📅',
-  super_like:     '⭐',
-  partner_invite: '📋',
+  evidence_added:        '📊',
+  assessment_requested:  '📝',
+  match_ready:           '🤝',
+  deal_breaker_flagged:  '⚠️',
 };
 
 const TYPE_LABEL = {
-  match:          'New Match',
-  message:        'New Message',
-  meeting:        'Meeting Invitation',
-  super_like:     'Super Like',
-  partner_invite: 'Partner Invitation',
+  evidence_added:        'New Evidence',
+  assessment_requested:  'Evaluation Requested',
+  match_ready:           'New Match Suggestion',
+  deal_breaker_flagged:  'Deal Breaker Flagged',
 };
 
 function formatTime(dateStr) {
@@ -34,11 +32,10 @@ function formatTime(dateStr) {
 }
 
 const TYPE_BODY = {
-  match:          (p) => p?.name ? `You matched with ${p.name}!` : 'You have a new match!',
-  message:        (p) => p?.fromName ? `New message from ${p.fromName}` : 'You have a new message.',
-  meeting:        (p) => p?.title || 'A meeting has been proposed.',
-  super_like:     (p) => p?.name ? `${p.name} super liked you!` : 'Someone super liked you!',
-  partner_invite: (p) => p?.title || 'New partner invitation.',
+  evidence_added:        (p) => p?.dimension ? `New ${p.dimension} evidence recorded.` : 'New evidence recorded.',
+  assessment_requested:  (p) => p?.founderName ? `Evaluation requested for ${p.founderName}.` : 'An evaluation was requested.',
+  match_ready:           (p) => p?.founderName ? `New match suggestion with ${p.founderName}.` : 'A new match suggestion is ready.',
+  deal_breaker_flagged:  (p) => p?.detail || 'A potential deal breaker needs review.',
 };
 
 export default function NotificationBell({ tintColor }) {
@@ -62,16 +59,11 @@ export default function NotificationBell({ tintColor }) {
       const newUnread = data.filter(n => !n.readAt && !seenIdsRef.current.has(n.id));
       if (newUnread.length > 0) {
         const newest = newUnread[0];
-        const { activeChatMatchId } = useAppStore.getState();
-        const isChatNotifForOpenChat =
-          newest.type === 'message' && newest.refId === activeChatMatchId;
-        if (!isChatNotifForOpenChat) {
-          useAppStore.getState().showBanner({
-            title: TYPE_LABEL[newest.type] || 'New Notification',
-            body: (TYPE_BODY[newest.type] || (() => ''))(newest.payload),
-            data: { type: newest.type, refId: newest.refId },
-          });
-        }
+        useAppStore.getState().showBanner({
+          title: TYPE_LABEL[newest.type] || 'New Notification',
+          body: (TYPE_BODY[newest.type] || (() => ''))(newest.payload),
+          data: { type: newest.type, refId: newest.refId, founderId: newest.payload?.founderId },
+        });
       }
       seenIdsRef.current = new Set(data.map(n => n.id));
     } catch (err) {
@@ -103,20 +95,10 @@ export default function NotificationBell({ tintColor }) {
   const handleTap = (item) => {
     setOpen(false);
     if (!item.readAt) markIds([item.id]);
-    switch (item.type) {
-      case 'match':
-      case 'super_like':
-        navigation.navigate('Matches');
-        break;
-      case 'message':
-        navigation.navigate('Matches');
-        break;
-      case 'meeting':
-        navigation.navigate('Meetings');
-        break;
-      case 'partner_invite':
-        navigation.navigate('Projects');
-        break;
+    // Founder-scoped notifications carry the founder's id as refId — every
+    // navigator (admin or founder-self) has a 'FounderProfile' route.
+    if (item.payload?.founderId) {
+      navigation.navigate('FounderProfile', { founderId: item.payload.founderId });
     }
   };
 

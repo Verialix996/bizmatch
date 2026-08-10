@@ -11,12 +11,15 @@ async function precheckName(name) {
   await api.post('/auth/precheck-name', { name });
 }
 
-export async function register({ name, email, password, role }) {
+export async function register({ name, email, password }) {
   await precheckName(name);
+  // Self-serve signup always creates a 'founder' — there's no role picker in
+  // the pivot's Register screen (admins are seeded/promoted directly, not
+  // created through this flow).
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { name, role } },
+    options: { data: { name, role: 'founder' } },
   });
   if (error) throw error;
   // Supabase returns 200 with an empty identities array for an already-registered
@@ -104,9 +107,6 @@ export async function fetchProfile(session) {
   });
   return { session, profile: data };
 }
-
-export const activatePremium = () => api.post('/users/me/premium/activate');
-export const cancelPremium   = () => api.delete('/users/me/premium');
 
 export const uploadPhoto = (uri, fileName) => {
   const form = new FormData();

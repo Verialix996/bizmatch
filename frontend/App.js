@@ -43,17 +43,11 @@ export default function App() {
   const restoreAuth = useAuthStore(s => s.restoreAuth);
 
   const initDarkMode = useAppStore(s => s.initDarkMode);
-  const setInvestorTheme = useAppStore(s => s.setInvestorTheme);
-  const userRole = useAuthStore(s => s.user?.role);
 
   useEffect(() => {
     restoreAuth();
     initDarkMode();
   }, []);
-
-  useEffect(() => {
-    setInvestorTheme(userRole === 'investor');
-  }, [userRole]);
 
   useEffect(() => {
     if (token) registerForPushNotifications();
@@ -69,12 +63,12 @@ export default function App() {
       bumpTick();
     });
 
-    // User taps a system notification → navigate to the relevant screen (no-op on web)
+    // User taps a system notification → navigate to the relevant founder
+    // profile (no-op on web)
     const responseSub = addNotificationResponseReceivedListener((response) => {
       const data = response.notification.request.content.data || {};
-      if (navigationRef.isReady()) {
-        if (data.type === 'meeting') navigationRef.navigate('Meetings');
-        else navigationRef.navigate('Matches');
+      if (navigationRef.isReady() && data.founderId) {
+        navigationRef.navigate('FounderProfile', { founderId: data.founderId });
       }
     });
 

@@ -1,10 +1,7 @@
-import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
-import { showAlert } from '../services/alert';
+import { View, Text, StyleSheet } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
-import { colors, investorColors, investorSwipeColors, investorThemeColors, radius } from '../theme';
+import { colors, investorColors } from '../theme';
 import useAppStore from '../store/appStore';
-import useAuthStore from '../store/authStore';
 import NotificationBell from './NotificationBell';
 
 function LogoMark({ color }) {
@@ -16,75 +13,24 @@ function LogoMark({ color }) {
   );
 }
 
-export default function AppHeader({ showToggle = false }) {
+export default function AppHeader() {
   const insets = useSafeAreaInsets();
-  const { investorMode, darkMode, isInvestorTheme, openProjectPicker, exitInvestorMode } = useAppStore();
-  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
-  // investorMode colors only apply on the Discover (SwipeScreen) tab — showToggle is true only there
-  const isInvestorSwipe = investorMode && showToggle && !isInvestorTheme;
-  const IC = investorSwipeColors;
-  const headerBg = isInvestorSwipe ? IC.background : (C.background || '#fff');
-  const accentColor = isInvestorSwipe ? IC.primary : C.primary;
-  const user = useAuthStore(s => s.user);
-  const navigation = useNavigation();
-
-  const isEntrepreneur = user?.role === 'entrepreneur';
-  const isPremium = !!(user?.is_premium && user?.premium_expires_at && new Date(user.premium_expires_at) > new Date());
-  const showModeToggle = showToggle && isEntrepreneur;
-
-  const handleToggle = (toInvestor) => {
-    if (!toInvestor) { exitInvestorMode(); return; }
-    if (!isPremium) {
-      showAlert(
-        'Premium Required',
-        'Investor search mode is a Premium feature. Upgrade to find investors for your project.',
-        [{ text: 'Not now', style: 'cancel' }, { text: 'Upgrade', onPress: () => navigation.navigate('Premium') }]
-      );
-      return;
-    }
-    openProjectPicker();
-  };
+  const darkMode = useAppStore(s => s.darkMode);
+  const C = darkMode ? investorColors : colors;
 
   return (
     <View style={[
       styles.container,
-      { paddingTop: insets.top, backgroundColor: headerBg, borderBottomColor: isInvestorSwipe ? IC.surfaceBorder : C.surfaceBorder },
+      { paddingTop: insets.top, backgroundColor: C.background, borderBottomColor: C.surfaceBorder },
     ]}>
-      {/* Row 1: logo + wordmark + bell */}
       <View style={styles.inner}>
-        <LogoMark color={accentColor} />
-        <Text style={[styles.wordmark, { color: accentColor }]}>BizMatch</Text>
+        <LogoMark color={C.primary} />
+        <Text style={[styles.wordmark, { color: C.primary }]}>BizMatch</Text>
         <View style={{ flex: 1 }} />
         <View style={styles.rightActions}>
-          <NotificationBell tintColor={accentColor} />
+          <NotificationBell tintColor={C.primary} />
         </View>
       </View>
-
-      {/* Row 2: Partners / Investors toggle — only on Discover for entrepreneurs */}
-      {showModeToggle && (
-        <View style={styles.toggleRow}>
-          <View style={[styles.modeToggleBar, { backgroundColor: isInvestorSwipe ? IC.surface : C.surface, borderColor: isInvestorSwipe ? IC.surfaceBorder : C.surfaceBorder }]}>
-            <TouchableOpacity
-              style={[styles.modeToggleBtn, !investorMode && styles.modeToggleBtnActive]}
-              onPress={() => handleToggle(false)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeToggleBtnText, { color: investorMode ? IC.textHint : C.textHint }, !investorMode && styles.modeToggleBtnTextActive]}>
-                🤝 Partners
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.modeToggleBtn, investorMode && styles.modeToggleBtnInvestorActive]}
-              onPress={() => handleToggle(true)}
-              activeOpacity={0.85}
-            >
-              <Text style={[styles.modeToggleBtnText, { color: investorMode ? IC.textHint : C.textHint }, investorMode && styles.modeToggleBtnTextInvestorActive]}>
-                💼 Investors
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      )}
     </View>
   );
 }
@@ -100,7 +46,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     gap: 8,
   },
-
   logoWrap: {
     width: 30,
     height: 30,
@@ -130,58 +75,6 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: -0.5,
   },
-
-  toggleRow: {
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-  },
-  modeToggleBar: {
-    flexDirection: 'row',
-    borderRadius: radius.lg,
-    padding: 3,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleBtn: {
-    flex: 1,
-    paddingVertical: 7,
-    borderRadius: radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  modeToggleBtnActive: {
-    backgroundColor: colors.primary,
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleBtnInvestorActive: {
-    backgroundColor: '#E8D5A3',   // champagne — investorSwipeColors.primary
-    shadowColor: '#E8D5A3',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  modeToggleBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  modeToggleBtnTextActive: {
-    color: '#fff',
-    fontWeight: '700',
-  },
-  modeToggleBtnTextInvestorActive: {
-    color: '#0A0F1E',
-    fontWeight: '700',
-  },
-
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',

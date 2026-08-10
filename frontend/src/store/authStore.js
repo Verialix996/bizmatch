@@ -5,8 +5,6 @@ import { fetchProfile } from '../services/auth.service';
 const useAuthStore = create((set, get) => ({
   token: null,
   user: null,
-  newMatchCount: 0,
-  readTimestamps: {},
   hasSeenOnboarding: false,
   isRestoring: true,
 
@@ -38,7 +36,7 @@ const useAuthStore = create((set, get) => ({
       if (session) {
         get().setAuth(session);
       } else {
-        set({ token: null, user: null, newMatchCount: 0, readTimestamps: {}, hasSeenOnboarding: false });
+        set({ token: null, user: null, hasSeenOnboarding: false });
       }
     });
   },
@@ -50,15 +48,9 @@ const useAuthStore = create((set, get) => ({
     }));
   },
 
-  setNewMatchCount: (count) => set({ newMatchCount: count }),
-
-  markMatchRead: (matchId) => set(state => ({
-    readTimestamps: { ...state.readTimestamps, [matchId]: Date.now() },
-  })),
-
   logout: async () => {
     await supabase.auth.signOut();
-    set({ token: null, user: null, newMatchCount: 0, readTimestamps: {}, hasSeenOnboarding: false });
+    set({ token: null, user: null, hasSeenOnboarding: false });
   },
 }));
 

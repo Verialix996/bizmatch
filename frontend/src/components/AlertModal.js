@@ -1,6 +1,6 @@
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import useAppStore from '../store/appStore';
-import { colors, investorColors, investorThemeColors, radius } from '../theme';
+import { colors, investorColors, radius } from '../theme';
 
 // Renders alerts pushed via services/alert.js as an in-app modal instead of
 // window.alert/confirm on web, which blocks the whole tab (including
@@ -10,8 +10,7 @@ export default function AlertModal() {
   const pendingAlert = useAppStore(s => s.pendingAlert);
   const dismissAlertModal = useAppStore(s => s.dismissAlertModal);
   const darkMode = useAppStore(s => s.darkMode);
-  const isInvestorTheme = useAppStore(s => s.isInvestorTheme);
-  const C = darkMode ? investorColors : (isInvestorTheme ? investorThemeColors : colors);
+  const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
   if (!pendingAlert) return null;
