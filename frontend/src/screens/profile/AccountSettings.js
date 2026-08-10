@@ -216,6 +216,12 @@ export default function AccountSettingsScreen({ navigation }) {
           </View>
         </View>
 
+        <View style={styles.card}>
+          <TouchableOpacity style={styles.btnLogout} onPress={logout}>
+            <Text style={styles.btnLogoutText}>Log Out</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={[styles.card, styles.dangerZone]}>
           <Text style={[styles.sectionLabel, { color: C.error }]}>DANGER ZONE</Text>
           <Text style={styles.dangerText}>
@@ -275,6 +281,8 @@ function makeStyles(C) { return StyleSheet.create({
   helperText: { ...typography.caption, color: C.textHint, marginTop: -8, marginBottom: 20 },
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   switchLabel: { ...typography.bodyLarge, color: C.textPrimary, fontWeight: '600' },
+  btnLogout: { paddingVertical: 6, alignItems: 'center' },
+  btnLogoutText: { ...typography.bodyLarge, color: C.textPrimary, fontWeight: '700' },
   switchSub: { ...typography.bodySmall, color: C.textSecondary, marginTop: 2 },
   errorText: { color: C.error, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },
   successText: { color: C.success, ...typography.bodySmall, textAlign: 'center', marginBottom: 16 },

@@ -1,4 +1,4 @@
-import { query } from "../_shared/db.ts";
+import { query, parseJsonColumn } from "../_shared/db.ts";
 
 function canonicalPair(x: string, y: string): [string, string] {
   return x < y ? [x, y] : [y, x];
@@ -49,6 +49,13 @@ export const MatchesModel = {
        WHERE fc.founder_a_id = $1 AND fc.founder_b_id = $2`,
       [aId, bId],
     );
-    return rows[0] ?? null;
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      ...row,
+      dimension_breakdown: parseJsonColumn(row.dimension_breakdown, {}),
+      explanation: parseJsonColumn(row.explanation, { positives: [], risks: [] }),
+      deal_breaker_flags: parseJsonColumn(row.deal_breaker_flags, []),
+    };
   },
 };

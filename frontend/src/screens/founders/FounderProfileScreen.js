@@ -97,9 +97,14 @@ export default function FounderProfileScreen({ route, navigation }) {
           </TouchableOpacity>
         ) : <View />}
         {isSelf && (
-          <TouchableOpacity onPress={() => navigation.navigate('AccountSettings')}>
-            <Text style={styles.backText}>Settings</Text>
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity onPress={() => navigation.navigate('Activities')}>
+              <Text style={styles.backText}>Activities</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => navigation.navigate('AccountSettings')}>
+              <Text style={styles.backText}>Settings</Text>
+            </TouchableOpacity>
+          </View>
         )}
       </View>
 
@@ -192,6 +197,7 @@ function makeStyles(C) {
     },
     backBtn: {},
     backText: { color: C.primary, ...typography.labelLarge },
+    headerActions: { flexDirection: 'row', gap: 16 },
     scrollContent: { paddingBottom: 48 },
 
     tabRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 8, marginBottom: 8 },

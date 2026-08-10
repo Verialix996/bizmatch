@@ -1,5 +1,5 @@
 import { authenticate, requireAdmin } from "../_shared/auth.ts";
-import { query } from "../_shared/db.ts";
+import { query, parseJsonColumn } from "../_shared/db.ts";
 import { json } from "../_shared/respond.ts";
 import { route } from "../_shared/router.ts";
 import { serveFunction } from "../_shared/serve.ts";
@@ -113,7 +113,7 @@ async function listAssessments(req: Request): Promise<Response> {
   for (const item of items) {
     const id = Number(item.assessment_id);
     if (!itemsByAssessment.has(id)) itemsByAssessment.set(id, []);
-    itemsByAssessment.get(id)!.push(item);
+    itemsByAssessment.get(id)!.push({ ...item, answer: parseJsonColumn(item.answer, null) });
   }
 
   return json(

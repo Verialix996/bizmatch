@@ -1,8 +1,12 @@
-import { query } from "../_shared/db.ts";
+import { query, parseJsonColumn } from "../_shared/db.ts";
 
 // deno-lint-ignore no-explicit-any
 function asArray(value: unknown): any[] {
-  return Array.isArray(value) ? value : [];
+  // partner_requirements.must_provide/preferred_traits are jsonb, which
+  // query() returns as raw JSON text (see parseJsonColumn) — parse before
+  // falling back, or every jsonb array on this screen renders empty.
+  const parsed = parseJsonColumn(value, []);
+  return Array.isArray(parsed) ? parsed : [];
 }
 
 export interface FounderListItem {

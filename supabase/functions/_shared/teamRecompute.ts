@@ -1,4 +1,4 @@
-import { query } from "./db.ts";
+import { query, parseJsonColumn } from "./db.ts";
 import {
   computeAllDimensionScores,
   computeTeamDimensionScores,
@@ -80,9 +80,9 @@ async function fetchPairwiseCompatibility(memberIds: string[]): Promise<Compatib
   );
   return rows.map((r) => ({
     score: Number(r.score),
-    dimensionBreakdown: r.dimension_breakdown as CompatibilityResult["dimensionBreakdown"],
-    explanation: r.explanation as CompatibilityResult["explanation"],
-    dealBreakerFlags: r.deal_breaker_flags as string[],
+    dimensionBreakdown: parseJsonColumn(r.dimension_breakdown, {} as CompatibilityResult["dimensionBreakdown"]),
+    explanation: parseJsonColumn(r.explanation, { positives: [], risks: [] } as CompatibilityResult["explanation"]),
+    dealBreakerFlags: parseJsonColumn(r.deal_breaker_flags, [] as string[]),
     requiresAdminReview: !!r.requires_admin_review,
   }));
 }

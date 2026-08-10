@@ -21,3 +21,18 @@ export async function query<T = Record<string, unknown>>(
 }
 
 export { sql };
+
+// sql.unsafe() runs the simple query protocol, which — unlike this driver's
+// tagged-template queries — does NOT auto-decode json/jsonb columns into JS
+// values; they come back as raw JSON text. Every call site that reads a
+// jsonb column through query() must run it through this first. Passes
+// already-decoded values through unchanged so it's safe to call defensively.
+export function parseJsonColumn<T>(value: unknown, fallback: T): T {
+  if (value == null) return fallback;
+  if (typeof value !== "string") return value as T;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}

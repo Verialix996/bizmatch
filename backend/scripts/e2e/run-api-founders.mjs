@@ -232,6 +232,11 @@ async function main() {
     assert(Array.isArray(r.data.provides) && r.data.provides.length > 0, "provides missing/empty");
     assert(Array.isArray(r.data.needs) && r.data.needs.length > 0, "needs missing/empty");
     assert(r.data.partnerRequirements?.roleWanted, "partnerRequirements.roleWanted missing");
+    // mustProvide is jsonb (partner_requirements.must_provide) and seeded
+    // non-empty — an empty array here (rather than 4xx/error) means the
+    // jsonb string silently failed Array.isArray and got dropped, not that
+    // there's really no data. See asArray()/parseJsonColumn in db.ts.
+    assert(Array.isArray(r.data.partnerRequirements?.mustProvide) && r.data.partnerRequirements.mustProvide.length > 0, "partnerRequirements.mustProvide missing/empty — jsonb decode likely silently dropped");
     assert(Array.isArray(r.data.dealBreakers), "dealBreakers not an array");
     return { ventureName: r.data.ventureName, provides: r.data.provides.map((p) => p.capability) };
   });
@@ -510,10 +515,16 @@ async function main() {
       assert(JSON.stringify(scores) === JSON.stringify(sorted), "matches not sorted by score desc");
       return { count: r.data.length, scores };
     });
-    await test("10.3", "compare returns a dimension breakdown and explanation for a computed pair", async () => {
+    await test("10.3", "compare returns a decoded (not raw-jsonb-string) breakdown and explanation for a computed pair", async () => {
       const r = await call(sessions.Evaluator, "GET", `/matches/compare?a=${me.Sarah.id}&b=${me.Marcus.id}`);
       assert(r.status === 200, `expected 200, got ${r.status}`);
-      assert(r.data.dimension_breakdown && r.data.explanation, "compare response missing breakdown/explanation");
+      // jsonb columns come back as raw JSON text from query()'s sql.unsafe()
+      // unless explicitly parsed (see parseJsonColumn in _shared/db.ts) — a
+      // string here means that decoding was dropped and the frontend's
+      // .map()/.risks access on these fields would crash.
+      assert(typeof r.data.dimension_breakdown === "object" && !Array.isArray(r.data.dimension_breakdown), "dimension_breakdown was not decoded to an object");
+      assert(Array.isArray(r.data.explanation?.positives) && Array.isArray(r.data.explanation?.risks), "explanation.positives/risks were not decoded to arrays");
+      assert(Array.isArray(r.data.deal_breaker_flags), "deal_breaker_flags was not decoded to an array");
     });
     await test("10.4", "founder can recompute their own matches but not another founder's", async () => {
       const own = await call(sessions.Sarah, "POST", "/matches/recompute", { founderId: me.Sarah.id });
@@ -545,11 +556,18 @@ async function main() {
       teamId = r.data.id;
       return { teamId };
     });
-    await test("11.3", "team detail includes members and a computed profile", async () => {
+    await test("11.3", "team detail includes members and a computed profile with decoded pairwise data", async () => {
       const r = await call(sessions.Evaluator, "GET", `/teams/${teamId}`);
       assert(r.status === 200, `expected 200, got ${r.status}`);
       assert(r.data.members?.length === 2, `expected 2 members, got ${r.data.members?.length}`);
       assert(r.data.profile && "compatibility" in r.data.profile, "team profile missing");
+      // potentialFriction is built from each cached pairwise
+      // founder_compatibility row's explanation.risks (jsonb) — an
+      // undefined/non-array here means teamRecompute.ts's
+      // fetchPairwiseCompatibility got raw JSON text instead of a parsed
+      // object and silently produced garbage instead of crashing.
+      assert(Array.isArray(r.data.profile.potentialFriction), "profile.potentialFriction was not decoded to an array");
+      assert(Array.isArray(r.data.profile.complementarySkills) && Array.isArray(r.data.profile.capabilityGaps), "profile skills/gaps not arrays");
       return r.data;
     });
     await test("11.4", "a team member can view their own team, a non-member founder cannot", async () => {
