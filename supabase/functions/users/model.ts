@@ -25,13 +25,6 @@ export const UserModel = {
     await query("UPDATE users SET verification_status = $1 WHERE id = $2", [status, id]);
   },
 
-  async setRole(id: string, role: string) {
-    await query("UPDATE users SET role = $1, updated_at = now() WHERE id = $2", [role, id]);
-    if (role === "investor") {
-      await query("INSERT INTO investor_profiles (user_id) VALUES ($1) ON CONFLICT (user_id) DO NOTHING", [id]);
-    }
-  },
-
   async updatePhoto(id: string, photoUrl: string) {
     await query("UPDATE users SET photo_url = $1, updated_at = now() WHERE id = $2", [photoUrl, id]);
   },

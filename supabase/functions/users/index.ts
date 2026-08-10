@@ -53,10 +53,13 @@ async function deleteAccount(req: Request): Promise<Response> {
   return json({ message: "Account deleted" });
 }
 
-// GET /functions/v1/users/:id
+// GET /functions/v1/users/:id  (admin — founders can't browse other users;
+// they get their own founder-facing data via GET /founders/:id instead)
 async function getUser(req: Request, params: Record<string, string>): Promise<Response> {
   const authed = await authenticate(req);
   if (!authed) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(authed);
+  if (adminErr) return adminErr;
 
   const target = await UserModel.findById(params.id) as Record<string, unknown> | null;
   if (!target) return json({ error: "User not found" }, 404);
@@ -74,20 +77,6 @@ async function setVerificationStatus(req: Request, params: Record<string, string
   const { status } = body as { status?: string };
   await UserModel.setVerificationStatus(params.id, status ?? "pending");
   return json({ message: "Verification status updated" });
-}
-
-// PATCH /functions/v1/users/me/role  { role }
-async function setRole(req: Request): Promise<Response> {
-  const user = await authenticate(req);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-
-  const body = await req.json().catch(() => ({}));
-  const { role } = body as { role?: string };
-  if (!role || !["entrepreneur", "investor"].includes(role)) {
-    return json({ error: "role must be entrepreneur or investor" }, 400);
-  }
-  await UserModel.setRole(user.id, role);
-  return json({ role });
 }
 
 // POST /functions/v1/users/me/photo  { photo: base64 data URI }
@@ -123,45 +112,6 @@ async function savePushToken(req: Request): Promise<Response> {
   return json({ ok: true });
 }
 
-// POST /functions/v1/users/me/premium/activate
-async function activatePremium(req: Request): Promise<Response> {
-  const user = await authenticate(req);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-
-  const rows = await query<{ premium_expires_at: string }>(
-    "UPDATE users SET is_premium = true, premium_expires_at = now() + interval '30 days' WHERE id = $1 RETURNING premium_expires_at",
-    [user.id],
-  );
-  return json({ ok: true, expiresAt: rows[0].premium_expires_at });
-}
-
-// GET /functions/v1/users/me/who-liked-me  (premium only)
-async function whoLikedMe(req: Request): Promise<Response> {
-  const user = await authenticate(req);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-
-  const isPremium = user.is_premium && user.premium_expires_at && new Date(user.premium_expires_at as string) > new Date();
-  if (!isPremium) return json({ error: "Premium required" }, 403);
-
-  const rows = await query(
-    `SELECT u.id, u.name, u.photo_url AS "photoUrl", s.is_super_like AS "isSuperLike"
-     FROM swipes s
-     JOIN users u ON u.id = s.swiper_id
-     WHERE s.swiped_id = $1 AND s.direction = 'like' AND u.deleted_at IS NULL`,
-    [user.id],
-  );
-  return json(rows);
-}
-
-// DELETE /functions/v1/users/me/premium
-async function cancelPremium(req: Request): Promise<Response> {
-  const user = await authenticate(req);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-
-  await query("UPDATE users SET is_premium = false, premium_expires_at = NULL WHERE id = $1", [user.id]);
-  return json({ ok: true });
-}
-
 // POST /functions/v1/users/me/verify-self — skip ID review, mark verified instantly (demo)
 async function verifySelf(req: Request): Promise<Response> {
   const user = await authenticate(req);
@@ -185,13 +135,9 @@ serveFunction(FN, [
   route(FN, "GET", "/me", getMe),
   route(FN, "PATCH", "/me", updateMe),
   route(FN, "DELETE", "/me", deleteAccount),
-  route(FN, "PATCH", "/me/role", setRole),
   route(FN, "POST", "/me/photo", uploadPhoto),
   route(FN, "PATCH", "/me/push-token", savePushToken),
   route(FN, "PATCH", "/me/onboarding", markOnboardingSeen),
-  route(FN, "POST", "/me/premium/activate", activatePremium),
-  route(FN, "DELETE", "/me/premium", cancelPremium),
-  route(FN, "GET", "/me/who-liked-me", whoLikedMe),
   route(FN, "POST", "/me/verify-self", verifySelf),
   route(FN, "PATCH", "/:id/verification", setVerificationStatus),
   route(FN, "GET", "/:id", getUser),
