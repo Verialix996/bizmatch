@@ -18,7 +18,7 @@ export interface PublicUser {
 function extractToken(req: Request): string | null {
   const header = req.headers.get("authorization") ?? "";
   if (header.startsWith("Bearer ")) return header.slice(7);
-  // Needed for GET /profile/cv and GET /projects/:id/deck, hit via direct
+  // Needed for GET /founders/:id/cv, hit via direct
   // browser navigation / <img>-style requests, not fetch with headers.
   const url = new URL(req.url);
   return url.searchParams.get("token");
