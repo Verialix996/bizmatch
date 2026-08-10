@@ -15,7 +15,7 @@ create table public.programs (
 
 create table public.founder_profiles (
   user_id                 uuid primary key references public.users(id) on delete cascade,
-  current_role            text,
+  role_title            text,
   venture_name            text,
   industry                text,
   location                text,

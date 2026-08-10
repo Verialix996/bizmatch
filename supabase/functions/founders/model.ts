@@ -21,7 +21,7 @@ export const FoundersModel = {
   async list(programId: number | null, search: string | null): Promise<FounderListItem[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.photo_url,
-              fp.current_role, fp.status, fp.program_id,
+              fp.role_title, fp.status, fp.program_id,
               exists(select 1 from team_founders tf where tf.founder_id = u.id) AS in_team
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
@@ -35,7 +35,7 @@ export const FoundersModel = {
       id: r.id as string,
       name: r.name as string | null,
       photoUrl: r.photo_url as string | null,
-      role: r.current_role as string | null,
+      role: r.role_title as string | null,
       status: r.status as string | null,
       teamStatus: r.in_team ? "in_team" : "looking_for_team",
     }));
@@ -46,7 +46,7 @@ export const FoundersModel = {
   async getProfile(founderId: string): Promise<Record<string, unknown> | null> {
     const userRows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.email, u.photo_url,
-              fp.current_role, fp.venture_name, fp.industry, fp.location, fp.current_stage,
+              fp.role_title, fp.venture_name, fp.industry, fp.location, fp.current_stage,
               fp.commitment_hours, fp.commitment_type, fp.commitment_risk_appetite,
               fp.program_id, fp.status, fp.onboarding_completed_at
        FROM users u
@@ -80,7 +80,7 @@ export const FoundersModel = {
       name: base.name,
       email: base.email,
       photoUrl: base.photo_url,
-      currentRole: base.current_role,
+      currentRole: base.role_title,
       ventureName: base.venture_name,
       industry: base.industry,
       location: base.location,
@@ -109,16 +109,16 @@ export const FoundersModel = {
 
   async upsertProfile(founderId: string, fields: Record<string, unknown>): Promise<void> {
     const {
-      current_role, venture_name, industry, location, current_stage,
+      role_title, venture_name, industry, location, current_stage,
       commitment_hours, commitment_type, commitment_risk_appetite, program_id,
     } = fields;
     await query(
       `INSERT INTO founder_profiles (
-         user_id, current_role, venture_name, industry, location, current_stage,
+         user_id, role_title, venture_name, industry, location, current_stage,
          commitment_hours, commitment_type, commitment_risk_appetite, program_id
        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        ON CONFLICT (user_id) DO UPDATE SET
-         current_role = EXCLUDED.current_role,
+         role_title = EXCLUDED.role_title,
          venture_name = EXCLUDED.venture_name,
          industry = EXCLUDED.industry,
          location = EXCLUDED.location,
@@ -129,7 +129,7 @@ export const FoundersModel = {
          program_id = COALESCE(EXCLUDED.program_id, founder_profiles.program_id),
          updated_at = now()`,
       [
-        founderId, current_role ?? null, venture_name ?? null, industry ?? null, location ?? null,
+        founderId, role_title ?? null, venture_name ?? null, industry ?? null, location ?? null,
         current_stage ?? null, commitment_hours ?? null, commitment_type ?? null,
         commitment_risk_appetite ?? null, program_id ?? null,
       ],
