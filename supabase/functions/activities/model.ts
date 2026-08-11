@@ -104,4 +104,8 @@ export const ActivitiesModel = {
       );
     }
   },
+
+  async remove(activityId: number): Promise<void> {
+    await query("DELETE FROM activities WHERE id = $1", [activityId]);
+  },
 };

@@ -9,6 +9,7 @@ export const setActivityParticipants = (activityId, founderIds) =>
   api.put(`/activities/${activityId}/participants`, { founderIds });
 export const setActivityEvaluators = (activityId, evaluatorIds) =>
   api.put(`/activities/${activityId}/evaluators`, { evaluatorIds });
+export const deleteActivity = (activityId) => api.delete(`/activities/${activityId}`);
 
 export const ACTIVITY_TYPES = ['hackathon', 'workshop', 'interview', 'team_challenge', 'work_trial'];
 

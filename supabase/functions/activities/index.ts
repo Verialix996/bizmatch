@@ -86,6 +86,17 @@ async function setEvaluators(req: Request, params: Record<string, string>): Prom
   return json({ ok: true });
 }
 
+// DELETE /functions/v1/activities/:id  (admin)
+async function deleteActivity(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  await ActivitiesModel.remove(Number(params.id));
+  return json({ ok: true });
+}
+
 serveFunction(FN, [
   route(FN, "GET", "", listActivities),
   route(FN, "POST", "", createActivity),
@@ -93,4 +104,5 @@ serveFunction(FN, [
   route(FN, "PATCH", "/:id", updateActivity),
   route(FN, "PUT", "/:id/participants", setParticipants),
   route(FN, "PUT", "/:id/evaluators", setEvaluators),
+  route(FN, "DELETE", "/:id", deleteActivity),
 ]);

@@ -500,6 +500,20 @@ async function main() {
     const r = await call(sessions.Sarah, "GET", `/peer-feedback?founderId=${me.Marcus.id}`);
     assert(r.status === 403, `expected 403, got ${r.status}`);
   });
+  if (MUTATING) {
+    // Cleanup runs here, after every use of `activityId` (sections 8-9),
+    // not right after 8.5 — peer_feedback.activity_id has a FK to
+    // activities, so deleting the activity too early 500s section 9's
+    // peer-feedback writes instead of skipping them cleanly.
+    await test("9.5", "cleanup: admin can delete the E2E activity", async () => {
+      const r = await call(sessions.Evaluator, "DELETE", `/activities/${activityId}`);
+      assert(r.status === 200, `expected 200, got ${r.status}`);
+      const after = await call(sessions.Evaluator, "GET", `/activities/${activityId}`);
+      assert(after.status === 404, `expected 404 after delete, got ${after.status}`);
+    });
+  } else {
+    skipped("9.5", "run with --mutating");
+  }
 
   // ── 10. Matches (Phase 2) ────────────────────────────────────────────
   if (MUTATING) {
