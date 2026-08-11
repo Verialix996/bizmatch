@@ -1,6 +1,9 @@
 // Exact port of backend/src/app.js's origin-matching logic — there's no
 // Express middleware chain here, so this is called manually per-function.
-const NETLIFY_SITE = "bizmatchapp.netlify.app";
+// Primary allow-list is FRONTEND_URL (see below); this is just a fallback
+// for this branch's own Netlify site so deploy previews (--<hash>--) work
+// without needing every preview URL added to FRONTEND_URL by hand.
+const NETLIFY_SITE = "matchappbiz.netlify.app";
 const allowedOrigins = (Deno.env.get("FRONTEND_URL") ?? "")
   .split(",").map((o) => o.trim()).filter(Boolean);
 const isDev = Deno.env.get("ENVIRONMENT") === "development";
