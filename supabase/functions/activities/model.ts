@@ -12,7 +12,7 @@ export interface ActivityListItem {
 export const ActivitiesModel = {
   // MVP screen 5 — Activities list: type, date, participant count, status.
   // Also backs MVP screen 10's "Team Activities" via the teamId filter.
-  async list(programId: number | null, teamId: number | null = null): Promise<ActivityListItem[]> {
+  async list(programId: number | null, teamId: number | null = null, founderId: string | null = null): Promise<ActivityListItem[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT a.id, a.type, a.title, a.scheduled_at, a.status,
               count(ap.founder_id)::int AS participant_count
@@ -20,9 +20,13 @@ export const ActivitiesModel = {
        LEFT JOIN activity_participants ap ON ap.activity_id = a.id
        WHERE ($1::bigint IS NULL OR a.program_id = $1)
          AND ($2::bigint IS NULL OR a.team_id = $2)
+         AND ($3::uuid IS NULL OR EXISTS (
+           SELECT 1 FROM activity_participants ap2
+           WHERE ap2.activity_id = a.id AND ap2.founder_id = $3
+         ))
        GROUP BY a.id
        ORDER BY a.scheduled_at DESC NULLS LAST, a.id DESC`,
-      [programId, teamId],
+      [programId, teamId, founderId],
     );
     return rows.map((r) => ({
       id: Number(r.id),

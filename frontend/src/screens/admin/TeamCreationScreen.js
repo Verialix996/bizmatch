@@ -1,13 +1,17 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../services/alert';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
 import { listFounders, DIMENSION_LABELS } from '../../services/founders.service';
 import { previewTeam, createTeam } from '../../services/teams.service';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS } from '../../config/nav';
+import { Avatar, Pill, ResponsiveRow, SectionCard } from '../../components/ui';
 
 // MVP screen 9 — Team Creation: select founders, team name, member list,
 // compatibility/skills/gaps summary before creating, Create Team -> Team Profile.
@@ -65,94 +69,155 @@ export default function TeamCreationScreen({ route, navigation }) {
     }
   };
 
+  const selectedFounders = allFounders.filter(f => selectedIds.has(f.id));
+  const unselectedFounders = allFounders.filter(f => !selectedIds.has(f.id));
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+    <AppShell navigation={navigation} active="teams" items={ADMIN_NAV_ITEMS}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
           <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New Team</Text>
-        <View style={{ width: 50 }} />
-      </View>
+        <Text style={styles.headerTitle}>Create Team</Text>
+        <Text style={styles.headerSubtitle}>Select founders and review compatibility before creating the team.</Text>
 
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-        <View style={styles.card}>
-          <Text style={styles.label}>Team Name</Text>
-          <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. Team Alpha" placeholderTextColor={C.textHint} />
-        </View>
+        <ResponsiveRow gap={16} style={{ marginTop: 20 }}>
+          <View style={{ flex: 1, gap: 14 }}>
+            <View style={styles.card}>
+              <Text style={styles.label}>Team Name</Text>
+              <TextInput style={styles.input} value={name} onChangeText={setName} placeholder="e.g. FinBridge" placeholderTextColor={C.textHint} />
+            </View>
 
-        <View style={styles.card}>
-          <Text style={styles.label}>Members ({selectedIds.size} selected)</Text>
-          {allFounders.map(f => (
-            <TouchableOpacity key={f.id} style={styles.checkRow} onPress={() => toggleFounder(f.id)} activeOpacity={0.7}>
-              <View style={[styles.checkbox, selectedIds.has(f.id) && styles.checkboxChecked]} />
-              <Text style={styles.founderName}>{f.name || 'Unnamed'}</Text>
-              <Text style={styles.founderRole}>{f.role || ''}</Text>
-            </TouchableOpacity>
-          ))}
-        </View>
+            <View style={styles.card}>
+              <Text style={styles.label}>Selected Founders ({selectedIds.size})</Text>
+              {selectedFounders.length === 0 ? (
+                <Text style={styles.emptyText}>No founders selected yet.</Text>
+              ) : (
+                selectedFounders.map(f => (
+                  <View key={f.id} style={styles.selectedRow}>
+                    <Avatar photoUrl={f.photoUrl} name={f.name} size={36} C={C} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.founderName}>{f.name || 'Unnamed'}</Text>
+                      <Text style={styles.founderRole}>{f.role || ''}</Text>
+                    </View>
+                    <TouchableOpacity onPress={() => toggleFounder(f.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                      <Ionicons name="close-circle" size={20} color={C.error} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
 
-        {selectedIds.size >= 2 && (
-          <View style={styles.card}>
-            <Text style={styles.label}>Preview</Text>
-            {previewing ? (
-              <ActivityIndicator color={C.primary} />
-            ) : preview ? (
-              <>
-                <Text style={styles.previewScore}>{preview.compatibility ?? '—'}</Text>
-                <Text style={styles.previewScoreLabel}>Compatibility</Text>
-                {preview.complementarySkills.length > 0 && (
-                  <Text style={styles.previewLine}>Skills: {preview.complementarySkills.join(', ')}</Text>
-                )}
-                {preview.capabilityGaps.length > 0 && (
-                  <Text style={[styles.previewLine, { color: C.warning }]}>Gaps: {preview.capabilityGaps.join(', ')}</Text>
-                )}
-                {preview.strengths.length > 0 && (
-                  <Text style={styles.previewLine}>Strengths: {preview.strengths.map(d => DIMENSION_LABELS[d]).join(', ')}</Text>
-                )}
-              </>
-            ) : (
-              <Text style={styles.emptyText}>Not enough evidence yet to preview.</Text>
-            )}
+              <Text style={[styles.label, { marginTop: 16 }]}>Add Founders</Text>
+              {unselectedFounders.map(f => (
+                <TouchableOpacity key={f.id} style={styles.checkRow} onPress={() => toggleFounder(f.id)} activeOpacity={0.7}>
+                  <View style={styles.checkbox} />
+                  <Avatar photoUrl={f.photoUrl} name={f.name} size={32} C={C} />
+                  <Text style={styles.founderName}>{f.name || 'Unnamed'}</Text>
+                  <Text style={styles.founderRole}>{f.role || ''}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
-        )}
+
+          <View style={{ flex: 1 }}>
+            <SectionCard title="Team Review" icon="git-compare-outline" C={C}>
+              {selectedIds.size < 2 ? (
+                <Text style={styles.emptyText}>Select at least two founders to preview compatibility.</Text>
+              ) : previewing ? (
+                <ActivityIndicator color={C.primary} />
+              ) : preview ? (
+                <>
+                  <View style={styles.scoreBlock}>
+                    <Text style={styles.previewScore}>{preview.compatibility ?? '—'}%</Text>
+                    <Text style={styles.previewScoreLabel}>Compatibility</Text>
+                  </View>
+
+                  {preview.complementarySkills.length > 0 && (
+                    <View style={styles.reviewSection}>
+                      <Text style={styles.reviewLabel}>Complementary Skills</Text>
+                      <View style={styles.chipWrap}>
+                        {preview.complementarySkills.map(s => (
+                          <Pill key={s} label={s} C={C} bg={C.successLight} color={C.success} />
+                        ))}
+                      </View>
+                    </View>
+                  )}
+
+                  {preview.strengths.length > 0 && (
+                    <View style={styles.reviewSection}>
+                      <Text style={styles.reviewLabel}>Working Compatibility</Text>
+                      {preview.strengths.map(d => (
+                        <View key={d} style={styles.checkLine}>
+                          <Ionicons name="checkmark-circle" size={16} color={C.success} />
+                          <Text style={styles.checkLineText}>{DIMENSION_LABELS[d] || d}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  )}
+
+                  {(preview.capabilityGaps.length > 0 || preview.potentialFriction.length > 0) && (
+                    <View style={[styles.reviewSection, styles.riskBox]}>
+                      <Text style={[styles.reviewLabel, { color: C.warning }]}>Potential Gaps / Risks</Text>
+                      {preview.capabilityGaps.map(g => (
+                        <Text key={g} style={styles.riskLine}>⚠ No coverage: {g}</Text>
+                      ))}
+                      {preview.potentialFriction.map((f, i) => (
+                        <Text key={i} style={styles.riskLine}>⚠ {f}</Text>
+                      ))}
+                    </View>
+                  )}
+                </>
+              ) : (
+                <Text style={styles.emptyText}>Not enough evidence yet to preview.</Text>
+              )}
+            </SectionCard>
+          </View>
+        </ResponsiveRow>
 
         <TouchableOpacity style={[styles.btnPrimary, saving && styles.btnDisabled]} onPress={handleCreate} disabled={saving} activeOpacity={0.85}>
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Create Team</Text>}
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 14, backgroundColor: C.surface,
-      borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
-    },
+    scrollContent: { padding: 20, paddingBottom: 48, maxWidth: 1100, width: '100%', alignSelf: 'center' },
+    backRow: { marginBottom: 8 },
     backText: { color: C.primary, ...typography.labelLarge },
-    headerTitle: { ...typography.titleMedium, color: C.textPrimary },
-    scrollContent: { padding: 20, paddingBottom: 48 },
-    card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14, ...cardShadow },
+    headerTitle: { ...typography.displayMedium, color: C.textPrimary },
+    headerSubtitle: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 4 },
+
+    card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, ...cardShadow },
     label: { ...typography.labelLarge, color: C.textSecondary, marginBottom: 10 },
     input: {
       backgroundColor: C.backgroundSoft, borderRadius: radius.md, padding: 12,
       color: C.textPrimary, fontSize: 14, borderWidth: 1, borderColor: C.surfaceBorder,
     },
+
+    selectedRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder },
     checkRow: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
-    checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: C.surfaceBorder },
-    checkboxChecked: { backgroundColor: C.primary, borderColor: C.primary },
-    founderName: { ...typography.bodyMedium, color: C.textPrimary, flex: 1 },
-    founderRole: { ...typography.bodySmall, color: C.textHint },
+    checkbox: { width: 18, height: 18, borderRadius: 4, borderWidth: 2, borderColor: C.surfaceBorder },
+    founderName: { ...typography.bodyMedium, color: C.textPrimary, fontWeight: '600' },
+    founderRole: { ...typography.bodySmall, color: C.textHint, marginLeft: 'auto' },
     emptyText: { ...typography.bodyMedium, color: C.textHint },
-    previewScore: { fontSize: 32, fontWeight: '800', color: C.primary, textAlign: 'center' },
-    previewScoreLabel: { ...typography.bodySmall, color: C.textHint, textAlign: 'center', marginBottom: 10 },
-    previewLine: { ...typography.bodyMedium, color: C.textPrimary, marginTop: 6 },
-    btnPrimary: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center' },
+
+    scoreBlock: { alignItems: 'center', marginBottom: 16 },
+    previewScore: { fontSize: 36, fontWeight: '800', color: C.success },
+    previewScoreLabel: { ...typography.bodySmall, color: C.textHint, marginTop: 2 },
+
+    reviewSection: { marginBottom: 16 },
+    reviewLabel: { ...typography.labelSmall, textTransform: 'uppercase', color: C.textHint, marginBottom: 8 },
+    chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+    checkLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+    checkLineText: { ...typography.bodySmall, color: C.textPrimary },
+
+    riskBox: { backgroundColor: C.warningLight, borderRadius: radius.md, padding: 12, marginBottom: 0 },
+    riskLine: { ...typography.bodySmall, color: C.warning, marginTop: 4 },
+
+    btnPrimary: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
     btnDisabled: { opacity: 0.6 },
     btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   });

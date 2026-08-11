@@ -1,6 +1,6 @@
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -9,6 +9,8 @@ import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
 import { compareFounders, recomputeMatches } from '../../services/matches.service';
 import { DIMENSION_LABELS } from '../../services/founders.service';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS } from '../../config/nav';
 
 // MVP screen 8 — Founder A vs Founder B compare card: Match Score, why
 // (positives), Potential Friction/Risk, dimension-by-dimension breakdown.
@@ -50,22 +52,22 @@ export default function MatchDetailScreen({ route, navigation }) {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <AppShell navigation={navigation} active="matching" items={ADMIN_NAV_ITEMS}>
         <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
-      </SafeAreaView>
+      </AppShell>
     );
   }
 
   if (!detail) {
     return (
-      <SafeAreaView style={styles.container}>
+      <AppShell navigation={navigation} active="matching" items={ADMIN_NAV_ITEMS}>
         <View style={styles.centered}>
           <Text style={styles.emptyText}>No compatibility computed for this pair yet.</Text>
           <TouchableOpacity style={[styles.btnPrimary, { marginTop: 16 }]} onPress={handleRecompute} disabled={recomputing} activeOpacity={0.85}>
             {recomputing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Compute Now</Text>}
           </TouchableOpacity>
         </View>
-      </SafeAreaView>
+      </AppShell>
     );
   }
 
@@ -74,15 +76,10 @@ export default function MatchDetailScreen({ route, navigation }) {
   const breakdown = detail.dimension_breakdown || {};
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Match Detail</Text>
-        <View style={{ width: 50 }} />
-      </View>
+    <AppShell navigation={navigation} active="matching" items={ADMIN_NAV_ITEMS}>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
+        <Text style={styles.backText}>← Back</Text>
+      </TouchableOpacity>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         <View style={styles.card}>
@@ -150,23 +147,17 @@ export default function MatchDetailScreen({ route, navigation }) {
           </TouchableOpacity>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: 32 },
     emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center' },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 14, backgroundColor: C.surface,
-      borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
-    },
+    backRow: { paddingHorizontal: 20, paddingTop: 16 },
     backText: { color: C.primary, ...typography.labelLarge },
-    headerTitle: { ...typography.titleMedium, color: C.textPrimary },
-    scrollContent: { padding: 20, paddingBottom: 48 },
+    scrollContent: { padding: 20, paddingTop: 8, paddingBottom: 48, maxWidth: 700, width: '100%', alignSelf: 'center' },
     card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 18, marginBottom: 14, ...cardShadow },
 
     namesRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },

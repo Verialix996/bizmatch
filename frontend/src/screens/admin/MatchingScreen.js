@@ -1,63 +1,53 @@
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  View, Text, TouchableOpacity, FlatList,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { showAlert } from '../../services/alert';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, typography } from '../../theme';
-import { listFounders } from '../../services/founders.service';
-import { getTopMatches, recomputeMatches } from '../../services/matches.service';
+import { colors, investorColors, typography } from '../../theme';
+import { getTopPairs, recomputeMatches } from '../../services/matches.service';
 import MatchCard from '../../components/founder/MatchCard';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS } from '../../config/nav';
 
-// MVP screen 8 — Matching: Suggested Matches list for a chosen founder.
-// Reached from the Admin Dashboard's "Go to Matching" quick action with no
-// founder pre-selected, so this screen doubles as a founder picker + the
-// suggested-matches list once one is chosen.
+// MVP screen 8 — Suggested Matches: cohort-wide ranked founder pairs. When
+// reached from a founder's profile ("View Matches"), route.params.founderId
+// scopes the same ranked list to pairs involving just that founder — a
+// filtered lens on this screen rather than a separate one-sided flow.
 export default function MatchingScreen({ route, navigation }) {
   const darkMode = useAppStore(s => s.darkMode);
   const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
 
-  const [founderId, setFounderId] = useState(route.params?.founderId ?? null);
-  const [founderName, setFounderName] = useState(route.params?.founderName ?? null);
+  const scopedFounderId = route.params?.founderId ?? null;
+  const scopedFounderName = route.params?.founderName ?? null;
 
-  const [search, setSearch] = useState('');
-  const [founders, setFounders] = useState([]);
-  const [matches, setMatches] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [pairs, setPairs] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [recomputing, setRecomputing] = useState(false);
 
-  const loadFounders = useCallback(async (query) => {
-    try {
-      const { data } = await listFounders({ search: query || undefined });
-      setFounders(data);
-    } catch { /* silent */ }
-  }, []);
-
-  const loadMatches = useCallback(async (id) => {
+  const loadPairs = useCallback(async () => {
     setLoading(true);
     try {
-      const { data } = await getTopMatches(id);
-      setMatches(data);
+      const { data } = await getTopPairs(20, scopedFounderId ?? undefined);
+      setPairs(data);
     } catch {
-      setMatches([]);
+      setPairs([]);
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [scopedFounderId]);
 
-  useFocusEffect(useCallback(() => {
-    if (founderId) loadMatches(founderId);
-    else loadFounders(search);
-  }, [founderId, loadMatches, loadFounders]));
+  useFocusEffect(useCallback(() => { loadPairs(); }, [loadPairs]));
 
   const handleRecompute = async () => {
+    if (!scopedFounderId) return;
     setRecomputing(true);
     try {
-      await recomputeMatches(founderId);
-      await loadMatches(founderId);
+      await recomputeMatches(scopedFounderId);
+      await loadPairs();
     } catch {
       showAlert('Error', 'Could not recompute matches.');
     } finally {
@@ -65,107 +55,69 @@ export default function MatchingScreen({ route, navigation }) {
     }
   };
 
-  if (!founderId) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()}>
-            <Text style={styles.backText}>← Back</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Matching</Text>
-          <View style={{ width: 50 }} />
-        </View>
-        <View style={styles.searchWrap}>
-          <Text style={styles.hint}>Pick a founder to see their suggested matches.</Text>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search founders..."
-            placeholderTextColor={C.textHint}
-            value={search}
-            onChangeText={(v) => { setSearch(v); loadFounders(v); }}
-          />
-        </View>
-        <FlatList
-          data={founders}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              style={styles.founderRow}
-              onPress={() => { setFounderId(item.id); setFounderName(item.name); }}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.founderName}>{item.name || 'Unnamed'}</Text>
-              <Text style={styles.founderRole}>{item.role || ''}</Text>
-            </TouchableOpacity>
-          )}
-        />
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => setFounderId(null)}>
-          <Text style={styles.backText}>← Change</Text>
-        </TouchableOpacity>
-        <Text style={styles.headerTitle} numberOfLines={1}>{founderName || 'Matches'}</Text>
-        <TouchableOpacity onPress={handleRecompute} disabled={recomputing}>
-          <Text style={styles.backText}>{recomputing ? '…' : 'Refresh'}</Text>
-        </TouchableOpacity>
-      </View>
-
-      {loading ? (
-        <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
-      ) : matches.length === 0 ? (
-        <View style={styles.centered}>
-          <Text style={styles.emptyText}>No matches computed yet — tap Refresh.</Text>
+    <AppShell navigation={navigation} active="matching" items={ADMIN_NAV_ITEMS}>
+      <View style={styles.content}>
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            {scopedFounderId ? (
+              <TouchableOpacity onPress={() => navigation.setParams({ founderId: undefined, founderName: undefined })}>
+                <Text style={styles.backText}>← All suggestions</Text>
+              </TouchableOpacity>
+            ) : null}
+            <Text style={styles.headerTitle}>Suggested Matches</Text>
+            <Text style={styles.headerSubtitle}>
+              {scopedFounderId
+                ? `Pairs involving ${scopedFounderName || 'this founder'}`
+                : 'Review potential founder pairs based on skills, goals, work style, and values.'}
+            </Text>
+          </View>
+          {scopedFounderId ? (
+            <TouchableOpacity onPress={handleRecompute} disabled={recomputing}>
+              <Text style={styles.backText}>{recomputing ? '…' : 'Refresh'}</Text>
+            </TouchableOpacity>
+          ) : null}
         </View>
-      ) : (
-        <FlatList
-          data={matches}
-          keyExtractor={(item) => item.founderId}
-          contentContainerStyle={styles.listContent}
-          renderItem={({ item }) => (
-            <MatchCard
-              match={item}
-              C={C}
-              onPress={() => navigation.navigate('MatchDetail', { a: founderId, b: item.founderId })}
-            />
-          )}
-        />
-      )}
-    </SafeAreaView>
+
+        <Text style={styles.countLabel}>{loading ? 'Loading…' : `${pairs.length} suggestion${pairs.length === 1 ? '' : 's'}`}</Text>
+
+        {loading ? (
+          <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
+        ) : pairs.length === 0 ? (
+          <View style={styles.centered}>
+            <Text style={styles.emptyText}>No compatibility computed yet for this cohort.</Text>
+          </View>
+        ) : (
+          <FlatList
+            data={pairs}
+            keyExtractor={(item) => `${item.a.id}-${item.b.id}`}
+            contentContainerStyle={styles.listContent}
+            renderItem={({ item }) => (
+              <MatchCard
+                pair={item}
+                C={C}
+                onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [item.a.id, item.b.id] })}
+                onCompare={() => navigation.navigate('MatchDetail', { a: item.a.id, b: item.b.id })}
+                onViewMatch={() => navigation.navigate('MatchDetail', { a: item.a.id, b: item.b.id })}
+              />
+            )}
+          />
+        )}
+      </View>
+    </AppShell>
   );
 }
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+    content: { flex: 1, padding: 20, maxWidth: 900, width: '100%', alignSelf: 'center' },
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
     emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center', paddingHorizontal: 32 },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 14, backgroundColor: C.surface,
-      borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
-    },
+    header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4 },
+    headerTitle: { ...typography.displayMedium, color: C.textPrimary },
+    headerSubtitle: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 4 },
     backText: { color: C.primary, ...typography.labelLarge },
-    headerTitle: { ...typography.titleMedium, color: C.textPrimary, flex: 1, textAlign: 'center', marginHorizontal: 8 },
-    searchWrap: { padding: 20, backgroundColor: C.surface },
-    hint: { ...typography.bodySmall, color: C.textSecondary, marginBottom: 10 },
-    searchInput: {
-      backgroundColor: C.backgroundSoft, borderRadius: radius.pill, paddingHorizontal: 18,
-      paddingVertical: 12, fontSize: 14, color: C.textPrimary, borderWidth: 1, borderColor: C.surfaceBorder,
-    },
-    listContent: { padding: 20 },
-    founderRow: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      backgroundColor: C.surface, borderRadius: radius.lg, padding: 14, marginBottom: 10,
-    },
-    founderName: { ...typography.bodyMedium, color: C.textPrimary, fontWeight: '600' },
-    founderRole: { ...typography.bodySmall, color: C.textHint },
+    countLabel: { ...typography.bodySmall, color: C.textHint, marginTop: 12, marginBottom: 12 },
+    listContent: { paddingBottom: 40 },
   });
 }

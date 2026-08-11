@@ -1,54 +1,66 @@
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../services/alert';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
-import { getFounder, getFounderInsights, listEvidence, setFounderStatus } from '../../services/founders.service';
+import { colors, investorColors, radius, typography } from '../../theme';
+import { getFounder, getFounderInsights, listEvidence, setFounderStatus, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
+import { listActivities, ACTIVITY_TYPE_LABELS } from '../../services/activities.service';
+import { getTopPairs } from '../../services/matches.service';
 import FounderHeader from '../../components/founder/FounderHeader';
 import CapabilityList from '../../components/founder/CapabilityList';
 import PartnerRequirementsCard from '../../components/founder/PartnerRequirementsCard';
-import InsightsList from '../../components/founder/InsightsList';
 import EvidenceTimeline from '../../components/founder/EvidenceTimeline';
+import BehavioralSignals from '../../components/founder/BehavioralSignals';
+import EvidenceConfidenceTable from '../../components/founder/EvidenceConfidenceTable';
+import TopMatches from '../../components/founder/TopMatches';
+import RadarChart, { RadarLegend } from '../../components/founder/RadarChart';
+import MatchCard from '../../components/founder/MatchCard';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
+import { ResponsiveRow, SectionCard, Pill, useIsDesktop } from '../../components/ui';
 
 const STATUS_OPTIONS = ['active', 'inactive', 'dropped'];
+const TABS = ['overview', 'dna', 'evidence', 'activities', 'matches'];
+const TAB_LABELS = { overview: 'Overview', dna: 'DNA', evidence: 'Evidence', activities: 'Activities', matches: 'Matches' };
 
-// MVP screens 4 (Founder Profile — raw data) and 7 (Founder Insights —
-// derived, distinct from Profile) live as tabs of one screen so admins and
-// founders reuse the same shared components (per the reconciled plan) —
-// admins get edit/evaluation actions, founders get a read-only view.
 export default function FounderProfileScreen({ route, navigation }) {
   const currentUser = useAuthStore(s => s.user);
   const darkMode = useAppStore(s => s.darkMode);
   const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
+  const isDesktop = useIsDesktop();
 
   const founderId = route.params?.founderId || currentUser?.id;
   const isAdmin = currentUser?.role === 'admin';
-  const isSelf = founderId === currentUser?.id;
 
   const [tab, setTab] = useState('overview');
   const [founder, setFounder] = useState(null);
   const [insights, setInsights] = useState(null);
   const [evidence, setEvidence] = useState([]);
+  const [activities, setActivities] = useState([]);
+  const [matchPairs, setMatchPairs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [founderRes, insightsRes, evidenceRes] = await Promise.all([
+      const [founderRes, insightsRes, evidenceRes, activitiesRes] = await Promise.all([
         getFounder(founderId),
         getFounderInsights(founderId),
         listEvidence(founderId),
+        listActivities(undefined, undefined, founderId),
       ]);
       setFounder(founderRes.data);
       setInsights(insightsRes.data);
       setEvidence(evidenceRes.data);
+      setActivities(activitiesRes.data);
     } catch (err) {
       showAlert('Error', 'Could not load this founder profile.');
     } finally {
@@ -57,6 +69,12 @@ export default function FounderProfileScreen({ route, navigation }) {
   }, [founderId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useFocusEffect(useCallback(() => {
+    if (tab !== 'matches' || !isAdmin) return;
+    setMatchPairs(null);
+    getTopPairs(15, founderId).then(({ data }) => setMatchPairs(data)).catch(() => setMatchPairs([]));
+  }, [tab, isAdmin, founderId]));
 
   const handleChangeStatus = () => {
     showAlert(
@@ -79,102 +97,204 @@ export default function FounderProfileScreen({ route, navigation }) {
     );
   };
 
+  const navItems = isAdmin ? ADMIN_NAV_ITEMS : FOUNDER_NAV_ITEMS;
+  const activeNav = isAdmin ? 'founders' : 'home';
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <AppShell navigation={navigation} active={activeNav} items={navItems}>
         <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
-      </SafeAreaView>
+      </AppShell>
     );
   }
 
+  const axes = DIMENSIONS.map(dim => ({
+    key: dim,
+    label: DIMENSION_LABELS[dim],
+    score: insights?.dimensions?.[dim]?.score ?? null,
+  }));
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles.header}>
-        {navigation.canGoBack() ? (
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-            <Text style={styles.backText}>← Back</Text>
+    <AppShell navigation={navigation} active={activeNav} items={navItems}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {isAdmin && navigation.canGoBack() && (
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
+            <Text style={styles.backText}>← Founders</Text>
           </TouchableOpacity>
-        ) : <View />}
-        {isSelf && (
-          <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => navigation.navigate('Activities')}>
-              <Text style={styles.backText}>Activities</Text>
+        )}
+
+        <FounderHeader
+          founder={founder}
+          insights={insights}
+          evidenceCount={evidence.length}
+          activitiesCount={activities.length}
+          C={C}
+        />
+
+        {(founder?.ventureName || founder?.team) && (
+          <View style={styles.ventureRow}>
+            {founder?.ventureName ? <Text style={styles.venture}>Venture: {founder.ventureName}</Text> : null}
+            {founder?.team ? (
+              <TouchableOpacity onPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })} activeOpacity={0.75}>
+                <Text style={[styles.venture, { color: C.primary, fontWeight: '700' }]}>Team: {founder.team.name} →</Text>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        )}
+
+        {isAdmin && (
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })} activeOpacity={0.85}>
+              <Ionicons name="people" size={15} color="#fff" />
+              <Text style={styles.btnPrimaryText}>Find Matches</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => navigation.navigate('AccountSettings')}>
-              <Text style={styles.backText}>Settings</Text>
+            <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('Evaluation', { founderId })} activeOpacity={0.85}>
+              <Ionicons name="add-circle-outline" size={15} color={C.textSecondary} />
+              <Text style={styles.btnSecondaryText}>Add Evaluation</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.btnSecondary} onPress={handleChangeStatus} disabled={statusUpdating} activeOpacity={0.85}>
+              <Text style={styles.btnSecondaryText}>{statusUpdating ? 'Updating…' : 'Change Status'}</Text>
             </TouchableOpacity>
           </View>
         )}
-      </View>
-
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <FounderHeader founder={founder} C={C} />
 
         <View style={styles.tabRow}>
-          <TabButton label="Overview" active={tab === 'overview'} onPress={() => setTab('overview')} styles={styles} />
-          <TabButton label="Insights" active={tab === 'insights'} onPress={() => setTab('insights')} styles={styles} />
+          {TABS.map(t => (
+            <TabButton key={t} label={TAB_LABELS[t]} active={tab === t} onPress={() => setTab(t)} styles={styles} />
+          ))}
         </View>
 
-        {tab === 'overview' ? (
-          <View style={styles.body}>
-            <View style={styles.card}>
-              <CapabilityList title="Provides" items={founder?.provides} C={C} />
-              <CapabilityList title="Needs" items={founder?.needs} C={C} />
-              <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
-              {founder?.ventureName ? (
-                <Text style={[styles.venture, { color: C.textSecondary }]}>Venture: {founder.ventureName}</Text>
-              ) : null}
-              {founder?.team ? (
-                <TouchableOpacity onPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })} activeOpacity={0.75}>
-                  <Text style={[styles.venture, { color: C.primary, fontWeight: '700' }]}>Team: {founder.team.name} →</Text>
-                </TouchableOpacity>
-              ) : null}
-            </View>
+        <View style={styles.body}>
+          {tab === 'overview' && (
+            <>
+              <ResponsiveRow gap={16}>
+                <View style={{ flex: 1 }}>
+                  <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
+                    <View style={{ alignItems: 'center' }}>
+                      <RadarChart axes={axes} size={isDesktop ? 300 : 280} C={C} />
+                    </View>
+                    <RadarLegend axes={axes} C={C} />
+                  </SectionCard>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SectionCard title="Capability profile" icon="bar-chart-outline" C={C}>
+                    <CapabilityList title="Provides" items={founder?.provides} C={C} color={C.primary} />
+                    <CapabilityList title="Needs" items={founder?.needs} C={C} color={C.warning} />
+                  </SectionCard>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SectionCard title="Partner requirements" icon="person-add-outline" C={C}>
+                    <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
+                  </SectionCard>
+                </View>
+              </ResponsiveRow>
 
-            <View style={styles.card}>
-              <Text style={[styles.sectionLabel, { color: C.textHint }]}>Recent Evidence</Text>
-              <EvidenceTimeline evidence={evidence.slice(0, 5)} C={C} />
-            </View>
+              <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
+                <View style={{ flex: 1 }}>
+                  <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
+                    <BehavioralSignals insights={insights} C={C} />
+                  </SectionCard>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C}>
+                    <EvidenceConfidenceTable insights={insights} C={C} />
+                  </SectionCard>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <SectionCard title="Recent evidence" icon="time-outline" C={C}>
+                    <EvidenceTimeline evidence={evidence.slice(0, 2)} C={C} />
+                    {evidence.length > 2 ? (
+                      <TouchableOpacity onPress={() => setTab('evidence')} activeOpacity={0.75}>
+                        <Text style={styles.linkText}>View all evidence ({evidence.length})</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  </SectionCard>
+                </View>
+                {isAdmin && (
+                  <View style={{ flex: 1 }}>
+                    <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
+                      <TopMatches founderId={founderId} navigation={navigation} limit={2} C={C} />
+                      <TouchableOpacity onPress={() => setTab('matches')} activeOpacity={0.75}>
+                        <Text style={styles.linkText}>View all matches</Text>
+                      </TouchableOpacity>
+                    </SectionCard>
+                  </View>
+                )}
+              </ResponsiveRow>
+            </>
+          )}
 
-            {isAdmin && (
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={styles.btnPrimary}
-                  onPress={() => navigation.navigate('Evaluation', { founderId })}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.btnPrimaryText}>+ Add Evaluation</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnSecondary}
-                  onPress={handleChangeStatus}
-                  disabled={statusUpdating}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.btnSecondaryText}>
-                    {statusUpdating ? 'Updating…' : 'Change Status'}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.btnSecondary}
-                  onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
-                  activeOpacity={0.85}
-                >
-                  <Text style={styles.btnSecondaryText}>View Matches</Text>
-                </TouchableOpacity>
+          {tab === 'dna' && (
+            <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
+              <View style={{ alignItems: 'center' }}>
+                <RadarChart axes={axes} size={isDesktop ? 420 : 340} C={C} />
               </View>
-            )}
-          </View>
-        ) : (
-          <View style={styles.body}>
-            <View style={styles.card}>
-              <InsightsList insights={insights} C={C} />
-            </View>
-          </View>
-        )}
+              <RadarLegend axes={axes} C={C} />
+            </SectionCard>
+          )}
+
+          {tab === 'evidence' && (
+            <SectionCard title={`All Evidence (${evidence.length})`} icon="time-outline" C={C}>
+              <EvidenceTimeline evidence={evidence} C={C} />
+            </SectionCard>
+          )}
+
+          {tab === 'activities' && (
+            <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C}>
+              {activities.length === 0 ? (
+                <Text style={styles.emptyText}>No activities yet.</Text>
+              ) : (
+                activities.map(a => (
+                  <TouchableOpacity
+                    key={a.id}
+                    style={styles.activityRow}
+                    onPress={() => navigation.navigate('ActivityDetail', { activityId: a.id })}
+                    activeOpacity={0.75}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.activityTitle}>{a.title}</Text>
+                      <Text style={styles.activityMeta}>
+                        {ACTIVITY_TYPE_LABELS[a.type] || a.type}
+                        {a.scheduledAt ? ` · ${new Date(a.scheduledAt).toLocaleDateString()}` : ''}
+                      </Text>
+                    </View>
+                    <Pill
+                      label={a.status}
+                      C={C}
+                      bg={a.status === 'active' ? C.warningLight : a.status === 'completed' ? C.successLight : C.surfaceElevated}
+                      color={a.status === 'active' ? C.warning : a.status === 'completed' ? C.success : C.textSecondary}
+                    />
+                  </TouchableOpacity>
+                ))
+              )}
+            </SectionCard>
+          )}
+
+          {tab === 'matches' && (
+            isAdmin ? (
+              matchPairs === null ? (
+                <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
+              ) : matchPairs.length === 0 ? (
+                <Text style={styles.emptyText}>No matches computed yet for this founder.</Text>
+              ) : (
+                matchPairs.map((pair) => (
+                  <MatchCard
+                    key={`${pair.a.id}-${pair.b.id}`}
+                    pair={pair}
+                    C={C}
+                    onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [pair.a.id, pair.b.id] })}
+                    onCompare={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
+                    onViewMatch={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
+                  />
+                ))
+              )
+            ) : (
+              <Text style={styles.emptyText}>Matches are managed by your program admin.</Text>
+            )
+          )}
+        </View>
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
@@ -188,33 +308,43 @@ function TabButton({ label, active, onPress, styles }) {
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
-    centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 12,
-      backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
-    },
-    backBtn: {},
+    centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
+    scrollContent: { paddingBottom: 48, paddingHorizontal: 20, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+
+    backRow: { marginTop: 16 },
     backText: { color: C.primary, ...typography.labelLarge },
-    headerActions: { flexDirection: 'row', gap: 16 },
-    scrollContent: { paddingBottom: 48 },
 
-    tabRow: { flexDirection: 'row', paddingHorizontal: 24, gap: 8, marginBottom: 8 },
-    tabBtn: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', backgroundColor: C.surface, borderWidth: 1, borderColor: C.surfaceBorder },
-    tabBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
-    tabBtnText: { fontSize: 13, fontWeight: '700', color: C.textSecondary },
-    tabBtnTextActive: { color: '#fff' },
+    ventureRow: { flexDirection: 'row', gap: 16, marginTop: -8, marginBottom: 8, justifyContent: 'center', flexWrap: 'wrap' },
+    venture: { ...typography.bodySmall, color: C.textSecondary },
 
-    body: { paddingHorizontal: 20, marginTop: 12 },
-    card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 20, marginBottom: 16, ...cardShadow },
-    sectionLabel: { ...typography.labelSmall, textTransform: 'uppercase', marginBottom: 12 },
-    venture: { ...typography.bodyMedium, marginTop: 12 },
-
-    actionsRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
-    btnPrimary: { flex: 1, backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center' },
+    actionsRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'center' },
+    btnPrimary: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18,
+    },
     btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-    btnSecondary: { flex: 1, backgroundColor: C.surface, borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center', borderWidth: 1.5, borderColor: C.surfaceBorder },
+    btnSecondary: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.surface, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18,
+      borderWidth: 1.5, borderColor: C.surfaceBorder,
+    },
     btnSecondaryText: { color: C.textSecondary, fontWeight: '700', fontSize: 13 },
+
+    tabRow: { flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder, flexWrap: 'wrap' },
+    tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 16, borderBottomWidth: 2, borderBottomColor: 'transparent' },
+    tabBtnActive: { borderBottomColor: C.primary },
+    tabBtnText: { fontSize: 14, fontWeight: '700', color: C.textSecondary },
+    tabBtnTextActive: { color: C.primary },
+
+    body: { paddingBottom: 20 },
+    linkText: { ...typography.labelLarge, color: C.primary, marginTop: 8 },
+    emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center', paddingVertical: 20 },
+
+    activityRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 10,
+      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
+    },
+    activityTitle: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary },
+    activityMeta: { ...typography.caption, color: C.textHint, marginTop: 2 },
   });
 }

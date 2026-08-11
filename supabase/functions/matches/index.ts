@@ -28,6 +28,21 @@ async function topMatches(req: Request): Promise<Response> {
   return json(matches);
 }
 
+// GET /functions/v1/matches/top-pairs?limit=&founderId=  (admin — Suggested
+// Matches: cohort-wide ranked pairs, optionally scoped to one founder)
+async function topPairs(req: Request): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const url = new URL(req.url);
+  const limit = Math.min(Number(url.searchParams.get("limit") ?? 20) || 20, 50);
+  const founderId = url.searchParams.get("founderId") || null;
+  const pairs = await MatchesModel.topPairs(limit, founderId);
+  return json(pairs);
+}
+
 // GET /functions/v1/matches/compare?a=&b=  (admin — Compare Founders / Match Detail)
 async function compare(req: Request): Promise<Response> {
   const user = await authenticate(req);
@@ -68,6 +83,7 @@ async function recompute(req: Request): Promise<Response> {
 
 serveFunction(FN, [
   route(FN, "GET", "/top", topMatches),
+  route(FN, "GET", "/top-pairs", topPairs),
   route(FN, "GET", "/compare", compare),
   route(FN, "POST", "/recompute", recompute),
 ]);

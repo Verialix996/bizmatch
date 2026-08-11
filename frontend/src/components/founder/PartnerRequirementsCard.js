@@ -11,8 +11,6 @@ export default function PartnerRequirementsCard({ requirements, dealBreakers, C 
 
   return (
     <View>
-      <Text style={[styles.sectionLabel, { color: C.textHint }]}>Looking For</Text>
-
       {requirements?.roleWanted ? (
         <Row label="Role" value={requirements.roleWanted} C={C} />
       ) : null}

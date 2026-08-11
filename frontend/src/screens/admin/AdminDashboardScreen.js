@@ -1,22 +1,25 @@
 import {
   View, Text, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import useAuthStore from '../../store/authStore';
+import { Ionicons } from '@expo/vector-icons';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
 import { getDashboard } from '../../services/founders.service';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS } from '../../config/nav';
+import { GradientHero, StatTile, IconCircle, SectionCard, useIsDesktop } from '../../components/ui';
 
 // MVP screen 2 — Admin Dashboard: program overview, recent activity, needs
 // attention, quick actions. No complex charts/analytics/AI recommendations
 // per the MVP screen spec.
 export default function AdminDashboardScreen({ navigation }) {
-  const logout = useAuthStore(s => s.logout);
   const darkMode = useAppStore(s => s.darkMode);
   const C = darkMode ? investorColors : colors;
   const styles = makeStyles(C);
+  const isDesktop = useIsDesktop();
 
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,169 +38,161 @@ export default function AdminDashboardScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  if (loading && !dashboard) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
-      </SafeAreaView>
-    );
-  }
-
   const program = dashboard?.program;
   const incompleteFounders = dashboard?.needsAttention?.incompleteFounders || [];
 
+  if (loading && !dashboard) {
+    return (
+      <AppShell navigation={navigation} active="dashboard" items={ADMIN_NAV_ITEMS}>
+        <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
+      </AppShell>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+    <AppShell navigation={navigation} active="dashboard" items={ADMIN_NAV_ITEMS}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.programLabel}>{program?.cohort_label || 'No active program'}</Text>
-            <Text style={styles.programName}>{program?.name || 'Admin Dashboard'}</Text>
-          </View>
-          <View style={styles.headerActions}>
-            <TouchableOpacity onPress={() => navigation.navigate('AccountSettings')}>
-              <Text style={styles.logoutText}>Settings</Text>
-            </TouchableOpacity>
-            <TouchableOpacity onPress={logout}>
-              <Text style={styles.logoutText}>Log Out</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        <GradientHero style={styles.hero}>
+          <Text style={styles.heroLabel}>{program?.cohort_label || 'No active program'}</Text>
+          <Text style={styles.heroTitle}>{program?.name || 'Admin Dashboard'}</Text>
+        </GradientHero>
 
-        {/* Program Overview stat tiles */}
+        <Text style={styles.sectionTitle}>Program Overview</Text>
         <View style={styles.statsGrid}>
-          <StatTile label="Active Founders" value={dashboard?.activeFounderCount ?? 0} C={C} styles={styles} />
-          <StatTile label="Evaluations Done" value={dashboard?.completedEvaluationsCount ?? 0} C={C} styles={styles} />
-          <StatTile label="Missing Info" value={dashboard?.missingInfoCount ?? 0} C={C} styles={styles} warn />
-          <StatTile label="Teams Created" value={dashboard?.teamsCreatedCount ?? 0} C={C} styles={styles} />
+          <StatTile
+            icon="people-outline" value={dashboard?.activeFounderCount ?? 0} label="Active Founders" C={C}
+          />
+          <StatTile
+            icon="checkmark-done-outline" value={dashboard?.completedEvaluationsCount ?? 0} label="Evaluations Done" C={C}
+          />
+          <StatTile
+            icon="alert-circle-outline" value={dashboard?.missingInfoCount ?? 0} label="Missing Info" C={C}
+            warn={(dashboard?.missingInfoCount ?? 0) > 0}
+            iconColor={C.warning} iconBg={C.warningLight}
+          />
+          <StatTile
+            icon="people-circle-outline" value={dashboard?.teamsCreatedCount ?? 0} label="Teams Created" C={C}
+          />
         </View>
 
-        {/* Quick Actions */}
         <Text style={styles.sectionTitle}>Quick Actions</Text>
         <View style={styles.actionsGrid}>
-          <ActionCard label="View Founders" icon="👥" onPress={() => navigation.navigate('FounderList')} styles={styles} />
-          <ActionCard label="Add Evaluation" icon="📝" onPress={() => navigation.navigate('FounderList')} styles={styles} />
           <ActionCard
-            label="Go to Matching"
-            icon="🤝"
+            label="View Founders" icon="people-outline" C={C} styles={styles}
+            onPress={() => navigation.navigate('FounderList')}
+          />
+          <ActionCard
+            label="Add Evaluation" icon="clipboard-outline" C={C} styles={styles}
+            onPress={() => navigation.navigate('FounderList')}
+          />
+          <ActionCard
+            label="Go to Matching" icon="git-merge-outline" C={C} styles={styles} primary
             onPress={() => navigation.navigate('Matching', {})}
-            styles={styles}
           />
           <ActionCard
-            label="Create Activity"
-            icon="📅"
+            label="Create Activity" icon="calendar-outline" C={C} styles={styles}
             onPress={() => navigation.navigate('Activities')}
-            styles={styles}
           />
           <ActionCard
-            label="Create Team"
-            icon="🧑‍🤝‍🧑"
+            label="Create Team" icon="person-add-outline" C={C} styles={styles}
             onPress={() => navigation.navigate('TeamCreation', {})}
-            styles={styles}
           />
         </View>
 
-        {/* Needs Attention */}
-        <Text style={styles.sectionTitle}>Needs Attention</Text>
-        <View style={styles.card}>
-          {incompleteFounders.length === 0 ? (
-            <Text style={styles.emptyText}>Nothing needs attention right now.</Text>
-          ) : (
-            incompleteFounders.map((f) => (
-              <TouchableOpacity
-                key={f.id}
-                style={styles.attentionRow}
-                onPress={() => navigation.navigate('FounderProfile', { founderId: f.id })}
-                activeOpacity={0.75}
-              >
-                <Text style={styles.attentionText}>{f.name || 'Unnamed founder'} — profile incomplete</Text>
-                <Text style={styles.attentionArrow}>→</Text>
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+        <View style={isDesktop ? styles.bottomRow : null}>
+          <View style={isDesktop ? styles.bottomCol : null}>
+            <Text style={styles.sectionTitle}>Needs Attention</Text>
+            <SectionCard C={C} style={styles.listCard}>
+              {incompleteFounders.length === 0 ? (
+                <Text style={styles.emptyText}>Nothing needs attention right now.</Text>
+              ) : (
+                incompleteFounders.map((f) => (
+                  <TouchableOpacity
+                    key={f.id}
+                    style={styles.attentionRow}
+                    onPress={() => navigation.navigate('FounderProfile', { founderId: f.id })}
+                    activeOpacity={0.75}
+                  >
+                    <IconCircle name="alert-circle" color={C.warning} bg={C.warningLight} size={32} iconSize={16} />
+                    <Text style={styles.attentionText}>{f.name || 'Unnamed founder'} — profile incomplete</Text>
+                    <Ionicons name="chevron-forward" size={16} color={C.textHint} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </SectionCard>
+          </View>
 
-        {/* Recent Activity */}
-        <Text style={styles.sectionTitle}>Recent Activity</Text>
-        <View style={styles.card}>
-          {(dashboard?.recentActivity || []).length === 0 ? (
-            <Text style={styles.emptyText}>No recent activity yet.</Text>
-          ) : (
-            dashboard.recentActivity.map((item, i) => (
-              <View key={i} style={styles.activityRow}>
-                <Text style={styles.activityText}>
-                  {item.evaluatorName} evaluated {item.founderName}
-                </Text>
-                <Text style={styles.activityTime}>{new Date(item.at).toLocaleDateString()}</Text>
-              </View>
-            ))
-          )}
+          <View style={isDesktop ? styles.bottomCol : null}>
+            <Text style={styles.sectionTitle}>Recent Activity</Text>
+            <SectionCard C={C} style={styles.listCard}>
+              {(dashboard?.recentActivity || []).length === 0 ? (
+                <Text style={styles.emptyText}>No recent activity yet.</Text>
+              ) : (
+                dashboard.recentActivity.map((item, i) => (
+                  <View key={i} style={styles.activityRow}>
+                    <IconCircle name="checkmark-circle" color={C.success} bg={C.successLight} size={32} iconSize={16} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.activityText}>
+                        {item.evaluatorName} evaluated {item.founderName}
+                      </Text>
+                    </View>
+                    <Text style={styles.activityTime}>{new Date(item.at).toLocaleDateString()}</Text>
+                  </View>
+                ))
+              )}
+            </SectionCard>
+          </View>
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
-function StatTile({ label, value, C, styles, warn }) {
+function ActionCard({ label, icon, onPress, styles, C, primary }) {
   return (
-    <View style={styles.statTile}>
-      <Text style={[styles.statValue, warn && value > 0 && { color: C.warning }]}>{value}</Text>
-      <Text style={styles.statLabel}>{label}</Text>
-    </View>
-  );
-}
-
-function ActionCard({ label, icon, onPress, styles }) {
-  return (
-    <TouchableOpacity style={styles.actionCard} onPress={onPress} activeOpacity={0.8}>
-      <Text style={styles.actionIcon}>{icon}</Text>
-      <Text style={styles.actionLabel}>{label}</Text>
+    <TouchableOpacity style={[styles.actionCard, primary && styles.actionCardPrimary]} onPress={onPress} activeOpacity={0.8}>
+      <Ionicons name={icon} size={24} color={primary ? '#fff' : C.primary} />
+      <Text style={[styles.actionLabel, primary && { color: '#fff' }]}>{label}</Text>
     </TouchableOpacity>
   );
 }
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { padding: 20, paddingBottom: 48 },
+    scrollContent: { padding: 20, paddingBottom: 48, maxWidth: 1200, width: '100%', alignSelf: 'center' },
 
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
-    programLabel: { ...typography.labelSmall, color: C.textHint, textTransform: 'uppercase' },
-    programName: { ...typography.displayMedium, color: C.textPrimary, marginTop: 2 },
-    headerActions: { alignItems: 'flex-end', gap: 8 },
-    logoutText: { ...typography.labelLarge, color: C.textSecondary },
-
-    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-    statTile: {
-      width: '47%', backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, ...cardShadow,
-    },
-    statValue: { fontSize: 28, fontWeight: '800', color: C.textPrimary },
-    statLabel: { ...typography.bodySmall, color: C.textSecondary, marginTop: 4 },
+    hero: { padding: 24, marginBottom: 24 },
+    heroLabel: { ...typography.labelSmall, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase' },
+    heroTitle: { ...typography.displayLarge, color: '#fff', marginTop: 4 },
 
     sectionTitle: { ...typography.titleSmall, color: C.textPrimary, marginBottom: 12, marginTop: 4 },
+
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
+
     actionsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
     actionCard: {
-      width: '47%', backgroundColor: C.surface, borderRadius: radius.lg, padding: 16,
-      alignItems: 'center', ...cardShadow,
+      width: '31%', minWidth: 140, backgroundColor: C.surface, borderRadius: radius.lg, padding: 16,
+      alignItems: 'center', gap: 8, ...cardShadow,
     },
-    actionIcon: { fontSize: 24, marginBottom: 6 },
+    actionCardPrimary: { backgroundColor: C.primary },
     actionLabel: { ...typography.bodySmall, fontWeight: '700', color: C.textPrimary, textAlign: 'center' },
 
-    card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 24, ...cardShadow },
-    emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center', paddingVertical: 8 },
+    bottomRow: { flexDirection: 'row', gap: 24 },
+    bottomCol: { flex: 1 },
+
+    listCard: { marginBottom: 24, padding: 8 },
+    emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center', paddingVertical: 16 },
     attentionRow: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      paddingVertical: 10, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
     },
     attentionText: { ...typography.bodyMedium, color: C.textPrimary, flex: 1 },
-    attentionArrow: { color: C.textHint, fontSize: 16 },
     activityRow: {
-      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-      paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
+      flexDirection: 'row', alignItems: 'center', gap: 12,
+      paddingVertical: 10, paddingHorizontal: 8, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
     },
-    activityText: { ...typography.bodyMedium, color: C.textPrimary, flex: 1 },
+    activityText: { ...typography.bodyMedium, color: C.textPrimary },
     activityTime: { ...typography.caption, color: C.textHint },
   });
 }

@@ -1,12 +1,16 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator,
+  StyleSheet, ScrollView, ActivityIndicator,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { showAlert } from '../../services/alert';
+import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
-import { submitAssessment } from '../../services/founders.service';
+import { submitAssessment, getFounder } from '../../services/founders.service';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
+import { Avatar } from '../../components/ui';
 
 // Interview / Evaluation form (MVP screen 6) — mixes open questions, 1-5
 // scales, and yes/no, per the reconciled screen spec. Each scaled/yes-no
@@ -64,18 +68,31 @@ function YesNoInput({ value, onChange, C }) {
 export default function EvaluationScreen({ route, navigation }) {
   const founderId = route.params?.founderId;
   const activityId = route.params?.activityId;
+  const isAdmin = useAuthStore(s => s.user?.role === 'admin');
   const darkMode = useAppStore(s => s.darkMode);
   const C = darkMode ? investorColors : colors;
   const styles2 = makeStyles(C);
 
+  const [founder, setFounder] = useState(null);
   const [answers, setAnswers] = useState({});
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
+  const loadFounder = useCallback(async () => {
+    if (!founderId) return;
+    try {
+      const { data } = await getFounder(founderId);
+      setFounder(data);
+    } catch { /* silent — header just omits the founder card */ }
+  }, [founderId]);
+
+  useEffect(() => { loadFounder(); }, [loadFounder]);
+
   const setAnswer = (key, value) => setAnswers(prev => ({ ...prev, [key]: value }));
 
   const answeredCount = QUESTIONS.filter(q => answers[q.key] !== undefined).length;
+  const progressPct = Math.round((answeredCount / QUESTIONS.length) * 100);
 
   const handleSubmit = async () => {
     if (answeredCount === 0) {
@@ -103,17 +120,30 @@ export default function EvaluationScreen({ route, navigation }) {
   };
 
   return (
-    <SafeAreaView style={styles2.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
-      <View style={styles2.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
+    <AppShell navigation={navigation} active="founders" items={isAdmin ? ADMIN_NAV_ITEMS : FOUNDER_NAV_ITEMS}>
+      <ScrollView contentContainerStyle={styles2.scrollContent} keyboardShouldPersistTaps="handled">
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles2.backRow}>
           <Text style={styles2.backText}>← Back</Text>
         </TouchableOpacity>
-        <Text style={styles2.headerTitle}>Add Evaluation</Text>
-        <View style={{ width: 50 }} />
-      </View>
+        <Text style={styles2.headerTitle}>Founder Evaluation</Text>
 
-      <ScrollView contentContainerStyle={styles2.scrollContent} keyboardShouldPersistTaps="handled">
+        {founder ? (
+          <View style={styles2.founderCard}>
+            <Avatar photoUrl={founder.photoUrl} name={founder.name} size={48} C={C} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles2.founderName}>{founder.name || 'Unnamed'}</Text>
+              {founder.currentRole ? <Text style={styles2.founderRole}>{founder.currentRole}</Text> : null}
+            </View>
+          </View>
+        ) : null}
+
+        <View style={styles2.progressCard}>
+          <Text style={styles2.progressLabel}>{answeredCount} of {QUESTIONS.length} questions answered</Text>
+          <View style={styles2.progressTrack}>
+            <View style={[styles2.progressFill, { width: `${progressPct}%` }]} />
+          </View>
+        </View>
+
         {QUESTIONS.map((q) => (
           <View key={q.key} style={styles2.card}>
             <Text style={styles2.question}>{q.text}</Text>
@@ -151,7 +181,7 @@ export default function EvaluationScreen({ route, navigation }) {
           }
         </TouchableOpacity>
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
@@ -166,15 +196,23 @@ const styles = StyleSheet.create({
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 14, backgroundColor: C.surface,
-      borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
-    },
+    scrollContent: { padding: 20, paddingBottom: 48, maxWidth: 800, width: '100%', alignSelf: 'center' },
+    backRow: { marginBottom: 8 },
     backText: { color: C.primary, ...typography.labelLarge },
-    headerTitle: { ...typography.titleMedium, color: C.textPrimary },
-    scrollContent: { padding: 20, paddingBottom: 48 },
+    headerTitle: { ...typography.displayMedium, color: C.textPrimary, marginBottom: 16 },
+
+    founderCard: {
+      flexDirection: 'row', alignItems: 'center', gap: 14,
+      backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14, ...cardShadow,
+    },
+    founderName: { ...typography.titleSmall, color: C.textPrimary },
+    founderRole: { ...typography.bodySmall, color: C.textSecondary, marginTop: 2 },
+
+    progressCard: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14, ...cardShadow },
+    progressLabel: { ...typography.bodySmall, color: C.textSecondary, marginBottom: 8, fontWeight: '600' },
+    progressTrack: { height: 8, borderRadius: radius.sm, backgroundColor: C.surfaceElevated, overflow: 'hidden' },
+    progressFill: { height: 8, borderRadius: radius.sm, backgroundColor: C.primary },
+
     card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14, ...cardShadow },
     question: { ...typography.bodyLarge, fontWeight: '600', color: C.textPrimary, marginBottom: 10 },
     notesInput: {

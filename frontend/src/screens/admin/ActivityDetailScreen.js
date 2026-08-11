@@ -1,6 +1,6 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, SafeAreaView, StatusBar, ActivityIndicator,
+  StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -14,6 +14,9 @@ import {
 } from '../../services/activities.service';
 import { listFounders, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
 import { submitPeerFeedback } from '../../services/peerFeedback.service';
+import AppShell from '../../components/AppShell';
+import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
+import { Avatar, Pill } from '../../components/ui';
 
 const STATUS_OPTIONS = ['upcoming', 'active', 'completed'];
 const SCORE_OPTIONS = [20, 40, 60, 80, 100];
@@ -113,23 +116,22 @@ export default function ActivityDetailScreen({ route, navigation }) {
     }
   };
 
+  const navItems = isAdmin ? ADMIN_NAV_ITEMS : FOUNDER_NAV_ITEMS;
+
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
+      <AppShell navigation={navigation} active="activities" items={navItems}>
         <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
-      </SafeAreaView>
+      </AppShell>
     );
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar barStyle={darkMode ? 'light-content' : 'dark-content'} />
+    <AppShell navigation={navigation} active="activities" items={navItems}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.backText}>← Back</Text>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
+          <Text style={styles.backText}>← Activities</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{activityId ? 'Activity' : 'New Activity'}</Text>
-        <View style={{ width: 50 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
@@ -161,8 +163,20 @@ export default function ActivityDetailScreen({ route, navigation }) {
         ) : (
           <>
             <View style={styles.card}>
-              <Text style={styles.title}>{activity?.title}</Text>
-              <Text style={styles.meta}>{ACTIVITY_TYPE_LABELS[activity?.type] || activity?.type}</Text>
+              <View style={styles.titleRow}>
+                <Text style={styles.title}>{activity?.title}</Text>
+                <Pill
+                  label={STATUS_OPTIONS.includes(activity?.status) ? activity.status.charAt(0).toUpperCase() + activity.status.slice(1) : activity?.status}
+                  C={C}
+                  bg={activity?.status === 'active' ? C.warningLight : activity?.status === 'completed' ? C.successLight : C.surfaceElevated}
+                  color={activity?.status === 'active' ? C.warning : activity?.status === 'completed' ? C.success : C.textSecondary}
+                />
+              </View>
+              <Text style={styles.meta}>
+                {ACTIVITY_TYPE_LABELS[activity?.type] || activity?.type}
+                {activity?.scheduledAt ? ` · ${new Date(activity.scheduledAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
+                {' · '}{(activity?.participants || []).length} participant{(activity?.participants || []).length === 1 ? '' : 's'}
+              </Text>
               {activity?.description ? <Text style={styles.description}>{activity.description}</Text> : null}
 
               {isAdmin && (
@@ -198,7 +212,8 @@ export default function ActivityDetailScreen({ route, navigation }) {
               ) : (
                 activity.participants.map(p => (
                   <View key={p.id} style={styles.participantRow}>
-                    <Text style={styles.participantName}>{p.name || 'Unnamed'}</Text>
+                    <Avatar photoUrl={p.photoUrl} name={p.name} size={32} C={C} />
+                    <Text style={[styles.participantName, { flex: 1 }]}>{p.name || 'Unnamed'}</Text>
                     {isAdmin && (
                       <TouchableOpacity onPress={() => navigation.navigate('Evaluation', { founderId: p.id, activityId })}>
                         <Text style={styles.linkText}>Evaluate</Text>
@@ -238,7 +253,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
           </>
         )}
       </ScrollView>
-    </SafeAreaView>
+    </AppShell>
   );
 }
 
@@ -320,17 +335,13 @@ function PeerFeedbackRow({ founder, activityId, C, styles }) {
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { flex: 1, backgroundColor: C.backgroundSoft },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: {
-      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-      paddingHorizontal: 20, paddingVertical: 14, backgroundColor: C.surface,
-      borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
-    },
+    header: { paddingHorizontal: 20, paddingTop: 16 },
+    backRow: {},
     backText: { color: C.primary, ...typography.labelLarge },
-    headerTitle: { ...typography.titleMedium, color: C.textPrimary },
-    scrollContent: { padding: 20, paddingBottom: 48 },
+    scrollContent: { padding: 20, paddingTop: 8, paddingBottom: 48, maxWidth: 900, width: '100%', alignSelf: 'center' },
     card: { backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14, ...cardShadow },
+    titleRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
 
     label: { ...typography.labelLarge, color: C.textSecondary, marginBottom: 6, marginTop: 10 },
     input: {

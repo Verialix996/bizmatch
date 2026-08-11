@@ -1,7 +1,7 @@
 import api from './api';
 
 // Activities (MVP screen 5-6)
-export const listActivities = (programId, teamId) => api.get('/activities', { params: { programId, teamId } });
+export const listActivities = (programId, teamId, founderId) => api.get('/activities', { params: { programId, teamId, founderId } });
 export const getActivity = (activityId) => api.get(`/activities/${activityId}`);
 export const createActivity = (payload) => api.post('/activities', payload);
 export const updateActivity = (activityId, payload) => api.patch(`/activities/${activityId}`, payload);

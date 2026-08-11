@@ -11,8 +11,11 @@ function Bar({ score, color, trackColor }) {
 
 // Provides / Needs capability bars (spec section 4). Raw profile data —
 // scores are self-entered during onboarding, not evidence-derived.
-export default function CapabilityList({ title, items, C }) {
+// Provides renders in the primary color, Needs in warning/amber, matching
+// the Capability profile card's blue-vs-orange convention.
+export default function CapabilityList({ title, items, C, color }) {
   if (!items || items.length === 0) return null;
+  const barColor = color || C.primary;
   return (
     <View>
       <Text style={[styles.sectionLabel, { color: C.textHint }]}>{title}</Text>
@@ -22,7 +25,7 @@ export default function CapabilityList({ title, items, C }) {
             <Text style={[styles.rowLabel, { color: C.textPrimary }]}>{item.capability}</Text>
             <Text style={[styles.rowScore, { color: C.textSecondary }]}>{item.score}</Text>
           </View>
-          <Bar score={item.score} color={C.primary} trackColor={C.surfaceElevated} />
+          <Bar score={item.score} color={barColor} trackColor={C.surfaceElevated} />
         </View>
       ))}
     </View>

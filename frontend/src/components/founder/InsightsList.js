@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { radius, typography, cardShadow } from '../../theme';
 import { DIMENSION_LABELS } from '../../services/founders.service';
+import { IconCircle } from '../ui';
 
 const CONFIDENCE_LABEL = { high: 'High', medium: 'Medium', low: 'Low' };
 
@@ -32,18 +33,18 @@ export default function InsightsList({ insights, C }) {
         <EmptyState emptyState={insights.emptyState} C={C} />
       ) : (
         <>
-          {strengths.length > 0 && (
-            <Section title="Strengths" icon="✓" color={C.success} C={C}>
+    {strengths.length > 0 && (
+            <Section title="Strengths" icon="checkmark-circle" color={C.success} bg={C.successLight} C={C}>
               {strengths.map(d => <DimRow key={d.dim} d={d} C={C} />)}
             </Section>
           )}
           {middle.length > 0 && (
-            <Section title="Work Style" icon="•" color={C.textSecondary} C={C}>
+            <Section title="Work Style" icon="person" color={C.primary} bg={C.surfaceElevated} C={C}>
               {middle.map(d => <DimRow key={d.dim} d={d} C={C} />)}
             </Section>
           )}
           {weaknesses.length > 0 && (
-            <Section title="Potential Weaknesses" icon="!" color={C.warning} C={C}>
+            <Section title="Potential Weaknesses" icon="alert-circle" color={C.warning} bg={C.warningLight} C={C}>
               {weaknesses.map(d => <DimRow key={d.dim} d={d} C={C} />)}
             </Section>
           )}
@@ -51,7 +52,7 @@ export default function InsightsList({ insights, C }) {
       )}
 
       {insights.contradictions?.length > 0 && (
-        <Section title="Potential Friction Points" icon="⚠" color={C.error} C={C}>
+        <Section title="Potential Friction Points" icon="warning" color={C.error} bg={C.errorLight} C={C}>
           {insights.contradictions.map((c) => (
             <Text key={c.dimension} style={[styles.bulletText, { color: C.textSecondary }]}>
               {DIMENSION_LABELS[c.dimension] || c.dimension}: self-report ({c.selfScore}) vs. others ({c.otherScore}) diverge significantly.
@@ -77,10 +78,13 @@ function DimRow({ d, C }) {
   );
 }
 
-function Section({ title, icon, color, C, children }) {
+function Section({ title, icon, color, bg, C, children }) {
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color }]}>{icon} {title}</Text>
+      <View style={styles.sectionHeader}>
+        <IconCircle name={icon} color={color} bg={bg} size={30} iconSize={16} />
+        <Text style={[styles.sectionTitle, { color }]}>{title}</Text>
+      </View>
       {children}
     </View>
   );
@@ -118,7 +122,8 @@ const styles = StyleSheet.create({
   confidenceValue: { fontSize: 28, fontWeight: '800' },
 
   section: { marginBottom: 20 },
-  sectionTitle: { ...typography.titleSmall, marginBottom: 10 },
+  sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 10 },
+  sectionTitle: { ...typography.titleSmall },
   dimRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 6 },
   dimLabel: { ...typography.bodyMedium, fontWeight: '600' },
   dimRight: { flexDirection: 'row', alignItems: 'center', gap: 8 },
