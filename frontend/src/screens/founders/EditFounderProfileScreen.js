@@ -93,7 +93,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [basics, setBasics] = useState({ current_role: '', venture_name: '', industry: '', location: '', current_stage: '' });
+  const [basics, setBasics] = useState({ role_title: '', venture_name: '', industry: '', location: '', current_stage: '' });
   const [commitment, setCommitment] = useState({ commitment_hours: '', commitment_type: '', commitment_risk_appetite: '' });
   const [provides, setProvides] = useState([]); // [{ capability, score }]
   const [needs, setNeeds] = useState([]);
@@ -107,7 +107,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
     try {
       const { data: founder } = await getFounder(founderId);
       setBasics({
-        current_role: founder.currentRole || '',
+        role_title: founder.currentRole || '',
         venture_name: founder.ventureName || '',
         industry: founder.industry || '',
         location: founder.location || '',
@@ -199,7 +199,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
         <SectionCard title="Basics" icon="person-outline" C={C} style={styles.card}>
           <Text style={styles.fieldLabel}>ROLE / BACKGROUND</Text>
           <TextInput style={styles.input} placeholder="e.g. Technical Co-Founder" placeholderTextColor={C.textHint}
-            value={basics.current_role} onChangeText={(v) => setBasics({ ...basics, current_role: v })} />
+            value={basics.role_title} onChangeText={(v) => setBasics({ ...basics, role_title: v })} />
 
           <Text style={styles.fieldLabel}>VENTURE NAME</Text>
           <TextInput style={styles.input} placeholder="Your startup's name" placeholderTextColor={C.textHint}

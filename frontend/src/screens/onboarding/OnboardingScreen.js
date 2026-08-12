@@ -50,7 +50,7 @@ export default function OnboardingScreen() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const [basics, setBasics] = useState({ current_role: '', venture_name: '', industry: '', location: '', current_stage: '' });
+  const [basics, setBasics] = useState({ role_title: '', venture_name: '', industry: '', location: '', current_stage: '' });
   const [commitment, setCommitment] = useState({ commitment_hours: '', commitment_type: '', commitment_risk_appetite: '' });
   const [provides, setProvides] = useState([]);
   const [needs, setNeeds] = useState([]);
@@ -124,7 +124,7 @@ export default function OnboardingScreen() {
 
             <Text style={styles.fieldLabel}>ROLE / BACKGROUND</Text>
             <TextInput style={styles.input} placeholder="e.g. Technical Co-Founder" placeholderTextColor={C.textHint}
-              value={basics.current_role} onChangeText={(v) => setBasics({ ...basics, current_role: v })} />
+              value={basics.role_title} onChangeText={(v) => setBasics({ ...basics, role_title: v })} />
 
             <Text style={styles.fieldLabel}>VENTURE NAME (optional)</Text>
             <TextInput style={styles.input} placeholder="Your startup's name" placeholderTextColor={C.textHint}
