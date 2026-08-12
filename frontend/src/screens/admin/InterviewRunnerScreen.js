@@ -12,6 +12,7 @@ import { ADMIN_NAV_ITEMS } from '../../config/nav';
 import { compileTree, computeActivePath, getCurrentFrontierId, isQuestionDynamicallyRequired } from '../../interview/engine/InterviewEngine';
 import { getPreviousQuestionId } from '../../interview/engine/NavigationManager';
 import { calculateProgress } from '../../interview/engine/ProgressCalculator';
+import { substituteQuestionPlaceholders } from '../../interview/engine/textPlaceholders';
 import { questionTree } from '../../interview/data/questionTree.bizmatch';
 
 const TREE = compileTree(questionTree);
@@ -160,7 +161,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
         <Text style={styles.sectionLabel}>{section?.label} · {progress.completedCount}/{progress.totalActiveCount}</Text>
 
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
-          <Text style={styles.questionText}>{currentQuestion.text}</Text>
+          <Text style={styles.questionText}>{substituteQuestionPlaceholders(currentQuestion.text, meta || {})}</Text>
           {currentQuestion.helpText ? <Text style={styles.helpText}>{currentQuestion.helpText}</Text> : null}
 
           {currentQuestion.type === 'info' && (
@@ -319,21 +320,28 @@ function makeStyles(C) {
     sectionLabel: { ...typography.caption, color: C.textHint, marginTop: 6 },
 
     scrollContent: { paddingVertical: 24, paddingBottom: 60 },
-    questionText: { ...typography.displayMedium, fontSize: 22, color: C.textPrimary, marginBottom: 8 },
-    helpText: { ...typography.bodySmall, color: C.textSecondary, marginBottom: 16 },
+    questionText: {
+      ...typography.displayMedium, fontSize: 22, color: C.textPrimary, marginBottom: 8,
+      textAlign: 'right', writingDirection: 'rtl',
+    },
+    helpText: {
+      ...typography.bodySmall, color: C.textSecondary, marginBottom: 16,
+      textAlign: 'right', writingDirection: 'rtl',
+    },
 
     rowGap: { flexDirection: 'row', gap: 12, marginTop: 8 },
     choiceBtn: { flex: 1, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center' },
     choiceBtnFull: { backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8 },
-    choiceBtnText: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary },
+    choiceBtnText: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary, textAlign: 'right', writingDirection: 'rtl' },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
     chip: { borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder },
-    chipText: { fontSize: 13, fontWeight: '600', color: C.textSecondary },
+    chipText: { fontSize: 13, fontWeight: '600', color: C.textSecondary, writingDirection: 'rtl' },
 
     input: {
       backgroundColor: C.backgroundSoft, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 14,
       fontSize: 15, color: C.textPrimary, borderWidth: 1, borderColor: C.surfaceBorder, marginTop: 8,
+      textAlign: 'right', writingDirection: 'rtl',
     },
     inputMultiline: { height: 120, textAlignVertical: 'top' },
 
