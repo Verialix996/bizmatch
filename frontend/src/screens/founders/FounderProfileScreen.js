@@ -51,10 +51,12 @@ export default function FounderProfileScreen({ route, navigation }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // Individual evidence entries (who said what) are admin-only — a
+      // founder only ever sees their own aggregate scores, fetched below.
       const [founderRes, insightsRes, evidenceRes, activitiesRes] = await Promise.all([
         getFounder(founderId),
         getFounderInsights(founderId),
-        listEvidence(founderId),
+        isAdmin ? listEvidence(founderId) : Promise.resolve({ data: [] }),
         listActivities(undefined, undefined, founderId),
       ]);
       setFounder(founderRes.data);
@@ -66,7 +68,7 @@ export default function FounderProfileScreen({ route, navigation }) {
     } finally {
       setLoading(false);
     }
-  }, [founderId]);
+  }, [founderId, isAdmin]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -114,6 +116,12 @@ export default function FounderProfileScreen({ route, navigation }) {
     score: insights?.dimensions?.[dim]?.score ?? null,
   }));
 
+  // Aggregate count works for both roles even though only admins fetch the
+  // raw evidence list — it's summed from the same per-dimension counts the
+  // Evidence Confidence table already shows.
+  const evidenceCount = Object.values(insights?.dimensions || {})
+    .reduce((sum, d) => sum + (d?.evidenceCount || 0), 0);
+
   return (
     <AppShell navigation={navigation} active={activeNav} items={navItems}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -152,7 +160,7 @@ export default function FounderProfileScreen({ route, navigation }) {
         <FounderHeader
           founder={founder}
           insights={insights}
-          evidenceCount={evidence.length}
+          evidenceCount={evidenceCount}
           activitiesCount={activities.length}
           C={C}
         />
@@ -226,16 +234,18 @@ export default function FounderProfileScreen({ route, navigation }) {
                     <EvidenceConfidenceTable insights={insights} C={C} />
                   </SectionCard>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Recent evidence" icon="time-outline" C={C}>
-                    <EvidenceTimeline evidence={evidence.slice(0, 2)} C={C} />
-                    {evidence.length > 2 ? (
-                      <TouchableOpacity onPress={() => setTab('evidence')} activeOpacity={0.75}>
-                        <Text style={styles.linkText}>View all evidence ({evidence.length})</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  </SectionCard>
-                </View>
+                {isAdmin && (
+                  <View style={{ flex: 1 }}>
+                    <SectionCard title="Recent evidence" icon="time-outline" C={C}>
+                      <EvidenceTimeline evidence={evidence.slice(0, 2)} C={C} />
+                      {evidence.length > 2 ? (
+                        <TouchableOpacity onPress={() => setTab('evidence')} activeOpacity={0.75}>
+                          <Text style={styles.linkText}>View all evidence ({evidence.length})</Text>
+                        </TouchableOpacity>
+                      ) : null}
+                    </SectionCard>
+                  </View>
+                )}
                 {isAdmin && (
                   <View style={{ flex: 1.4 }}>
                     <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
@@ -260,9 +270,17 @@ export default function FounderProfileScreen({ route, navigation }) {
           )}
 
           {tab === 'evidence' && (
-            <SectionCard title={`All Evidence (${evidence.length})`} icon="time-outline" C={C}>
-              <EvidenceTimeline evidence={evidence} C={C} />
-            </SectionCard>
+            isAdmin ? (
+              <SectionCard title={`All Evidence (${evidence.length})`} icon="time-outline" C={C}>
+                <EvidenceTimeline evidence={evidence} C={C} />
+              </SectionCard>
+            ) : (
+              <SectionCard title="Evidence" icon="time-outline" C={C}>
+                <Text style={styles.emptyText}>
+                  Individual evidence entries are reviewed by your program admin. Your aggregate scores are shown in Evidence Confidence on the Overview tab.
+                </Text>
+              </SectionCard>
+            )
           )}
 
           {tab === 'activities' && (

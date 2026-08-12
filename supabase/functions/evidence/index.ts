@@ -54,7 +54,10 @@ async function listEvidence(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const founderId = url.searchParams.get("founderId");
   if (!founderId) return json({ error: "founderId required" }, 400);
-  if (user.role !== "admin" && user.id !== founderId) return json({ error: "Forbidden" }, 403);
+  // Individual evidence entries (observation text, evaluator identity) are
+  // admin-only — a founder sees only their aggregate scores, never who said
+  // what about them. See founder-dna for the aggregate view.
+  if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
 
   const dimension = url.searchParams.get("dimension");
   const source = url.searchParams.get("source");

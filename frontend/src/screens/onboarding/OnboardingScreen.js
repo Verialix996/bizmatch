@@ -2,11 +2,13 @@ import {
   View, Text, TextInput, TouchableOpacity,
   StyleSheet, SafeAreaView, ScrollView, StatusBar, ActivityIndicator,
 } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import api from '../../services/api';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
+import { colors, investorColors, radius, typography } from '../../theme';
 import {
   updateFounderProfile, updateFounderCapabilities,
   updatePartnerRequirements, updateDealBreakers, completeOnboarding,
@@ -22,10 +24,11 @@ const STAGES = ['idea', 'mvp', 'growth', 'scale'];
 const STAGE_LABELS = { idea: 'Idea', mvp: 'MVP', growth: 'Growth', scale: 'Scale' };
 const COMMITMENT_TYPES = ['full_time', 'part_time'];
 const COMMITMENT_LABELS = { full_time: 'Full Time', part_time: 'Part Time' };
-const DEAL_BREAKER_OPTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
+const DEAL_BREAKER_SUGGESTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
 const DEFAULT_CAPABILITY_SCORE = 75;
 
 const STEPS = ['basics', 'commitment', 'provides', 'needs', 'partner', 'dealbreakers'];
+const DRAFT_KEY = 'onboardingDraft';
 
 function Chip({ label, selected, onPress, C, styles }) {
   return (
@@ -39,6 +42,31 @@ function Chip({ label, selected, onPress, C, styles }) {
   );
 }
 
+function TagInput({ value, onAdd, styles, C }) {
+  const [text, setText] = useState('');
+  const submit = () => {
+    const trimmed = text.trim();
+    if (trimmed && !value.includes(trimmed)) onAdd(trimmed);
+    setText('');
+  };
+  return (
+    <View style={styles.tagInputRow}>
+      <TextInput
+        style={[styles.input, { flex: 1 }]}
+        placeholder="Add your own…"
+        placeholderTextColor={C.textHint}
+        value={text}
+        onChangeText={setText}
+        onSubmitEditing={submit}
+        returnKeyType="done"
+      />
+      <TouchableOpacity style={styles.tagAddBtn} onPress={submit} activeOpacity={0.85}>
+        <Ionicons name="add" size={18} color="#fff" />
+      </TouchableOpacity>
+    </View>
+  );
+}
+
 export default function OnboardingScreen() {
   const currentUser = useAuthStore(s => s.user);
   const setHasSeenOnboarding = useAuthStore(s => s.setHasSeenOnboarding);
@@ -49,6 +77,8 @@ export default function OnboardingScreen() {
   const [stepIndex, setStepIndex] = useState(0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [draftLoaded, setDraftLoaded] = useState(false);
+  const hydrating = useRef(true);
 
   const [basics, setBasics] = useState({ role_title: '', venture_name: '', industry: '', location: '', current_stage: '' });
   const [commitment, setCommitment] = useState({ commitment_hours: '', commitment_type: '', commitment_risk_appetite: '' });
@@ -57,6 +87,39 @@ export default function OnboardingScreen() {
   const [partner, setPartner] = useState({ role_wanted: '', commitment_required: '', ambition_required: '' });
   const [dealBreakers, setDealBreakers] = useState([]);
 
+  // Restore an in-progress draft once on mount so backgrounding/closing the
+  // app mid-wizard doesn't lose everything the founder already entered.
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem(DRAFT_KEY);
+        if (raw) {
+          const draft = JSON.parse(raw);
+          if (draft.basics) setBasics(draft.basics);
+          if (draft.commitment) setCommitment(draft.commitment);
+          if (draft.provides) setProvides(draft.provides);
+          if (draft.needs) setNeeds(draft.needs);
+          if (draft.partner) setPartner(draft.partner);
+          if (draft.dealBreakers) setDealBreakers(draft.dealBreakers);
+          if (typeof draft.stepIndex === 'number') setStepIndex(draft.stepIndex);
+        }
+      } catch {
+        // Corrupt/missing draft — just start fresh.
+      } finally {
+        hydrating.current = false;
+        setDraftLoaded(true);
+      }
+    })();
+  }, []);
+
+  // Persist the draft after every change, once initial hydration is done.
+  useEffect(() => {
+    if (hydrating.current) return;
+    AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
+      basics, commitment, provides, needs, partner, dealBreakers, stepIndex,
+    })).catch(() => {});
+  }, [basics, commitment, provides, needs, partner, dealBreakers, stepIndex]);
+
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
 
@@ -64,7 +127,43 @@ export default function OnboardingScreen() {
     setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
   };
 
+  const validateStep = () => {
+    switch (step) {
+      case 'basics':
+        if (!basics.role_title.trim() || !basics.industry.trim() || !basics.location.trim() || !basics.current_stage) {
+          return 'Fill in role, industry, location, and current stage to continue.';
+        }
+        return null;
+      case 'commitment':
+        if (!commitment.commitment_type || !commitment.commitment_hours || Number(commitment.commitment_hours) <= 0) {
+          return 'Enter your hours per week and pick a commitment type.';
+        }
+        return null;
+      case 'provides':
+        if (provides.length === 0) return 'Select at least one capability you bring to a team.';
+        return null;
+      case 'needs':
+        if (needs.length === 0) return 'Select at least one capability you need from a co-founder.';
+        return null;
+      case 'partner':
+        if (!partner.role_wanted.trim() || !partner.commitment_required.trim()) {
+          return 'Fill in the role and commitment you\'re looking for in a partner.';
+        }
+        return null;
+      case 'dealbreakers':
+        if (dealBreakers.length === 0) return 'Select or add at least one deal breaker.';
+        return null;
+      default:
+        return null;
+    }
+  };
+
   const goNext = () => {
+    const validationError = validateStep();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setError('');
     if (!isLast) {
       setStepIndex(stepIndex + 1);
@@ -82,7 +181,9 @@ export default function OnboardingScreen() {
     setError('');
     try {
       const founderId = currentUser.id;
-      await updateFounderProfile(founderId, basics);
+      // Every write below is a full-replace/upsert on the backend, so this
+      // whole sequence is safe to simply retry from the same local state if
+      // any single call fails partway through — nothing needs a rollback.
       await updateFounderProfile(founderId, {
         ...basics,
         commitment_hours: commitment.commitment_hours ? Number(commitment.commitment_hours) : null,
@@ -91,21 +192,30 @@ export default function OnboardingScreen() {
       });
       await updateFounderCapabilities(founderId, 'provide', provides.map(c => ({ capability: c, score: DEFAULT_CAPABILITY_SCORE })));
       await updateFounderCapabilities(founderId, 'need', needs.map(c => ({ capability: c, score: DEFAULT_CAPABILITY_SCORE })));
-      await updatePartnerRequirements(founderId, { ...partner, must_provide: needs, preferred_traits: [] });
+      await updatePartnerRequirements(founderId, partner);
       await updateDealBreakers(founderId, dealBreakers);
       await completeOnboarding(founderId);
 
+      await AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
       setHasSeenOnboarding();
       await api.patch('/users/me/onboarding').catch(() => {});
       // No explicit navigation — AppNavigator's top-level conditional swaps
       // from FounderOnboardingNavigator to FounderNavigator automatically
       // once hasSeenOnboarding flips in the store.
     } catch (err) {
-      setError(err.response?.data?.error || 'Failed to save your profile. Please try again.');
+      setError(err.response?.data?.error || 'Failed to save your profile. Nothing was lost — you can just try again.');
     } finally {
       setSaving(false);
     }
   };
+
+  if (!draftLoaded) {
+    return (
+      <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color={C.primary} />
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -166,7 +276,7 @@ export default function OnboardingScreen() {
               ))}
             </View>
 
-            <Text style={styles.fieldLabel}>RISK APPETITE</Text>
+            <Text style={styles.fieldLabel}>RISK APPETITE (optional)</Text>
             <TextInput style={[styles.input, styles.inputMultiline]} multiline
               placeholder="How much risk are you willing to take on this venture?" placeholderTextColor={C.textHint}
               value={commitment.commitment_risk_appetite}
@@ -213,7 +323,7 @@ export default function OnboardingScreen() {
             <TextInput style={styles.input} placeholder="e.g. Full Time" placeholderTextColor={C.textHint}
               value={partner.commitment_required} onChangeText={(v) => setPartner({ ...partner, commitment_required: v })} />
 
-            <Text style={styles.fieldLabel}>AMBITION</Text>
+            <Text style={styles.fieldLabel}>AMBITION (optional)</Text>
             <TextInput style={styles.input} placeholder="e.g. Venture Scale" placeholderTextColor={C.textHint}
               value={partner.ambition_required} onChangeText={(v) => setPartner({ ...partner, ambition_required: v })} />
           </View>
@@ -224,11 +334,16 @@ export default function OnboardingScreen() {
             <Text style={styles.title}>Deal breakers</Text>
             <Text style={styles.subtitle}>What would make you walk away from a partnership?</Text>
             <View style={styles.chipRow}>
-              {DEAL_BREAKER_OPTIONS.map(d => (
+              {DEAL_BREAKER_SUGGESTIONS.map(d => (
                 <Chip key={d} label={d} selected={dealBreakers.includes(d)}
                   onPress={() => toggleItem(dealBreakers, setDealBreakers, d)} C={C} styles={styles} />
               ))}
+              {dealBreakers.filter(d => !DEAL_BREAKER_SUGGESTIONS.includes(d)).map(d => (
+                <Chip key={d} label={d} selected
+                  onPress={() => toggleItem(dealBreakers, setDealBreakers, d)} C={C} styles={styles} />
+              ))}
             </View>
+            <TagInput value={dealBreakers} onAdd={(d) => setDealBreakers([...dealBreakers, d])} styles={styles} C={C} />
           </View>
         )}
 
@@ -275,6 +390,9 @@ function makeStyles(C) {
       backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder,
     },
     chipText: { fontSize: 13, fontWeight: '600', color: C.textSecondary },
+
+    tagInputRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+    tagAddBtn: { backgroundColor: C.primary, borderRadius: radius.md, width: 48, alignItems: 'center', justifyContent: 'center' },
 
     errorText: { color: C.error, fontSize: 13, textAlign: 'center', marginTop: 16 },
 
