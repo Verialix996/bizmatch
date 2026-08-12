@@ -50,6 +50,19 @@ async function submitAssessment(req: Request): Promise<Response> {
   };
   if (!founderId || !items?.length) return json({ error: "founderId and items are required" }, 400);
 
+  // Dedup guard: the same evaluator submitting for the same founder within a
+  // minute is almost always a double-tap/duplicate submission, not two
+  // genuine evaluations — and since scoring is a weighted average, letting
+  // it through would silently skew the founder's score.
+  const recentRows = await query<{ id: number }>(
+    `SELECT id FROM evaluator_assessments
+     WHERE founder_id = $1 AND evaluator_id = $2 AND submitted_at > now() - interval '60 seconds'`,
+    [founderId, user.id],
+  );
+  if (recentRows.length > 0) {
+    return json({ error: "You just submitted an evaluation for this founder — wait a moment before submitting another." }, 429);
+  }
+
   const assessmentRows = await query<{ id: number }>(
     `INSERT INTO evaluator_assessments (founder_id, evaluator_id, activity_id, notes)
      VALUES ($1, $2, $3, $4) RETURNING id`,
@@ -89,7 +102,9 @@ async function listAssessments(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const founderId = url.searchParams.get("founderId");
   if (!founderId) return json({ error: "founderId required" }, 400);
-  if (user.role !== "admin" && user.id !== founderId) return json({ error: "Forbidden" }, 403);
+  // Admin-only, same as /evidence and /peer-feedback — a founder never sees
+  // the evaluator's questions/notes about them directly.
+  if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
 
   const assessments = await query<Record<string, unknown>>(
     `SELECT ea.id, ea.submitted_at, ea.notes, ea.activity_id, ev.name AS evaluator_name

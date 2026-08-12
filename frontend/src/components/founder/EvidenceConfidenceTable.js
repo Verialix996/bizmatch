@@ -31,7 +31,9 @@ export default function EvidenceConfidenceTable({ insights, C }) {
           </View>
         );
       })}
-      <Text style={styles.footnote}>No evidence is shown as —, never 0.</Text>
+      <Text style={styles.footnote}>
+        No evidence is shown as —, never 0. Confidence: High needs 4+ sources from 3+ types; Medium needs 2+ sources from 2+ types; otherwise Low.
+      </Text>
     </View>
   );
 }

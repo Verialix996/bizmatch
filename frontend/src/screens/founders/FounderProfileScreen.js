@@ -12,6 +12,7 @@ import { colors, investorColors, radius, typography } from '../../theme';
 import { getFounder, getFounderInsights, listEvidence, setFounderStatus, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
 import { listActivities, ACTIVITY_TYPE_LABELS } from '../../services/activities.service';
 import { getTopPairs } from '../../services/matches.service';
+import { listFounderInterviews } from '../../services/interviews.service';
 import FounderHeader from '../../components/founder/FounderHeader';
 import CapabilityList from '../../components/founder/CapabilityList';
 import PartnerRequirementsCard from '../../components/founder/PartnerRequirementsCard';
@@ -45,6 +46,7 @@ export default function FounderProfileScreen({ route, navigation }) {
   const [evidence, setEvidence] = useState([]);
   const [activities, setActivities] = useState([]);
   const [matchPairs, setMatchPairs] = useState(null);
+  const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
 
@@ -53,16 +55,18 @@ export default function FounderProfileScreen({ route, navigation }) {
     try {
       // Individual evidence entries (who said what) are admin-only — a
       // founder only ever sees their own aggregate scores, fetched below.
-      const [founderRes, insightsRes, evidenceRes, activitiesRes] = await Promise.all([
+      const [founderRes, insightsRes, evidenceRes, activitiesRes, interviewsRes] = await Promise.all([
         getFounder(founderId),
         getFounderInsights(founderId),
         isAdmin ? listEvidence(founderId) : Promise.resolve({ data: [] }),
         listActivities(undefined, undefined, founderId),
+        isAdmin ? listFounderInterviews(founderId) : Promise.resolve({ data: [] }),
       ]);
       setFounder(founderRes.data);
       setInsights(insightsRes.data);
       setEvidence(evidenceRes.data);
       setActivities(activitiesRes.data);
+      setInterviews(interviewsRes.data);
     } catch (err) {
       showAlert('Error', 'Could not load this founder profile.');
     } finally {
@@ -186,6 +190,10 @@ export default function FounderProfileScreen({ route, navigation }) {
               <Ionicons name="add-circle-outline" size={15} color={C.textSecondary} />
               <Text style={styles.btnSecondaryText}>Add Evaluation</Text>
             </TouchableOpacity>
+            <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('NewInterview', { founderId, founderName: founder?.name })} activeOpacity={0.85}>
+              <Ionicons name="mic-outline" size={15} color={C.textSecondary} />
+              <Text style={styles.btnSecondaryText}>Run Interview</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={styles.btnSecondary} onPress={handleChangeStatus} disabled={statusUpdating} activeOpacity={0.85}>
               <Text style={styles.btnSecondaryText}>{statusUpdating ? 'Updating…' : 'Change Status'}</Text>
             </TouchableOpacity>
@@ -243,6 +251,35 @@ export default function FounderProfileScreen({ route, navigation }) {
                           <Text style={styles.linkText}>View all evidence ({evidence.length})</Text>
                         </TouchableOpacity>
                       ) : null}
+                    </SectionCard>
+                  </View>
+                )}
+                {isAdmin && (
+                  <View style={{ flex: 1 }}>
+                    <SectionCard title="Interviews" icon="mic-outline" C={C}>
+                      {interviews.length === 0 ? (
+                        <Text style={styles.emptyText}>No interviews yet.</Text>
+                      ) : (
+                        interviews.map((iv) => (
+                          <TouchableOpacity
+                            key={iv.id}
+                            style={styles.activityRow}
+                            onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
+                            activeOpacity={0.75}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
+                              <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
+                            </View>
+                            <Pill
+                              label={iv.status === 'completed' ? 'Completed' : 'In progress'}
+                              C={C}
+                              bg={iv.status === 'completed' ? C.successLight : C.warningLight}
+                              color={iv.status === 'completed' ? C.success : C.warning}
+                            />
+                          </TouchableOpacity>
+                        ))
+                      )}
                     </SectionCard>
                   </View>
                 )}

@@ -42,10 +42,16 @@ export default function FounderListScreen({ navigation }) {
     <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
       <View style={styles2.content}>
         <View style={styles2.header}>
-          <Text style={styles2.headerTitle}>Founders</Text>
-          <Text style={styles2.headerSubtitle}>
-            {loading ? 'Loading…' : `${founders.length} founder${founders.length === 1 ? '' : 's'} in cohort`}
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles2.headerTitle}>Founders</Text>
+            <Text style={styles2.headerSubtitle}>
+              {loading ? 'Loading…' : `${founders.length} founder${founders.length === 1 ? '' : 's'} in cohort`}
+            </Text>
+          </View>
+          <TouchableOpacity style={styles2.newInterviewBtn} onPress={() => navigation.navigate('NewInterview')} activeOpacity={0.85}>
+            <Ionicons name="mic-outline" size={15} color="#fff" />
+            <Text style={styles2.newInterviewBtnText}>New Interview</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles2.searchWrap}>
@@ -103,9 +109,14 @@ function makeStyles(C) {
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
     emptyText: { ...typography.bodyMedium, color: C.textHint },
 
-    header: { marginBottom: 16 },
+    header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 16 },
     headerTitle: { ...typography.displayMedium, color: C.textPrimary },
     headerSubtitle: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 4 },
+    newInterviewBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 16,
+    },
+    newInterviewBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
 
     searchWrap: {
       flexDirection: 'row', alignItems: 'center', gap: 10,

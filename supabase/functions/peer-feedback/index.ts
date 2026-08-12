@@ -47,7 +47,8 @@ async function submitPeerFeedback(req: Request): Promise<Response> {
   return json({ id: feedbackId }, 201);
 }
 
-// GET /functions/v1/peer-feedback?founderId=  (admin or the founder themself)
+// GET /functions/v1/peer-feedback?founderId=  (admin only — a founder never
+// sees who gave feedback about them or what it said, same rule as /evidence)
 async function listPeerFeedback(req: Request): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
@@ -55,7 +56,7 @@ async function listPeerFeedback(req: Request): Promise<Response> {
   const url = new URL(req.url);
   const founderId = url.searchParams.get("founderId");
   if (!founderId) return json({ error: "founderId required" }, 400);
-  if (user.role !== "admin" && user.id !== founderId) return json({ error: "Forbidden" }, 403);
+  if (user.role !== "admin") return json({ error: "Forbidden" }, 403);
 
   const rows = await query<Record<string, unknown>>(
     `SELECT pf.id, pf.dimension, pf.score, pf.observation, pf.created_at, pf.activity_id,

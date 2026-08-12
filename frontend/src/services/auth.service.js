@@ -108,10 +108,5 @@ export async function fetchProfile(session) {
   return { session, profile: data };
 }
 
-export const uploadPhoto = (uri, fileName) => {
-  const form = new FormData();
-  form.append('photo', { uri, name: fileName, type: 'image/jpeg' });
-  return api.post('/users/me/photo', form, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
-};
+// Backend expects a base64 data URI in a JSON body, not multipart form data.
+export const uploadPhoto = (dataUri) => api.post('/users/me/photo', { photo: dataUri });

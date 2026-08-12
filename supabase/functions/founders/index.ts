@@ -4,6 +4,7 @@ import { json } from "../_shared/respond.ts";
 import { route } from "../_shared/router.ts";
 import { serveFunction } from "../_shared/serve.ts";
 import { uploadBuffer, BUCKETS } from "../_shared/storage.ts";
+import { supabase } from "../_shared/supabase.ts";
 import { FoundersModel } from "./model.ts";
 
 const FN = "founders";
@@ -90,6 +91,42 @@ async function getDashboard(req: Request): Promise<Response> {
       incompleteFounders: needsAttentionFounders,
     },
   });
+}
+
+// POST /functions/v1/founders/prospect  (admin — evaluator adds a founder
+// who isn't registered yet, e.g. to attach an interview before they sign
+// up). Creates a real auth user with an unconfirmed email and no password
+// — they later claim it via password reset — so it fits the existing
+// public.users -> auth.users FK without any schema change on that side.
+async function createProspect(req: Request): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const body = await req.json().catch(() => ({}));
+  const { email, name, roleTitle, industry, location } = body as {
+    email?: string; name?: string; roleTitle?: string; industry?: string; location?: string;
+  };
+  if (!email || !name) return json({ error: "email and name are required" }, 400);
+
+  const { data, error } = await supabase.auth.admin.createUser({
+    email,
+    email_confirm: false,
+    user_metadata: { name, role: "founder" },
+  });
+  if (error || !data?.user) {
+    return json({ error: error?.message || "Could not create prospect founder" }, 400);
+  }
+
+  const founderId = data.user.id;
+  await query(
+    `INSERT INTO founder_profiles (user_id, role_title, industry, location, is_prospect)
+     VALUES ($1, $2, $3, $4, true)`,
+    [founderId, roleTitle ?? null, industry ?? null, location ?? null],
+  );
+
+  return json({ id: founderId, name, email }, 201);
 }
 
 // GET /functions/v1/founders/:id  (admin or self — MVP screen 4)
@@ -234,8 +271,9 @@ async function serveCv(req: Request, params: Record<string, string>): Promise<Re
 }
 
 serveFunction(FN, [
-  // /dashboard must be registered before the /:id catch-all
+  // /dashboard and /prospect must be registered before the /:id catch-all
   route(FN, "GET", "/dashboard", getDashboard),
+  route(FN, "POST", "/prospect", createProspect),
   route(FN, "GET", "", listFounders),
   route(FN, "GET", "/:id", getFounder),
   route(FN, "PUT", "/:id/profile", putProfile),

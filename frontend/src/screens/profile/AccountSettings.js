@@ -1,9 +1,11 @@
 import {
-  View, Text, TextInput, TouchableOpacity, Switch,
+  View, Text, TextInput, TouchableOpacity, Switch, Image,
   StyleSheet, SafeAreaView, ScrollView, ActivityIndicator, Modal, StatusBar
 } from 'react-native';
 import { useState } from 'react';
+import * as ImagePicker from 'expo-image-picker';
 import api from '../../services/api';
+import { uploadPhoto } from '../../services/auth.service';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, typography, radius, cardShadow } from '../../theme';
@@ -23,6 +25,8 @@ export default function AccountSettingsScreen({ navigation }) {
   const [success, setSuccess] = useState('');
   const [verifyLoading, setVerifyLoading] = useState(false);
   const [verificationStatus, setVerificationStatus] = useState(user?.verification_status || 'none');
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState(user?.photoUrl || user?.photo_url || null);
 
   // Modal states
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -45,6 +49,38 @@ export default function AccountSettingsScreen({ navigation }) {
       setError(err.response?.data?.error || 'Failed to update account.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handlePickPhoto = async () => {
+    const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!permission.granted) {
+      setError('Photo library access is needed to change your picture.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.7,
+      base64: true,
+    });
+    if (result.canceled || !result.assets?.[0]?.base64) return;
+
+    const asset = result.assets[0];
+    const mimeType = asset.mimeType || 'image/jpeg';
+    const dataUri = `data:${mimeType};base64,${asset.base64}`;
+
+    setError('');
+    setPhotoUploading(true);
+    try {
+      const { data } = await uploadPhoto(dataUri);
+      setPhotoUrl(data.photo_url);
+      updateUser({ ...user, photoUrl: data.photo_url, photo_url: data.photo_url });
+    } catch (err) {
+      setError(err.response?.data?.error || 'Could not upload photo.');
+    } finally {
+      setPhotoUploading(false);
     }
   };
 
@@ -137,6 +173,27 @@ export default function AccountSettingsScreen({ navigation }) {
 
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>PERSONAL DETAILS</Text>
+          <Text style={styles.sectionHelper}>
+            Account-level details only — your name and photo here. Founder profile fields (role, capabilities, partner requirements) live in Edit Profile, and none of this affects your evidence or DNA scores.
+          </Text>
+
+          <View style={styles.photoRow}>
+            <TouchableOpacity onPress={handlePickPhoto} disabled={photoUploading} activeOpacity={0.8}>
+              {photoUrl ? (
+                <Image source={{ uri: photoUrl }} style={styles.photo} />
+              ) : (
+                <View style={[styles.photo, styles.photoPlaceholder]}>
+                  <Text style={styles.photoPlaceholderText}>{user?.name ? user.name[0].toUpperCase() : '?'}</Text>
+                </View>
+              )}
+              {photoUploading ? (
+                <View style={styles.photoOverlay}><ActivityIndicator color="#fff" /></View>
+              ) : null}
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handlePickPhoto} disabled={photoUploading}>
+              <Text style={styles.changePhotoText}>{photoUrl ? 'Change photo' : 'Add photo'}</Text>
+            </TouchableOpacity>
+          </View>
 
           <Text style={styles.fieldLabel}>FULL NAME</Text>
           <TextInput
@@ -266,7 +323,17 @@ function makeStyles(C) { return StyleSheet.create({
     marginBottom: 20,
     ...cardShadow,
   },
-  sectionLabel: { ...typography.labelSmall, color: C.textHint, marginBottom: 20 },
+  sectionLabel: { ...typography.labelSmall, color: C.textHint, marginBottom: 8 },
+  sectionHelper: { ...typography.caption, color: C.textHint, marginBottom: 20, lineHeight: 16 },
+  photoRow: { alignItems: 'center', gap: 10, marginBottom: 20 },
+  photo: { width: 84, height: 84, borderRadius: 42, backgroundColor: C.surfaceElevated },
+  photoPlaceholder: { justifyContent: 'center', alignItems: 'center', backgroundColor: C.primary },
+  photoPlaceholderText: { color: '#fff', fontSize: 30, fontWeight: '800' },
+  photoOverlay: {
+    ...StyleSheet.absoluteFillObject, borderRadius: 42, backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  changePhotoText: { color: C.primary, ...typography.labelLarge, fontWeight: '700' },
   fieldLabel: { ...typography.labelLarge, color: C.textSecondary, marginBottom: 8 },
   input: {
     backgroundColor: C.backgroundSoft,

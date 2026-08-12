@@ -16,6 +16,8 @@ import FounderListScreen    from '../screens/admin/FounderListScreen';
 import FounderProfileScreen from '../screens/founders/FounderProfileScreen';
 import EditFounderProfileScreen from '../screens/founders/EditFounderProfileScreen';
 import EvaluationScreen     from '../screens/founders/EvaluationScreen';
+import NewInterviewScreen   from '../screens/admin/NewInterviewScreen';
+import InterviewRunnerScreen from '../screens/admin/InterviewRunnerScreen';
 import ComingSoonScreen     from '../screens/founders/ComingSoonScreen';
 import ActivitiesListScreen from '../screens/admin/ActivitiesListScreen';
 import ActivityDetailScreen from '../screens/admin/ActivityDetailScreen';
@@ -47,6 +49,8 @@ function AdminNavigator() {
       <Stack.Screen name="FounderList" component={FounderListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="FounderProfile" component={FounderProfileScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Evaluation" component={EvaluationScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="NewInterview" component={NewInterviewScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="InterviewRunner" component={InterviewRunnerScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Activities" component={ActivitiesListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Matching" component={MatchingScreen} options={{ headerShown: false }} />

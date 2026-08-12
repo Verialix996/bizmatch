@@ -94,9 +94,11 @@ export default function EvaluationScreen({ route, navigation }) {
   const answeredCount = QUESTIONS.filter(q => answers[q.key] !== undefined).length;
   const progressPct = Math.round((answeredCount / QUESTIONS.length) * 100);
 
+  const minRequired = Math.ceil(QUESTIONS.length / 2);
+
   const handleSubmit = async () => {
-    if (answeredCount === 0) {
-      setError('Answer at least one question before submitting.');
+    if (answeredCount < minRequired) {
+      setError(`Answer at least ${minRequired} of ${QUESTIONS.length} questions before submitting — a single answer isn't enough to move a founder's score.`);
       return;
     }
     setError('');
