@@ -22,15 +22,23 @@ export default function BehavioralSignals({ insights, C }) {
     <View>
       {dims.map((d) => {
         const positive = d.score >= 60;
+        const lowConfidence = d.confidence === 'low' || d.evidenceCount < 2;
         return (
           <View key={d.dim} style={styles.row}>
             <Ionicons
-              name={positive ? 'checkmark-circle' : 'alert-circle'}
+              name={positive && !lowConfidence ? 'checkmark-circle' : 'alert-circle'}
               size={16}
-              color={positive ? C.success : C.warning}
+              color={positive && !lowConfidence ? C.success : C.warning}
+              style={styles.icon}
             />
-            <Text style={styles.label}>{DIMENSION_LABELS[d.dim] || d.dim}</Text>
-            <Text style={styles.count}>{d.evidenceCount} source{d.evidenceCount === 1 ? '' : 's'}</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.label}>{DIMENSION_LABELS[d.dim] || d.dim}</Text>
+              <Text style={styles.sub}>
+                {lowConfidence
+                  ? 'More evidence under pressure recommended.'
+                  : `Based on ${d.evidenceCount} source${d.evidenceCount === 1 ? '' : 's'}, ${d.confidence || 'medium'} confidence.`}
+              </Text>
+            </View>
           </View>
         );
       })}
@@ -40,9 +48,10 @@ export default function BehavioralSignals({ insights, C }) {
 
 function makeStyles(C) {
   return StyleSheet.create({
-    row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7 },
-    label: { ...typography.bodySmall, color: C.textPrimary, flex: 1 },
-    count: { ...typography.caption, color: C.textHint },
+    row: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 8 },
+    icon: { marginTop: 2 },
+    label: { ...typography.bodySmall, color: C.textPrimary, fontWeight: '700' },
+    sub: { ...typography.caption, color: C.textSecondary, marginTop: 2 },
     emptyText: { ...typography.bodySmall, color: C.textHint },
   });
 }

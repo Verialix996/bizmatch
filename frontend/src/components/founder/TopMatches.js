@@ -3,11 +3,12 @@ import { useState, useEffect } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { typography, radius } from '../../theme';
 import { getTopPairs } from '../../services/matches.service';
-import { Avatar, Pill } from '../ui';
+import { Avatar } from '../ui';
 
-// "Top potential matches" — reuses the cohort-wide ranked-pairs endpoint
-// scoped to this founder, same data source as the Matching screen, so the
-// explanation text here is never invented separately.
+// "Top potential matches" — photo-forward cards (avatar, name, role,
+// location, match score + progress bar, top skill tags) matching the
+// profile page mockup. Reuses the cohort-wide ranked-pairs endpoint scoped
+// to this founder, same data source as the Matching screen.
 export default function TopMatches({ founderId, navigation, limit = 2, C }) {
   const styles = makeStyles(C);
   const [pairs, setPairs] = useState(null);
@@ -24,41 +25,50 @@ export default function TopMatches({ founderId, navigation, limit = 2, C }) {
   if (pairs.length === 0) return <Text style={styles.emptyText}>No matches computed yet.</Text>;
 
   return (
-    <View>
-      {pairs.map((pair) => {
+    <View style={styles.wrap}>
+      {pairs.map((pair, i) => {
         const other = pair.a.id === founderId ? pair.b : pair.a;
+        const tags = [...(pair.explanation?.positives || []), ...(pair.explanation?.risks || [])].slice(0, 3);
         return (
-          <View key={other.id} style={styles.card}>
-            <View style={styles.topRow}>
-              <Avatar photoUrl={other.photoUrl} name={other.name} size={40} C={C} />
-              <Text style={styles.name} numberOfLines={1}>{other.name || 'Unnamed'}</Text>
-              <Pill
-                label={`${pair.score}%`}
-                C={C}
-                bg={pair.score >= 70 ? C.successLight : C.warningLight}
-                color={pair.score >= 70 ? C.success : C.warning}
-              />
+          <TouchableOpacity
+            key={other.id}
+            style={styles.card}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('MatchDetail', { a: founderId, b: other.id })}
+          >
+            {i === 0 ? (
+              <View style={styles.bestBadge}>
+                <Ionicons name="star" size={11} color="#fff" />
+                <Text style={styles.bestBadgeText}>Best Match</Text>
+              </View>
+            ) : null}
+
+            <Avatar photoUrl={other.photoUrl} name={other.name} size={56} C={C} />
+            <Text style={styles.name} numberOfLines={1}>{other.name || 'Unnamed'}</Text>
+            {other.roleTitle ? <Text style={styles.role} numberOfLines={1}>{other.roleTitle}</Text> : null}
+            {other.location ? (
+              <View style={styles.locationRow}>
+                <Ionicons name="location-outline" size={12} color={C.textHint} />
+                <Text style={styles.location} numberOfLines={1}>{other.location}</Text>
+              </View>
+            ) : null}
+
+            <Text style={styles.score}>{pair.score}%</Text>
+            <Text style={styles.scoreLabel}>Match Score</Text>
+            <View style={styles.track}>
+              <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, pair.score))}%` }]} />
             </View>
-            {pair.explanation?.positives?.[0] ? (
-              <View style={styles.line}>
-                <Ionicons name="checkmark-circle" size={13} color={C.success} />
-                <Text style={styles.lineText} numberOfLines={1}>{pair.explanation.positives[0]}</Text>
+
+            {tags.length ? (
+              <View style={styles.tagRow}>
+                {tags.map((t, ti) => (
+                  <View key={ti} style={styles.tag}>
+                    <Text style={styles.tagText} numberOfLines={1}>{t}</Text>
+                  </View>
+                ))}
               </View>
             ) : null}
-            {pair.explanation?.risks?.[0] ? (
-              <View style={styles.line}>
-                <Ionicons name="warning" size={13} color={C.warning} />
-                <Text style={styles.lineText} numberOfLines={1}>{pair.explanation.risks[0]}</Text>
-              </View>
-            ) : null}
-            <TouchableOpacity
-              style={styles.btn}
-              onPress={() => navigation.navigate('MatchDetail', { a: founderId, b: other.id })}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.btnText}>Open match analysis</Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         );
       })}
     </View>
@@ -68,12 +78,28 @@ export default function TopMatches({ founderId, navigation, limit = 2, C }) {
 function makeStyles(C) {
   return StyleSheet.create({
     emptyText: { ...typography.bodySmall, color: C.textHint },
-    card: { paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder, gap: 6 },
-    topRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    name: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary, flex: 1 },
-    line: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    lineText: { ...typography.caption, color: C.textSecondary, flex: 1 },
-    btn: { backgroundColor: C.surfaceElevated, borderRadius: radius.pill, paddingVertical: 8, alignItems: 'center', marginTop: 4 },
-    btnText: { ...typography.labelLarge, color: C.primary },
+    wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    card: {
+      flex: 1, minWidth: 140, alignItems: 'center', textAlign: 'center',
+      backgroundColor: C.surfaceElevated, borderRadius: radius.lg, padding: 14,
+      borderWidth: 1, borderColor: C.surfaceBorder, gap: 3,
+    },
+    bestBadge: {
+      flexDirection: 'row', alignItems: 'center', gap: 3,
+      backgroundColor: C.primary, borderRadius: radius.pill,
+      paddingHorizontal: 8, paddingVertical: 3, marginBottom: 6,
+    },
+    bestBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
+    name: { ...typography.labelLarge, color: C.textPrimary, marginTop: 8, textAlign: 'center' },
+    role: { ...typography.caption, color: C.textSecondary, textAlign: 'center' },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
+    location: { ...typography.caption, color: C.textHint },
+    score: { fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 6 },
+    scoreLabel: { ...typography.caption, color: C.textHint, marginBottom: 6 },
+    track: { height: 4, borderRadius: 2, backgroundColor: C.surfaceBorder, alignSelf: 'stretch', overflow: 'hidden', marginBottom: 8 },
+    fill: { height: 4, borderRadius: 2, backgroundColor: C.primary },
+    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, justifyContent: 'center' },
+    tag: { backgroundColor: C.surface, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 3 },
+    tagText: { fontSize: 10, fontWeight: '600', color: C.textSecondary, maxWidth: 100 },
   });
 }

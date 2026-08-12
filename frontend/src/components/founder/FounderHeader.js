@@ -1,5 +1,6 @@
 import { View, Text, Image, StyleSheet } from 'react-native';
-import { radius, typography } from '../../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { radius, cardShadow, typography } from '../../theme';
 import { Pill, useIsDesktop } from '../ui';
 
 const STATUS_COLORS = {
@@ -20,6 +21,15 @@ function formatCommitment(type) {
   return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
+function formatJoined(dateStr) {
+  if (!dateStr) return null;
+  try {
+    return `Joined ${new Date(dateStr).toLocaleDateString(undefined, { month: 'short', year: 'numeric' })}`;
+  } catch {
+    return null;
+  }
+}
+
 function Avatar({ photoUrl, name, size, C }) {
   if (photoUrl) return <Image source={{ uri: photoUrl }} style={{ width: size, height: size, borderRadius: radius.lg }} />;
   return (
@@ -31,47 +41,102 @@ function Avatar({ photoUrl, name, size, C }) {
   );
 }
 
-// Founder Profile header — flat (no gradient), matching the profile-page
-// mockup: avatar, name + status pill, role/background, industry/location/
-// commitment, and profile-confidence + evidence/activity counts as plain
-// stats (row on desktop, boxed card on mobile).
+function StatTile({ icon, iconColor, iconBg, value, label, progress, C, styles2 }) {
+  return (
+    <View style={styles2.statTile}>
+      <View style={[styles2.statIconCircle, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={18} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles2.statValue}>{value}</Text>
+        <Text style={styles2.statLabel}>{label}</Text>
+        {progress != null ? (
+          <View style={styles2.statTrack}>
+            <View style={[styles2.statFill, { width: `${Math.max(0, Math.min(100, progress))}%`, backgroundColor: iconColor }]} />
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
+
+// Founder Profile identity card — bordered card with avatar, name/role/meta
+// on the left and confidence/evidence/activity stat tiles on the right
+// (row on desktop, stacked below identity on mobile), matching the profile
+// page mockup.
 export default function FounderHeader({ founder, insights, evidenceCount, activitiesCount, C }) {
   const isDesktop = useIsDesktop();
   const styles2 = makeStyles(C);
   const status = STATUS_COLORS[founder?.status] || STATUS_COLORS.active;
-  const level = confidenceLevel(insights?.profileConfidence);
+  const confidencePct = insights?.profileConfidence ?? null;
+  const level = confidenceLevel(confidencePct);
   const levelColor = level === 'High' ? C.success : level === 'Medium' ? C.warning : C.error;
   const commitment = formatCommitment(founder?.commitmentType);
-
-  const statsBlock = (
-    <View style={isDesktop ? styles2.statsDesktop : styles2.statsMobile}>
-      <View style={styles2.statsLine}>
-        <Text style={styles2.statsLabel}>Profile confidence</Text>
-        <Text style={styles2.statsValue}>{insights?.profileConfidence ?? '—'}%</Text>
-        {level ? <Text style={[styles2.statsLevel, { color: levelColor }]}> · {level}</Text> : null}
-      </View>
-      <Text style={styles2.statsSub}>
-        {evidenceCount ?? 0} evidence point{evidenceCount === 1 ? '' : 's'} · {activitiesCount ?? 0} activit{activitiesCount === 1 ? 'y' : 'ies'}
-      </Text>
-    </View>
-  );
+  const joined = formatJoined(founder?.onboardingCompletedAt);
 
   return (
-    <View style={[styles2.container, isDesktop && styles2.containerDesktop]}>
+    <View style={[styles2.card, isDesktop && styles2.cardDesktop]}>
       <View style={[styles2.identity, isDesktop && styles2.identityDesktop]}>
         <Avatar photoUrl={founder?.photoUrl} name={founder?.name} size={isDesktop ? 76 : 88} C={C} />
         <View style={isDesktop ? { flex: 1 } : { alignItems: 'center' }}>
-          <View style={[styles2.nameRow, !isDesktop && { justifyContent: 'center' }]}>
-            <Text style={styles2.name}>{founder?.name}</Text>
-            <Pill label={status.label} C={C} bg={status.bg} color={status.text} />
+          <Text style={[styles2.role, !isDesktop && { textAlign: 'center' }]}>{founder?.currentRole || 'Founder'}</Text>
+          <View style={[styles2.metaRow, !isDesktop && { justifyContent: 'center' }]}>
+            {founder?.industry ? (
+              <View style={styles2.metaItem}>
+                <Ionicons name="briefcase-outline" size={13} color={C.textHint} />
+                <Text style={styles2.metaText}>{founder.industry}</Text>
+              </View>
+            ) : null}
+            {founder?.location ? (
+              <View style={styles2.metaItem}>
+                <Ionicons name="location-outline" size={13} color={C.textHint} />
+                <Text style={styles2.metaText}>{founder.location}</Text>
+              </View>
+            ) : null}
+            {commitment ? (
+              <View style={styles2.metaItem}>
+                <Ionicons name="time-outline" size={13} color={C.textHint} />
+                <Text style={styles2.metaText}>{commitment}</Text>
+              </View>
+            ) : null}
           </View>
-          {founder?.currentRole ? <Text style={styles2.role}>{founder.currentRole}</Text> : null}
-          <Text style={styles2.meta}>
-            {[founder?.industry, founder?.location, commitment].filter(Boolean).join(' · ') || 'No details yet'}
-          </Text>
+          <View style={[styles2.badgeRow, !isDesktop && { justifyContent: 'center' }]}>
+            <Pill label={status.label} C={C} bg={status.bg} color={status.text} />
+            {joined ? <Text style={styles2.joined}>{joined}</Text> : null}
+          </View>
         </View>
       </View>
-      {statsBlock}
+
+      <View style={[styles2.stats, isDesktop && styles2.statsDesktop]}>
+        <StatTile
+          icon="shield-checkmark"
+          iconColor={levelColor}
+          iconBg={C.surfaceElevated}
+          value={confidencePct != null ? `${confidencePct}%` : '—'}
+          label="Profile Confidence"
+          progress={confidencePct}
+          C={C}
+          styles2={styles2}
+        />
+        <StatTile
+          icon="layers"
+          iconColor={C.primary}
+          iconBg={C.surfaceElevated}
+          value={evidenceCount ?? 0}
+          label="Evidence Items Verified"
+          C={C}
+          styles2={styles2}
+        />
+        <StatTile
+          icon="checkmark-circle"
+          iconColor={C.success}
+          iconBg={C.surfaceElevated}
+          value={activitiesCount ?? 0}
+          label="Activities Completed"
+          C={C}
+          styles2={styles2}
+        />
+      </View>
     </View>
   );
 }
@@ -82,26 +147,31 @@ const styles = StyleSheet.create({
 
 function makeStyles(C) {
   return StyleSheet.create({
-    container: { paddingTop: 20, paddingBottom: 20, alignItems: 'center' },
-    containerDesktop: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
+    card: {
+      backgroundColor: C.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: C.surfaceBorder,
+      padding: 20, gap: 20, ...cardShadow,
+    },
+    cardDesktop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 24 },
 
     identity: { alignItems: 'center', gap: 12 },
     identityDesktop: { flexDirection: 'row', alignItems: 'center', flex: 1 },
 
-    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
-    name: { ...typography.displayMedium, color: C.textPrimary },
-    role: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 4, textAlign: 'center' },
-    meta: { ...typography.bodySmall, color: C.textHint, marginTop: 2, textAlign: 'center' },
+    role: { ...typography.titleMedium, color: C.textPrimary },
+    metaRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginTop: 6 },
+    metaItem: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+    metaText: { ...typography.bodySmall, color: C.textSecondary },
 
-    statsDesktop: { alignItems: 'flex-end', paddingTop: 4 },
-    statsMobile: {
-      marginTop: 16, backgroundColor: C.surfaceElevated, borderRadius: radius.lg,
-      padding: 14, alignItems: 'center', alignSelf: 'stretch',
-    },
-    statsLine: { flexDirection: 'row', alignItems: 'baseline', gap: 4 },
-    statsLabel: { ...typography.bodySmall, color: C.textSecondary },
-    statsValue: { ...typography.titleSmall, color: C.textPrimary, fontWeight: '800' },
-    statsLevel: { ...typography.bodySmall, fontWeight: '700' },
-    statsSub: { ...typography.caption, color: C.textHint, marginTop: 4 },
+    badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
+    joined: { ...typography.caption, color: C.textHint },
+
+    stats: { gap: 14, alignSelf: 'stretch' },
+    statsDesktop: { flexDirection: 'row', gap: 22, alignSelf: 'auto' },
+
+    statTile: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 150 },
+    statIconCircle: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+    statValue: { ...typography.titleMedium, color: C.textPrimary, fontWeight: '800' },
+    statLabel: { ...typography.caption, color: C.textSecondary },
+    statTrack: { height: 4, borderRadius: 2, backgroundColor: C.surfaceElevated, marginTop: 5, overflow: 'hidden' },
+    statFill: { height: 4, borderRadius: 2 },
   });
 }

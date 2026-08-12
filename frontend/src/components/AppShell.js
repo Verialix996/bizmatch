@@ -100,7 +100,15 @@ export default function AppShell({ navigation, active, items, children }) {
 
         <View style={styles2.desktopMain}>
           <View style={styles2.desktopTopBar}>
-            <View style={{ flex: 1 }} />
+            <View style={styles2.cohortPill}>
+              <Ionicons name="people-outline" size={15} color={C.primary} />
+              <Text style={styles2.cohortText} numberOfLines={1}>{user?.programName || 'My Cohort'}</Text>
+              <Ionicons name="chevron-down" size={13} color={C.textHint} />
+            </View>
+            <View style={styles2.searchBar}>
+              <Ionicons name="search" size={15} color={C.textHint} />
+              <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
+            </View>
             <NotificationBell tintColor={C.textPrimary} />
           </View>
           <View style={styles2.desktopContent}>
@@ -192,10 +200,25 @@ function makeStyles(C) {
 
     desktopMain: { flex: 1 },
     desktopTopBar: {
-      flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14,
+      flexDirection: 'row', alignItems: 'center', gap: 16, paddingHorizontal: 24, paddingVertical: 14,
       backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder,
     },
     desktopContent: { flex: 1 },
+
+    cohortPill: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.surfaceElevated, borderRadius: radius.pill,
+      paddingHorizontal: 12, paddingVertical: 8, maxWidth: 220,
+    },
+    cohortText: { ...typography.labelLarge, color: C.textPrimary, flexShrink: 1 },
+
+    searchBar: {
+      flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: C.backgroundSoft, borderRadius: radius.pill,
+      paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.surfaceBorder,
+      maxWidth: 420,
+    },
+    searchPlaceholder: { ...typography.bodySmall, color: C.textHint },
 
     // ── Mobile header + tab bar layout ──────────────────────
     mobileRoot: { flex: 1, backgroundColor: C.backgroundSoft },

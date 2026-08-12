@@ -123,6 +123,32 @@ export default function FounderProfileScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
+        <View style={[styles.titleRow, isDesktop && styles.titleRowDesktop]}>
+          <View>
+            <View style={styles.titleLine}>
+              <Text style={styles.pageTitle}>Founder Profile</Text>
+              <Ionicons name="information-circle-outline" size={18} color={C.textHint} />
+            </View>
+            <Text style={styles.founderName}>{founder?.name}</Text>
+          </View>
+          {!isAdmin && (
+            <View style={styles.titleActions}>
+              <TouchableOpacity style={styles.btnSecondary} activeOpacity={0.85}>
+                <Ionicons name="share-social-outline" size={15} color={C.textSecondary} />
+                <Text style={styles.btnSecondaryText}>Share Profile</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('AccountSettings')}
+              >
+                <Ionicons name="create-outline" size={15} color="#fff" />
+                <Text style={styles.btnPrimaryText}>Edit Profile</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
         <FounderHeader
           founder={founder}
           insights={insights}
@@ -171,7 +197,7 @@ export default function FounderProfileScreen({ route, navigation }) {
                 <View style={{ flex: 1 }}>
                   <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
                     <View style={{ alignItems: 'center' }}>
-                      <RadarChart axes={axes} size={isDesktop ? 300 : 280} C={C} />
+                      <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
                     </View>
                     <RadarLegend axes={axes} C={C} />
                   </SectionCard>
@@ -183,6 +209,11 @@ export default function FounderProfileScreen({ route, navigation }) {
                   </SectionCard>
                 </View>
                 <View style={{ flex: 1 }}>
+                  <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
+                    <BehavioralSignals insights={insights} C={C} />
+                  </SectionCard>
+                </View>
+                <View style={{ flex: 1 }}>
                   <SectionCard title="Partner requirements" icon="person-add-outline" C={C}>
                     <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
                   </SectionCard>
@@ -190,11 +221,6 @@ export default function FounderProfileScreen({ route, navigation }) {
               </ResponsiveRow>
 
               <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
-                    <BehavioralSignals insights={insights} C={C} />
-                  </SectionCard>
-                </View>
                 <View style={{ flex: 1 }}>
                   <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C}>
                     <EvidenceConfidenceTable insights={insights} C={C} />
@@ -211,9 +237,9 @@ export default function FounderProfileScreen({ route, navigation }) {
                   </SectionCard>
                 </View>
                 {isAdmin && (
-                  <View style={{ flex: 1 }}>
+                  <View style={{ flex: 1.4 }}>
                     <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
-                      <TopMatches founderId={founderId} navigation={navigation} limit={2} C={C} />
+                      <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
                       <TouchableOpacity onPress={() => setTab('matches')} activeOpacity={0.75}>
                         <Text style={styles.linkText}>View all matches</Text>
                       </TouchableOpacity>
@@ -313,6 +339,13 @@ function makeStyles(C) {
 
     backRow: { marginTop: 16 },
     backText: { color: C.primary, ...typography.labelLarge },
+
+    titleRow: { marginTop: 16, marginBottom: 20, alignItems: 'center', gap: 14 },
+    titleRowDesktop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },
+    titleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    pageTitle: { ...typography.displayMedium, color: C.textPrimary },
+    founderName: { ...typography.titleMedium, color: C.primary, marginTop: 2 },
+    titleActions: { flexDirection: 'row', gap: 10 },
 
     ventureRow: { flexDirection: 'row', gap: 16, marginTop: -8, marginBottom: 8, justifyContent: 'center', flexWrap: 'wrap' },
     venture: { ...typography.bodySmall, color: C.textSecondary },

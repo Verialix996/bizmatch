@@ -1,71 +1,69 @@
 import { View, Text, StyleSheet } from 'react-native';
-import { radius, typography } from '../../theme';
+import { Ionicons } from '@expo/vector-icons';
+import { typography } from '../../theme';
 
-// LOOKING FOR card (spec section 5) — distinct from the Founder Profile
-// itself: this is the Founder Matching Profile, what they need in a partner.
+// Partner requirements card (spec section 5) — what this founder needs in a
+// co-founder. Rendered as checklist rows (desired qualities in green,
+// deal-breakers in red) matching the profile page mockup, rather than chips.
 export default function PartnerRequirementsCard({ requirements, dealBreakers, C }) {
-  const hasContent = requirements?.roleWanted || requirements?.mustProvide?.length
-    || requirements?.commitmentRequired || requirements?.preferredTraits?.length
-    || dealBreakers?.length;
+  const desired = [...(requirements?.mustProvide || []), ...(requirements?.preferredTraits || [])];
+  const hasContent = requirements?.roleWanted || requirements?.commitmentRequired
+    || requirements?.ambitionRequired || desired.length || dealBreakers?.length;
   if (!hasContent) return null;
+
+  const styles = makeStyles(C);
 
   return (
     <View>
-      {requirements?.roleWanted ? (
-        <Row label="Role" value={requirements.roleWanted} C={C} />
-      ) : null}
-      {requirements?.commitmentRequired ? (
-        <Row label="Commitment" value={requirements.commitmentRequired} C={C} />
-      ) : null}
-      {requirements?.ambitionRequired ? (
-        <Row label="Ambition" value={requirements.ambitionRequired} C={C} />
+      {requirements?.roleWanted ? <Row label="Role" value={requirements.roleWanted} C={C} styles={styles} /> : null}
+      {requirements?.commitmentRequired ? <Row label="Commitment" value={requirements.commitmentRequired} C={C} styles={styles} /> : null}
+      {requirements?.ambitionRequired ? <Row label="Ambition" value={requirements.ambitionRequired} C={C} styles={styles} /> : null}
+
+      {desired.length ? (
+        <View style={styles.group}>
+          <Text style={styles.groupLabel}>Desired Co-founder Qualities</Text>
+          {desired.map((item) => (
+            <View key={item} style={styles.checkRow}>
+              <Ionicons name="checkmark-circle" size={16} color={C.success} />
+              <Text style={styles.checkText}>{item}</Text>
+            </View>
+          ))}
+        </View>
       ) : null}
 
-      {requirements?.mustProvide?.length ? (
-        <ChipGroup label="Must Provide" items={requirements.mustProvide} C={C} chipColor={C.primary} />
-      ) : null}
-      {requirements?.preferredTraits?.length ? (
-        <ChipGroup label="Preferred" items={requirements.preferredTraits} C={C} chipColor={C.success} />
-      ) : null}
       {dealBreakers?.length ? (
-        <ChipGroup label="Deal Breakers" items={dealBreakers} C={C} chipColor={C.error} />
+        <View style={styles.group}>
+          <Text style={[styles.groupLabel, { color: C.error }]}>Deal Breakers</Text>
+          {dealBreakers.map((item) => (
+            <View key={item} style={styles.checkRow}>
+              <Ionicons name="close-circle" size={16} color={C.error} />
+              <Text style={styles.checkText}>{item}</Text>
+            </View>
+          ))}
+        </View>
       ) : null}
     </View>
   );
 }
 
-function Row({ label, value, C }) {
+function Row({ label, value, C, styles }) {
   return (
-    <View style={[styles.dataRow, { borderBottomColor: C.surfaceBorder }]}>
-      <Text style={[styles.dataLabel, { color: C.textSecondary }]}>{label}</Text>
-      <Text style={[styles.dataValue, { color: C.textPrimary }]}>{value}</Text>
+    <View style={styles.dataRow}>
+      <Text style={styles.dataLabel}>{label}</Text>
+      <Text style={styles.dataValue}>{value}</Text>
     </View>
   );
 }
 
-function ChipGroup({ label, items, C, chipColor }) {
-  return (
-    <View style={styles.chipGroup}>
-      <Text style={[styles.chipGroupLabel, { color: C.textSecondary }]}>{label}</Text>
-      <View style={styles.chipRow}>
-        {items.map((item) => (
-          <View key={item} style={[styles.chip, { borderColor: chipColor }]}>
-            <Text style={[styles.chipText, { color: chipColor }]}>{item}</Text>
-          </View>
-        ))}
-      </View>
-    </View>
-  );
-}
+function makeStyles(C) {
+  return StyleSheet.create({
+    dataRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder },
+    dataLabel: { ...typography.bodyMedium, color: C.textSecondary },
+    dataValue: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary },
 
-const styles = StyleSheet.create({
-  sectionLabel: { ...typography.labelSmall, textTransform: 'uppercase', marginBottom: 12, marginTop: 16 },
-  dataRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1 },
-  dataLabel: { ...typography.bodyMedium },
-  dataValue: { ...typography.bodyMedium, fontWeight: '700' },
-  chipGroup: { marginTop: 10 },
-  chipGroupLabel: { ...typography.caption, marginBottom: 6 },
-  chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  chip: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1 },
-  chipText: { fontSize: 12, fontWeight: '600' },
-});
+    group: { marginTop: 14 },
+    groupLabel: { ...typography.labelLarge, color: C.success, marginBottom: 8 },
+    checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 5 },
+    checkText: { ...typography.bodySmall, color: C.textPrimary, flex: 1 },
+  });
+}
