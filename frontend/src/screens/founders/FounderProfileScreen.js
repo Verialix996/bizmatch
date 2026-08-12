@@ -140,7 +140,7 @@ export default function FounderProfileScreen({ route, navigation }) {
               <TouchableOpacity
                 style={styles.btnPrimary}
                 activeOpacity={0.85}
-                onPress={() => navigation.navigate('AccountSettings')}
+                onPress={() => navigation.navigate('EditFounderProfile', { founderId })}
               >
                 <Ionicons name="create-outline" size={15} color="#fff" />
                 <Text style={styles.btnPrimaryText}>Edit Profile</Text>
