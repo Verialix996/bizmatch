@@ -79,7 +79,9 @@ export default function FounderHeader({ founder, insights, evidenceCount, activi
       <View style={[styles2.identity, isDesktop && styles2.identityDesktop]}>
         <Avatar photoUrl={founder?.photoUrl} name={founder?.name} size={isDesktop ? 76 : 88} C={C} />
         <View style={isDesktop ? { flex: 1 } : { alignItems: 'center' }}>
-          <Text style={[styles2.role, !isDesktop && { textAlign: 'center' }]}>{founder?.currentRole || 'Founder'}</Text>
+          {founder?.currentRole ? (
+            <Text style={[styles2.role, !isDesktop && { textAlign: 'center' }]}>{founder.currentRole}</Text>
+          ) : null}
           <View style={[styles2.metaRow, !isDesktop && { justifyContent: 'center' }]}>
             {founder?.industry ? (
               <View style={styles2.metaItem}>
