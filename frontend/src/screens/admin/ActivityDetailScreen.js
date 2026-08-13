@@ -207,7 +207,8 @@ export default function ActivityDetailScreen({ route, navigation }) {
                 {activity?.scheduledAt ? ` · ${new Date(activity.scheduledAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
                 {' · '}{approvedParticipants.length} participant{approvedParticipants.length === 1 ? '' : 's'}
               </Text>
-              {activity?.description ? <Text style={styles.description}>{activity.description}</Text> : null}
+              <Text style={styles.descriptionLabel}>About this activity</Text>
+              <Text style={styles.description}>{activity?.description || 'No description provided.'}</Text>
 
               {!isAdmin && (
                 <View style={styles.registerRow}>
@@ -432,7 +433,8 @@ function makeStyles(C) {
 
     title: { ...typography.titleLarge, color: C.textPrimary },
     meta: { ...typography.bodySmall, color: C.textSecondary, marginTop: 4 },
-    description: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 10 },
+    descriptionLabel: { ...typography.labelSmall, textTransform: 'uppercase', color: C.textHint, marginTop: 16, marginBottom: 6 },
+    description: { ...typography.bodyMedium, color: C.textSecondary },
 
     statusRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
     registerRow: { marginTop: 14, alignItems: 'flex-start' },
