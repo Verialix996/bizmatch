@@ -48,7 +48,7 @@ export async function resendOtp(email) {
 
 export async function forgotPassword(email) {
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: Platform.OS === 'web' ? window.location.origin : 'bizmatch://reset-password',
+    redirectTo: Platform.OS === 'web' ? `${window.location.origin}/reset-password` : 'bizmatch://reset-password',
   });
   if (error) throw error;
 }

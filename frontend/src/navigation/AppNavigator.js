@@ -31,7 +31,11 @@ import AccountSettings      from '../screens/profile/AccountSettings';
 const Stack = createNativeStackNavigator();
 
 export const linking = {
-  prefixes: ['http://localhost:8081', 'https://localhost:8081', 'bizmatch://'],
+  prefixes: [
+    'http://localhost:8081', 'https://localhost:8081',
+    'https://matchappbiz.netlify.app',
+    'bizmatch://',
+  ],
   config: {
     screens: {
       ResetPassword: 'reset-password',
@@ -92,12 +96,16 @@ export default function AppNavigator() {
   const token             = useAuthStore(s => s.token);
   const user              = useAuthStore(s => s.user);
   const hasSeenOnboarding = useAuthStore(s => s.hasSeenOnboarding);
+  const isPasswordRecovery = useAuthStore(s => s.isPasswordRecovery);
 
   const isAdmin = user?.role === 'admin';
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        screenOptions={{ headerShown: false }}
+        initialRouteName={isPasswordRecovery ? 'ResetPassword' : undefined}
+      >
         {!token ? (
           <>
             <Stack.Screen name="Welcome"        component={WelcomeScreen} />

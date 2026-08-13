@@ -7,6 +7,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { resetPassword } from '../../services/auth.service';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brandGradient, radius } from '../../theme';
+import useAuthStore from '../../store/authStore';
 
 export default function ResetPasswordScreen({ navigation }) {
   const insets = useSafeAreaInsets();
@@ -16,6 +17,7 @@ export default function ResetPasswordScreen({ navigation }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(null);
+  const clearPasswordRecovery = useAuthStore(s => s.clearPasswordRecovery);
 
   const onSubmit = async () => {
     if (!password || password.length < 6) {
@@ -30,6 +32,7 @@ export default function ResetPasswordScreen({ navigation }) {
     setLoading(true);
     try {
       await resetPassword(password);
+      await clearPasswordRecovery();
       setMessage('Password reset! Redirecting to login...');
       setTimeout(() => navigation.navigate('Login'), 2500);
     } catch (e) {

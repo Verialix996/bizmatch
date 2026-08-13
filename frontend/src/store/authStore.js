@@ -7,6 +7,10 @@ const useAuthStore = create((set, get) => ({
   user: null,
   hasSeenOnboarding: false,
   isRestoring: true,
+  // True while the user is on a password-recovery session (landed here via the
+  // "reset password" email link). Kept separate from token/user so the app
+  // routes to ResetPasswordScreen instead of treating this as a normal login.
+  isPasswordRecovery: false,
 
   // Called after any successful sign-in/sign-up/OAuth/OTP-verify event, or
   // during restore, with the Supabase session already established.
@@ -20,25 +24,17 @@ const useAuthStore = create((set, get) => ({
     });
   },
 
-  updateUser: (updates) => {
-    set(state => ({ user: state.user ? { ...state.user, ...updates } : state.user }));
-  },
+  // No-op kept for App.js's mount-time call — the actual listener is
+  // registered at module load below, not here, so it can't race the
+  // PASSWORD_RECOVERY event Supabase fires while parsing the reset-link URL
+  // (which can resolve before any component has mounted).
+  restoreAuth: () => {},
 
-  // Establishes the Supabase session listener once at boot. Supabase's client
-  // (with an AsyncStorage adapter) persists/refreshes the session itself —
-  // no manual token storage needed here anymore.
-  restoreAuth: async () => {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) await get().setAuth(session);
-    set({ isRestoring: false });
-
-    supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        get().setAuth(session);
-      } else {
-        set({ token: null, user: null, hasSeenOnboarding: false });
-      }
-    });
+  // Called once the recovery session's password has actually been changed:
+  // drops the recovery session so the user has to sign in fresh with it.
+  clearPasswordRecovery: async () => {
+    await supabase.auth.signOut();
+    set({ token: null, user: null, hasSeenOnboarding: false, isPasswordRecovery: false });
   },
 
   setHasSeenOnboarding: () => {
@@ -50,8 +46,24 @@ const useAuthStore = create((set, get) => ({
 
   logout: async () => {
     await supabase.auth.signOut();
-    set({ token: null, user: null, hasSeenOnboarding: false });
+    set({ token: null, user: null, hasSeenOnboarding: false, isPasswordRecovery: false });
   },
 }));
+
+// Registered at module load (not inside a React effect) so it can't miss the
+// PASSWORD_RECOVERY event: Supabase parses the reset-link URL and fires it as
+// soon as the client initializes, which can happen before any component has
+// had a chance to mount and subscribe.
+supabase.auth.onAuthStateChange((event, session) => {
+  if (event === 'PASSWORD_RECOVERY') {
+    useAuthStore.setState({ isPasswordRecovery: true, token: null, user: null, isRestoring: false });
+    return;
+  }
+  if (session) {
+    useAuthStore.getState().setAuth(session).finally(() => useAuthStore.setState({ isRestoring: false }));
+  } else {
+    useAuthStore.setState({ token: null, user: null, hasSeenOnboarding: false, isRestoring: false });
+  }
+});
 
 export default useAuthStore;
