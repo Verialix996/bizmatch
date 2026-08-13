@@ -66,11 +66,11 @@ export default function ActivitiesListScreen({ navigation }) {
     if (filter === 'all') return activities;
     if (isAdmin) return activities.filter(a => a.status === filter);
     // Founder tabs are registration-status-driven, not activity-lifecycle-
-    // driven: the moment a request is approved it moves to Active — it
-    // doesn't wait for the activity itself to be marked 'active'. Upcoming
-    // is purely the browse/sign-up list (includes already-registered ones
-    // too, shown with a badge, so a founder can still see when it's happening).
-    if (filter === 'upcoming') return activities.filter(a => a.status === 'upcoming');
+    // driven, and mutually exclusive: the moment a request is approved it
+    // moves out of Upcoming and into Active — it doesn't wait for the
+    // activity itself to be marked 'active', and it no longer clutters the
+    // browse/sign-up list once you're already in.
+    if (filter === 'upcoming') return activities.filter(a => a.status === 'upcoming' && a.myStatus !== 'approved');
     if (filter === 'active') return activities.filter(a => a.myStatus === 'approved' && a.status !== 'completed');
     return activities.filter(a => a.status === 'completed' && a.myStatus === 'approved');
   }, [activities, filter, isAdmin]);
