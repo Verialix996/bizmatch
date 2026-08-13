@@ -14,6 +14,7 @@ import {
   updatePartnerRequirements, updateDealBreakers, completeOnboarding,
   CAPABILITIES,
 } from '../../services/founders.service';
+import CapabilityScorer from '../../components/founder/CapabilityScorer';
 
 // Founder Profile creation wizard (spec sections 20-21), replacing the old
 // swipe-app walkthrough. Values Scenarios / Work Style steps are omitted
@@ -82,7 +83,7 @@ export default function OnboardingScreen() {
 
   const [basics, setBasics] = useState({ role_title: '', venture_name: '', industry: '', location: '', current_stage: '' });
   const [commitment, setCommitment] = useState({ commitment_hours: '', commitment_type: '', commitment_risk_appetite: '' });
-  const [provides, setProvides] = useState([]);
+  const [provides, setProvides] = useState([]); // [{ capability, score }]
   const [needs, setNeeds] = useState([]);
   const [partner, setPartner] = useState({ role_wanted: '', commitment_required: '', ambition_required: '' });
   const [dealBreakers, setDealBreakers] = useState([]);
@@ -125,6 +126,13 @@ export default function OnboardingScreen() {
 
   const toggleItem = (list, setList, item) => {
     setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
+  };
+  const toggleCapability = (list, setList, capability) => {
+    if (list.some(c => c.capability === capability)) {
+      setList(list.filter(c => c.capability !== capability));
+    } else {
+      setList([...list, { capability, score: DEFAULT_CAPABILITY_SCORE }]);
+    }
   };
 
   const validateStep = () => {
@@ -190,8 +198,8 @@ export default function OnboardingScreen() {
         commitment_type: commitment.commitment_type || null,
         commitment_risk_appetite: commitment.commitment_risk_appetite || null,
       });
-      await updateFounderCapabilities(founderId, 'provide', provides.map(c => ({ capability: c, score: DEFAULT_CAPABILITY_SCORE })));
-      await updateFounderCapabilities(founderId, 'need', needs.map(c => ({ capability: c, score: DEFAULT_CAPABILITY_SCORE })));
+      await updateFounderCapabilities(founderId, 'provide', provides);
+      await updateFounderCapabilities(founderId, 'need', needs);
       await updatePartnerRequirements(founderId, partner);
       await updateDealBreakers(founderId, dealBreakers);
       await completeOnboarding(founderId);
@@ -287,26 +295,28 @@ export default function OnboardingScreen() {
         {step === 'provides' && (
           <View>
             <Text style={styles.title}>What can you own?</Text>
-            <Text style={styles.subtitle}>Select the capabilities you bring to a team.</Text>
+            <Text style={styles.subtitle}>Select the capabilities you bring to a team, then rate how strong you are at each.</Text>
             <View style={styles.chipRow}>
               {CAPABILITIES.map(c => (
-                <Chip key={c} label={c} selected={provides.includes(c)}
-                  onPress={() => toggleItem(provides, setProvides, c)} C={C} styles={styles} />
+                <Chip key={c} label={c} selected={provides.some(p => p.capability === c)}
+                  onPress={() => toggleCapability(provides, setProvides, c)} C={C} styles={styles} />
               ))}
             </View>
+            <CapabilityScorer items={provides} onChange={setProvides} C={C} color={C.primary} />
           </View>
         )}
 
         {step === 'needs' && (
           <View>
             <Text style={styles.title}>What do you need?</Text>
-            <Text style={styles.subtitle}>Select what you need from a co-founder.</Text>
+            <Text style={styles.subtitle}>Select what you need from a co-founder, then rate how important each one is.</Text>
             <View style={styles.chipRow}>
               {CAPABILITIES.map(c => (
-                <Chip key={c} label={c} selected={needs.includes(c)}
-                  onPress={() => toggleItem(needs, setNeeds, c)} C={C} styles={styles} />
+                <Chip key={c} label={c} selected={needs.some(n => n.capability === c)}
+                  onPress={() => toggleCapability(needs, setNeeds, c)} C={C} styles={styles} />
               ))}
             </View>
+            <CapabilityScorer items={needs} onChange={setNeeds} C={C} color={C.warning} />
           </View>
         )}
 

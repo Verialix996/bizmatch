@@ -14,6 +14,7 @@ import {
   updatePartnerRequirements, updateDealBreakers, CAPABILITIES,
 } from '../../services/founders.service';
 import AppShell from '../../components/AppShell';
+import CapabilityScorer from '../../components/founder/CapabilityScorer';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
 import { SectionCard, useIsDesktop } from '../../components/ui';
 
@@ -251,6 +252,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
                 onPress={() => toggleCapability(provides, setProvides, c)} C={C} styles={styles} />
             ))}
           </View>
+          <CapabilityScorer items={provides} onChange={setProvides} C={C} color={C.primary} />
 
           <Text style={[styles.fieldLabel, { marginTop: 20 }]}>WHAT YOU NEED</Text>
           <View style={styles.chipRow}>
@@ -259,6 +261,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
                 onPress={() => toggleCapability(needs, setNeeds, c)} C={C} styles={styles} />
             ))}
           </View>
+          <CapabilityScorer items={needs} onChange={setNeeds} C={C} color={C.warning} />
         </SectionCard>
 
         <SectionCard title="Partner requirements" icon="person-add-outline" C={C} style={styles.card}>
