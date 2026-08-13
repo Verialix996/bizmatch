@@ -9,6 +9,13 @@ import { json } from "../_shared/respond.ts";
 const HOOK_SECRET = Deno.env.get("SEND_EMAIL_HOOK_SECRET") ?? "";
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY") ?? "";
 const FROM_EMAIL = Deno.env.get("SEND_EMAIL_FROM") ?? "BizMatch <onboarding@resend.dev>";
+// email_data.site_url is the Auth "Site URL" setting, which on this project is
+// configured to the API base itself — appending /auth/v1/verify to it doubles
+// the path. The project's actual API origin (auto-injected by the edge
+// runtime) is the correct base for the verify link, which also needs an
+// apikey or the gateway rejects it with "No API key found in request".
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 interface HookPayload {
   user: { email: string };
@@ -103,13 +110,12 @@ function renderEmail(
   actionType: string,
   token: string,
   tokenHash: string,
-  siteUrl: string,
   redirectTo: string,
 ): { subject: string; html: string } {
   const copy = ACTION_COPY[actionType] ?? ACTION_COPY.signup;
 
   if (LINK_ACTIONS.has(actionType)) {
-    const verifyUrl = `${siteUrl}/auth/v1/verify?token=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(actionType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
+    const verifyUrl = `${SUPABASE_URL}/auth/v1/verify?token=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(actionType)}&redirect_to=${encodeURIComponent(redirectTo)}&apikey=${encodeURIComponent(SUPABASE_ANON_KEY)}`;
     const html = `
       <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
         <h1 style="color: #1e3a8a; font-size: 20px;">${copy.heading}</h1>
@@ -167,7 +173,6 @@ Deno.serve(async (req) => {
       payload.email_data.email_action_type,
       payload.email_data.token,
       payload.email_data.token_hash,
-      payload.email_data.site_url,
       payload.email_data.redirect_to,
     );
 
