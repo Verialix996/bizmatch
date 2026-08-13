@@ -12,10 +12,11 @@ export interface ActivityListItem {
 export const ActivitiesModel = {
   // MVP screen 5 — Activities list: type, date, participant count, status.
   // Also backs MVP screen 10's "Team Activities" via the teamId filter.
+  // Admin-only view — sees every activity regardless of participation.
   async list(programId: number | null, teamId: number | null = null, founderId: string | null = null): Promise<ActivityListItem[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT a.id, a.type, a.title, a.scheduled_at, a.status,
-              count(ap.founder_id)::int AS participant_count
+              count(ap.founder_id) FILTER (WHERE ap.status = 'approved')::int AS participant_count
        FROM activities a
        LEFT JOIN activity_participants ap ON ap.activity_id = a.id
        WHERE ($1::bigint IS NULL OR a.program_id = $1)
@@ -38,9 +39,41 @@ export const ActivitiesModel = {
     }));
   },
 
-  async get(activityId: number): Promise<Record<string, unknown> | null> {
+  // Founder-scoped view: activities open for browsing/signup ('upcoming',
+  // regardless of participation), plus anything this founder already has a
+  // participant row for (pending/approved/rejected, any activity status),
+  // plus (when teamId is given, e.g. TeamProfileScreen's "Team Activities"
+  // panel) any activity scoped to that team — a founder never sees an
+  // active/completed activity outside those cases. `myStatus` is null when
+  // they haven't requested to join yet.
+  async listForFounder(founderId: string, teamId: number | null = null): Promise<Array<ActivityListItem & { myStatus: string | null }>> {
     const rows = await query<Record<string, unknown>>(
-      `SELECT id, program_id, type, title, description, scheduled_at, status
+      `SELECT a.id, a.type, a.title, a.scheduled_at, a.status,
+              count(ap.founder_id) FILTER (WHERE ap.status = 'approved')::int AS participant_count,
+              me.status AS my_status
+       FROM activities a
+       LEFT JOIN activity_participants ap ON ap.activity_id = a.id
+       LEFT JOIN activity_participants me ON me.activity_id = a.id AND me.founder_id = $1
+       WHERE a.status = 'upcoming' OR me.founder_id IS NOT NULL
+          OR ($2::bigint IS NOT NULL AND a.team_id = $2)
+       GROUP BY a.id, me.status
+       ORDER BY a.scheduled_at DESC NULLS LAST, a.id DESC`,
+      [founderId, teamId],
+    );
+    return rows.map((r) => ({
+      id: Number(r.id),
+      type: r.type as string,
+      title: r.title as string,
+      scheduledAt: r.scheduled_at as string | null,
+      status: r.status as string,
+      participantCount: Number(r.participant_count),
+      myStatus: (r.my_status as string | null) ?? null,
+    }));
+  },
+
+  async get(activityId: number, viewerId: string | null = null): Promise<Record<string, unknown> | null> {
+    const rows = await query<Record<string, unknown>>(
+      `SELECT id, program_id, team_id, type, title, description, scheduled_at, status
        FROM activities WHERE id = $1`,
       [activityId],
     );
@@ -48,9 +81,9 @@ export const ActivitiesModel = {
     if (!activity) return null;
 
     const participants = await query<Record<string, unknown>>(
-      `SELECT u.id, u.name, u.photo_url
+      `SELECT u.id, u.name, u.photo_url, ap.status, ap.requested_at
        FROM activity_participants ap JOIN users u ON u.id = ap.founder_id
-       WHERE ap.activity_id = $1 ORDER BY u.name`,
+       WHERE ap.activity_id = $1 ORDER BY ap.status, u.name`,
       [activityId],
     );
     const evaluators = await query<Record<string, unknown>>(
@@ -59,7 +92,9 @@ export const ActivitiesModel = {
       [activityId],
     );
 
-    return { ...activity, participants, evaluators };
+    const myStatus = viewerId ? (participants.find((p) => p.id === viewerId)?.status as string | undefined) ?? null : null;
+
+    return { ...activity, participants, evaluators, myStatus };
   },
 
   async create(fields: Record<string, unknown>): Promise<number> {
@@ -89,14 +124,57 @@ export const ActivitiesModel = {
     );
   },
 
+  // Admin bulk-replace — a direct assignment, not a request, so it's
+  // inserted pre-approved rather than going through the pending queue.
   async setParticipants(activityId: number, founderIds: string[]): Promise<void> {
     await query("DELETE FROM activity_participants WHERE activity_id = $1", [activityId]);
     for (const founderId of founderIds) {
       await query(
-        "INSERT INTO activity_participants (activity_id, founder_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+        `INSERT INTO activity_participants (activity_id, founder_id, status, requested_at, decided_at)
+         VALUES ($1, $2, 'approved', now(), now())
+         ON CONFLICT DO NOTHING`,
         [activityId, founderId],
       );
     }
+  },
+
+  // Founder self-service: request to join an upcoming activity. Idempotent —
+  // re-requesting just returns whatever status the existing row already has.
+  async requestJoin(activityId: number, founderId: string): Promise<{ ok: true; status: string } | { ok: false; error: string }> {
+    const activityRows = await query<{ status: string }>("SELECT status FROM activities WHERE id = $1", [activityId]);
+    if (!activityRows[0]) return { ok: false, error: "Activity not found" };
+    if (activityRows[0].status !== "upcoming") {
+      return { ok: false, error: "Registration is only open for upcoming activities" };
+    }
+
+    await query(
+      `INSERT INTO activity_participants (activity_id, founder_id, status, requested_at)
+       VALUES ($1, $2, 'pending', now())
+       ON CONFLICT (activity_id, founder_id) DO NOTHING`,
+      [activityId, founderId],
+    );
+    const rows = await query<{ status: string }>(
+      "SELECT status FROM activity_participants WHERE activity_id = $1 AND founder_id = $2",
+      [activityId, founderId],
+    );
+    return { ok: true, status: rows[0].status };
+  },
+
+  async isFounderOnTeam(teamId: number, founderId: string): Promise<boolean> {
+    const rows = await query<{ exists: boolean }>(
+      "SELECT EXISTS(SELECT 1 FROM team_founders WHERE team_id = $1 AND founder_id = $2) AS exists",
+      [teamId, founderId],
+    );
+    return !!rows[0]?.exists;
+  },
+
+  // Admin approve/reject of a single pending (or existing) registration.
+  async decideParticipant(activityId: number, founderId: string, status: "approved" | "rejected"): Promise<void> {
+    await query(
+      `UPDATE activity_participants SET status = $3, decided_at = now()
+       WHERE activity_id = $1 AND founder_id = $2`,
+      [activityId, founderId, status],
+    );
   },
 
   async setEvaluators(activityId: number, evaluatorIds: string[]): Promise<void> {

@@ -11,6 +11,11 @@ export const setActivityEvaluators = (activityId, evaluatorIds) =>
   api.put(`/activities/${activityId}/evaluators`, { evaluatorIds });
 export const deleteActivity = (activityId) => api.delete(`/activities/${activityId}`);
 
+// Registration — founder requests to join an upcoming activity; admin approves/rejects.
+export const registerForActivity = (activityId) => api.post(`/activities/${activityId}/register`);
+export const decideActivityParticipant = (activityId, founderId, status) =>
+  api.patch(`/activities/${activityId}/participants/${founderId}`, { status });
+
 export const ACTIVITY_TYPES = ['hackathon', 'workshop', 'interview', 'team_challenge', 'work_trial'];
 
 export const ACTIVITY_TYPE_LABELS = {

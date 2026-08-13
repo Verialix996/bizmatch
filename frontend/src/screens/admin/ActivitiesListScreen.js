@@ -14,8 +14,18 @@ import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
 import { IconCircle, Pill } from '../../components/ui';
 
 const STATUS_LABELS = { upcoming: 'Upcoming', active: 'Active', completed: 'Completed' };
-const FILTERS = ['all', 'upcoming', 'active', 'completed'];
+const ADMIN_FILTERS = ['all', 'upcoming', 'active', 'completed'];
+// Founders never see an "all" bucket — Upcoming is the browse/sign-up list,
+// Active/Completed only ever contain activities they're approved into.
+const FOUNDER_FILTERS = ['upcoming', 'active', 'completed'];
 const FILTER_LABELS = { all: 'All', upcoming: 'Upcoming', active: 'Active', completed: 'Completed' };
+
+const MY_STATUS_LABELS = { pending: 'Pending approval', approved: 'Registered', rejected: 'Not approved' };
+const MY_STATUS_COLORS = {
+  pending: (C) => ({ bg: C.warningLight, color: C.warning }),
+  approved: (C) => ({ bg: C.successLight, color: C.success }),
+  rejected: (C) => ({ bg: C.surfaceElevated, color: C.textSecondary }),
+};
 
 const TYPE_ICONS = {
   hackathon: 'flash-outline',
@@ -35,7 +45,8 @@ export default function ActivitiesListScreen({ navigation }) {
 
   const [activities, setActivities] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all');
+  const [filter, setFilter] = useState(isAdmin ? 'all' : 'upcoming');
+  const FILTERS = isAdmin ? ADMIN_FILTERS : FOUNDER_FILTERS;
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -51,10 +62,18 @@ export default function ActivitiesListScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
-  const filtered = useMemo(
-    () => filter === 'all' ? activities : activities.filter(a => a.status === filter),
-    [activities, filter],
-  );
+  const filtered = useMemo(() => {
+    if (filter === 'all') return activities;
+    if (isAdmin) return activities.filter(a => a.status === filter);
+    // Founder tabs are registration-status-driven, not activity-lifecycle-
+    // driven: the moment a request is approved it moves to Active — it
+    // doesn't wait for the activity itself to be marked 'active'. Upcoming
+    // is purely the browse/sign-up list (includes already-registered ones
+    // too, shown with a badge, so a founder can still see when it's happening).
+    if (filter === 'upcoming') return activities.filter(a => a.status === 'upcoming');
+    if (filter === 'active') return activities.filter(a => a.myStatus === 'approved' && a.status !== 'completed');
+    return activities.filter(a => a.status === 'completed' && a.myStatus === 'approved');
+  }, [activities, filter, isAdmin]);
 
   return (
     <AppShell navigation={navigation} active="activities" items={isAdmin ? ADMIN_NAV_ITEMS : FOUNDER_NAV_ITEMS}>
@@ -113,12 +132,21 @@ export default function ActivitiesListScreen({ navigation }) {
                     {' · '}{item.participantCount} participant{item.participantCount === 1 ? '' : 's'}
                   </Text>
                 </View>
-                <Pill
-                  label={STATUS_LABELS[item.status] || item.status}
-                  C={C}
-                  bg={item.status === 'active' ? C.warningLight : item.status === 'completed' ? C.successLight : C.surfaceElevated}
-                  color={item.status === 'active' ? C.warning : item.status === 'completed' ? C.success : C.textSecondary}
-                />
+                {!isAdmin && item.myStatus ? (
+                  <Pill
+                    label={MY_STATUS_LABELS[item.myStatus] || item.myStatus}
+                    C={C}
+                    bg={MY_STATUS_COLORS[item.myStatus](C).bg}
+                    color={MY_STATUS_COLORS[item.myStatus](C).color}
+                  />
+                ) : (
+                  <Pill
+                    label={STATUS_LABELS[item.status] || item.status}
+                    C={C}
+                    bg={item.status === 'active' ? C.warningLight : item.status === 'completed' ? C.successLight : C.surfaceElevated}
+                    color={item.status === 'active' ? C.warning : item.status === 'completed' ? C.success : C.textSecondary}
+                  />
+                )}
                 <Ionicons name="chevron-forward" size={18} color={C.textHint} />
               </TouchableOpacity>
             )}

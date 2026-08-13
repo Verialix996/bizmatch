@@ -10,6 +10,7 @@ import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
 import {
   getActivity, createActivity, updateActivity, setActivityParticipants,
+  registerForActivity, decideActivityParticipant,
   ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS,
 } from '../../services/activities.service';
 import { listFounders, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
@@ -37,6 +38,8 @@ export default function ActivityDetailScreen({ route, navigation }) {
   const [activity, setActivity] = useState(null);
   const [loading, setLoading] = useState(!!activityId);
   const [saving, setSaving] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [decidingId, setDecidingId] = useState(null);
 
   // Create-mode fields
   const [type, setType] = useState('workshop');
@@ -116,7 +119,33 @@ export default function ActivityDetailScreen({ route, navigation }) {
     }
   };
 
+  const handleRegister = async () => {
+    setRegistering(true);
+    try {
+      await registerForActivity(activityId);
+      load();
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not register for this activity.');
+    } finally {
+      setRegistering(false);
+    }
+  };
+
+  const handleDecide = async (founderId, status) => {
+    setDecidingId(founderId);
+    try {
+      await decideActivityParticipant(activityId, founderId, status);
+      load();
+    } catch {
+      showAlert('Error', 'Could not update this registration.');
+    } finally {
+      setDecidingId(null);
+    }
+  };
+
   const navItems = isAdmin ? ADMIN_NAV_ITEMS : FOUNDER_NAV_ITEMS;
+  const approvedParticipants = (activity?.participants || []).filter(p => p.status === 'approved');
+  const pendingParticipants = (activity?.participants || []).filter(p => p.status === 'pending');
 
   if (loading) {
     return (
@@ -175,9 +204,25 @@ export default function ActivityDetailScreen({ route, navigation }) {
               <Text style={styles.meta}>
                 {ACTIVITY_TYPE_LABELS[activity?.type] || activity?.type}
                 {activity?.scheduledAt ? ` · ${new Date(activity.scheduledAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
-                {' · '}{(activity?.participants || []).length} participant{(activity?.participants || []).length === 1 ? '' : 's'}
+                {' · '}{approvedParticipants.length} participant{approvedParticipants.length === 1 ? '' : 's'}
               </Text>
               {activity?.description ? <Text style={styles.description}>{activity.description}</Text> : null}
+
+              {!isAdmin && (
+                <View style={styles.registerRow}>
+                  {activity?.myStatus === 'approved' ? (
+                    <Pill label="You're registered" C={C} bg={C.successLight} color={C.success} />
+                  ) : activity?.myStatus === 'pending' ? (
+                    <Pill label="Registration pending approval" C={C} bg={C.warningLight} color={C.warning} />
+                  ) : activity?.myStatus === 'rejected' ? (
+                    <Pill label="Registration not approved" C={C} bg={C.surfaceElevated} color={C.textSecondary} />
+                  ) : activity?.status === 'upcoming' ? (
+                    <TouchableOpacity style={[styles.btnPrimary, { marginTop: 0 }, registering && styles.btnDisabled]} onPress={handleRegister} disabled={registering} activeOpacity={0.85}>
+                      {registering ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Sign Up</Text>}
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              )}
 
               {isAdmin && (
                 <View style={styles.statusRow}>
@@ -198,19 +243,41 @@ export default function ActivityDetailScreen({ route, navigation }) {
               )}
             </View>
 
+            {isAdmin && pendingParticipants.length > 0 && (
+              <View style={styles.card}>
+                <Text style={styles.sectionLabel}>Pending Requests ({pendingParticipants.length})</Text>
+                {pendingParticipants.map(p => (
+                  <View key={p.id} style={styles.participantRow}>
+                    <Avatar photoUrl={p.photoUrl} name={p.name} size={32} C={C} />
+                    <Text style={[styles.participantName, { flex: 1 }]}>{p.name || 'Unnamed'}</Text>
+                    <TouchableOpacity
+                      onPress={() => handleDecide(p.id, 'approved')}
+                      disabled={decidingId === p.id}
+                      style={{ marginRight: 14 }}
+                    >
+                      <Text style={[styles.linkText, { color: C.success }]}>Approve</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => handleDecide(p.id, 'rejected')} disabled={decidingId === p.id}>
+                      <Text style={[styles.linkText, { color: C.error }]}>Reject</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </View>
+            )}
+
             <View style={styles.card}>
               <View style={styles.sectionHeaderRow}>
-                <Text style={styles.sectionLabel}>Participants ({(activity?.participants || []).length})</Text>
+                <Text style={styles.sectionLabel}>Participants ({approvedParticipants.length})</Text>
                 {isAdmin && (
                   <TouchableOpacity onPress={openParticipantManager}>
                     <Text style={styles.linkText}>Manage</Text>
                   </TouchableOpacity>
                 )}
               </View>
-              {(activity?.participants || []).length === 0 ? (
+              {approvedParticipants.length === 0 ? (
                 <Text style={styles.emptyText}>No participants added yet.</Text>
               ) : (
-                activity.participants.map(p => (
+                approvedParticipants.map(p => (
                   <View key={p.id} style={styles.participantRow}>
                     <Avatar photoUrl={p.photoUrl} name={p.name} size={32} C={C} />
                     <Text style={[styles.participantName, { flex: 1 }]}>{p.name || 'Unnamed'}</Text>
@@ -238,13 +305,13 @@ export default function ActivityDetailScreen({ route, navigation }) {
               )}
             </View>
 
-            {!isAdmin && (activity?.participants || []).some(p => p.id === currentUser?.id) && (
+            {!isAdmin && activity?.myStatus === 'approved' && (
               <View style={styles.card}>
                 <Text style={styles.sectionLabel}>Give Peer Feedback</Text>
-                {activity.participants.filter(p => p.id !== currentUser?.id).length === 0 ? (
+                {approvedParticipants.filter(p => p.id !== currentUser?.id).length === 0 ? (
                   <Text style={styles.emptyText}>No other participants to give feedback to yet.</Text>
                 ) : (
-                  activity.participants.filter(p => p.id !== currentUser?.id).map(p => (
+                  approvedParticipants.filter(p => p.id !== currentUser?.id).map(p => (
                     <PeerFeedbackRow key={p.id} founder={p} activityId={activityId} C={C} styles={styles} />
                   ))
                 )}
@@ -361,6 +428,7 @@ function makeStyles(C) {
     description: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 10 },
 
     statusRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+    registerRow: { marginTop: 14, alignItems: 'flex-start' },
     statusChip: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', borderWidth: 1, borderColor: C.surfaceBorder },
     statusChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     statusChipText: { fontSize: 12, fontWeight: '700', color: C.textSecondary },
