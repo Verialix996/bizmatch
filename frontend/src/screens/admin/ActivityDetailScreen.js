@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../services/alert';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
@@ -217,8 +218,14 @@ export default function ActivityDetailScreen({ route, navigation }) {
                   ) : activity?.myStatus === 'rejected' ? (
                     <Pill label="Registration not approved" C={C} bg={C.surfaceElevated} color={C.textSecondary} />
                   ) : activity?.status === 'upcoming' ? (
-                    <TouchableOpacity style={[styles.btnPrimary, { marginTop: 0 }, registering && styles.btnDisabled]} onPress={handleRegister} disabled={registering} activeOpacity={0.85}>
-                      {registering ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Sign Up</Text>}
+                    <TouchableOpacity style={[styles.registerBtn, registering && styles.btnDisabled]} onPress={handleRegister} disabled={registering} activeOpacity={0.85}>
+                      {registering
+                        ? <ActivityIndicator color="#fff" />
+                        : <>
+                            <Ionicons name="add-circle" size={16} color="#fff" />
+                            <Text style={styles.btnPrimaryText}>Sign Up</Text>
+                          </>
+                      }
                     </TouchableOpacity>
                   ) : null}
                 </View>
@@ -429,6 +436,11 @@ function makeStyles(C) {
 
     statusRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
     registerRow: { marginTop: 14, alignItems: 'flex-start' },
+    registerBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6,
+      backgroundColor: C.primary, borderRadius: radius.pill,
+      paddingHorizontal: 20, paddingVertical: 12,
+    },
     statusChip: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', borderWidth: 1, borderColor: C.surfaceBorder },
     statusChipActive: { backgroundColor: C.primary, borderColor: C.primary },
     statusChipText: { fontSize: 12, fontWeight: '700', color: C.textSecondary },
