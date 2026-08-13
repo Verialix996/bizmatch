@@ -77,24 +77,44 @@ export const ActivitiesModel = {
        FROM activities WHERE id = $1`,
       [activityId],
     );
-    const activity = rows[0];
-    if (!activity) return null;
+    const row = rows[0];
+    if (!row) return null;
 
-    const participants = await query<Record<string, unknown>>(
+    const participantRows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.photo_url, ap.status, ap.requested_at
        FROM activity_participants ap JOIN users u ON u.id = ap.founder_id
        WHERE ap.activity_id = $1 ORDER BY ap.status, u.name`,
       [activityId],
     );
-    const evaluators = await query<Record<string, unknown>>(
+    const evaluatorRows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name FROM activity_evaluators ae JOIN users u ON u.id = ae.evaluator_id
        WHERE ae.activity_id = $1 ORDER BY u.name`,
       [activityId],
     );
 
-    const myStatus = viewerId ? (participants.find((p) => p.id === viewerId)?.status as string | undefined) ?? null : null;
+    const participants = participantRows.map((p) => ({
+      id: p.id as string,
+      name: p.name as string | null,
+      photoUrl: p.photo_url as string | null,
+      status: p.status as string,
+      requestedAt: p.requested_at as string,
+    }));
+    const evaluators = evaluatorRows.map((e) => ({ id: e.id as string, name: e.name as string | null }));
+    const myStatus = viewerId ? participants.find((p) => p.id === viewerId)?.status ?? null : null;
 
-    return { ...activity, participants, evaluators, myStatus };
+    return {
+      id: Number(row.id),
+      programId: row.program_id as number | null,
+      teamId: row.team_id as number | null,
+      type: row.type as string,
+      title: row.title as string,
+      description: row.description as string | null,
+      scheduledAt: row.scheduled_at as string | null,
+      status: row.status as string,
+      participants,
+      evaluators,
+      myStatus,
+    };
   },
 
   async create(fields: Record<string, unknown>): Promise<number> {

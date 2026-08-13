@@ -44,7 +44,7 @@ async function getActivity(req: Request, params: Record<string, string>): Promis
   const activity = await ActivitiesModel.get(Number(params.id), user.id);
   if (!activity) return json({ error: "Activity not found" }, 404);
   if (user.role !== "admin" && activity.status !== "upcoming" && !activity.myStatus) {
-    const onTeam = activity.team_id ? await ActivitiesModel.isFounderOnTeam(Number(activity.team_id), user.id) : false;
+    const onTeam = activity.teamId ? await ActivitiesModel.isFounderOnTeam(Number(activity.teamId), user.id) : false;
     if (!onTeam) return json({ error: "Activity not found" }, 404);
   }
   return json(activity);
