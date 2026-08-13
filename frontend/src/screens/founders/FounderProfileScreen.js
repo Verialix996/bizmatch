@@ -1,6 +1,6 @@
 import {
   View, Text, ScrollView, TouchableOpacity,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Linking,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -155,16 +155,28 @@ export default function FounderProfileScreen({ route, navigation }) {
             </View>
             <Text style={styles.founderName}>{founder?.name}</Text>
           </View>
-          {!isAdmin && (
+          {(founder?.cvUrl || !isAdmin) && (
             <View style={styles.titleActions}>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                activeOpacity={0.85}
-                onPress={() => navigation.navigate('EditFounderProfile', { founderId })}
-              >
-                <Ionicons name="create-outline" size={15} color="#fff" />
-                <Text style={styles.btnPrimaryText}>Edit Profile</Text>
-              </TouchableOpacity>
+              {founder?.cvUrl && (
+                <TouchableOpacity
+                  style={styles.btnSecondary}
+                  activeOpacity={0.85}
+                  onPress={() => Linking.openURL(founder.cvUrl)}
+                >
+                  <Ionicons name="document-text-outline" size={15} color={C.textSecondary} />
+                  <Text style={styles.btnSecondaryText}>View CV</Text>
+                </TouchableOpacity>
+              )}
+              {!isAdmin && (
+                <TouchableOpacity
+                  style={styles.btnPrimary}
+                  activeOpacity={0.85}
+                  onPress={() => navigation.navigate('EditFounderProfile', { founderId })}
+                >
+                  <Ionicons name="create-outline" size={15} color="#fff" />
+                  <Text style={styles.btnPrimaryText}>Edit Profile</Text>
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </View>

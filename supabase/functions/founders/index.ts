@@ -248,7 +248,7 @@ async function uploadCv(req: Request, params: Record<string, string>): Promise<R
   const buffer = new Uint8Array(await file.arrayBuffer());
   const url = await uploadBuffer(BUCKETS.cv, `${params.id}-${Date.now()}.pdf`, buffer, "application/pdf");
   await query("UPDATE users SET cv_url = $1 WHERE id = $2", [url, params.id]);
-  return json({ cv_url: url });
+  return json({ cvUrl: url });
 }
 
 // GET /functions/v1/founders/:id/cv — proxy from Supabase Storage with correct Content-Type

@@ -26,6 +26,16 @@ export const uploadFounderCv = (founderId, uri, fileName) => {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 };
+// Web (expo-document-picker returns a Blob/File as `file`, not a react-native
+// { uri, name, type } descriptor) needs the real File/Blob appended directly —
+// wrapping it in the native-style object produces an empty upload on web.
+export const uploadFounderCvWeb = (founderId, file, fileName) => {
+  const form = new FormData();
+  form.append('cv', file, fileName);
+  return api.post(`/founders/${founderId}/cv`, form, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+};
 
 // Founder Insights (MVP screen 7) — derived from evidence, distinct from Profile
 export const getFounderInsights = (founderId) => api.get(`/founder-dna/${founderId}`);

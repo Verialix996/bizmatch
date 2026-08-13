@@ -49,7 +49,7 @@ export const FoundersModel = {
   // (system-derived) is a separate call — see founder-dna function.
   async getProfile(founderId: string): Promise<Record<string, unknown> | null> {
     const userRows = await query<Record<string, unknown>>(
-      `SELECT u.id, u.name, u.email, u.photo_url,
+      `SELECT u.id, u.name, u.email, u.photo_url, u.cv_url,
               fp.role_title, fp.venture_name, fp.industry, fp.location, fp.current_stage,
               fp.commitment_hours, fp.commitment_type, fp.commitment_risk_appetite,
               fp.program_id, fp.status, fp.onboarding_completed_at, fp.dna_self_assessment_completed_at
@@ -84,6 +84,7 @@ export const FoundersModel = {
       name: base.name,
       email: base.email,
       photoUrl: base.photo_url,
+      cvUrl: base.cv_url,
       currentRole: base.role_title,
       ventureName: base.venture_name,
       industry: base.industry,

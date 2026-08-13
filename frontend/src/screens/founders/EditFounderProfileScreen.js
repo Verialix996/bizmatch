@@ -1,10 +1,11 @@
 import {
   View, Text, TextInput, TouchableOpacity,
-  StyleSheet, ScrollView, ActivityIndicator,
+  StyleSheet, ScrollView, ActivityIndicator, Platform, Linking,
 } from 'react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import * as DocumentPicker from 'expo-document-picker';
 import { showAlert } from '../../services/alert';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
@@ -12,6 +13,7 @@ import { colors, investorColors, radius, typography } from '../../theme';
 import {
   getFounder, updateFounderProfile, updateFounderCapabilities,
   updatePartnerRequirements, updateDealBreakers, CAPABILITIES,
+  uploadFounderCv, uploadFounderCvWeb,
 } from '../../services/founders.service';
 import AppShell from '../../components/AppShell';
 import CapabilityScorer from '../../components/founder/CapabilityScorer';
@@ -102,6 +104,8 @@ export default function EditFounderProfileScreen({ route, navigation }) {
   const [mustProvide, setMustProvide] = useState([]);
   const [preferredTraits, setPreferredTraits] = useState([]);
   const [dealBreakers, setDealBreakers] = useState([]);
+  const [cvUrl, setCvUrl] = useState(null);
+  const [cvUploading, setCvUploading] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -129,6 +133,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
       setMustProvide(founder.partnerRequirements?.mustProvide || []);
       setPreferredTraits(founder.partnerRequirements?.preferredTraits || []);
       setDealBreakers(founder.dealBreakers || []);
+      setCvUrl(founder.cvUrl || null);
     } catch {
       showAlert('Error', 'Could not load your profile.');
     } finally {
@@ -137,6 +142,24 @@ export default function EditFounderProfileScreen({ route, navigation }) {
   }, [founderId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  const handlePickCv = async () => {
+    const result = await DocumentPicker.getDocumentAsync({ type: 'application/pdf', copyToCacheDirectory: true });
+    if (result.canceled || !result.assets?.[0]) return;
+    const asset = result.assets[0];
+
+    setCvUploading(true);
+    try {
+      const { data } = Platform.OS === 'web' && asset.file
+        ? await uploadFounderCvWeb(founderId, asset.file, asset.name || 'cv.pdf')
+        : await uploadFounderCv(founderId, asset.uri, asset.name || 'cv.pdf');
+      setCvUrl(data.cvUrl);
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not upload CV.');
+    } finally {
+      setCvUploading(false);
+    }
+  };
 
   const toggleCapability = (list, setList, capability) => {
     if (list.some(c => c.capability === capability)) {
@@ -264,6 +287,24 @@ export default function EditFounderProfileScreen({ route, navigation }) {
           <CapabilityScorer items={needs} onChange={setNeeds} C={C} color={C.warning} />
         </SectionCard>
 
+        <SectionCard title="Resume / CV" icon="document-text-outline" C={C} style={styles.card}>
+          {cvUrl ? (
+            <View style={styles.cvRow}>
+              <TouchableOpacity style={styles.cvViewBtn} onPress={() => Linking.openURL(cvUrl)} activeOpacity={0.75}>
+                <Ionicons name="document-text" size={16} color={C.primary} />
+                <Text style={styles.cvViewText}>View current CV</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.btnOutline} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.85}>
+                {cvUploading ? <ActivityIndicator color={C.textSecondary} /> : <Text style={styles.btnOutlineText}>Replace</Text>}
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={[styles.btnPrimary, { maxWidth: 220 }, cvUploading && styles.btnDisabled]} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.85}>
+              {cvUploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Upload CV (PDF)</Text>}
+            </TouchableOpacity>
+          )}
+        </SectionCard>
+
         <SectionCard title="Partner requirements" icon="person-add-outline" C={C} style={styles.card}>
           <Text style={styles.fieldLabel}>ROLE WANTED</Text>
           <TextInput style={styles.input} placeholder="e.g. Technical Co-Founder" placeholderTextColor={C.textHint}
@@ -355,6 +396,14 @@ function makeStyles(C) {
     tagText: { fontSize: 12, fontWeight: '600', color: C.textPrimary },
     tagInputRow: { flexDirection: 'row', gap: 8, marginTop: 10 },
     addBtn: { backgroundColor: C.primary, borderRadius: radius.md, width: 44, alignItems: 'center', justifyContent: 'center' },
+
+    cvRow: { flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap' },
+    cvViewBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1,
+      backgroundColor: C.backgroundSoft, borderRadius: radius.md, borderWidth: 1, borderColor: C.surfaceBorder,
+      paddingHorizontal: 14, paddingVertical: 12,
+    },
+    cvViewText: { color: C.primary, fontWeight: '700', fontSize: 13 },
 
     errorText: { color: C.error, fontSize: 13, textAlign: 'center', marginTop: 8, marginBottom: 8 },
 
