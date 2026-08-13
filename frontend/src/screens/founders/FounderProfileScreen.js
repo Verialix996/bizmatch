@@ -145,10 +145,6 @@ export default function FounderProfileScreen({ route, navigation }) {
           </View>
           {!isAdmin && (
             <View style={styles.titleActions}>
-              <TouchableOpacity style={styles.btnSecondary} activeOpacity={0.85}>
-                <Ionicons name="share-social-outline" size={15} color={C.textSecondary} />
-                <Text style={styles.btnSecondaryText}>Share Profile</Text>
-              </TouchableOpacity>
               <TouchableOpacity
                 style={styles.btnPrimary}
                 activeOpacity={0.85}
@@ -167,6 +163,7 @@ export default function FounderProfileScreen({ route, navigation }) {
           evidenceCount={evidenceCount}
           activitiesCount={activities.length}
           C={C}
+          isAdmin={isAdmin}
           onTeamPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })}
         />
 
@@ -227,11 +224,13 @@ export default function FounderProfileScreen({ route, navigation }) {
               </ResponsiveRow>
 
               <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C}>
-                    <EvidenceConfidenceTable insights={insights} C={C} />
-                  </SectionCard>
-                </View>
+                {isAdmin && (
+                  <View style={{ flex: 1 }}>
+                    <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C}>
+                      <EvidenceConfidenceTable insights={insights} C={C} />
+                    </SectionCard>
+                  </View>
+                )}
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
                     <SectionCard title="Recent evidence" icon="time-outline" C={C}>
@@ -304,7 +303,7 @@ export default function FounderProfileScreen({ route, navigation }) {
             ) : (
               <SectionCard title="Evidence" icon="time-outline" C={C}>
                 <Text style={styles.emptyText}>
-                  Individual evidence entries are reviewed by your program admin. Your aggregate scores are shown in Evidence Confidence on the Overview tab.
+                  Evidence is reviewed by your program admin and isn't shown on your profile.
                 </Text>
               </SectionCard>
             )

@@ -64,7 +64,7 @@ function StatTile({ icon, iconColor, iconBg, value, label, progress, C, styles2 
 // on the left and confidence/evidence/activity stat tiles on the right
 // (row on desktop, stacked below identity on mobile), matching the profile
 // page mockup.
-export default function FounderHeader({ founder, insights, evidenceCount, activitiesCount, C, onTeamPress }) {
+export default function FounderHeader({ founder, insights, evidenceCount, activitiesCount, C, isAdmin, onTeamPress }) {
   const isDesktop = useIsDesktop();
   const styles2 = makeStyles(C);
   const status = STATUS_COLORS[founder?.status] || STATUS_COLORS.active;
@@ -130,15 +130,17 @@ export default function FounderHeader({ founder, insights, evidenceCount, activi
           C={C}
           styles2={styles2}
         />
-        <StatTile
-          icon="layers"
-          iconColor={C.primary}
-          iconBg={C.surfaceElevated}
-          value={evidenceCount ?? 0}
-          label="Evidence Items Verified"
-          C={C}
-          styles2={styles2}
-        />
+        {isAdmin ? (
+          <StatTile
+            icon="layers"
+            iconColor={C.primary}
+            iconBg={C.surfaceElevated}
+            value={evidenceCount ?? 0}
+            label="Evidence Items Verified"
+            C={C}
+            styles2={styles2}
+          />
+        ) : null}
         <StatTile
           icon="checkmark-circle"
           iconColor={C.success}
