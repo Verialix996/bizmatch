@@ -223,11 +223,13 @@ export default function FounderProfileScreen({ route, navigation }) {
                     <CapabilityList title="Needs" items={founder?.needs} C={C} color={C.warning} />
                   </SectionCard>
                 </View>
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
-                    <BehavioralSignals insights={insights} C={C} />
-                  </SectionCard>
-                </View>
+                {isAdmin && (
+                  <View style={{ flex: 1 }}>
+                    <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
+                      <BehavioralSignals insights={insights} C={C} />
+                    </SectionCard>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <SectionCard title="Partner requirements" icon="person-add-outline" C={C}>
                     <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
