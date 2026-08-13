@@ -200,7 +200,7 @@ export default function FounderProfileScreen({ route, navigation }) {
         )}
 
         <View style={styles.tabRow}>
-          {TABS.map(t => (
+          {TABS.filter(t => isAdmin || t !== 'evidence').map(t => (
             <TabButton key={t} label={TAB_LABELS[t]} active={tab === t} onPress={() => setTab(t)} styles={styles} />
           ))}
         </View>
@@ -309,18 +309,10 @@ export default function FounderProfileScreen({ route, navigation }) {
             </SectionCard>
           )}
 
-          {tab === 'evidence' && (
-            isAdmin ? (
-              <SectionCard title={`All Evidence (${evidence.length})`} icon="time-outline" C={C}>
-                <EvidenceTimeline evidence={evidence} C={C} />
-              </SectionCard>
-            ) : (
-              <SectionCard title="Evidence" icon="time-outline" C={C}>
-                <Text style={styles.emptyText}>
-                  Evidence is reviewed by your program admin and isn't shown on your profile.
-                </Text>
-              </SectionCard>
-            )
+          {tab === 'evidence' && isAdmin && (
+            <SectionCard title={`All Evidence (${evidence.length})`} icon="time-outline" C={C}>
+              <EvidenceTimeline evidence={evidence} C={C} />
+            </SectionCard>
           )}
 
           {tab === 'activities' && (
