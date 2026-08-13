@@ -37,10 +37,6 @@ export default function DnaQuestionnaire({ founderId, onComplete, onSkip, onBack
   };
 
   const goNext = async () => {
-    if (answers[dim].some(a => !a.trim())) {
-      setError('Please answer all 5 questions before continuing.');
-      return;
-    }
     setError('');
     if (!isLast) {
       setDimIndex(dimIndex + 1);
@@ -73,15 +69,22 @@ export default function DnaQuestionnaire({ founderId, onComplete, onSkip, onBack
 
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>{DIMENSION_LABELS[dim]}</Text>
-        <Text style={styles.subtitle}>Answer honestly and specifically — vague answers score lower than concrete ones.</Text>
+        <Text style={styles.subtitle}>Answer honestly and specifically — vague answers score lower than concrete ones. Skip any question you'd rather not answer; it just won't count toward this dimension's score.</Text>
 
         {questions.map((q, i) => (
           <View key={i} style={{ marginTop: 16 }}>
-            <Text style={styles.question}>{q}</Text>
+            <View style={styles.questionRow}>
+              <Text style={[styles.question, { flex: 1 }]}>{q}</Text>
+              {answers[dim][i] ? (
+                <TouchableOpacity onPress={() => setAnswer(i, '')} hitSlop={8}>
+                  <Text style={styles.skipQuestionText}>Skip</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
             <TextInput
               style={[styles.input, styles.inputMultiline]}
               multiline
-              placeholder="Your answer…"
+              placeholder="Your answer… (optional — leave blank to skip)"
               placeholderTextColor={C.textHint}
               value={answers[dim][i]}
               onChangeText={(v) => setAnswer(i, v)}
@@ -125,7 +128,9 @@ function makeStyles(C) {
     title: { ...typography.displayMedium, color: C.textPrimary, marginBottom: 6 },
     subtitle: { ...typography.bodyMedium, color: C.textSecondary },
 
-    question: { ...typography.labelSmall, color: C.textSecondary, marginBottom: 8 },
+    questionRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 10, marginBottom: 8 },
+    question: { ...typography.labelSmall, color: C.textSecondary },
+    skipQuestionText: { ...typography.labelSmall, color: C.textHint, textDecorationLine: 'underline' },
     input: {
       backgroundColor: C.surface, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 14,
       fontSize: 15, color: C.textPrimary, borderWidth: 1, borderColor: C.surfaceBorder,

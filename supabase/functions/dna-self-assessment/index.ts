@@ -37,6 +37,13 @@ async function getAssessment(req: Request, params: Record<string, string>): Prom
 
 type Answers = Partial<Record<EvidenceDimension, string[]>>;
 
+// A question is "skipped" if left blank — those don't count toward that
+// dimension's score, and a dimension with zero answered questions gets no
+// evidence row at all rather than a score fabricated from nothing.
+function isAnswered(ans: unknown): ans is string {
+  return typeof ans === "string" && ans.trim().length > 0;
+}
+
 function validateAnswers(answers: unknown): string | null {
   if (!answers || typeof answers !== "object") return "answers is required";
   const a = answers as Answers;
@@ -47,7 +54,7 @@ function validateAnswers(answers: unknown): string | null {
       return `answers.${dim} must have ${expected.length} entries`;
     }
     for (const ans of list) {
-      if (typeof ans !== "string" || !ans.trim()) return `answers.${dim} has an empty response`;
+      if (ans != null && typeof ans !== "string") return `answers.${dim} has an invalid response`;
     }
   }
   return null;
@@ -58,34 +65,40 @@ interface DimensionEval {
   observation: string;
 }
 
-function buildPrompt(answers: Answers): string {
-  const sections = DNA_DIMENSIONS.map((dim) => {
+// Only dimensions with at least one answered question get scored — Gemini's
+// output schema is built dynamically so it never has to invent a score for a
+// dimension the founder left entirely blank.
+function answeredDimensions(answers: Answers): EvidenceDimension[] {
+  return DNA_DIMENSIONS.filter((dim) => (answers[dim] as string[] | undefined)?.some(isAnswered));
+}
+
+function buildPrompt(answers: Answers, dims: EvidenceDimension[]): string {
+  const sections = dims.map((dim) => {
     const qas = DNA_QUESTIONS[dim]
-      .map((q, i) => `Q: ${q}\nA: ${(answers[dim] as string[])[i]}`)
+      .map((q, i) => ({ q, a: (answers[dim] as string[])[i] }))
+      .filter(({ a }) => isAnswered(a))
+      .map(({ q, a }) => `Q: ${q}\nA: ${a}`)
       .join("\n\n");
     return `## ${dim}\n${qas}`;
   }).join("\n\n");
 
-  return `You are assessing a startup founder's self-reported answers to a behavioral questionnaire, one section per character dimension (execution, integrity, commitment, communication, conflict, resilience, ego, values).
+  const schema = dims
+    .map((dim) => `  "${dim}": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" }`)
+    .join(",\n");
 
-For EACH of the 8 dimensions, read the 5 Q&A pairs and rate how strongly the ANSWERS (not just the topic) demonstrate that trait, on a 1-100 scale. Score based on specificity, concrete detail, and evidence of real behavior — vague, generic, or clearly rehearsed/inspirational answers with no specifics should score low-to-mid regardless of how positive they sound. Score 1-30 for weak/evasive/generic answers, 31-60 for plausible but thin answers, 61-85 for specific and credible answers, 86-100 only for exceptionally detailed, self-aware, and consistent answers across all 5 questions in that dimension.
+  return `You are assessing a startup founder's self-reported answers to a behavioral questionnaire, one section per character dimension. Some dimensions may have fewer than 5 Q&A pairs — the founder skipped the rest, so judge each dimension only on the answers actually given.
+
+For EACH dimension below, read its Q&A pairs and rate how strongly the ANSWERS (not just the topic) demonstrate that trait, on a 1-100 scale. Score based on specificity, concrete detail, and evidence of real behavior — vague, generic, or clearly rehearsed/inspirational answers with no specifics should score low-to-mid regardless of how positive they sound. Score 1-30 for weak/evasive/generic answers, 31-60 for plausible but thin answers, 61-85 for specific and credible answers, 86-100 only for exceptionally detailed, self-aware, and consistent answers.
 
 Respond with ONLY a JSON object, no markdown fences, no commentary, in exactly this shape:
 {
-  "execution": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "integrity": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "commitment": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "communication": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "conflict": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "resilience": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "ego": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" },
-  "values": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" }
+${schema}
 }
 
 ${sections}`;
 }
 
-function parseEvaluation(raw: string): Record<EvidenceDimension, DimensionEval> | null {
+function parseEvaluation(raw: string, dims: EvidenceDimension[]): Record<EvidenceDimension, DimensionEval> | null {
   const cleaned = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   let parsed: unknown;
   try {
@@ -95,7 +108,7 @@ function parseEvaluation(raw: string): Record<EvidenceDimension, DimensionEval> 
   }
   if (!parsed || typeof parsed !== "object") return null;
   const out = {} as Record<EvidenceDimension, DimensionEval>;
-  for (const dim of DNA_DIMENSIONS) {
+  for (const dim of dims) {
     // deno-lint-ignore no-explicit-any
     const entry = (parsed as any)[dim];
     const score = Number(entry?.score);
@@ -106,42 +119,47 @@ function parseEvaluation(raw: string): Record<EvidenceDimension, DimensionEval> 
   return out;
 }
 
-// POST /functions/v1/dna-self-assessment/:founderId — submit all 40 answers,
-// evaluate once via Gemini, write one 'self' evidence row per dimension plus
-// the raw responses for audit, and mark the assessment complete.
+// POST /functions/v1/dna-self-assessment/:founderId — submit up to 40
+// answers (blank = skipped), evaluate once via Gemini, write one 'self'
+// evidence row per dimension that has at least one answer (plus the raw
+// responses for audit), and mark the assessment complete.
 async function submitAssessment(req: Request, params: Record<string, string>): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const err = forbidden(user, params.founderId);
   if (err) return err;
 
-  if (!isGeminiConfigured()) return json({ error: "DNA scoring is not configured" }, 503);
-
   const body = await req.json().catch(() => ({}));
   const validationError = validateAnswers(body?.answers);
   if (validationError) return json({ error: validationError }, 400);
   const answers = body.answers as Answers;
 
-  let evaluation: Record<EvidenceDimension, DimensionEval> | null;
-  try {
-    const raw = await generateText(buildPrompt(answers));
-    evaluation = parseEvaluation(raw);
-  } catch (e) {
-    console.error("[dna-self-assessment] Gemini call failed", e);
-    return json({ error: "DNA scoring failed — please try again" }, 502);
-  }
-  if (!evaluation) {
-    console.error("[dna-self-assessment] Gemini returned unparseable output");
-    return json({ error: "DNA scoring failed — please try again" }, 502);
-  }
-
   const founderId = params.founderId;
   const weight = SOURCE_WEIGHTS.self;
+  const dims = answeredDimensions(answers);
+
+  let evaluation: Record<EvidenceDimension, DimensionEval> = {} as Record<EvidenceDimension, DimensionEval>;
+  if (dims.length > 0) {
+    if (!isGeminiConfigured()) return json({ error: "DNA scoring is not configured" }, 503);
+    try {
+      const raw = await generateText(buildPrompt(answers, dims));
+      const parsed = parseEvaluation(raw, dims);
+      if (!parsed) {
+        console.error("[dna-self-assessment] Gemini returned unparseable output");
+        return json({ error: "DNA scoring failed — please try again" }, 502);
+      }
+      evaluation = parsed;
+    } catch (e) {
+      console.error("[dna-self-assessment] Gemini call failed", e);
+      return json({ error: "DNA scoring failed — please try again" }, 502);
+    }
+  }
 
   for (const dim of DNA_DIMENSIONS) {
     const questions = DNA_QUESTIONS[dim];
     const dimAnswers = answers[dim] as string[];
     for (let i = 0; i < questions.length; i++) {
+      if (!isAnswered(dimAnswers[i])) continue;
       await query(
         `INSERT INTO dna_self_assessment_responses (founder_id, dimension, question_index, question, answer)
          VALUES ($1, $2, $3, $4, $5)
@@ -151,6 +169,7 @@ async function submitAssessment(req: Request, params: Record<string, string>): P
       );
     }
 
+    if (!dims.includes(dim)) continue;
     const { score, observation } = evaluation[dim];
     await query(
       `INSERT INTO evidence (founder_id, source_type, dimension, signal, score, observation, is_negative, weight)
