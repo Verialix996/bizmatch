@@ -94,8 +94,34 @@ const ACTION_COPY: Record<string, { subject: string; heading: string; body: stri
   },
 };
 
-function renderEmail(actionType: string, token: string): { subject: string; html: string } {
+// Password reset is the one flow the frontend drives via a redirect link
+// (ForgotPasswordScreen -> resetPasswordForEmail -> Supabase session picked up
+// from the URL) rather than a code the user types in, so it needs a real link.
+const LINK_ACTIONS = new Set(["recovery"]);
+
+function renderEmail(
+  actionType: string,
+  token: string,
+  tokenHash: string,
+  siteUrl: string,
+  redirectTo: string,
+): { subject: string; html: string } {
   const copy = ACTION_COPY[actionType] ?? ACTION_COPY.signup;
+
+  if (LINK_ACTIONS.has(actionType)) {
+    const verifyUrl = `${siteUrl}/auth/v1/verify?token=${encodeURIComponent(tokenHash)}&type=${encodeURIComponent(actionType)}&redirect_to=${encodeURIComponent(redirectTo)}`;
+    const html = `
+      <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
+        <h1 style="color: #1e3a8a; font-size: 20px;">${copy.heading}</h1>
+        <p style="color: #333; font-size: 15px;">${copy.body.replace("Enter this code in the app to", "Click the button below to")}</p>
+        <div style="text-align: center; margin: 24px 0;">
+          <a href="${verifyUrl}" style="display: inline-block; background: #1e3a8a; color: #fff; font-weight: 600; padding: 14px 28px; border-radius: 8px; text-decoration: none;">Reset password</a>
+        </div>
+        <p style="color: #888; font-size: 13px;">If you didn't request this, you can safely ignore this email.</p>
+      </div>`;
+    return { subject: copy.subject, html };
+  }
+
   const html = `
     <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
       <h1 style="color: #1e3a8a; font-size: 20px;">${copy.heading}</h1>
@@ -137,7 +163,13 @@ Deno.serve(async (req) => {
       return json({ error: { http_code: 400, message: "Invalid JSON payload" } }, 400);
     }
 
-    const { subject, html } = renderEmail(payload.email_data.email_action_type, payload.email_data.token);
+    const { subject, html } = renderEmail(
+      payload.email_data.email_action_type,
+      payload.email_data.token,
+      payload.email_data.token_hash,
+      payload.email_data.site_url,
+      payload.email_data.redirect_to,
+    );
 
     const res = await fetch("https://api.resend.com/emails", {
       method: "POST",
