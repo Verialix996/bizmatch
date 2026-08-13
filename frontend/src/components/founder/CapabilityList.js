@@ -1,43 +1,29 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { radius, typography } from '../../theme';
 
-function Bar({ score, color, trackColor }) {
-  return (
-    <View style={[styles.track, { backgroundColor: trackColor }]}>
-      <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, score))}%`, backgroundColor: color }]} />
-    </View>
-  );
-}
-
-// Provides / Needs capability bars (spec section 4). Raw profile data —
-// scores are self-entered during onboarding, not evidence-derived.
-// Provides renders in the primary color, Needs in warning/amber, matching
-// the Capability profile card's blue-vs-orange convention.
+// Provides / Needs capability tags (spec section 4). Names only — no score
+// or bar, since the underlying score is just a self-entered onboarding
+// default, not a meaningfully comparable strength rating.
 export default function CapabilityList({ title, items, C, color }) {
   if (!items || items.length === 0) return null;
-  const barColor = color || C.primary;
+  const tagColor = color || C.primary;
   return (
     <View>
       <Text style={[styles.sectionLabel, { color: C.textHint }]}>{title}</Text>
-      {items.map((item) => (
-        <View key={item.capability} style={styles.row}>
-          <View style={styles.rowHeader}>
-            <Text style={[styles.rowLabel, { color: C.textPrimary }]}>{item.capability}</Text>
-            <Text style={[styles.rowScore, { color: C.textSecondary }]}>{item.score}</Text>
+      <View style={styles.tagRow}>
+        {items.map((item) => (
+          <View key={item.capability} style={[styles.tag, { borderColor: tagColor }]}>
+            <Text style={[styles.tagText, { color: tagColor }]}>{item.capability}</Text>
           </View>
-          <Bar score={item.score} color={barColor} trackColor={C.surfaceElevated} />
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   sectionLabel: { ...typography.labelSmall, textTransform: 'uppercase', marginBottom: 12, marginTop: 16 },
-  row: { marginBottom: 12 },
-  rowHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 4 },
-  rowLabel: { ...typography.bodyMedium, fontWeight: '600' },
-  rowScore: { ...typography.bodyMedium, fontWeight: '700' },
-  track: { height: 6, borderRadius: radius.sm, overflow: 'hidden' },
-  fill: { height: 6, borderRadius: radius.sm },
+  tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  tag: { borderRadius: radius.pill, borderWidth: 1.5, paddingHorizontal: 12, paddingVertical: 7 },
+  tagText: { ...typography.bodySmall, fontWeight: '700' },
 });
