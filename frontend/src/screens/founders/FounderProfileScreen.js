@@ -135,6 +135,18 @@ export default function FounderProfileScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
+        {!isAdmin && !founder?.dnaSelfAssessmentCompletedAt && (
+          <TouchableOpacity
+            style={styles.dnaBanner}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('DnaQuestionnaire')}
+          >
+            <Ionicons name="analytics-outline" size={18} color={C.primary} />
+            <Text style={styles.dnaBannerText}>Fill in your Founder DNA assessment</Text>
+            <Ionicons name="chevron-forward" size={16} color={C.primary} />
+          </TouchableOpacity>
+        )}
+
         <View style={[styles.titleRow, isDesktop && styles.titleRowDesktop]}>
           <View>
             <View style={styles.titleLine}>
@@ -383,6 +395,13 @@ function makeStyles(C) {
 
     backRow: { marginTop: 16 },
     backText: { color: C.primary, ...typography.labelLarge },
+
+    dnaBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16,
+      backgroundColor: C.surfaceElevated, borderRadius: radius.md,
+      borderWidth: 1, borderColor: C.primary, paddingHorizontal: 16, paddingVertical: 12,
+    },
+    dnaBannerText: { flex: 1, color: C.primary, fontWeight: '700', fontSize: 14 },
 
     titleRow: { marginTop: 16, marginBottom: 20, alignItems: 'center', gap: 14 },
     titleRowDesktop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' },

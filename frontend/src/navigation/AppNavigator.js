@@ -16,6 +16,7 @@ import FounderListScreen    from '../screens/admin/FounderListScreen';
 import FounderProfileScreen from '../screens/founders/FounderProfileScreen';
 import EditFounderProfileScreen from '../screens/founders/EditFounderProfileScreen';
 import EvaluationScreen     from '../screens/founders/EvaluationScreen';
+import DnaQuestionnaireScreen from '../screens/founders/DnaQuestionnaireScreen';
 import NewInterviewScreen   from '../screens/admin/NewInterviewScreen';
 import InterviewRunnerScreen from '../screens/admin/InterviewRunnerScreen';
 import ComingSoonScreen     from '../screens/founders/ComingSoonScreen';
@@ -76,6 +77,7 @@ function FounderNavigator() {
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="FounderProfile" component={FounderProfileScreen} />
       <Stack.Screen name="EditFounderProfile" component={EditFounderProfileScreen} />
+      <Stack.Screen name="DnaQuestionnaire" component={DnaQuestionnaireScreen} />
       <Stack.Screen name="Activities" component={ActivitiesListScreen} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} />
       <Stack.Screen name="TeamProfile" component={TeamProfileScreen} />

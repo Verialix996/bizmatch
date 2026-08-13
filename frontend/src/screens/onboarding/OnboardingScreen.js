@@ -15,6 +15,7 @@ import {
   CAPABILITIES,
 } from '../../services/founders.service';
 import CapabilityScorer from '../../components/founder/CapabilityScorer';
+import DnaQuestionnaire from '../../components/founder/DnaQuestionnaire';
 
 // Founder Profile creation wizard (spec sections 20-21), replacing the old
 // swipe-app walkthrough. Values Scenarios / Work Style steps are omitted
@@ -28,7 +29,7 @@ const COMMITMENT_LABELS = { full_time: 'Full Time', part_time: 'Part Time' };
 const DEAL_BREAKER_SUGGESTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
 const DEFAULT_CAPABILITY_SCORE = 75;
 
-const STEPS = ['basics', 'commitment', 'provides', 'needs', 'partner', 'dealbreakers'];
+const STEPS = ['basics', 'commitment', 'provides', 'needs', 'dna', 'partner', 'dealbreakers'];
 const DRAFT_KEY = 'onboardingDraft';
 
 function Chip({ label, selected, onPress, C, styles }) {
@@ -234,6 +235,17 @@ export default function OnboardingScreen() {
         ))}
       </View>
 
+      {step === 'dna' ? (
+        <View style={styles.dnaContainer}>
+          <DnaQuestionnaire
+            founderId={currentUser.id}
+            C={C}
+            onBack={goBack}
+            onSkip={() => setStepIndex(stepIndex + 1)}
+            onComplete={() => setStepIndex(stepIndex + 1)}
+          />
+        </View>
+      ) : (
       <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
         {step === 'basics' && (
           <View>
@@ -359,20 +371,23 @@ export default function OnboardingScreen() {
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
       </ScrollView>
+      )}
 
-      <View style={styles.footer}>
-        {stepIndex > 0 && (
-          <TouchableOpacity style={styles.btnOutline} onPress={goBack} disabled={saving}>
-            <Text style={styles.btnOutlineText}>Back</Text>
+      {step !== 'dna' && (
+        <View style={styles.footer}>
+          {stepIndex > 0 && (
+            <TouchableOpacity style={styles.btnOutline} onPress={goBack} disabled={saving}>
+              <Text style={styles.btnOutlineText}>Back</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity style={[styles.btnPrimary, saving && styles.btnDisabled]} onPress={goNext} disabled={saving}>
+            {saving
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.btnPrimaryText}>{isLast ? 'Finish' : 'Next'}</Text>
+            }
           </TouchableOpacity>
-        )}
-        <TouchableOpacity style={[styles.btnPrimary, saving && styles.btnDisabled]} onPress={goNext} disabled={saving}>
-          {saving
-            ? <ActivityIndicator color="#fff" />
-            : <Text style={styles.btnPrimaryText}>{isLast ? 'Finish' : 'Next'}</Text>
-          }
-        </TouchableOpacity>
-      </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -384,6 +399,7 @@ function makeStyles(C) {
     progressDot: { flex: 1, height: 4, borderRadius: 2, backgroundColor: C.surfaceBorder },
 
     scrollContent: { padding: 24, paddingBottom: 40 },
+    dnaContainer: { flex: 1, padding: 24 },
     title: { ...typography.displayMedium, color: C.textPrimary, marginBottom: 6 },
     subtitle: { ...typography.bodyMedium, color: C.textSecondary, marginBottom: 24 },
 

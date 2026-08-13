@@ -52,7 +52,7 @@ export const FoundersModel = {
       `SELECT u.id, u.name, u.email, u.photo_url,
               fp.role_title, fp.venture_name, fp.industry, fp.location, fp.current_stage,
               fp.commitment_hours, fp.commitment_type, fp.commitment_risk_appetite,
-              fp.program_id, fp.status, fp.onboarding_completed_at
+              fp.program_id, fp.status, fp.onboarding_completed_at, fp.dna_self_assessment_completed_at
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
        WHERE u.id = $1 AND u.deleted_at IS NULL`,
@@ -95,6 +95,7 @@ export const FoundersModel = {
       programId: base.program_id,
       status: base.status,
       onboardingCompletedAt: base.onboarding_completed_at,
+      dnaSelfAssessmentCompletedAt: base.dna_self_assessment_completed_at,
       provides: capabilities.filter((c) => c.kind === "provide"),
       needs: capabilities.filter((c) => c.kind === "need"),
       partnerRequirements: partnerReqRows[0]
