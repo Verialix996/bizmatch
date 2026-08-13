@@ -1,4 +1,4 @@
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { radius, cardShadow, typography } from '../../theme';
 import { Pill, useIsDesktop } from '../ui';
@@ -64,7 +64,7 @@ function StatTile({ icon, iconColor, iconBg, value, label, progress, C, styles2 
 // on the left and confidence/evidence/activity stat tiles on the right
 // (row on desktop, stacked below identity on mobile), matching the profile
 // page mockup.
-export default function FounderHeader({ founder, insights, evidenceCount, activitiesCount, C }) {
+export default function FounderHeader({ founder, insights, evidenceCount, activitiesCount, C, onTeamPress }) {
   const isDesktop = useIsDesktop();
   const styles2 = makeStyles(C);
   const status = STATUS_COLORS[founder?.status] || STATUS_COLORS.active;
@@ -106,6 +106,16 @@ export default function FounderHeader({ founder, insights, evidenceCount, activi
             <Pill label={status.label} C={C} bg={status.bg} color={status.text} />
             {joined ? <Text style={styles2.joined}>{joined}</Text> : null}
           </View>
+          {(founder?.ventureName || founder?.team) ? (
+            <View style={[styles2.ventureRow, !isDesktop && { justifyContent: 'center' }]}>
+              {founder?.ventureName ? <Text style={styles2.venture}>Venture: {founder.ventureName}</Text> : null}
+              {founder?.team ? (
+                <TouchableOpacity onPress={onTeamPress} activeOpacity={0.75}>
+                  <Text style={[styles2.venture, { color: C.primary, fontWeight: '700' }]}>Team: {founder.team.name} →</Text>
+                </TouchableOpacity>
+              ) : null}
+            </View>
+          ) : null}
         </View>
       </View>
 
@@ -165,6 +175,9 @@ function makeStyles(C) {
 
     badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 10 },
     joined: { ...typography.caption, color: C.textHint },
+
+    ventureRow: { flexDirection: 'row', gap: 16, marginTop: 10, flexWrap: 'wrap' },
+    venture: { ...typography.bodySmall, color: C.textSecondary },
 
     stats: { gap: 14, alignSelf: 'stretch' },
     statsDesktop: { flexDirection: 'row', gap: 22, alignSelf: 'auto' },

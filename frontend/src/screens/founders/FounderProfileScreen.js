@@ -167,18 +167,8 @@ export default function FounderProfileScreen({ route, navigation }) {
           evidenceCount={evidenceCount}
           activitiesCount={activities.length}
           C={C}
+          onTeamPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })}
         />
-
-        {(founder?.ventureName || founder?.team) && (
-          <View style={styles.ventureRow}>
-            {founder?.ventureName ? <Text style={styles.venture}>Venture: {founder.ventureName}</Text> : null}
-            {founder?.team ? (
-              <TouchableOpacity onPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })} activeOpacity={0.75}>
-                <Text style={[styles.venture, { color: C.primary, fontWeight: '700' }]}>Team: {founder.team.name} →</Text>
-              </TouchableOpacity>
-            ) : null}
-          </View>
-        )}
 
         {isAdmin && (
           <View style={styles.actionsRow}>
@@ -401,9 +391,6 @@ function makeStyles(C) {
     pageTitle: { ...typography.displayMedium, color: C.textPrimary },
     founderName: { ...typography.titleMedium, color: C.primary, marginTop: 2 },
     titleActions: { flexDirection: 'row', gap: 10 },
-
-    ventureRow: { flexDirection: 'row', gap: 16, marginTop: -8, marginBottom: 8, justifyContent: 'center', flexWrap: 'wrap' },
-    venture: { ...typography.bodySmall, color: C.textSecondary },
 
     actionsRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'center' },
     btnPrimary: {
