@@ -8,11 +8,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { showAlert } from '../../services/alert';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
-import { colors, investorColors, radius, typography } from '../../theme';
+import { colors, investorColors, radius, typography, cardShadow } from '../../theme';
 import { getFounder, getFounderInsights, listEvidence, setFounderStatus, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
-import { listActivities, ACTIVITY_TYPE_LABELS } from '../../services/activities.service';
-import { getTopPairs } from '../../services/matches.service';
-import { listFounderInterviews } from '../../services/interviews.service';
+import { listActivities, ACTIVITY_TYPE_LABELS, formatActivityDateRange } from '../../services/activities.service';
+import { getTopPairs, getTopMatches, compareFounders } from '../../services/matches.service';
+import { listFounderInterviews, deleteFounderInterview } from '../../services/interviews.service';
 import FounderHeader from '../../components/founder/FounderHeader';
 import CapabilityList from '../../components/founder/CapabilityList';
 import PartnerRequirementsCard from '../../components/founder/PartnerRequirementsCard';
@@ -24,9 +24,12 @@ import RadarChart, { RadarLegend } from '../../components/founder/RadarChart';
 import MatchCard from '../../components/founder/MatchCard';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
-import { ResponsiveRow, SectionCard, Pill, useIsDesktop } from '../../components/ui';
+import { ResponsiveRow, SectionCard, Pill, Avatar, useIsDesktop } from '../../components/ui';
 
 const STATUS_OPTIONS = ['active', 'inactive', 'dropped'];
+// A founder only gets to compare matches that already clear a 50% compatibility score — below
+// that the match isn't strong enough to be worth comparing against another candidate.
+const MATCH_SUGGEST_THRESHOLD = 50;
 const TABS = ['overview', 'dna', 'evidence', 'activities', 'matches'];
 const TAB_LABELS = { overview: 'Overview', dna: 'DNA', evidence: 'Evidence', activities: 'Activities', matches: 'Matches' };
 
@@ -46,6 +49,10 @@ export default function FounderProfileScreen({ route, navigation }) {
   const [evidence, setEvidence] = useState([]);
   const [activities, setActivities] = useState([]);
   const [matchPairs, setMatchPairs] = useState(null);
+  const [myMatches, setMyMatches] = useState(null);
+  const [selectedMatchIds, setSelectedMatchIds] = useState([]);
+  const [comparing, setComparing] = useState(false);
+  const [compareResult, setCompareResult] = useState(null);
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
@@ -77,6 +84,42 @@ export default function FounderProfileScreen({ route, navigation }) {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useFocusEffect(useCallback(() => {
+    if (tab !== 'matches' || isAdmin) return;
+    setMyMatches(null);
+    setSelectedMatchIds([]);
+    setCompareResult(null);
+    getTopMatches(founderId, 50)
+      .then(({ data }) => setMyMatches(data.filter(m => m.score >= MATCH_SUGGEST_THRESHOLD)))
+      .catch(() => setMyMatches([]));
+  }, [tab, isAdmin, founderId]));
+
+  const toggleSelectedMatch = (id) => {
+    setCompareResult(null);
+    setSelectedMatchIds(prev => {
+      if (prev.includes(id)) return prev.filter(x => x !== id);
+      if (prev.length >= 2) return [prev[1], id]; // keep it a max-2 selection, drop the oldest
+      return [...prev, id];
+    });
+  };
+
+  const handleCompareMyMatches = async () => {
+    if (selectedMatchIds.length !== 2) return;
+    setComparing(true);
+    setCompareResult(null);
+    try {
+      const [resA, resB] = await Promise.all([
+        compareFounders(founderId, selectedMatchIds[0]),
+        compareFounders(founderId, selectedMatchIds[1]),
+      ]);
+      setCompareResult({ a: resA.data, b: resB.data });
+    } catch {
+      showAlert('Error', 'Could not compare these matches.');
+    } finally {
+      setComparing(false);
+    }
+  };
+
+  useFocusEffect(useCallback(() => {
     if (tab !== 'matches' || !isAdmin) return;
     setMatchPairs(null);
     getTopPairs(15, founderId).then(({ data }) => setMatchPairs(data)).catch(() => setMatchPairs([]));
@@ -100,6 +143,28 @@ export default function FounderProfileScreen({ route, navigation }) {
           }
         },
       })).concat([{ text: 'Cancel', style: 'cancel' }]),
+    );
+  };
+
+  const confirmDeleteInterview = (interviewId) => {
+    showAlert(
+      'Delete Interview',
+      'This in-progress interview and its answers will be permanently deleted. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteFounderInterview(interviewId);
+              setInterviews(prev => prev.filter(iv => iv.id !== interviewId));
+            } catch {
+              showAlert('Error', 'Could not delete this interview.');
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -276,23 +341,33 @@ export default function FounderProfileScreen({ route, navigation }) {
                         <Text style={styles.emptyText}>No interviews yet.</Text>
                       ) : (
                         interviews.map((iv) => (
-                          <TouchableOpacity
-                            key={iv.id}
-                            style={styles.activityRow}
-                            onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
-                            activeOpacity={0.75}
-                          >
-                            <View style={{ flex: 1 }}>
-                              <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
-                              <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
-                            </View>
-                            <Pill
-                              label={iv.status === 'completed' ? 'Completed' : 'In progress'}
-                              C={C}
-                              bg={iv.status === 'completed' ? C.successLight : C.warningLight}
-                              color={iv.status === 'completed' ? C.success : C.warning}
-                            />
-                          </TouchableOpacity>
+                          <View key={iv.id} style={styles.activityRow}>
+                            <TouchableOpacity
+                              style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                              onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
+                              activeOpacity={0.75}
+                            >
+                              <View style={{ flex: 1 }}>
+                                <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
+                                <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
+                              </View>
+                              <Pill
+                                label={iv.status === 'completed' ? 'Completed' : 'In progress'}
+                                C={C}
+                                bg={iv.status === 'completed' ? C.successLight : C.warningLight}
+                                color={iv.status === 'completed' ? C.success : C.warning}
+                              />
+                            </TouchableOpacity>
+                            {iv.status !== 'completed' && (
+                              <TouchableOpacity
+                                onPress={() => confirmDeleteInterview(iv.id)}
+                                activeOpacity={0.75}
+                                style={{ paddingLeft: 10, paddingVertical: 4 }}
+                              >
+                                <Ionicons name="trash-outline" size={18} color={C.error} />
+                              </TouchableOpacity>
+                            )}
+                          </View>
                         ))
                       )}
                     </SectionCard>
@@ -343,7 +418,7 @@ export default function FounderProfileScreen({ route, navigation }) {
                       <Text style={styles.activityTitle}>{a.title}</Text>
                       <Text style={styles.activityMeta}>
                         {ACTIVITY_TYPE_LABELS[a.type] || a.type}
-                        {a.scheduledAt ? ` · ${new Date(a.scheduledAt).toLocaleDateString()}` : ''}
+                        {a.startsAt && a.endsAt ? ` · ${formatActivityDateRange(a.startsAt, a.endsAt)}` : ''}
                       </Text>
                     </View>
                     <Pill
@@ -371,18 +446,108 @@ export default function FounderProfileScreen({ route, navigation }) {
                     pair={pair}
                     C={C}
                     onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [pair.a.id, pair.b.id] })}
-                    onCompare={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
                     onViewMatch={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
                   />
                 ))
               )
             ) : (
-              <Text style={styles.emptyText}>Matches are managed by your program admin.</Text>
+              <CompareMyMatches
+                myMatches={myMatches}
+                selectedMatchIds={selectedMatchIds}
+                onToggleSelect={toggleSelectedMatch}
+                onCompare={handleCompareMyMatches}
+                comparing={comparing}
+                compareResult={compareResult}
+                founderId={founderId}
+                C={C}
+                styles={styles}
+              />
             )
           )}
         </View>
       </ScrollView>
     </AppShell>
+  );
+}
+
+// Compares two of the viewer's OWN matches against each other (not two different founders) —
+// e.g. "is my match with Alex or my match with Priya the stronger one?" Only matches that already
+// clear MATCH_SUGGEST_THRESHOLD are offered, since a weak match isn't worth comparing against
+// another candidate. Fetches compareFounders(me, candidate) once per selected match so each side
+// shows the founder's own compatibility with that specific candidate.
+function CompareMyMatches({ myMatches, selectedMatchIds, onToggleSelect, onCompare, comparing, compareResult, founderId, C, styles }) {
+  if (myMatches === null) {
+    return <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>;
+  }
+  if (myMatches.length === 0) {
+    return <Text style={styles.emptyText}>No matches at {MATCH_SUGGEST_THRESHOLD}%+ compatibility yet — check back as more founders join.</Text>;
+  }
+
+  return (
+    <View>
+      <Text style={styles.compareHint}>Pick two of your matches ({MATCH_SUGGEST_THRESHOLD}%+) to compare side by side.</Text>
+      {myMatches.map((m) => {
+        const selected = selectedMatchIds.includes(m.founderId);
+        return (
+          <TouchableOpacity
+            key={m.founderId}
+            style={[styles.matchSelectRow, selected && styles.matchSelectRowActive]}
+            onPress={() => onToggleSelect(m.founderId)}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.checkbox, selected && styles.checkboxChecked]} />
+            <Avatar photoUrl={m.photoUrl} name={m.name} size={36} C={C} />
+            <Text style={[styles.participantName, { flex: 1, marginLeft: 10 }]}>{m.name || 'Unnamed'}</Text>
+            <Pill label={`${m.score}%`} C={C} bg={C.successLight} color={C.success} />
+          </TouchableOpacity>
+        );
+      })}
+
+      <TouchableOpacity
+        style={[styles.btnPrimary, (selectedMatchIds.length !== 2 || comparing) && styles.btnDisabled]}
+        onPress={onCompare}
+        disabled={selectedMatchIds.length !== 2 || comparing}
+        activeOpacity={0.85}
+      >
+        {comparing ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Compare Selected</Text>}
+      </TouchableOpacity>
+
+      {compareResult && (
+        <View style={styles.compareResultRow}>
+          <CompareResultCard detail={compareResult.a} founderId={founderId} C={C} styles={styles} />
+          <CompareResultCard detail={compareResult.b} founderId={founderId} C={C} styles={styles} />
+        </View>
+      )}
+    </View>
+  );
+}
+
+// pairDetail canonicalizes (a, b) by uuid ordering, so "me" isn't reliably `a` or `b` — resolve
+// which side is the viewer here rather than assuming.
+function CompareResultCard({ detail, founderId, C, styles }) {
+  const iAmA = detail.a_id === founderId;
+  const otherName = iAmA ? detail.b_name : detail.a_name;
+  const breakdown = detail.dimension_breakdown || {};
+
+  return (
+    <View style={styles.compareCard}>
+      <Text style={styles.compareCardName}>{otherName || 'Unnamed'}</Text>
+      <Text style={styles.scoreValue}>{detail.score}%</Text>
+      {(detail.explanation?.positives || []).slice(0, 3).map((p, i) => (
+        <Text key={`p${i}`} style={[styles.bullet, { color: C.success }]}>+ {p}</Text>
+      ))}
+      {(detail.explanation?.risks || []).slice(0, 3).map((r, i) => (
+        <Text key={`r${i}`} style={[styles.bullet, { color: C.warning }]}>! {r}</Text>
+      ))}
+      {DIMENSIONS.map((dim) => (
+        breakdown[dim] ? (
+          <View key={dim} style={styles.dimRow}>
+            <Text style={styles.dimLabel}>{DIMENSION_LABELS[dim] || dim}</Text>
+            <Text style={styles.dimValues}>gap {breakdown[dim].gap ?? '—'}</Text>
+          </View>
+        ) : null
+      ))}
+    </View>
   );
 }
 
@@ -422,6 +587,34 @@ function makeStyles(C) {
       backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18,
     },
     btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+    btnDisabled: { opacity: 0.6 },
+
+    compareHint: { ...typography.bodySmall, color: C.textSecondary, marginBottom: 12 },
+    matchSelectRow: {
+      flexDirection: 'row', alignItems: 'center',
+      backgroundColor: C.surface, borderRadius: radius.lg, padding: 12, marginBottom: 8,
+      borderWidth: 1.5, borderColor: C.surfaceBorder,
+    },
+    matchSelectRowActive: { borderColor: C.primary },
+    checkbox: { width: 20, height: 20, borderRadius: 5, borderWidth: 2, borderColor: C.surfaceBorder },
+    checkboxChecked: { backgroundColor: C.primary, borderColor: C.primary },
+    participantName: { ...typography.bodyMedium, color: C.textPrimary },
+
+    compareResultRow: { flexDirection: 'row', gap: 12, marginTop: 20, flexWrap: 'wrap' },
+    compareCard: {
+      flex: 1, minWidth: 220, backgroundColor: C.surface, borderRadius: radius.lg,
+      padding: 16, ...cardShadow,
+    },
+    compareCardName: { ...typography.titleSmall, color: C.textPrimary, textAlign: 'center' },
+    scoreValue: { fontSize: 32, fontWeight: '800', color: C.primary, textAlign: 'center', marginVertical: 6 },
+    bullet: { ...typography.bodySmall, color: C.textPrimary, marginBottom: 4, lineHeight: 18 },
+    dimRow: {
+      flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+      paddingVertical: 6, borderTopWidth: 1, borderTopColor: C.surfaceBorder, marginTop: 6,
+    },
+    dimLabel: { ...typography.bodySmall, color: C.textPrimary },
+    dimValues: { ...typography.caption, color: C.textSecondary },
+
     btnSecondary: {
       flexDirection: 'row', alignItems: 'center', gap: 6,
       backgroundColor: C.surface, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18,

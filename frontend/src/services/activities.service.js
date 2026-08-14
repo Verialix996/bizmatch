@@ -16,6 +16,16 @@ export const registerForActivity = (activityId) => api.post(`/activities/${activ
 export const decideActivityParticipant = (activityId, founderId, status) =>
   api.patch(`/activities/${activityId}/participants/${founderId}`, { status });
 
+// Activity status is derived server-side from the starts_at/ends_at range, not set manually —
+// this just formats that range for display, shared by every screen that lists/shows an activity.
+export function formatActivityDateRange(startsAt, endsAt) {
+  if (!startsAt || !endsAt) return null;
+  const opts = { month: 'short', day: 'numeric', year: 'numeric' };
+  const start = new Date(startsAt).toLocaleDateString(undefined, opts);
+  const end = new Date(endsAt).toLocaleDateString(undefined, opts);
+  return start === end ? start : `${start} – ${end}`;
+}
+
 export const ACTIVITY_TYPES = ['hackathon', 'workshop', 'interview', 'team_challenge', 'work_trial'];
 
 export const ACTIVITY_TYPE_LABELS = {

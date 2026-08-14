@@ -43,17 +43,21 @@ async function topPairs(req: Request): Promise<Response> {
   return json(pairs);
 }
 
-// GET /functions/v1/matches/compare?a=&b=  (admin — Compare Founders / Match Detail)
+// GET /functions/v1/matches/compare?a=&b=  (admin, or a founder comparing
+// themselves against one of their own matches — used both by the admin
+// Match Detail screen and the founder dashboard's "compare my matches"
+// view, which calls this once per candidate with the founder as `a`.)
 async function compare(req: Request): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
-  const adminErr = requireAdmin(user);
-  if (adminErr) return adminErr;
 
   const url = new URL(req.url);
   const a = url.searchParams.get("a");
   const b = url.searchParams.get("b");
   if (!a || !b) return json({ error: "a and b founder ids are required" }, 400);
+
+  const isParty = user.id === a || user.id === b;
+  if (user.role !== "admin" && !isParty) return json({ error: "Forbidden" }, 403);
 
   const detail = await MatchesModel.pairDetail(a, b);
   if (!detail) {

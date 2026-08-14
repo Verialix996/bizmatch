@@ -75,7 +75,9 @@ async function decideParticipant(req: Request, params: Record<string, string>): 
   return json({ ok: true });
 }
 
-// POST /functions/v1/activities  (admin)  { programId?, type, title, description?, scheduledAt? }
+// POST /functions/v1/activities  (admin)  { programId?, type, title, description?, startsAt, endsAt }
+// startsAt/endsAt are required — status is derived from this range at read time (see
+// ActivitiesModel's STATUS_SQL) rather than set manually, so every new activity needs one.
 async function createActivity(req: Request): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
@@ -83,9 +85,14 @@ async function createActivity(req: Request): Promise<Response> {
   if (adminErr) return adminErr;
 
   const body = await req.json().catch(() => ({}));
-  const { type, title } = body as { type?: string; title?: string };
+  const { type, title, startsAt, endsAt } = body as { type?: string; title?: string; startsAt?: string; endsAt?: string };
   if (!type || !ACTIVITY_TYPES.includes(type)) return json({ error: `type must be one of ${ACTIVITY_TYPES.join(", ")}` }, 400);
   if (!title) return json({ error: "title is required" }, 400);
+  if (!startsAt || !endsAt) return json({ error: "startsAt and endsAt are required" }, 400);
+  const startsMs = Date.parse(startsAt);
+  const endsMs = Date.parse(endsAt);
+  if (!Number.isFinite(startsMs) || !Number.isFinite(endsMs)) return json({ error: "startsAt/endsAt must be valid dates" }, 400);
+  if (endsMs < startsMs) return json({ error: "endsAt must be on or after startsAt" }, 400);
 
   const id = await ActivitiesModel.create(body);
   return json({ id }, 201);
@@ -99,6 +106,10 @@ async function updateActivity(req: Request, params: Record<string, string>): Pro
   if (adminErr) return adminErr;
 
   const body = await req.json().catch(() => ({}));
+  const { startsAt, endsAt } = body as { startsAt?: string; endsAt?: string };
+  if (startsAt && endsAt && Date.parse(endsAt) < Date.parse(startsAt)) {
+    return json({ error: "endsAt must be on or after startsAt" }, 400);
+  }
   await ActivitiesModel.update(Number(params.id), body);
   return json({ ok: true });
 }

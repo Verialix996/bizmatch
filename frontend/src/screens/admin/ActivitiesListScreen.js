@@ -8,7 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import useAuthStore from '../../store/authStore';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
-import { listActivities, ACTIVITY_TYPE_LABELS } from '../../services/activities.service';
+import { listActivities, ACTIVITY_TYPE_LABELS, formatActivityDateRange } from '../../services/activities.service';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
 import { IconCircle, Pill } from '../../components/ui';
@@ -128,7 +128,7 @@ export default function ActivitiesListScreen({ navigation }) {
                   <Text style={styles.rowTitle}>{item.title}</Text>
                   <Text style={styles.rowMeta}>
                     {ACTIVITY_TYPE_LABELS[item.type] || item.type}
-                    {item.scheduledAt ? ` · ${new Date(item.scheduledAt).toLocaleDateString()}` : ''}
+                    {item.startsAt && item.endsAt ? ` · ${formatActivityDateRange(item.startsAt, item.endsAt)}` : ''}
                     {' · '}{item.participantCount} participant{item.participantCount === 1 ? '' : 's'}
                   </Text>
                 </View>

@@ -5,9 +5,28 @@ export interface ActivityListItem {
   type: string;
   title: string;
   scheduledAt: string | null;
+  startsAt: string | null;
+  endsAt: string | null;
   status: string;
   participantCount: number;
 }
+
+// Shared by every query that reads an activity's status: when both dates are set (every
+// activity created after the 20260814120000 migration), status is derived from `now()` instead
+// of trusted from the stored column, so it moves upcoming -> active -> completed on its own with
+// no admin action needed. Activities created before that migration have no date range and keep
+// falling back to whatever the (now otherwise-legacy) `status` column holds.
+const STATUS_SQL = `
+  CASE
+    WHEN a.starts_at IS NOT NULL AND a.ends_at IS NOT NULL THEN
+      CASE
+        WHEN now() < a.starts_at THEN 'upcoming'
+        WHEN now() <= a.ends_at THEN 'active'
+        ELSE 'completed'
+      END
+    ELSE a.status
+  END
+`;
 
 export const ActivitiesModel = {
   // MVP screen 5 — Activities list: type, date, participant count, status.
@@ -15,7 +34,7 @@ export const ActivitiesModel = {
   // Admin-only view — sees every activity regardless of participation.
   async list(programId: number | null, teamId: number | null = null, founderId: string | null = null): Promise<ActivityListItem[]> {
     const rows = await query<Record<string, unknown>>(
-      `SELECT a.id, a.type, a.title, a.scheduled_at, a.status,
+      `SELECT a.id, a.type, a.title, a.scheduled_at, a.starts_at, a.ends_at, ${STATUS_SQL} AS status,
               count(ap.founder_id) FILTER (WHERE ap.status = 'approved')::int AS participant_count
        FROM activities a
        LEFT JOIN activity_participants ap ON ap.activity_id = a.id
@@ -26,7 +45,7 @@ export const ActivitiesModel = {
            WHERE ap2.activity_id = a.id AND ap2.founder_id = $3
          ))
        GROUP BY a.id
-       ORDER BY a.scheduled_at DESC NULLS LAST, a.id DESC`,
+       ORDER BY a.starts_at DESC NULLS LAST, a.id DESC`,
       [programId, teamId, founderId],
     );
     return rows.map((r) => ({
@@ -34,6 +53,8 @@ export const ActivitiesModel = {
       type: r.type as string,
       title: r.title as string,
       scheduledAt: r.scheduled_at as string | null,
+      startsAt: r.starts_at as string | null,
+      endsAt: r.ends_at as string | null,
       status: r.status as string,
       participantCount: Number(r.participant_count),
     }));
@@ -48,16 +69,16 @@ export const ActivitiesModel = {
   // they haven't requested to join yet.
   async listForFounder(founderId: string, teamId: number | null = null): Promise<Array<ActivityListItem & { myStatus: string | null }>> {
     const rows = await query<Record<string, unknown>>(
-      `SELECT a.id, a.type, a.title, a.scheduled_at, a.status,
+      `SELECT a.id, a.type, a.title, a.scheduled_at, a.starts_at, a.ends_at, ${STATUS_SQL} AS status,
               count(ap.founder_id) FILTER (WHERE ap.status = 'approved')::int AS participant_count,
               me.status AS my_status
        FROM activities a
        LEFT JOIN activity_participants ap ON ap.activity_id = a.id
        LEFT JOIN activity_participants me ON me.activity_id = a.id AND me.founder_id = $1
-       WHERE a.status = 'upcoming' OR me.founder_id IS NOT NULL
+       WHERE ${STATUS_SQL} = 'upcoming' OR me.founder_id IS NOT NULL
           OR ($2::bigint IS NOT NULL AND a.team_id = $2)
        GROUP BY a.id, me.status
-       ORDER BY a.scheduled_at DESC NULLS LAST, a.id DESC`,
+       ORDER BY a.starts_at DESC NULLS LAST, a.id DESC`,
       [founderId, teamId],
     );
     return rows.map((r) => ({
@@ -65,6 +86,8 @@ export const ActivitiesModel = {
       type: r.type as string,
       title: r.title as string,
       scheduledAt: r.scheduled_at as string | null,
+      startsAt: r.starts_at as string | null,
+      endsAt: r.ends_at as string | null,
       status: r.status as string,
       participantCount: Number(r.participant_count),
       myStatus: (r.my_status as string | null) ?? null,
@@ -73,8 +96,8 @@ export const ActivitiesModel = {
 
   async get(activityId: number, viewerId: string | null = null): Promise<Record<string, unknown> | null> {
     const rows = await query<Record<string, unknown>>(
-      `SELECT id, program_id, team_id, type, title, description, scheduled_at, status
-       FROM activities WHERE id = $1`,
+      `SELECT id, program_id, team_id, type, title, description, scheduled_at, starts_at, ends_at, ${STATUS_SQL} AS status
+       FROM activities a WHERE id = $1`,
       [activityId],
     );
     const row = rows[0];
@@ -110,6 +133,8 @@ export const ActivitiesModel = {
       title: row.title as string,
       description: row.description as string | null,
       scheduledAt: row.scheduled_at as string | null,
+      startsAt: row.starts_at as string | null,
+      endsAt: row.ends_at as string | null,
       status: row.status as string,
       participants,
       evaluators,
@@ -118,29 +143,30 @@ export const ActivitiesModel = {
   },
 
   async create(fields: Record<string, unknown>): Promise<number> {
-    const { programId, type, title, description, scheduledAt } = fields as {
-      programId?: number; type: string; title: string; description?: string; scheduledAt?: string;
+    const { programId, type, title, description, startsAt, endsAt } = fields as {
+      programId?: number; type: string; title: string; description?: string; startsAt: string; endsAt: string;
     };
     const rows = await query<{ id: number }>(
-      `INSERT INTO activities (program_id, type, title, description, scheduled_at)
-       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-      [programId ?? null, type, title, description ?? null, scheduledAt ?? null],
+      `INSERT INTO activities (program_id, type, title, description, starts_at, ends_at)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+      [programId ?? null, type, title, description ?? null, startsAt, endsAt],
     );
     return Number(rows[0].id);
   },
 
   async update(activityId: number, fields: Record<string, unknown>): Promise<void> {
-    const { title, description, scheduledAt, status } = fields as {
-      title?: string; description?: string; scheduledAt?: string; status?: string;
+    const { title, description, startsAt, endsAt, status } = fields as {
+      title?: string; description?: string; startsAt?: string; endsAt?: string; status?: string;
     };
     await query(
       `UPDATE activities SET
          title = COALESCE($2, title),
          description = COALESCE($3, description),
-         scheduled_at = COALESCE($4, scheduled_at),
-         status = COALESCE($5, status)
+         starts_at = COALESCE($4, starts_at),
+         ends_at = COALESCE($5, ends_at),
+         status = COALESCE($6, status)
        WHERE id = $1`,
-      [activityId, title ?? null, description ?? null, scheduledAt ?? null, status ?? null],
+      [activityId, title ?? null, description ?? null, startsAt ?? null, endsAt ?? null, status ?? null],
     );
   },
 
@@ -161,7 +187,10 @@ export const ActivitiesModel = {
   // Founder self-service: request to join an upcoming activity. Idempotent —
   // re-requesting just returns whatever status the existing row already has.
   async requestJoin(activityId: number, founderId: string): Promise<{ ok: true; status: string } | { ok: false; error: string }> {
-    const activityRows = await query<{ status: string }>("SELECT status FROM activities WHERE id = $1", [activityId]);
+    const activityRows = await query<{ status: string }>(
+      `SELECT ${STATUS_SQL} AS status FROM activities a WHERE id = $1`,
+      [activityId],
+    );
     if (!activityRows[0]) return { ok: false, error: "Activity not found" };
     if (activityRows[0].status !== "upcoming") {
       return { ok: false, error: "Registration is only open for upcoming activities" };

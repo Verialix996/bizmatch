@@ -12,7 +12,7 @@ import { colors, investorColors, radius, cardShadow, typography } from '../../th
 import {
   getActivity, createActivity, updateActivity, setActivityParticipants,
   registerForActivity, decideActivityParticipant,
-  ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS,
+  ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS, formatActivityDateRange,
 } from '../../services/activities.service';
 import { listFounders, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
 import { submitPeerFeedback } from '../../services/peerFeedback.service';
@@ -23,6 +23,22 @@ import { Avatar, Pill } from '../../components/ui';
 const STATUS_OPTIONS = ['upcoming', 'active', 'completed'];
 const SCORE_OPTIONS = [20, 40, 60, 80, 100];
 
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Activity status is derived server-side from the starts_at/ends_at range (see
+// supabase/functions/activities/model.ts's STATUS_SQL) — the admin picks a date range, not a
+// status. These helpers convert between the plain "YYYY-MM-DD" the date inputs use and the
+// start/end-of-day ISO timestamps the range actually needs.
+function toDateInputValue(isoString) {
+  if (!isoString) return '';
+  return new Date(isoString).toISOString().slice(0, 10);
+}
+function startOfDayISO(dateStr) {
+  return new Date(`${dateStr}T00:00:00`).toISOString();
+}
+function endOfDayISO(dateStr) {
+  return new Date(`${dateStr}T23:59:59.999`).toISOString();
+}
 // MVP screens 5-6 companion — Activity Detail: type/date/participants/status,
 // admin participant management, and (for founders) the peer-feedback
 // capture flow that fans out into evidence at weight 0.8 (screen 5's peer-
@@ -46,6 +62,13 @@ export default function ActivityDetailScreen({ route, navigation }) {
   const [type, setType] = useState('workshop');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
+
+  // Date-range editing (existing activity)
+  const [editingDates, setEditingDates] = useState(false);
+  const [editStartDate, setEditStartDate] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
 
   // Participant management (admin)
   const [managingParticipants, setManagingParticipants] = useState(false);
@@ -70,23 +93,58 @@ export default function ActivityDetailScreen({ route, navigation }) {
 
   const handleCreate = async () => {
     if (!title.trim()) { showAlert('Missing Title', 'Give this activity a title.'); return; }
+    if (!DATE_RE.test(startDate) || !DATE_RE.test(endDate)) {
+      showAlert('Missing Dates', 'Choose both a start and end date for this activity.');
+      return;
+    }
+    if (endDate < startDate) {
+      showAlert('Invalid Range', 'The end date must be on or after the start date.');
+      return;
+    }
     setSaving(true);
     try {
-      const { data } = await createActivity({ type, title: title.trim(), description: description.trim() || null });
+      const { data } = await createActivity({
+        type,
+        title: title.trim(),
+        description: description.trim() || null,
+        startsAt: startOfDayISO(startDate),
+        endsAt: endOfDayISO(endDate),
+      });
       navigation.replace('ActivityDetail', { activityId: data.id });
-    } catch {
-      showAlert('Error', 'Could not create activity.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not create activity.');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleStatusChange = (status) => {
+  const openDateEditor = () => {
+    setEditStartDate(toDateInputValue(activity?.startsAt));
+    setEditEndDate(toDateInputValue(activity?.endsAt));
+    setEditingDates(true);
+  };
+
+  const saveDates = async () => {
+    if (!DATE_RE.test(editStartDate) || !DATE_RE.test(editEndDate)) {
+      showAlert('Missing Dates', 'Choose both a start and end date.');
+      return;
+    }
+    if (editEndDate < editStartDate) {
+      showAlert('Invalid Range', 'The end date must be on or after the start date.');
+      return;
+    }
     setSaving(true);
-    updateActivity(activityId, { status })
-      .then(() => setActivity(prev => ({ ...prev, status })))
-      .catch(() => showAlert('Error', 'Could not update status.'))
-      .finally(() => setSaving(false));
+    try {
+      const startsAt = startOfDayISO(editStartDate);
+      const endsAt = endOfDayISO(editEndDate);
+      await updateActivity(activityId, { startsAt, endsAt });
+      setEditingDates(false);
+      load();
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not update the date range.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openParticipantManager = async () => {
@@ -186,6 +244,17 @@ export default function ActivityDetailScreen({ route, navigation }) {
             <TextInput style={styles.input} value={title} onChangeText={setTitle} placeholder="e.g. Cohort 26 Team Challenge" placeholderTextColor={C.textHint} />
             <Text style={styles.label}>Description (optional)</Text>
             <TextInput style={[styles.input, styles.multiline]} value={description} onChangeText={setDescription} multiline placeholder="What happens in this activity?" placeholderTextColor={C.textHint} />
+            <View style={styles.dateRow}>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>Start date</Text>
+                <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.label}>End date</Text>
+                <TextInput style={styles.input} value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+              </View>
+            </View>
+            <Text style={styles.hintText}>Status is set automatically from this range — upcoming until the start date, active through the end date, then completed.</Text>
             <TouchableOpacity style={[styles.btnPrimary, saving && styles.btnDisabled]} onPress={handleCreate} disabled={saving} activeOpacity={0.85}>
               {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Create Activity</Text>}
             </TouchableOpacity>
@@ -204,7 +273,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
               </View>
               <Text style={styles.meta}>
                 {ACTIVITY_TYPE_LABELS[activity?.type] || activity?.type}
-                {activity?.scheduledAt ? ` · ${new Date(activity.scheduledAt).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' })}` : ''}
+                {formatActivityDateRange(activity?.startsAt, activity?.endsAt) ? ` · ${formatActivityDateRange(activity.startsAt, activity.endsAt)}` : ''}
                 {' · '}{approvedParticipants.length} participant{approvedParticipants.length === 1 ? '' : 's'}
               </Text>
               <Text style={styles.descriptionLabel}>About this activity</Text>
@@ -232,21 +301,36 @@ export default function ActivityDetailScreen({ route, navigation }) {
                 </View>
               )}
 
-              {isAdmin && (
+              {isAdmin && !editingDates && (
                 <View style={styles.statusRow}>
-                  {STATUS_OPTIONS.map(s => (
-                    <TouchableOpacity
-                      key={s}
-                      style={[styles.statusChip, activity?.status === s && styles.statusChipActive]}
-                      onPress={() => handleStatusChange(s)}
-                      disabled={saving}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={[styles.statusChipText, activity?.status === s && styles.statusChipTextActive]}>
-                        {s.charAt(0).toUpperCase() + s.slice(1)}
-                      </Text>
+                  <Text style={styles.dateEditorText}>
+                    {formatActivityDateRange(activity?.startsAt, activity?.endsAt) || 'No date range set'}
+                  </Text>
+                  <TouchableOpacity onPress={openDateEditor}>
+                    <Text style={styles.linkText}>Edit dates</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+              {isAdmin && editingDates && (
+                <View style={styles.dateEditorPanel}>
+                  <View style={styles.dateRow}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.label}>Start date</Text>
+                      <TextInput style={styles.input} value={editStartDate} onChangeText={setEditStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.label}>End date</Text>
+                      <TextInput style={styles.input} value={editEndDate} onChangeText={setEditEndDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+                    </View>
+                  </View>
+                  <View style={styles.dateEditorActions}>
+                    <TouchableOpacity onPress={() => setEditingDates(false)} disabled={saving} style={{ marginRight: 18 }}>
+                      <Text style={styles.linkText}>Cancel</Text>
                     </TouchableOpacity>
-                  ))}
+                    <TouchableOpacity style={[styles.btnPrimary, styles.btnCompact, saving && styles.btnDisabled]} onPress={saveDates} disabled={saving} activeOpacity={0.85}>
+                      {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Save</Text>}
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
             </View>
@@ -424,6 +508,8 @@ function makeStyles(C) {
       color: C.textPrimary, fontSize: 14, borderWidth: 1, borderColor: C.surfaceBorder,
     },
     multiline: { minHeight: 70, textAlignVertical: 'top' },
+    dateRow: { flexDirection: 'row', gap: 12, marginTop: 4 },
+    hintText: { ...typography.caption, color: C.textHint, marginTop: 8 },
 
     typeRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 4 },
     typeChip: { paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill, borderWidth: 1, borderColor: C.surfaceBorder, backgroundColor: C.surface },
@@ -436,17 +522,17 @@ function makeStyles(C) {
     descriptionLabel: { ...typography.labelSmall, textTransform: 'uppercase', color: C.textHint, marginTop: 16, marginBottom: 6 },
     description: { ...typography.bodyMedium, color: C.textSecondary },
 
-    statusRow: { flexDirection: 'row', gap: 8, marginTop: 14 },
+    statusRow: { flexDirection: 'row', gap: 8, marginTop: 14, alignItems: 'center', justifyContent: 'space-between' },
+    dateEditorText: { ...typography.bodySmall, color: C.textSecondary },
+    dateEditorPanel: { marginTop: 14, borderTopWidth: 1, borderTopColor: C.surfaceBorder, paddingTop: 14 },
+    dateEditorActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', marginTop: 10 },
+    btnCompact: { marginTop: 0, paddingVertical: 10, paddingHorizontal: 20 },
     registerRow: { marginTop: 14, alignItems: 'flex-start' },
     registerBtn: {
       flexDirection: 'row', alignItems: 'center', gap: 6,
       backgroundColor: C.primary, borderRadius: radius.pill,
       paddingHorizontal: 20, paddingVertical: 12,
     },
-    statusChip: { flex: 1, paddingVertical: 10, borderRadius: radius.pill, alignItems: 'center', borderWidth: 1, borderColor: C.surfaceBorder },
-    statusChipActive: { backgroundColor: C.primary, borderColor: C.primary },
-    statusChipText: { fontSize: 12, fontWeight: '700', color: C.textSecondary },
-    statusChipTextActive: { color: '#fff' },
 
     sectionHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 },
     sectionLabel: { ...typography.labelSmall, textTransform: 'uppercase', color: C.textHint },

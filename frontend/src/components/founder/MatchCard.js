@@ -6,7 +6,7 @@ import { Avatar, Pill } from '../ui';
 // Suggested Matches pair card — two founders linked by a match score, with
 // "why they match" / "potential friction" pulled straight from the
 // cohort-wide ranked pairs endpoint (no extra per-row fetch needed).
-export default function MatchCard({ pair, onCreateTeam, onCompare, onViewMatch, C }) {
+export default function MatchCard({ pair, onCreateTeam, onViewMatch, C }) {
   const styles = makeStyles(C);
   const positives = pair.explanation?.positives || [];
   const risks = pair.explanation?.risks || [];
@@ -75,9 +75,6 @@ export default function MatchCard({ pair, onCreateTeam, onCompare, onViewMatch, 
         <TouchableOpacity style={styles.btnPrimary} onPress={onCreateTeam} activeOpacity={0.85}>
           <Text style={styles.btnPrimaryText}>Create Team</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.btnSecondary} onPress={onCompare} activeOpacity={0.85}>
-          <Text style={styles.btnSecondaryText}>Compare</Text>
-        </TouchableOpacity>
         <TouchableOpacity onPress={onViewMatch} activeOpacity={0.75} style={styles.viewMatchBtn}>
           <Text style={styles.viewMatchText}>View Match</Text>
         </TouchableOpacity>
@@ -110,8 +107,6 @@ function makeStyles(C) {
     actionsRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
     btnPrimary: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18 },
     btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 13 },
-    btnSecondary: { backgroundColor: C.surface, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18, borderWidth: 1.5, borderColor: C.surfaceBorder },
-    btnSecondaryText: { color: C.textSecondary, fontWeight: '700', fontSize: 13 },
     viewMatchBtn: { marginLeft: 'auto' },
     viewMatchText: { color: C.primary, fontWeight: '700', fontSize: 13 },
   });

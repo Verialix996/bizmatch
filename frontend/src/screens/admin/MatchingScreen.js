@@ -97,7 +97,6 @@ export default function MatchingScreen({ route, navigation }) {
                 pair={item}
                 C={C}
                 onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [item.a.id, item.b.id] })}
-                onCompare={() => navigation.navigate('MatchDetail', { a: item.a.id, b: item.b.id })}
                 onViewMatch={() => navigation.navigate('MatchDetail', { a: item.a.id, b: item.b.id })}
               />
             )}
