@@ -322,26 +322,23 @@ function makeStyles(C) {
     scrollContent: { paddingVertical: 24, paddingBottom: 60 },
     questionText: {
       ...typography.displayMedium, fontSize: 22, color: C.textPrimary, marginBottom: 8,
-      textAlign: 'right', writingDirection: 'rtl',
     },
     helpText: {
       ...typography.bodySmall, color: C.textSecondary, marginBottom: 16,
-      textAlign: 'right', writingDirection: 'rtl',
     },
 
     rowGap: { flexDirection: 'row', gap: 12, marginTop: 8 },
     choiceBtn: { flex: 1, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, paddingVertical: 16, alignItems: 'center' },
     choiceBtnFull: { backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder, borderRadius: radius.md, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 8 },
-    choiceBtnText: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary, textAlign: 'right', writingDirection: 'rtl' },
+    choiceBtnText: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 8 },
     chip: { borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9, backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder },
-    chipText: { fontSize: 13, fontWeight: '600', color: C.textSecondary, writingDirection: 'rtl' },
+    chipText: { fontSize: 13, fontWeight: '600', color: C.textSecondary },
 
     input: {
       backgroundColor: C.backgroundSoft, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 14,
       fontSize: 15, color: C.textPrimary, borderWidth: 1, borderColor: C.surfaceBorder, marginTop: 8,
-      textAlign: 'right', writingDirection: 'rtl',
     },
     inputMultiline: { height: 120, textAlignVertical: 'top' },
 
