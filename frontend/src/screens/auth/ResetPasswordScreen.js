@@ -34,7 +34,18 @@ export default function ResetPasswordScreen({ navigation }) {
       await resetPassword(password);
       await clearPasswordRecovery();
       setMessage('Password reset! Redirecting to login...');
-      setTimeout(() => navigation.navigate('Login'), 2500);
+      // A plain in-app navigate() isn't enough: changing the password itself
+      // triggers Supabase to rotate this session's tokens, and that event
+      // can still be delivered after clearPasswordRecovery() has already
+      // run, silently logging the user back in with the rotated session no
+      // matter how the event is filtered client-side. A hard reload throws
+      // away the whole JS session/event-queue instead of racing it — nothing
+      // is left to deliver that event to.
+      if (Platform.OS === 'web') {
+        setTimeout(() => { window.location.href = window.location.origin + '/'; }, 2500);
+      } else {
+        setTimeout(() => navigation.navigate('Login'), 2500);
+      }
     } catch (e) {
       setError(e.message || 'Invalid or expired reset link.');
     } finally {
