@@ -32,8 +32,19 @@ const useAuthStore = create((set, get) => ({
 
   // Called once the recovery session's password has actually been changed:
   // drops the recovery session so the user has to sign in fresh with it.
+  // scope: 'local' avoids the server-side global-revocation round-trip,
+  // which can 403 for a just-rotated recovery session (the password change
+  // itself rotates its tokens) — when that happened, the unguarded global
+  // signOut() used to throw here, aborting before local state was ever
+  // cleared and leaving the user silently still authenticated with the
+  // recovery session. Local state is now cleared unconditionally, even if
+  // signOut itself fails for any other reason.
   clearPasswordRecovery: async () => {
-    await supabase.auth.signOut();
+    try {
+      await supabase.auth.signOut({ scope: 'local' });
+    } catch {
+      // Best-effort — local state below is cleared regardless.
+    }
     set({ token: null, user: null, hasSeenOnboarding: false, isPasswordRecovery: false });
   },
 
