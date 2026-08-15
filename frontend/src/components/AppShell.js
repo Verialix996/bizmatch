@@ -49,68 +49,71 @@ export default function AppShell({ navigation, active, items, children }) {
 
   if (isDesktop) {
     return (
-      <View style={styles2.desktopRoot}>
-        <View style={[styles2.sidebar, { paddingTop: insets.top + 20 }]}>
-          <View style={styles2.sidebarBrand}>
-            <LogoMark color={C.primary} />
-            <Text style={[styles2.wordmark, { color: C.primary }]}>BizMatch</Text>
+      <View style={[styles2.desktopRoot, { paddingTop: insets.top }]}>
+        <View style={styles2.desktopTopBar}>
+          <View style={styles2.topBarSide} />
+          <View style={styles2.searchBar}>
+            <Ionicons name="search" size={15} color={C.textHint} />
+            <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
           </View>
-
-          <View style={styles2.sidebarNav}>
-            {items.map((item) => {
-              const isActive = item.key === active;
-              return (
-                <TouchableOpacity
-                  key={item.key}
-                  style={[styles2.sidebarItem, isActive && styles2.sidebarItemActive]}
-                  onPress={() => go(item)}
-                  activeOpacity={0.75}
-                >
-                  <Ionicons
-                    name={isActive ? item.activeIcon : item.icon}
-                    size={20}
-                    color={isActive ? C.primary : C.textSecondary}
-                  />
-                  <Text style={[styles2.sidebarLabel, isActive && { color: C.primary, fontWeight: '700' }]}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
+          <View style={[styles2.topBarSide, styles2.topBarSideRight]}>
+            <NotificationBell tintColor={C.primary} />
           </View>
-
-          <View style={{ flex: 1 }} />
-
-          <TouchableOpacity
-            style={styles2.sidebarFooterUser}
-            onPress={() => navigation.navigate('AccountSettings')}
-            activeOpacity={0.75}
-          >
-            <Avatar photoUrl={user?.photoUrl} name={user?.name} size={34} C={C} />
-            <View style={{ flex: 1 }}>
-              <Text style={styles2.footerName} numberOfLines={1}>{user?.name || 'Account'}</Text>
-              <Text style={styles2.footerSub}>Settings</Text>
-            </View>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles2.sidebarLogout} onPress={logout} activeOpacity={0.75}>
-            <Ionicons name="log-out-outline" size={18} color={C.textSecondary} />
-            <Text style={styles2.footerSub}>Log Out</Text>
-          </TouchableOpacity>
         </View>
 
-        <View style={styles2.desktopMain}>
-          <View style={styles2.desktopTopBar}>
-            <View style={styles2.topBarSide} />
-            <View style={styles2.searchBar}>
-              <Ionicons name="search" size={15} color={C.textHint} />
-              <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
+        <View style={styles2.desktopBody}>
+          <View style={[styles2.sidebar, { paddingTop: 20 }]}>
+            <View style={styles2.sidebarBrand}>
+              <LogoMark color={C.primary} />
+              <Text style={[styles2.wordmark, { color: C.primary }]}>BizMatch</Text>
             </View>
-            <View style={[styles2.topBarSide, styles2.topBarSideRight]}>
-              <NotificationBell tintColor={C.primary} />
+
+            <View style={styles2.sidebarNav}>
+              {items.map((item) => {
+                const isActive = item.key === active;
+                return (
+                  <TouchableOpacity
+                    key={item.key}
+                    style={[styles2.sidebarItem, isActive && styles2.sidebarItemActive]}
+                    onPress={() => go(item)}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons
+                      name={isActive ? item.activeIcon : item.icon}
+                      size={20}
+                      color={isActive ? C.primary : C.textSecondary}
+                    />
+                    <Text style={[styles2.sidebarLabel, isActive && { color: C.primary, fontWeight: '700' }]}>
+                      {item.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </View>
+
+            <View style={{ flex: 1 }} />
+
+            <TouchableOpacity
+              style={styles2.sidebarFooterUser}
+              onPress={() => navigation.navigate('AccountSettings')}
+              activeOpacity={0.75}
+            >
+              <Avatar photoUrl={user?.photoUrl} name={user?.name} size={34} C={C} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles2.footerName} numberOfLines={1}>{user?.name || 'Account'}</Text>
+                <Text style={styles2.footerSub}>Settings</Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles2.sidebarLogout} onPress={logout} activeOpacity={0.75}>
+              <Ionicons name="log-out-outline" size={18} color={C.textSecondary} />
+              <Text style={styles2.footerSub}>Log Out</Text>
+            </TouchableOpacity>
           </View>
-          <View style={styles2.desktopContent}>
-            {children}
+
+          <View style={styles2.desktopMain}>
+            <View style={styles2.desktopContent}>
+              {children}
+            </View>
           </View>
         </View>
       </View>
@@ -174,7 +177,8 @@ function makeStyles(C) {
     wordmark: { fontSize: 18, fontWeight: '800', letterSpacing: -0.5 },
 
     // ── Desktop sidebar layout ──────────────────────────────
-    desktopRoot: { flex: 1, flexDirection: 'row', backgroundColor: C.backgroundSoft },
+    desktopRoot: { flex: 1, flexDirection: 'column', backgroundColor: C.backgroundSoft },
+    desktopBody: { flex: 1, flexDirection: 'row' },
     sidebar: {
       width: 250, backgroundColor: C.surface, borderRightWidth: 1, borderRightColor: C.surfaceBorder,
       paddingHorizontal: 16, paddingBottom: 16,
