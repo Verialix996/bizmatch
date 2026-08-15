@@ -14,7 +14,7 @@ import {
   updatePartnerRequirements, updateDealBreakers, completeOnboarding,
   CAPABILITIES,
 } from '../../services/founders.service';
-import CapabilityScorer from '../../components/founder/CapabilityScorer';
+import CapabilityPriorityList from '../../components/founder/CapabilityPriorityList';
 import DnaQuestionnaire from '../../components/founder/DnaQuestionnaire';
 
 // Founder Profile creation wizard (spec sections 20-21), replacing the old
@@ -27,7 +27,13 @@ const STAGE_LABELS = { idea: 'Idea', mvp: 'MVP', growth: 'Growth', scale: 'Scale
 const COMMITMENT_TYPES = ['full_time', 'part_time'];
 const COMMITMENT_LABELS = { full_time: 'Full Time', part_time: 'Part Time' };
 const DEAL_BREAKER_SUGGESTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
-const DEFAULT_CAPABILITY_SCORE = 75;
+
+// The backend still stores a per-capability `score` (used elsewhere), but the
+// UI is now a ranked priority list rather than a numeric rating — this
+// derives that score from list position (top = highest) right before saving.
+function scoreByRank(list) {
+  return list.map((item, index) => ({ ...item, score: Math.max(10, 100 - index * 10) }));
+}
 
 const STEPS = ['basics', 'commitment', 'provides', 'needs', 'dna', 'partner', 'dealbreakers'];
 const DRAFT_KEY = 'onboardingDraft';
@@ -132,7 +138,7 @@ export default function OnboardingScreen() {
     if (list.some(c => c.capability === capability)) {
       setList(list.filter(c => c.capability !== capability));
     } else {
-      setList([...list, { capability, score: DEFAULT_CAPABILITY_SCORE }]);
+      setList([...list, { capability, score: 0 }]);
     }
   };
 
@@ -199,8 +205,8 @@ export default function OnboardingScreen() {
         commitment_type: commitment.commitment_type || null,
         commitment_risk_appetite: commitment.commitment_risk_appetite || null,
       });
-      await updateFounderCapabilities(founderId, 'provide', provides);
-      await updateFounderCapabilities(founderId, 'need', needs);
+      await updateFounderCapabilities(founderId, 'provide', scoreByRank(provides));
+      await updateFounderCapabilities(founderId, 'need', scoreByRank(needs));
       await updatePartnerRequirements(founderId, partner);
       await updateDealBreakers(founderId, dealBreakers);
       await completeOnboarding(founderId);
@@ -307,28 +313,28 @@ export default function OnboardingScreen() {
         {step === 'provides' && (
           <View>
             <Text style={styles.title}>What can you own?</Text>
-            <Text style={styles.subtitle}>Select the capabilities you bring to a team, then rate how strong you are at each.</Text>
+            <Text style={styles.subtitle}>Select the capabilities you bring to a team, then order them by priority — top is your strongest.</Text>
             <View style={styles.chipRow}>
               {CAPABILITIES.map(c => (
                 <Chip key={c} label={c} selected={provides.some(p => p.capability === c)}
                   onPress={() => toggleCapability(provides, setProvides, c)} C={C} styles={styles} />
               ))}
             </View>
-            <CapabilityScorer items={provides} onChange={setProvides} C={C} color={C.primary} />
+            <CapabilityPriorityList items={provides} onChange={setProvides} C={C} color={C.primary} />
           </View>
         )}
 
         {step === 'needs' && (
           <View>
             <Text style={styles.title}>What do you need?</Text>
-            <Text style={styles.subtitle}>Select what you need from a co-founder, then rate how important each one is.</Text>
+            <Text style={styles.subtitle}>Select what you need from a co-founder, then order them by priority — top matters most.</Text>
             <View style={styles.chipRow}>
               {CAPABILITIES.map(c => (
                 <Chip key={c} label={c} selected={needs.some(n => n.capability === c)}
                   onPress={() => toggleCapability(needs, setNeeds, c)} C={C} styles={styles} />
               ))}
             </View>
-            <CapabilityScorer items={needs} onChange={setNeeds} C={C} color={C.warning} />
+            <CapabilityPriorityList items={needs} onChange={setNeeds} C={C} color={C.warning} />
           </View>
         )}
 

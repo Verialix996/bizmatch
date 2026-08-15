@@ -16,7 +16,7 @@ import {
   uploadFounderCv, uploadFounderCvWeb,
 } from '../../services/founders.service';
 import AppShell from '../../components/AppShell';
-import CapabilityScorer from '../../components/founder/CapabilityScorer';
+import CapabilityPriorityList from '../../components/founder/CapabilityPriorityList';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
 import { SectionCard, useIsDesktop } from '../../components/ui';
 
@@ -25,7 +25,13 @@ const STAGE_LABELS = { idea: 'Idea', mvp: 'MVP', growth: 'Growth', scale: 'Scale
 const COMMITMENT_TYPES = ['full_time', 'part_time'];
 const COMMITMENT_LABELS = { full_time: 'Full Time', part_time: 'Part Time' };
 const DEAL_BREAKER_SUGGESTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
-const DEFAULT_CAPABILITY_SCORE = 75;
+
+// The backend still stores a per-capability `score` (used elsewhere), but the
+// UI is now a ranked priority list rather than a numeric rating — this
+// derives that score from list position (top = highest) right before saving.
+function scoreByRank(list) {
+  return list.map((item, index) => ({ ...item, score: Math.max(10, 100 - index * 10) }));
+}
 
 function Chip({ label, selected, onPress, C, styles }) {
   return (
@@ -165,7 +171,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
     if (list.some(c => c.capability === capability)) {
       setList(list.filter(c => c.capability !== capability));
     } else {
-      setList([...list, { capability, score: DEFAULT_CAPABILITY_SCORE }]);
+      setList([...list, { capability, score: 0 }]);
     }
   };
   const toggleMustProvide = (capability) => {
@@ -185,8 +191,8 @@ export default function EditFounderProfileScreen({ route, navigation }) {
         commitment_type: commitment.commitment_type || null,
         commitment_risk_appetite: commitment.commitment_risk_appetite || null,
       });
-      await updateFounderCapabilities(founderId, 'provide', provides);
-      await updateFounderCapabilities(founderId, 'need', needs);
+      await updateFounderCapabilities(founderId, 'provide', scoreByRank(provides));
+      await updateFounderCapabilities(founderId, 'need', scoreByRank(needs));
       await updatePartnerRequirements(founderId, {
         ...partner,
         must_provide: mustProvide,
@@ -275,7 +281,10 @@ export default function EditFounderProfileScreen({ route, navigation }) {
                 onPress={() => toggleCapability(provides, setProvides, c)} C={C} styles={styles} />
             ))}
           </View>
-          <CapabilityScorer items={provides} onChange={setProvides} C={C} color={C.primary} />
+          {provides.length > 0 && (
+            <Text style={styles.helperText}>Order these by priority — use the arrows to move your strongest capability to the top.</Text>
+          )}
+          <CapabilityPriorityList items={provides} onChange={setProvides} C={C} color={C.primary} />
 
           <Text style={[styles.fieldLabel, { marginTop: 20 }]}>WHAT YOU NEED</Text>
           <View style={styles.chipRow}>
@@ -284,7 +293,10 @@ export default function EditFounderProfileScreen({ route, navigation }) {
                 onPress={() => toggleCapability(needs, setNeeds, c)} C={C} styles={styles} />
             ))}
           </View>
-          <CapabilityScorer items={needs} onChange={setNeeds} C={C} color={C.warning} />
+          {needs.length > 0 && (
+            <Text style={styles.helperText}>Order these by priority — use the arrows to move what matters most to the top.</Text>
+          )}
+          <CapabilityPriorityList items={needs} onChange={setNeeds} C={C} color={C.warning} />
         </SectionCard>
 
         <SectionCard title="Resume / CV" icon="document-text-outline" C={C} style={styles.card}>
@@ -376,6 +388,7 @@ function makeStyles(C) {
     card: { marginBottom: 16 },
 
     fieldLabel: { ...typography.labelSmall, color: C.textSecondary, marginBottom: 8, marginTop: 14, textTransform: 'uppercase' },
+    helperText: { ...typography.caption, color: C.textHint, marginTop: 8 },
     input: {
       backgroundColor: C.backgroundSoft, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12,
       fontSize: 15, color: C.textPrimary, borderWidth: 1, borderColor: C.surfaceBorder,
