@@ -100,16 +100,14 @@ export default function AppShell({ navigation, active, items, children }) {
 
         <View style={styles2.desktopMain}>
           <View style={styles2.desktopTopBar}>
-            <View style={styles2.cohortPill}>
-              <Ionicons name="people-outline" size={15} color={C.primary} />
-              <Text style={styles2.cohortText} numberOfLines={1}>{user?.programName || 'My Cohort'}</Text>
-              <Ionicons name="chevron-down" size={13} color={C.textHint} />
-            </View>
+            <View style={styles2.topBarSide} />
             <View style={styles2.searchBar}>
               <Ionicons name="search" size={15} color={C.textHint} />
               <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
             </View>
-            <NotificationBell tintColor={C.textPrimary} />
+            <View style={[styles2.topBarSide, styles2.topBarSideRight]}>
+              <NotificationBell tintColor={C.primary} />
+            </View>
           </View>
           <View style={styles2.desktopContent}>
             {children}
@@ -205,18 +203,14 @@ function makeStyles(C) {
     },
     desktopContent: { flex: 1 },
 
-    cohortPill: {
-      flexDirection: 'row', alignItems: 'center', gap: 6,
-      backgroundColor: C.surfaceElevated, borderRadius: radius.pill,
-      paddingHorizontal: 12, paddingVertical: 8, maxWidth: 220,
-    },
-    cohortText: { ...typography.labelLarge, color: C.textPrimary, flexShrink: 1 },
+    topBarSide: { flex: 1 },
+    topBarSideRight: { flexDirection: 'row', justifyContent: 'flex-end' },
 
     searchBar: {
-      flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8,
+      flexDirection: 'row', alignItems: 'center', gap: 8,
       backgroundColor: C.backgroundSoft, borderRadius: radius.pill,
       paddingHorizontal: 14, paddingVertical: 9, borderWidth: 1, borderColor: C.surfaceBorder,
-      maxWidth: 420,
+      width: 420, maxWidth: '100%',
     },
     searchPlaceholder: { ...typography.bodySmall, color: C.textHint },
 

@@ -4,6 +4,7 @@ import {
 } from 'react-native';
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import api from '../services/api';
 import useAppStore from '../store/appStore';
 
@@ -108,7 +109,7 @@ export default function NotificationBell({ tintColor }) {
     <>
       <TouchableOpacity style={styles.bellBtn} onPress={handleOpen} activeOpacity={0.7} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
         <View style={styles.bellRow}>
-          <Text style={[styles.bellIcon, { color: iconColor }]}>🔔</Text>
+          <Ionicons name="notifications-outline" size={22} color={iconColor} />
           {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>{unreadCount > 9 ? '9+' : unreadCount}</Text>
@@ -163,7 +164,6 @@ export default function NotificationBell({ tintColor }) {
 const styles = StyleSheet.create({
   bellBtn: { padding: 4 },
   bellRow: { flexDirection: 'row', alignItems: 'flex-start' },
-  bellIcon: { fontSize: 22 },
   badge: {
     minWidth: 16,
     height: 16,
