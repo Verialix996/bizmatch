@@ -5,6 +5,7 @@ import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
 import { colors, investorColors, radius, typography } from '../theme';
 import NotificationBell from './NotificationBell';
+import HelpButton from './HelpButton';
 
 const DESKTOP_BREAKPOINT = 768;
 
@@ -51,7 +52,9 @@ export default function AppShell({ navigation, active, items, children }) {
     return (
       <View style={[styles2.desktopRoot, { paddingTop: insets.top }]}>
         <View style={styles2.desktopTopBar}>
-          <View style={styles2.topBarSide} />
+          <View style={styles2.topBarSide}>
+            <HelpButton role={user?.role} tintColor={C.primary} />
+          </View>
           <View style={styles2.searchBar}>
             <Ionicons name="search" size={15} color={C.textHint} />
             <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
@@ -126,6 +129,7 @@ export default function AppShell({ navigation, active, items, children }) {
         <View style={styles2.mobileBrand}>
           <LogoMark color={C.primary} />
           <Text style={[styles2.wordmark, { color: C.primary }]}>BizMatch</Text>
+          <HelpButton role={user?.role} tintColor={C.primary} />
         </View>
         <View style={styles2.mobileHeaderActions}>
           <NotificationBell tintColor={C.textPrimary} />
