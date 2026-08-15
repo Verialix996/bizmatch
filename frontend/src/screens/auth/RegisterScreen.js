@@ -7,12 +7,14 @@ import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { LinearGradient } from 'expo-linear-gradient';
 import { register } from '../../services/auth.service';
+import useAuthStore from '../../store/authStore';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { brandGradient, radius } from '../../theme';
 
 export default function RegisterScreen({ navigation }) {
   const insets = useSafeAreaInsets();
   const { control, handleSubmit, formState: { errors } } = useForm({ defaultValues: { name: '', email: '', password: '' } });
+  const setAuth = useAuthStore(s => s.setAuth);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
@@ -21,8 +23,17 @@ export default function RegisterScreen({ navigation }) {
     setError('');
     setLoading(true);
     try {
-      await register(data);
-      navigation.navigate('VerifyOtp', { email: data.email });
+      const session = await register(data);
+      if (!session) {
+        // Shouldn't happen with email confirmation disabled project-wide,
+        // but if it's ever re-enabled, signUp() returns no session and
+        // setAuth(undefined) would otherwise silently no-op here.
+        setError('Account created, but email confirmation is required. Check your inbox to continue.');
+        return;
+      }
+      // No navigation call needed — AppNavigator swaps to the onboarding/main
+      // app automatically once `token` is set, same as LoginScreen.
+      await setAuth(session);
     } catch (err) {
       setError(err.response?.data?.error || err.message || 'Registration failed. Please try again.');
     } finally {

@@ -27,6 +27,10 @@ export async function register({ name, email, password }) {
   if (data?.user && data.user.identities?.length === 0) {
     throw new Error('An account with this email already exists. Try signing in instead.');
   }
+  // Email confirmation is disabled project-wide for the MVP (see
+  // supabase/config.toml's auth.email.enable_confirmations), so signUp
+  // returns an active session directly — no OTP step needed.
+  return data.session;
 }
 
 export async function login({ email, password }) {
