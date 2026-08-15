@@ -1,5 +1,5 @@
 import {
-  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, ScrollView,
 } from 'react-native';
 import { useState, useEffect, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
@@ -93,7 +93,7 @@ export default function NewInterviewScreen({ route, navigation }) {
 
   return (
     <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
-      <View style={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>New Interview</Text>
 
         {!preselectedFounderId && (
@@ -181,7 +181,7 @@ export default function NewInterviewScreen({ route, navigation }) {
         <TouchableOpacity style={[styles.startBtn, starting && { opacity: 0.6 }]} onPress={startInterview} disabled={starting} activeOpacity={0.85}>
           {starting ? <ActivityIndicator color="#fff" /> : <Text style={styles.startBtnText}>Start Interview</Text>}
         </TouchableOpacity>
-      </View>
+      </ScrollView>
     </AppShell>
   );
 }

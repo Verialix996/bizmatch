@@ -54,13 +54,31 @@ const useAuthStore = create((set, get) => ({
   },
 }));
 
+// Tracks the recovery session's own access token, outside the store (never
+// cleared — see the check below for why). A used recovery link is one-time
+// per token, so permanently blacklisting it for this tab's lifetime is safe.
+let recoverySessionToken = null;
+
 // Registered at module load (not inside a React effect) so it can't miss the
 // PASSWORD_RECOVERY event: Supabase parses the reset-link URL and fires it as
 // soon as the client initializes, which can happen before any component has
 // had a chance to mount and subscribe.
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
+    recoverySessionToken = session?.access_token ?? null;
     useAuthStore.setState({ isPasswordRecovery: true, token: null, user: null, isRestoring: false });
+    return;
+  }
+  // Blocks any event carrying this exact recovery session, regardless of
+  // whether isPasswordRecovery has already been cleared — closes a race
+  // where ResetPasswordScreen's resetPassword() call (supabase.auth.
+  // updateUser({password})) fires its own USER_UPDATED event for this same
+  // session, and gotrue-js doesn't guarantee it's delivered before the
+  // clearPasswordRecovery() call right after it finishes resetting the flag.
+  // Without this, that event falls through and silently logs the user back
+  // in with the very session that was supposed to be discarded.
+  if (recoverySessionToken && session?.access_token === recoverySessionToken) {
+    useAuthStore.setState({ isRestoring: false });
     return;
   }
   // Once we're in a recovery flow, the same recovery session can still fire
