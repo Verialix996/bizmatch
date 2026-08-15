@@ -87,12 +87,17 @@ export default function FounderListScreen({ navigation }) {
                   <Text style={styles2.rowName}>{item.name || 'Unnamed'}</Text>
                   <Text style={styles2.rowRole}>{item.role || 'No role set'}</Text>
                 </View>
-                <Pill
-                  label={item.teamStatus === 'in_team' ? 'In Team' : 'Looking for Team'}
-                  C={C}
-                  bg={item.teamStatus === 'in_team' ? C.successLight : C.surfaceElevated}
-                  color={item.teamStatus === 'in_team' ? C.success : C.textSecondary}
-                />
+                <View style={styles2.pillStack}>
+                  <Pill
+                    label={item.teamStatus === 'in_team' ? 'In Team' : 'Looking for Team'}
+                    C={C}
+                    bg={item.teamStatus === 'in_team' ? C.successLight : C.surfaceElevated}
+                    color={item.teamStatus === 'in_team' ? C.success : C.textSecondary}
+                  />
+                  {!item.profileComplete && (
+                    <Pill label="Incomplete Profile" C={C} bg={C.warningLight} color={C.warning} />
+                  )}
+                </View>
                 <Ionicons name="chevron-forward" size={18} color={C.textHint} />
               </TouchableOpacity>
             )}
@@ -132,6 +137,7 @@ function makeStyles(C) {
       backgroundColor: C.surface, borderRadius: radius.lg, padding: 14, marginBottom: 10, ...cardShadow,
     },
     rowBody: { flex: 1 },
+    pillStack: { alignItems: 'flex-end', gap: 6 },
     rowName: { ...typography.titleSmall, color: C.textPrimary },
     rowRole: { ...typography.bodySmall, color: C.textSecondary, marginTop: 2 },
   });

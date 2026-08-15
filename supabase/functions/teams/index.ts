@@ -53,7 +53,12 @@ async function createTeam(req: Request): Promise<Response> {
   const { name, programId, founderIds } = body as { name?: string; programId?: number; founderIds?: string[] };
   if (!name || !founderIds?.length) return json({ error: "name and founderIds are required" }, 400);
 
-  const teamId = await TeamsModel.create(name, programId ?? null, user.id, founderIds);
+  let teamId: number;
+  try {
+    teamId = await TeamsModel.create(name, programId ?? null, user.id, founderIds);
+  } catch (err) {
+    return json({ error: err instanceof Error ? err.message : "Could not create team" }, 409);
+  }
   background(recomputeTeamDna(teamId));
   return json({ id: teamId }, 201);
 }

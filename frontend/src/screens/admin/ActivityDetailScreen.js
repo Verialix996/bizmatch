@@ -1,7 +1,11 @@
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  StyleSheet, ActivityIndicator,
+  StyleSheet, ActivityIndicator, Platform,
 } from 'react-native';
+// @react-native-community/datetimepicker has no web build — a static top-level
+// import would run its native-module-init code even on web and crash the
+// whole bundle. require() it lazily, only on native, only when rendered.
+const DateTimePicker = Platform.OS === 'web' ? null : require('@react-native-community/datetimepicker').default;
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,7 +19,7 @@ import {
   ACTIVITY_TYPES, ACTIVITY_TYPE_LABELS, formatActivityDateRange,
 } from '../../services/activities.service';
 import { listFounders, DIMENSIONS, DIMENSION_LABELS } from '../../services/founders.service';
-import { submitPeerFeedback } from '../../services/peerFeedback.service';
+import { submitPeerFeedback, listPeerFeedback } from '../../services/peerFeedback.service';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
 import { Avatar, Pill } from '../../components/ui';
@@ -38,6 +42,54 @@ function startOfDayISO(dateStr) {
 }
 function endOfDayISO(dateStr) {
   return new Date(`${dateStr}T23:59:59.999`).toISOString();
+}
+
+// Date picker, platform-branched: a native <input type="date"> on web (this
+// app is primarily tested/deployed there), DateTimePicker's native modal on
+// iOS/Android. Both read/write the same "YYYY-MM-DD" string the rest of this
+// screen already works with.
+function DateField({ value, onChange, inputStyle, C }) {
+  if (Platform.OS === 'web') {
+    return (
+      <input
+        type="date"
+        value={value || ''}
+        onChange={(e) => onChange(e.target.value)}
+        style={{
+          backgroundColor: C.backgroundSoft,
+          borderRadius: 10,
+          padding: '12px 16px',
+          fontSize: 15,
+          color: C.textPrimary,
+          border: `1px solid ${C.surfaceBorder}`,
+          fontFamily: 'inherit',
+          width: '100%',
+          boxSizing: 'border-box',
+        }}
+      />
+    );
+  }
+
+  const [showPicker, setShowPicker] = useState(false);
+  const dateValue = value ? new Date(`${value}T00:00:00`) : new Date();
+  return (
+    <>
+      <TouchableOpacity onPress={() => setShowPicker(true)} activeOpacity={0.75}>
+        <Text style={inputStyle}>{value || 'YYYY-MM-DD'}</Text>
+      </TouchableOpacity>
+      {showPicker && (
+        <DateTimePicker
+          value={dateValue}
+          mode="date"
+          display="default"
+          onChange={(event, selected) => {
+            setShowPicker(false);
+            if (event.type === 'set' && selected) onChange(selected.toISOString().slice(0, 10));
+          }}
+        />
+      )}
+    </>
+  );
 }
 // MVP screens 5-6 companion — Activity Detail: type/date/participants/status,
 // admin participant management, and (for founders) the peer-feedback
@@ -75,19 +127,36 @@ export default function ActivityDetailScreen({ route, navigation }) {
   const [allFounders, setAllFounders] = useState([]);
   const [selectedFounderIds, setSelectedFounderIds] = useState(new Set());
 
+  // Peer feedback given about each participant, scoped to this activity —
+  // listPeerFeedback existed but nothing in the UI ever called it, so admins
+  // had no way to see what founders submitted about each other here.
+  const [peerFeedbackByFounder, setPeerFeedbackByFounder] = useState({});
+
   const load = useCallback(async () => {
     if (!activityId) return;
     setLoading(true);
     try {
       const { data } = await getActivity(activityId);
       setActivity(data);
+      const approvedIds = (data.participants || []).filter(p => p.status === 'approved').map(p => p.id);
       setSelectedFounderIds(new Set((data.participants || []).map(p => p.id)));
+
+      if (isAdmin && approvedIds.length > 0) {
+        const results = await Promise.all(approvedIds.map(id =>
+          listPeerFeedback(id)
+            .then(({ data: rows }) => [id, rows.filter(r => Number(r.activityId ?? r.activity_id) === Number(activityId))])
+            .catch(() => [id, []]),
+        ));
+        setPeerFeedbackByFounder(Object.fromEntries(results));
+      } else {
+        setPeerFeedbackByFounder({});
+      }
     } catch {
       showAlert('Error', 'Could not load this activity.');
     } finally {
       setLoading(false);
     }
-  }, [activityId]);
+  }, [activityId, isAdmin]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -247,11 +316,11 @@ export default function ActivityDetailScreen({ route, navigation }) {
             <View style={styles.dateRow}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>Start date</Text>
-                <TextInput style={styles.input} value={startDate} onChangeText={setStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+                <DateField value={startDate} onChange={setStartDate} inputStyle={styles.input} C={C} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.label}>End date</Text>
-                <TextInput style={styles.input} value={endDate} onChangeText={setEndDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+                <DateField value={endDate} onChange={setEndDate} inputStyle={styles.input} C={C} />
               </View>
             </View>
             <Text style={styles.hintText}>Status is set automatically from this range — upcoming until the start date, active through the end date, then completed.</Text>
@@ -316,11 +385,11 @@ export default function ActivityDetailScreen({ route, navigation }) {
                   <View style={styles.dateRow}>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.label}>Start date</Text>
-                      <TextInput style={styles.input} value={editStartDate} onChangeText={setEditStartDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+                      <DateField value={editStartDate} onChange={setEditStartDate} inputStyle={styles.input} C={C} />
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.label}>End date</Text>
-                      <TextInput style={styles.input} value={editEndDate} onChangeText={setEditEndDate} placeholder="YYYY-MM-DD" placeholderTextColor={C.textHint} />
+                      <DateField value={editEndDate} onChange={setEditEndDate} inputStyle={styles.input} C={C} />
                     </View>
                   </View>
                   <View style={styles.dateEditorActions}>
@@ -396,6 +465,30 @@ export default function ActivityDetailScreen({ route, navigation }) {
                 </View>
               )}
             </View>
+
+            {isAdmin && approvedParticipants.some(p => (peerFeedbackByFounder[p.id] || []).length > 0) && (
+              <View style={styles.card}>
+                <Text style={styles.sectionLabel}>Peer Feedback</Text>
+                {approvedParticipants.map(p => {
+                  const rows = peerFeedbackByFounder[p.id] || [];
+                  if (rows.length === 0) return null;
+                  return (
+                    <View key={p.id} style={{ marginBottom: 12 }}>
+                      <Text style={[styles.participantName, { marginBottom: 6 }]}>{p.name || 'Unnamed'}</Text>
+                      {rows.map(r => (
+                        <View key={r.id} style={styles.participantRow}>
+                          <Text style={[styles.emptyText, { flex: 1 }]}>
+                            {DIMENSION_LABELS[r.dimension] || r.dimension} — {r.score}
+                            {r.observation ? `: ${r.observation}` : ''}
+                          </Text>
+                          <Text style={styles.emptyText}>{r.authorName || r.author_name || ''}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  );
+                })}
+              </View>
+            )}
 
             {!isAdmin && activity?.myStatus === 'approved' && (
               <View style={styles.card}>

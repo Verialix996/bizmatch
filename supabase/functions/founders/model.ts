@@ -16,15 +16,22 @@ export interface FounderListItem {
   role: string | null;
   status: string | null;
   teamStatus: "looking_for_team" | "in_team";
+  profileComplete: boolean;
+  industry: string | null;
+  ventureName: string | null;
 }
 
 export const FoundersModel = {
   // MVP screen 3 — Founders List: search by name, photo/name/short role,
   // team status. No profile-completion %, no evaluation counts, no bulk
   // actions (those were explicitly excluded from the MVP screen spec).
+  // industry/ventureName/profileComplete also feed New Interview's auto-fill
+  // and the Founders List's incomplete-profile indicator — cheap to carry
+  // here since founder_profiles is already joined.
   async list(programId: number | null, search: string | null): Promise<FounderListItem[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.photo_url, fp.role_title, fp.status, fp.program_id,
+              fp.onboarding_completed_at, fp.industry, fp.venture_name,
               (tf.team_id IS NOT NULL) AS in_team
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
@@ -42,6 +49,9 @@ export const FoundersModel = {
       role: r.role_title as string | null,
       status: r.status as string | null,
       teamStatus: r.in_team ? "in_team" : "looking_for_team",
+      profileComplete: r.onboarding_completed_at != null,
+      industry: r.industry as string | null,
+      ventureName: r.venture_name as string | null,
     }));
   },
 

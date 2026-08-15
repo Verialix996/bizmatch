@@ -28,7 +28,9 @@ export default function TeamCreationScreen({ route, navigation }) {
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    listFounders({}).then(({ data }) => setAllFounders(data)).catch(() => {});
+    // team_founders.founder_id is unique (one team per founder) — exclude
+    // anyone already on a team so picking them can't hit that constraint.
+    listFounders({}).then(({ data }) => setAllFounders(data.filter(f => f.teamStatus !== 'in_team'))).catch(() => {});
   }, []);
 
   const toggleFounder = (id) => {

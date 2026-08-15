@@ -39,9 +39,22 @@ export const TeamsModel = {
   },
 
   // MVP screen 9 — Team Creation: select founders, team name, Create Team.
-  // team_founders.founder_id is unique (a founder is on at most one team),
-  // so this fails loudly rather than silently double-assigning someone.
+  // team_founders.founder_id is unique (a founder is on at most one team) —
+  // pre-checked here so a founder who's already on a team produces a clean,
+  // named error instead of a raw unique-violation reaching the client (the
+  // frontend also filters already-teamed founders out of the picker, but
+  // this is the actual enforcement point, e.g. against a race or a stale
+  // client-side list).
   async create(name: string, programId: number | null, createdBy: string, founderIds: string[]): Promise<number> {
+    const alreadyTeamed = await query<{ name: string | null }>(
+      `SELECT u.name FROM team_founders tf JOIN users u ON u.id = tf.founder_id WHERE tf.founder_id = ANY($1::uuid[])`,
+      [founderIds],
+    );
+    if (alreadyTeamed.length > 0) {
+      const names = alreadyTeamed.map((r) => r.name || "A founder").join(", ");
+      throw new Error(`${names} already ${alreadyTeamed.length === 1 ? "has" : "have"} a team.`);
+    }
+
     const rows = await query<{ id: number }>(
       `INSERT INTO teams (name, program_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
       [name, programId, createdBy],

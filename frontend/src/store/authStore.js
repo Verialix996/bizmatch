@@ -37,6 +37,10 @@ const useAuthStore = create((set, get) => ({
     set({ token: null, user: null, hasSeenOnboarding: false, isPasswordRecovery: false });
   },
 
+  updateUser: (partial) => {
+    set(state => ({ user: state.user ? { ...state.user, ...partial } : state.user }));
+  },
+
   setHasSeenOnboarding: () => {
     set(state => ({
       user: state.user ? { ...state.user, has_seen_onboarding: true } : state.user,
@@ -57,6 +61,15 @@ const useAuthStore = create((set, get) => ({
 supabase.auth.onAuthStateChange((event, session) => {
   if (event === 'PASSWORD_RECOVERY') {
     useAuthStore.setState({ isPasswordRecovery: true, token: null, user: null, isRestoring: false });
+    return;
+  }
+  // Once we're in a recovery flow, the same recovery session can still fire
+  // other session-bearing events (e.g. INITIAL_SESSION/TOKEN_REFRESHED) while
+  // the client finishes bootstrapping — those must not silently log the user
+  // in and skip past ResetPasswordScreen before they've actually set a new
+  // password. Stay pinned here until clearPasswordRecovery() runs.
+  if (useAuthStore.getState().isPasswordRecovery) {
+    useAuthStore.setState({ isRestoring: false });
     return;
   }
   if (session) {

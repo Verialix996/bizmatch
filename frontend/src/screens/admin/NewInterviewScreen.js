@@ -129,7 +129,12 @@ export default function NewInterviewScreen({ route, navigation }) {
                 <TouchableOpacity
                   key={f.id}
                   style={[styles.founderRow, selected?.id === f.id && styles.founderRowSelected]}
-                  onPress={() => setSelected({ id: f.id, name: f.name })}
+                  onPress={() => {
+                    setSelected({ id: f.id, name: f.name });
+                    // Convenience default, not a clobber — only fill blank fields.
+                    if (!ventureField.trim() && f.industry) setVentureField(f.industry);
+                    if (!ventureName.trim() && f.ventureName) setVentureName(f.ventureName);
+                  }}
                   activeOpacity={0.75}
                 >
                   <Avatar photoUrl={f.photoUrl} name={f.name} size={36} C={C} />

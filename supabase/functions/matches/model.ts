@@ -33,6 +33,10 @@ export const MatchesModel = {
   // scoped to a single founder when reached via their profile's "View
   // Matches" so that entry point stays a filtered lens on this same list
   // rather than a separate one-sided flow.
+  // Excludes any pair where either founder already has a team — this list's
+  // whole purpose is feeding "Create Team from match", and team_founders.
+  // founder_id is unique (one team per founder), so a pair with an already-
+  // teamed founder can never actually be turned into a team anyway.
   async topPairs(limit: number, founderId: string | null): Promise<PairSummary[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT fc.score, fc.requires_admin_review, fc.explanation,
@@ -43,7 +47,11 @@ export const MatchesModel = {
        JOIN users ub ON ub.id = fc.founder_b_id
        LEFT JOIN founder_profiles fpa ON fpa.user_id = ua.id
        LEFT JOIN founder_profiles fpb ON fpb.user_id = ub.id
-       WHERE $2::uuid IS NULL OR fc.founder_a_id = $2 OR fc.founder_b_id = $2
+       WHERE ($2::uuid IS NULL OR fc.founder_a_id = $2 OR fc.founder_b_id = $2)
+         AND NOT EXISTS (
+           SELECT 1 FROM team_founders tf
+           WHERE tf.founder_id = fc.founder_a_id OR tf.founder_id = fc.founder_b_id
+         )
        ORDER BY fc.score DESC
        LIMIT $1`,
       [limit, founderId],
