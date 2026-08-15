@@ -23,8 +23,6 @@ export default function AccountSettingsScreen({ navigation }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
-  const [verifyLoading, setVerifyLoading] = useState(false);
-  const [verificationStatus, setVerificationStatus] = useState(user?.verification_status || 'none');
   const [photoUploading, setPhotoUploading] = useState(false);
   const [photoUrl, setPhotoUrl] = useState(user?.photoUrl || user?.photo_url || null);
 
@@ -81,19 +79,6 @@ export default function AccountSettingsScreen({ navigation }) {
       setError(err.response?.data?.error || 'Could not upload photo.');
     } finally {
       setPhotoUploading(false);
-    }
-  };
-
-  const handleVerifySelf = async () => {
-    setVerifyLoading(true);
-    try {
-      await api.post('/users/me/verify-self');
-      setVerificationStatus('verified');
-      updateUser({ ...user, verification_status: 'verified' });
-    } catch (err) {
-      setError('Verification failed. Please try again.');
-    } finally {
-      setVerifyLoading(false);
     }
   };
 
@@ -228,32 +213,6 @@ export default function AccountSettingsScreen({ navigation }) {
               <Text style={styles.btnPrimaryText}>Save Changes</Text>
             )}
           </TouchableOpacity>
-        </View>
-
-        <View style={styles.card}>
-          <Text style={styles.sectionLabel}>IDENTITY VERIFICATION</Text>
-          {verificationStatus === 'verified' ? (
-            <Text style={[styles.dangerText, { color: C.success }]}>
-              ✓ Your account is verified
-            </Text>
-          ) : (
-            <>
-              <Text style={styles.dangerText}>
-                Verify your identity to build trust with matches.
-                {verificationStatus === 'pending' ? ' Your document is under review.' : ''}
-              </Text>
-              <TouchableOpacity
-                style={styles.btnPrimary}
-                onPress={handleVerifySelf}
-                disabled={verifyLoading}
-              >
-                {verifyLoading
-                  ? <ActivityIndicator color="#fff" />
-                  : <Text style={styles.btnPrimaryText}>Verify Account</Text>
-                }
-              </TouchableOpacity>
-            </>
-          )}
         </View>
 
         {/* Appearance */}

@@ -21,10 +21,6 @@ export const UserModel = {
     if (error) throw error;
   },
 
-  async setVerificationStatus(id: string, status: string) {
-    await query("UPDATE users SET verification_status = $1 WHERE id = $2", [status, id]);
-  },
-
   async updatePhoto(id: string, photoUrl: string) {
     await query("UPDATE users SET photo_url = $1, updated_at = now() WHERE id = $2", [photoUrl, id]);
   },

@@ -66,19 +66,6 @@ async function getUser(req: Request, params: Record<string, string>): Promise<Re
   return json(omitPasswordHash(target));
 }
 
-// PATCH /functions/v1/users/:id/verification  (admin)  { status }
-async function setVerificationStatus(req: Request, params: Record<string, string>): Promise<Response> {
-  const user = await authenticate(req);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-  const adminErr = requireAdmin(user);
-  if (adminErr) return adminErr;
-
-  const body = await req.json().catch(() => ({}));
-  const { status } = body as { status?: string };
-  await UserModel.setVerificationStatus(params.id, status ?? "pending");
-  return json({ message: "Verification status updated" });
-}
-
 // POST /functions/v1/users/me/photo  { photo: base64 data URI }
 async function uploadPhoto(req: Request): Promise<Response> {
   const user = await authenticate(req);
@@ -112,15 +99,6 @@ async function savePushToken(req: Request): Promise<Response> {
   return json({ ok: true });
 }
 
-// POST /functions/v1/users/me/verify-self — skip ID review, mark verified instantly (demo)
-async function verifySelf(req: Request): Promise<Response> {
-  const user = await authenticate(req);
-  if (!user) return json({ error: "Unauthorized" }, 401);
-
-  await query("UPDATE users SET verification_status = 'verified' WHERE id = $1", [user.id]);
-  return json({ ok: true, verification_status: "verified" });
-}
-
 // PATCH /functions/v1/users/me/onboarding
 async function markOnboardingSeen(req: Request): Promise<Response> {
   const user = await authenticate(req);
@@ -138,7 +116,5 @@ serveFunction(FN, [
   route(FN, "POST", "/me/photo", uploadPhoto),
   route(FN, "PATCH", "/me/push-token", savePushToken),
   route(FN, "PATCH", "/me/onboarding", markOnboardingSeen),
-  route(FN, "POST", "/me/verify-self", verifySelf),
-  route(FN, "PATCH", "/:id/verification", setVerificationStatus),
   route(FN, "GET", "/:id", getUser),
 ]);
