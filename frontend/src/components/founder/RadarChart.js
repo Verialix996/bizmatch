@@ -39,6 +39,10 @@ export default function RadarChart({ axes, size = 280, C }) {
   const dataPoints = axes.map((a, i) => pointAt(i, Math.max(0, Math.min(100, a.score ?? 0)) / 100));
   const dataPolygon = dataPoints.map((p) => `${p.x},${p.y}`).join(' ');
 
+  const hasCohortAvg = axes.some((a) => a.cohortAvg != null);
+  const avgPoints = axes.map((a, i) => pointAt(i, Math.max(0, Math.min(100, a.cohortAvg ?? 0)) / 100));
+  const avgPolygon = avgPoints.map((p) => `${p.x},${p.y}`).join(' ');
+
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size}>
@@ -56,6 +60,10 @@ export default function RadarChart({ axes, size = 280, C }) {
           const p = pointAt(i, 1);
           return <Line key={i} x1={center} y1={center} x2={p.x} y2={p.y} stroke={C.surfaceBorder} strokeWidth={1} />;
         })}
+
+        {hasCohortAvg ? (
+          <Polygon points={avgPolygon} fill="none" stroke={C.textHint} strokeWidth={1.5} strokeDasharray="4,3" />
+        ) : null}
 
         <Polygon points={dataPolygon} fill={C.primary} fillOpacity={0.18} stroke={C.primary} strokeWidth={2} />
 
@@ -86,6 +94,30 @@ export default function RadarChart({ axes, size = 280, C }) {
           );
         })}
       </Svg>
+    </View>
+  );
+}
+
+export function RadarSeriesLegend({ axes, C }) {
+  const hasCohortAvg = axes.some((a) => a.cohortAvg != null);
+  if (!hasCohortAvg) return null;
+  const styles = StyleSheet.create({
+    row: { flexDirection: 'row', alignItems: 'center', gap: 16, marginTop: 8 },
+    item: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    lineSolid: { width: 16, height: 2, backgroundColor: C.primary, borderRadius: 1 },
+    lineDashed: { width: 16, height: 0, borderTopWidth: 1.5, borderColor: C.textHint, borderStyle: 'dashed' },
+    label: { ...typography.caption, color: C.textSecondary },
+  });
+  return (
+    <View style={styles.row}>
+      <View style={styles.item}>
+        <View style={styles.lineSolid} />
+        <Text style={styles.label}>You</Text>
+      </View>
+      <View style={styles.item}>
+        <View style={styles.lineDashed} />
+        <Text style={styles.label}>Cohort Average</Text>
+      </View>
     </View>
   );
 }

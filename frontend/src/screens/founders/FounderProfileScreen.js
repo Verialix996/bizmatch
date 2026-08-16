@@ -20,7 +20,7 @@ import EvidenceTimeline from '../../components/founder/EvidenceTimeline';
 import BehavioralSignals from '../../components/founder/BehavioralSignals';
 import EvidenceConfidenceTable from '../../components/founder/EvidenceConfidenceTable';
 import TopMatches from '../../components/founder/TopMatches';
-import RadarChart, { RadarLegend } from '../../components/founder/RadarChart';
+import RadarChart, { RadarLegend, RadarSeriesLegend } from '../../components/founder/RadarChart';
 import MatchCard from '../../components/founder/MatchCard';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
@@ -181,6 +181,7 @@ export default function FounderProfileScreen({ route, navigation }) {
     key: dim,
     label: DIMENSION_LABELS[dim],
     score: insights?.dimensions?.[dim]?.score ?? null,
+    cohortAvg: insights?.cohortAverage?.[dim] ?? null,
   }));
 
   // Aggregate count works for both roles even though only admins fetch the
@@ -294,6 +295,7 @@ export default function FounderProfileScreen({ route, navigation }) {
                   <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
                     <View style={{ alignItems: 'center' }}>
                       <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
+                      <RadarSeriesLegend axes={axes} C={C} />
                     </View>
                     <RadarLegend axes={axes} C={C} />
                   </SectionCard>

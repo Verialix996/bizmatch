@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
   pill: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' },
   pillText: { fontSize: 11, fontWeight: '700' },
 
-  sectionCard: { borderRadius: radius.lg, padding: 18 },
+  sectionCard: { flex: 1, borderRadius: radius.lg, padding: 18 },
   sectionCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   sectionCardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sectionCardTitle: { ...typography.titleSmall },

@@ -50,6 +50,50 @@ export interface FounderInsights {
   dimensions: Record<EvidenceDimension, { score: number | null; confidence: string | null; evidenceCount: number }>;
   contradictions: ReturnType<typeof detectContradiction>[];
   emptyState: ReturnType<typeof buildEmptyState>;
+  cohortAverage: Record<EvidenceDimension, number | null>;
+}
+
+// Average of every founder's own live dimension score (same
+// computeAllDimensionScores each founder's own insights use), across every
+// founder with at least one evidence row — not read from the append-only
+// snapshot log, so it can't go stale relative to what the founder sees.
+async function computeCohortAverageDimensions(): Promise<Record<EvidenceDimension, number | null>> {
+  const rows = await query<Record<string, unknown>>(
+    `SELECT founder_id, dimension, source_type, score, weight, is_negative, created_at FROM evidence`,
+  );
+
+  const byFounder = new Map<string, EvidenceRow[]>();
+  for (const r of rows) {
+    const founderId = r.founder_id as string;
+    const list = byFounder.get(founderId) ?? [];
+    list.push({
+      dimension: r.dimension as EvidenceDimension,
+      source_type: r.source_type as EvidenceRow["source_type"],
+      score: Number(r.score),
+      weight: Number(r.weight),
+      is_negative: !!r.is_negative,
+      created_at: r.created_at as string,
+    });
+    byFounder.set(founderId, list);
+  }
+
+  const sums = {} as Record<EvidenceDimension, number>;
+  const counts = {} as Record<EvidenceDimension, number>;
+  for (const dim of DIMENSIONS) { sums[dim] = 0; counts[dim] = 0; }
+
+  for (const evidence of byFounder.values()) {
+    const results = computeAllDimensionScores(evidence);
+    for (const dim of DIMENSIONS) {
+      const score = results[dim].score;
+      if (score != null) { sums[dim] += score; counts[dim] += 1; }
+    }
+  }
+
+  const averages = {} as Record<EvidenceDimension, number | null>;
+  for (const dim of DIMENSIONS) {
+    averages[dim] = counts[dim] > 0 ? Math.round(sums[dim] / counts[dim]) : null;
+  }
+  return averages;
 }
 
 // MVP screen 7 — Founder Insights: derived from evidence, distinct from the
@@ -75,5 +119,6 @@ export async function computeFounderInsights(founderId: string): Promise<Founder
     dimensions: byDimension,
     contradictions,
     emptyState: buildEmptyState(dimensionResults),
+    cohortAverage: await computeCohortAverageDimensions(),
   };
 }
