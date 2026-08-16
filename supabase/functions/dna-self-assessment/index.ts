@@ -164,6 +164,17 @@ async function scoreInBackground(founderId: string, answers: Answers, dims: Evid
 
     for (const dim of dims) {
       const { score, observation } = evaluation[dim];
+      // FND-05/06: a DNA self-assessment answer is a current-state fact per
+      // founder+dimension, not an accumulating history like evaluator/peer
+      // feedback — dna_self_assessment_responses already upserts one row
+      // per dimension, but this insert didn't mirror that, so re-answering
+      // a dimension (now routine since DNA-02 saves per-question) piled up
+      // duplicate 'self' evidence rows for the same dimension, double-
+      // counting it in evidenceCount and skewing the weighted score.
+      await query(
+        `DELETE FROM evidence WHERE founder_id = $1 AND source_type = 'self' AND dimension = $2`,
+        [founderId, dim],
+      );
       await query(
         `INSERT INTO evidence (founder_id, source_type, dimension, signal, score, observation, is_negative, weight)
          VALUES ($1, 'self', $2, 'DNA self-assessment', $3, $4, false, $5)`,
