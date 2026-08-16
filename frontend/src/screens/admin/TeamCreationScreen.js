@@ -133,7 +133,7 @@ export default function TeamCreationScreen({ route, navigation }) {
           </View>
 
           <View style={{ flex: 1 }}>
-            <SectionCard title="Team Review" icon="git-compare-outline" C={C}>
+            <SectionCard title="Team Review" icon="git-compare-outline" C={C} style={{ flex: 1 }}>
               {selectedIds.size < 2 ? (
                 <Text style={styles.emptyText}>Select at least two founders to preview compatibility.</Text>
               ) : previewing ? (

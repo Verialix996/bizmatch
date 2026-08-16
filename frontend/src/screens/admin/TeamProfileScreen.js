@@ -99,7 +99,7 @@ export default function TeamProfileScreen({ route, navigation }) {
 
         <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
           <View style={{ flex: 1 }}>
-            <SectionCard title="Members" icon="people-outline" C={C}>
+            <SectionCard title="Members" icon="people-outline" C={C} style={{ flex: 1 }}>
               {(team?.members || []).map(m => (
                 <TouchableOpacity
                   key={m.id}
@@ -119,7 +119,7 @@ export default function TeamProfileScreen({ route, navigation }) {
           </View>
 
           <View style={{ flex: 1 }}>
-            <SectionCard title="Compatibility" icon="heart-outline" iconColor={C.success} iconBg={C.successLight} C={C}>
+            <SectionCard title="Compatibility" icon="heart-outline" iconColor={C.success} iconBg={C.successLight} C={C} style={{ flex: 1 }}>
               <View style={styles.scoreBlock}>
                 <Text style={styles.scoreValue}>{profile?.compatibility ?? '—'}%</Text>
               </View>
@@ -130,7 +130,7 @@ export default function TeamProfileScreen({ route, navigation }) {
         <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
           {profile?.strengths?.length > 0 && (
             <View style={{ flex: 1 }}>
-              <SectionCard title="Team Strengths" icon="star-outline" iconColor={C.success} iconBg={C.successLight} C={C}>
+              <SectionCard title="Team Strengths" icon="star-outline" iconColor={C.success} iconBg={C.successLight} C={C} style={{ flex: 1 }}>
                 {profile.strengths.map(d => (
                   <View key={d} style={styles.checkLine}>
                     <Ionicons name="checkmark-circle" size={16} color={C.success} />
@@ -143,7 +143,7 @@ export default function TeamProfileScreen({ route, navigation }) {
 
           {profile?.complementarySkills?.length > 0 && (
             <View style={{ flex: 1 }}>
-              <SectionCard title="Complementary Skills" icon="extension-puzzle-outline" C={C}>
+              <SectionCard title="Complementary Skills" icon="extension-puzzle-outline" C={C} style={{ flex: 1 }}>
                 <View style={styles.chipWrap}>
                   {profile.complementarySkills.map(s => (
                     <Pill key={s} label={s} C={C} bg={C.surfaceElevated} color={C.primary} />
@@ -157,7 +157,7 @@ export default function TeamProfileScreen({ route, navigation }) {
         <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
           {(profile?.potentialGaps?.length > 0 || profile?.capabilityGaps?.length > 0) && (
             <View style={{ flex: 1 }}>
-              <SectionCard title="Potential Gaps" icon="alert-circle-outline" iconColor={C.warning} iconBg={C.warningLight} C={C}>
+              <SectionCard title="Potential Gaps" icon="alert-circle-outline" iconColor={C.warning} iconBg={C.warningLight} C={C} style={{ flex: 1 }}>
                 {profile.potentialGaps.map(d => (
                   <Text key={d} style={[styles.bullet, { color: C.warning }]}>• Weak {DIMENSION_LABELS[d] || d}</Text>
                 ))}
@@ -172,7 +172,7 @@ export default function TeamProfileScreen({ route, navigation }) {
 
           {profile?.potentialFriction?.length > 0 && (
             <View style={{ flex: 1 }}>
-              <SectionCard title="Potential Friction" icon="flash-outline" iconColor={C.error} iconBg={C.errorLight} C={C}>
+              <SectionCard title="Potential Friction" icon="flash-outline" iconColor={C.error} iconBg={C.errorLight} C={C} style={{ flex: 1 }}>
                 {profile.potentialFriction.map((f, i) => <Text key={i} style={[styles.bullet, { color: C.error }]}>• {f}</Text>)}
               </SectionCard>
             </View>

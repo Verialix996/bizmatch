@@ -116,15 +116,15 @@ const styles = StyleSheet.create({
   pill: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5, alignSelf: 'flex-start' },
   pillText: { fontSize: 11, fontWeight: '700' },
 
-  // height:'100%' (not flex:1) deliberately: this needs to fill a bounded,
-  // row-stretched parent (ResponsiveRow's per-card flex:1 wrapper) so cards
-  // in the same row match the tallest one, but SectionCard is also used
-  // standalone in plain column ScrollViews with no bounded parent height —
-  // flex:1 there degenerates (flex-basis:0% + no available space to grow
-  // into) into near-zero/unpredictable sizing, which clipped or stretched
-  // content wildly. height:'100%' resolves to `auto` (a no-op) when the
-  // parent has no defined height, so it's safe in both contexts.
-  sectionCard: { height: '100%', borderRadius: radius.lg, padding: 18 },
+  // No flex/height here on purpose — SectionCard is used both inside
+  // ResponsiveRow (where equal-height matters) and standalone in plain
+  // column ScrollViews (where a forced flex:1 or height:'100%' previously
+  // caused cards to swallow the rest of the page, hiding every sibling
+  // below them — React Native Web's flexbox resolves these differently
+  // than plain CSS). Equal-height-in-a-row is opt-in per call site via the
+  // `style` prop instead (see FounderProfileScreen.js's ResponsiveRow
+  // usages), so standalone cards are never at risk.
+  sectionCard: { borderRadius: radius.lg, padding: 18 },
   sectionCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   sectionCardHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   sectionCardTitle: { ...typography.titleSmall },

@@ -292,7 +292,7 @@ export default function FounderProfileScreen({ route, navigation }) {
         <View style={[styles.body, { marginTop: 20 }]}>
               <ResponsiveRow gap={16}>
                 <View style={{ flex: 1 }}>
-                  <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
+                  <SectionCard title="Founder DNA" icon="analytics-outline" C={C} style={{ flex: 1 }}>
                     <View style={{ alignItems: 'center' }}>
                       <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
                       <RadarSeriesLegend axes={axes} C={C} />
@@ -301,20 +301,20 @@ export default function FounderProfileScreen({ route, navigation }) {
                   </SectionCard>
                 </View>
                 <View style={{ flex: 1 }}>
-                  <SectionCard title="Capability profile" icon="bar-chart-outline" C={C}>
+                  <SectionCard title="Capability profile" icon="bar-chart-outline" C={C} style={{ flex: 1 }}>
                     <CapabilityList title="Provides" items={founder?.provides} C={C} color={C.primary} />
                     <CapabilityList title="Needs" items={founder?.needs} C={C} color={C.warning} />
                   </SectionCard>
                 </View>
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
-                    <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
+                    <SectionCard title="Behavioral signals" icon="pulse-outline" C={C} style={{ flex: 1 }}>
                       <BehavioralSignals insights={insights} C={C} />
                     </SectionCard>
                   </View>
                 )}
                 <View style={{ flex: 1 }}>
-                  <SectionCard title="Partner requirements" icon="person-add-outline" C={C}>
+                  <SectionCard title="Partner requirements" icon="person-add-outline" C={C} style={{ flex: 1 }}>
                     <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
                   </SectionCard>
                 </View>
@@ -323,14 +323,14 @@ export default function FounderProfileScreen({ route, navigation }) {
               <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
-                    <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C}>
+                    <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C} style={{ flex: 1 }}>
                       <EvidenceConfidenceTable insights={insights} C={C} />
                     </SectionCard>
                   </View>
                 )}
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
-                    <SectionCard title={showAllEvidence ? `All evidence (${evidence.length})` : 'Recent evidence'} icon="time-outline" C={C}>
+                    <SectionCard title={showAllEvidence ? `All evidence (${evidence.length})` : 'Recent evidence'} icon="time-outline" C={C} style={{ flex: 1 }}>
                       <EvidenceTimeline evidence={showAllEvidence ? evidence : evidence.slice(0, 2)} C={C} />
                       {evidence.length > 2 ? (
                         <TouchableOpacity onPress={() => setShowAllEvidence(v => !v)} activeOpacity={0.75}>
@@ -345,6 +345,7 @@ export default function FounderProfileScreen({ route, navigation }) {
                     title="Top potential matches"
                     icon="git-merge-outline"
                     C={C}
+                    style={{ flex: 1 }}
                     right={isAdmin ? (
                       <TouchableOpacity
                         onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
