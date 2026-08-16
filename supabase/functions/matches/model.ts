@@ -69,9 +69,10 @@ export const MatchesModel = {
   },
 
   // MVP screen 8 — Suggested Matches list, sorted by score desc.
-  // Same team_founders exclusion as topPairs() — a founder's own teammates
-  // (or a founder already on some other team) can't become a new team, so
-  // they shouldn't appear as suggestions here either.
+  // Excludes only pairs where the OTHER founder is teamed — unlike
+  // topPairs() (a cohort-wide list where excluding on either side is
+  // correct), this is one founder's own match list, and that founder being
+  // teamed themselves shouldn't blank out their entire list.
   async topMatches(founderId: string, limit: number): Promise<MatchSummary[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT
@@ -82,7 +83,7 @@ export const MatchesModel = {
        WHERE (fc.founder_a_id = $1 OR fc.founder_b_id = $1)
          AND NOT EXISTS (
            SELECT 1 FROM team_founders tf
-           WHERE tf.founder_id = fc.founder_a_id OR tf.founder_id = fc.founder_b_id
+           WHERE tf.founder_id = (CASE WHEN fc.founder_a_id = $1 THEN fc.founder_b_id ELSE fc.founder_a_id END)
          )
        ORDER BY fc.score DESC
        LIMIT $2`,
