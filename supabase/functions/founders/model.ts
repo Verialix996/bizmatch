@@ -19,6 +19,7 @@ export interface FounderListItem {
   profileComplete: boolean;
   industry: string | null;
   ventureName: string | null;
+  isProspect: boolean;
 }
 
 export const FoundersModel = {
@@ -31,7 +32,7 @@ export const FoundersModel = {
   async list(programId: number | null, search: string | null): Promise<FounderListItem[]> {
     const rows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.photo_url, fp.role_title, fp.status, fp.program_id,
-              fp.onboarding_completed_at, fp.industry, fp.venture_name,
+              fp.onboarding_completed_at, fp.industry, fp.venture_name, fp.is_prospect,
               (tf.team_id IS NOT NULL) AS in_team
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
@@ -52,6 +53,7 @@ export const FoundersModel = {
       profileComplete: r.onboarding_completed_at != null,
       industry: r.industry as string | null,
       ventureName: r.venture_name as string | null,
+      isProspect: !!r.is_prospect,
     }));
   },
 

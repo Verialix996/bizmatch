@@ -32,7 +32,11 @@ export default function TeamCreationScreen({ route, navigation }) {
   useEffect(() => {
     // team_founders.founder_id is unique (one team per founder) — exclude
     // anyone already on a team so picking them can't hit that constraint.
-    listFounders({}).then(({ data }) => setAllFounders(data.filter(f => f.teamStatus !== 'in_team'))).catch(() => {});
+    // Prospects (added pre-signup, e.g. to attach an interview) are also
+    // excluded — teams/model.ts's create() already rejects them server-
+    // side, but showing them as pickable here just to fail on submit is
+    // bad UX (FND-04/TEAM-02).
+    listFounders({}).then(({ data }) => setAllFounders(data.filter(f => f.teamStatus !== 'in_team' && !f.isProspect))).catch(() => {});
   }, []);
 
   const toggleFounder = (id) => {

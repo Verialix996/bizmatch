@@ -83,9 +83,26 @@ async function upsertCompatibility(aId: string, bId: string, result: Compatibili
 // peer-feedback writes and after profile/capability edits, and can also be
 // awaited directly for a synchronous "compute now" admin action.
 export async function recomputeMatchesForFounder(founderId: string): Promise<void> {
+  // FND-04/TEAM-02: a prospect (added via the evaluator's "add an
+  // unregistered founder" flow, e.g. to attach an interview pre-signup)
+  // can still have evidence-producing events fire this — without this
+  // guard, the prospect would still get pairwise compatibility computed
+  // against every real founder, and appear as a match suggestion in THEIR
+  // lists even though a prospect can never actually join a team.
+  const selfRows = await query<{ is_prospect: boolean }>(
+    `SELECT is_prospect FROM founder_profiles WHERE user_id = $1`,
+    [founderId],
+  );
+  if (selfRows[0]?.is_prospect) return;
+
+  // Prospects default to status='active' (same as a real registered
+  // founder), so this filter alone never excluded them from the other
+  // side of the pair either — they could show up as match suggestions
+  // despite being ineligible for a team (teams/model.ts's create() already
+  // rejects them there, but the suggestion itself shouldn't be offered).
   const others = await query<{ id: string }>(
     `SELECT u.id FROM users u JOIN founder_profiles fp ON fp.user_id = u.id
-     WHERE u.role = 'founder' AND u.id <> $1 AND fp.status = 'active'`,
+     WHERE u.role = 'founder' AND u.id <> $1 AND fp.status = 'active' AND fp.is_prospect IS NOT TRUE`,
     [founderId],
   );
   if (others.length === 0) return;

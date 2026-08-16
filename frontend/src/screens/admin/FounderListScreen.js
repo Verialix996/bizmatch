@@ -89,13 +89,17 @@ export default function FounderListScreen({ navigation }) {
                   <Text style={styles2.rowRole}>{item.role || 'No role set'}</Text>
                 </View>
                 <View style={styles2.pillStack}>
-                  <Pill
-                    label={item.teamStatus === 'in_team' ? 'In Team' : 'Looking for Team'}
-                    C={C}
-                    bg={item.teamStatus === 'in_team' ? C.successLight : C.surfaceElevated}
-                    color={item.teamStatus === 'in_team' ? C.success : C.textSecondary}
-                  />
-                  {!item.profileComplete && (
+                  {item.isProspect ? (
+                    <Pill label="Prospect" C={C} bg={C.surfaceElevated} color={C.textSecondary} />
+                  ) : (
+                    <Pill
+                      label={item.teamStatus === 'in_team' ? 'In Team' : 'Looking for Team'}
+                      C={C}
+                      bg={item.teamStatus === 'in_team' ? C.successLight : C.surfaceElevated}
+                      color={item.teamStatus === 'in_team' ? C.success : C.textSecondary}
+                    />
+                  )}
+                  {!item.profileComplete && !item.isProspect && (
                     <Pill label="Incomplete Profile" C={C} bg={C.warningLight} color={C.warning} />
                   )}
                 </View>
