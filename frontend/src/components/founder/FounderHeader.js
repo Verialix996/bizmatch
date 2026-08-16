@@ -41,6 +41,24 @@ function Avatar({ photoUrl, name, size, C }) {
   );
 }
 
+function StatTile({ icon, iconColor, iconBg, value, label, progress, C, styles2 }) {
+  return (
+    <View style={styles2.statTile}>
+      <View style={[styles2.statIconCircle, { backgroundColor: iconBg }]}>
+        <Ionicons name={icon} size={18} color={iconColor} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles2.statValue}>{value}</Text>
+        <Text style={styles2.statLabel}>{label}</Text>
+        {progress != null ? (
+          <View style={styles2.statTrack}>
+            <View style={[styles2.statFill, { width: `${Math.max(0, Math.min(100, progress))}%`, backgroundColor: iconColor }]} />
+          </View>
+        ) : null}
+      </View>
+    </View>
+  );
+}
 
 // Founder Profile identity card — bordered card with avatar, name/role/meta
 // on the left and confidence/evidence/activity stat tiles on the right
@@ -101,26 +119,37 @@ export default function FounderHeader({ founder, insights, evidenceCount, activi
         </View>
       </View>
 
-      <View style={styles2.stats}>
-        <View style={styles2.statLine}>
-          <Text style={styles2.statLabel}>Profile confidence</Text>
-          <Text style={styles2.statValue}>{confidencePct != null ? `${confidencePct}%` : '—'}</Text>
-          {level ? (
-            <>
-              <Text style={styles2.statLabel}>·</Text>
-              <Text style={[styles2.statValue, { color: levelColor }]}>{level}</Text>
-            </>
-          ) : null}
-        </View>
-        <View style={styles2.statLine}>
-          {isAdmin ? (
-            <>
-              <Text style={styles2.statLabel}>{evidenceCount ?? 0} evidence points</Text>
-              <Text style={styles2.statLabel}>·</Text>
-            </>
-          ) : null}
-          <Text style={styles2.statLabel}>{activitiesCount ?? 0} activities</Text>
-        </View>
+      <View style={[styles2.stats, isDesktop && styles2.statsDesktop]}>
+        <StatTile
+          icon="shield-checkmark"
+          iconColor={levelColor}
+          iconBg={C.surfaceElevated}
+          value={confidencePct != null ? `${confidencePct}%` : '—'}
+          label="Profile Confidence"
+          progress={confidencePct}
+          C={C}
+          styles2={styles2}
+        />
+        {isAdmin ? (
+          <StatTile
+            icon="layers"
+            iconColor={C.primary}
+            iconBg={C.surfaceElevated}
+            value={evidenceCount ?? 0}
+            label="Evidence Items Verified"
+            C={C}
+            styles2={styles2}
+          />
+        ) : null}
+        <StatTile
+          icon="checkmark-circle"
+          iconColor={C.success}
+          iconBg={C.surfaceElevated}
+          value={activitiesCount ?? 0}
+          label="Activities Completed"
+          C={C}
+          styles2={styles2}
+        />
       </View>
     </View>
   );
@@ -152,10 +181,14 @@ function makeStyles(C) {
     ventureRow: { flexDirection: 'row', gap: 16, marginTop: 10, flexWrap: 'wrap' },
     venture: { ...typography.bodySmall, color: C.textSecondary },
 
-    stats: { gap: 6, alignItems: 'flex-end' },
+    stats: { gap: 14, alignSelf: 'stretch' },
+    statsDesktop: { flexDirection: 'row', gap: 22, alignSelf: 'auto' },
 
-    statLine: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-    statValue: { ...typography.bodyMedium, color: C.textPrimary, fontWeight: '700' },
-    statLabel: { ...typography.bodyMedium, color: C.textSecondary },
+    statTile: { flexDirection: 'row', alignItems: 'center', gap: 10, minWidth: 150 },
+    statIconCircle: { width: 38, height: 38, borderRadius: 19, justifyContent: 'center', alignItems: 'center' },
+    statValue: { ...typography.titleMedium, color: C.textPrimary, fontWeight: '800' },
+    statLabel: { ...typography.caption, color: C.textSecondary },
+    statTrack: { height: 4, borderRadius: 2, backgroundColor: C.surfaceElevated, marginTop: 5, overflow: 'hidden' },
+    statFill: { height: 4, borderRadius: 2 },
   });
 }
