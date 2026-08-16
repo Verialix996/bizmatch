@@ -24,7 +24,7 @@ import RadarChart, { RadarLegend, RadarSeriesLegend } from '../../components/fou
 import MatchCard from '../../components/founder/MatchCard';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
-import { ResponsiveRow, SectionCard, Pill, Avatar, useIsDesktop, SkeletonLines } from '../../components/ui';
+import { ResponsiveRow, SectionCard, Pill, Avatar, useIsDesktop, SkeletonLines, WidgetStack } from '../../components/ui';
 
 const STATUS_OPTIONS = ['active', 'inactive', 'dropped'];
 // A founder only gets to compare matches that already clear a 50% compatibility score — below
@@ -217,6 +217,247 @@ export default function FounderProfileScreen({ route, navigation }) {
   const evidenceCount = Object.values(insights?.dimensions || {})
     .reduce((sum, d) => sum + (d?.evidenceCount || 0), 0);
 
+  // Widget-stack pages (iOS-widget style: one page visible at a time, swipe
+  // up/down to move between them) — groups the profile's sections by theme
+  // instead of the flat list they used to be. Admin sees extra admin-only
+  // pages (Behavioral signals, Evidence, Interviews); a founder viewing
+  // their own profile only sees what they'd normally see.
+  const stackPages = [
+    {
+      key: 'dna', label: 'DNA & Capabilities',
+      node: (
+        <ResponsiveRow gap={16}>
+          <View style={{ flex: 1 }}>
+            <SectionCard title="Founder DNA" icon="analytics-outline" C={C} style={{ flex: 1 }}>
+              {sectionsLoading.insights ? (
+                <SkeletonLines C={C} count={4} />
+              ) : sectionErrors.insights ? (
+                <Text style={styles.errorInlineText}>Couldn't load Founder DNA — try refreshing.</Text>
+              ) : (
+                <>
+                  <View style={{ alignItems: 'center' }}>
+                    <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
+                    <RadarSeriesLegend axes={axes} C={C} />
+                  </View>
+                  <RadarLegend axes={axes} C={C} />
+                </>
+              )}
+            </SectionCard>
+          </View>
+          <View style={{ flex: 1 }}>
+            <SectionCard title="Capability profile" icon="bar-chart-outline" C={C} style={{ flex: 1 }}>
+              <CapabilityList title="Provides" items={founder?.provides} C={C} color={C.primary} />
+              <CapabilityList title="Needs" items={founder?.needs} C={C} color={C.warning} />
+            </SectionCard>
+          </View>
+        </ResponsiveRow>
+      ),
+    },
+    isAdmin ? {
+      key: 'signals', label: 'Signals & Fit',
+      node: (
+        <ResponsiveRow gap={16}>
+          <View style={{ flex: 1 }}>
+            <SectionCard title="Behavioral signals" icon="pulse-outline" C={C} style={{ flex: 1 }}>
+              {sectionsLoading.insights ? (
+                <SkeletonLines C={C} />
+              ) : sectionErrors.insights ? (
+                <Text style={styles.errorInlineText}>Couldn't load — try refreshing.</Text>
+              ) : (
+                <BehavioralSignals insights={insights} C={C} />
+              )}
+            </SectionCard>
+          </View>
+          <View style={{ flex: 1 }}>
+            <SectionCard title="Partner requirements" icon="person-add-outline" C={C} style={{ flex: 1 }}>
+              <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
+            </SectionCard>
+          </View>
+        </ResponsiveRow>
+      ),
+    } : {
+      key: 'partner', label: 'Partner Fit',
+      node: (
+        <SectionCard title="Partner requirements" icon="person-add-outline" C={C}>
+          <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
+        </SectionCard>
+      ),
+    },
+    isAdmin && {
+      key: 'evidence', label: 'Evidence',
+      node: (
+        <ResponsiveRow gap={16}>
+          <View style={{ flex: 1 }}>
+            <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C} style={{ flex: 1 }}>
+              {sectionsLoading.insights ? (
+                <SkeletonLines C={C} count={4} />
+              ) : sectionErrors.insights ? (
+                <Text style={styles.errorInlineText}>Couldn't load — try refreshing.</Text>
+              ) : (
+                <EvidenceConfidenceTable insights={insights} C={C} />
+              )}
+            </SectionCard>
+          </View>
+          <View style={{ flex: 1 }}>
+            <SectionCard title={showAllEvidence ? `All evidence (${evidence.length})` : 'Recent evidence'} icon="time-outline" C={C} style={{ flex: 1 }}>
+              {sectionsLoading.evidence ? (
+                <SkeletonLines C={C} />
+              ) : sectionErrors.evidence ? (
+                <Text style={styles.errorInlineText}>Couldn't load evidence — try refreshing.</Text>
+              ) : (
+                <>
+                  <EvidenceTimeline evidence={showAllEvidence ? evidence : evidence.slice(0, 2)} C={C} />
+                  {evidence.length > 2 ? (
+                    <TouchableOpacity onPress={() => setShowAllEvidence(v => !v)} activeOpacity={0.75}>
+                      <Text style={styles.linkText}>{showAllEvidence ? 'Show less' : `View all evidence (${evidence.length})`}</Text>
+                    </TouchableOpacity>
+                  ) : null}
+                </>
+              )}
+            </SectionCard>
+          </View>
+        </ResponsiveRow>
+      ),
+    },
+    {
+      key: 'topmatches', label: 'Top Matches',
+      node: (
+        <SectionCard
+          title="Top potential matches"
+          icon="git-merge-outline"
+          C={C}
+          right={isAdmin ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.linkText}>View all matches →</Text>
+            </TouchableOpacity>
+          ) : null}
+        >
+          <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
+        </SectionCard>
+      ),
+    },
+    isAdmin && {
+      key: 'interviews', label: 'Interviews',
+      node: (
+        <SectionCard title="Interviews" icon="mic-outline" C={C}>
+          {sectionsLoading.interviews ? (
+            <SkeletonLines C={C} />
+          ) : sectionErrors.interviews ? (
+            <Text style={styles.errorInlineText}>Couldn't load interviews — try refreshing.</Text>
+          ) : interviews.length === 0 ? (
+            <Text style={styles.emptyText}>No interviews yet.</Text>
+          ) : (
+            interviews.map((iv) => (
+              <View key={iv.id} style={styles.activityRow}>
+                <TouchableOpacity
+                  style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                  onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
+                  activeOpacity={0.75}
+                >
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
+                    <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
+                  </View>
+                  <Pill
+                    label={iv.status === 'completed' ? 'Completed' : 'In progress'}
+                    C={C}
+                    bg={iv.status === 'completed' ? C.successLight : C.warningLight}
+                    color={iv.status === 'completed' ? C.success : C.warning}
+                  />
+                </TouchableOpacity>
+                {iv.status !== 'completed' && (
+                  <TouchableOpacity
+                    onPress={() => confirmDeleteInterview(iv.id)}
+                    activeOpacity={0.75}
+                    style={{ paddingLeft: 10, paddingVertical: 4 }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={C.error} />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))
+          )}
+        </SectionCard>
+      ),
+    },
+    {
+      key: 'activities', label: 'Activities',
+      node: (
+        <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C}>
+          {sectionsLoading.activities ? (
+            <SkeletonLines C={C} />
+          ) : sectionErrors.activities ? (
+            <Text style={styles.errorInlineText}>Couldn't load activities — try refreshing.</Text>
+          ) : activities.length === 0 ? (
+            <Text style={styles.emptyText}>No activities yet.</Text>
+          ) : (
+            activities.map(a => (
+              <TouchableOpacity
+                key={a.id}
+                style={styles.activityRow}
+                onPress={() => navigation.navigate('ActivityDetail', { activityId: a.id })}
+                activeOpacity={0.75}
+              >
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.activityTitle}>{a.title}</Text>
+                  <Text style={styles.activityMeta}>
+                    {ACTIVITY_TYPE_LABELS[a.type] || a.type}
+                    {a.startsAt && a.endsAt ? ` · ${formatActivityDateRange(a.startsAt, a.endsAt)}` : ''}
+                  </Text>
+                </View>
+                <Pill
+                  label={a.status}
+                  C={C}
+                  bg={a.status === 'active' ? C.warningLight : a.status === 'completed' ? C.successLight : C.surfaceElevated}
+                  color={a.status === 'active' ? C.warning : a.status === 'completed' ? C.success : C.textSecondary}
+                />
+              </TouchableOpacity>
+            ))
+          )}
+        </SectionCard>
+      ),
+    },
+    {
+      key: 'matches', label: 'Matches',
+      node: (
+        <SectionCard title="Matches" icon="people-outline" C={C}>
+          {isAdmin ? (
+            matchPairs === null ? (
+              <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
+            ) : matchPairs.length === 0 ? (
+              <Text style={styles.emptyText}>No matches computed yet for this founder.</Text>
+            ) : (
+              matchPairs.map((pair) => (
+                <MatchCard
+                  key={`${pair.a.id}-${pair.b.id}`}
+                  pair={pair}
+                  C={C}
+                  onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [pair.a.id, pair.b.id] })}
+                  onViewMatch={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
+                />
+              ))
+            )
+          ) : (
+            <CompareMyMatches
+              myMatches={myMatches}
+              selectedMatchIds={selectedMatchIds}
+              onToggleSelect={toggleSelectedMatch}
+              onCompare={handleCompareMyMatches}
+              comparing={comparing}
+              compareResult={compareResult}
+              founderId={founderId}
+              C={C}
+              styles={styles}
+            />
+          )}
+        </SectionCard>
+      ),
+    },
+  ].filter(Boolean);
+
   return (
     <AppShell navigation={navigation} active={activeNav} items={navItems}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
@@ -320,210 +561,7 @@ export default function FounderProfileScreen({ route, navigation }) {
         />
 
         <View style={[styles.body, { marginTop: 20 }]}>
-              <ResponsiveRow gap={16}>
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Founder DNA" icon="analytics-outline" C={C} style={{ flex: 1 }}>
-                    {sectionsLoading.insights ? (
-                      <SkeletonLines C={C} count={4} />
-                    ) : sectionErrors.insights ? (
-                      <Text style={styles.errorInlineText}>Couldn't load Founder DNA — try refreshing.</Text>
-                    ) : (
-                      <>
-                        <View style={{ alignItems: 'center' }}>
-                          <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
-                          <RadarSeriesLegend axes={axes} C={C} />
-                        </View>
-                        <RadarLegend axes={axes} C={C} />
-                      </>
-                    )}
-                  </SectionCard>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Capability profile" icon="bar-chart-outline" C={C} style={{ flex: 1 }}>
-                    <CapabilityList title="Provides" items={founder?.provides} C={C} color={C.primary} />
-                    <CapabilityList title="Needs" items={founder?.needs} C={C} color={C.warning} />
-                  </SectionCard>
-                </View>
-                {isAdmin && (
-                  <View style={{ flex: 1 }}>
-                    <SectionCard title="Behavioral signals" icon="pulse-outline" C={C} style={{ flex: 1 }}>
-                      {sectionsLoading.insights ? (
-                        <SkeletonLines C={C} />
-                      ) : sectionErrors.insights ? (
-                        <Text style={styles.errorInlineText}>Couldn't load — try refreshing.</Text>
-                      ) : (
-                        <BehavioralSignals insights={insights} C={C} />
-                      )}
-                    </SectionCard>
-                  </View>
-                )}
-                <View style={{ flex: 1 }}>
-                  <SectionCard title="Partner requirements" icon="person-add-outline" C={C} style={{ flex: 1 }}>
-                    <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
-                  </SectionCard>
-                </View>
-              </ResponsiveRow>
-
-              <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
-                {isAdmin && (
-                  <View style={{ flex: 1 }}>
-                    <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C} style={{ flex: 1 }}>
-                      {sectionsLoading.insights ? (
-                        <SkeletonLines C={C} count={4} />
-                      ) : sectionErrors.insights ? (
-                        <Text style={styles.errorInlineText}>Couldn't load — try refreshing.</Text>
-                      ) : (
-                        <EvidenceConfidenceTable insights={insights} C={C} />
-                      )}
-                    </SectionCard>
-                  </View>
-                )}
-                {isAdmin && (
-                  <View style={{ flex: 1 }}>
-                    <SectionCard title={showAllEvidence ? `All evidence (${evidence.length})` : 'Recent evidence'} icon="time-outline" C={C} style={{ flex: 1 }}>
-                      {sectionsLoading.evidence ? (
-                        <SkeletonLines C={C} />
-                      ) : sectionErrors.evidence ? (
-                        <Text style={styles.errorInlineText}>Couldn't load evidence — try refreshing.</Text>
-                      ) : (
-                        <>
-                          <EvidenceTimeline evidence={showAllEvidence ? evidence : evidence.slice(0, 2)} C={C} />
-                          {evidence.length > 2 ? (
-                            <TouchableOpacity onPress={() => setShowAllEvidence(v => !v)} activeOpacity={0.75}>
-                              <Text style={styles.linkText}>{showAllEvidence ? 'Show less' : `View all evidence (${evidence.length})`}</Text>
-                            </TouchableOpacity>
-                          ) : null}
-                        </>
-                      )}
-                    </SectionCard>
-                  </View>
-                )}
-                <View style={{ flex: 1.4 }}>
-                  <SectionCard
-                    title="Top potential matches"
-                    icon="git-merge-outline"
-                    C={C}
-                    style={{ flex: 1 }}
-                    right={isAdmin ? (
-                      <TouchableOpacity
-                        onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
-                        activeOpacity={0.75}
-                      >
-                        <Text style={styles.linkText}>View all matches →</Text>
-                      </TouchableOpacity>
-                    ) : null}
-                  >
-                    <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
-                  </SectionCard>
-                </View>
-              </ResponsiveRow>
-
-              {isAdmin && (
-                <SectionCard title="Interviews" icon="mic-outline" C={C} style={{ marginTop: 16 }}>
-                  {sectionsLoading.interviews ? (
-                    <SkeletonLines C={C} />
-                  ) : sectionErrors.interviews ? (
-                    <Text style={styles.errorInlineText}>Couldn't load interviews — try refreshing.</Text>
-                  ) : interviews.length === 0 ? (
-                    <Text style={styles.emptyText}>No interviews yet.</Text>
-                  ) : (
-                    interviews.map((iv) => (
-                      <View key={iv.id} style={styles.activityRow}>
-                        <TouchableOpacity
-                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                          onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
-                          activeOpacity={0.75}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
-                            <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
-                          </View>
-                          <Pill
-                            label={iv.status === 'completed' ? 'Completed' : 'In progress'}
-                            C={C}
-                            bg={iv.status === 'completed' ? C.successLight : C.warningLight}
-                            color={iv.status === 'completed' ? C.success : C.warning}
-                          />
-                        </TouchableOpacity>
-                        {iv.status !== 'completed' && (
-                          <TouchableOpacity
-                            onPress={() => confirmDeleteInterview(iv.id)}
-                            activeOpacity={0.75}
-                            style={{ paddingLeft: 10, paddingVertical: 4 }}
-                          >
-                            <Ionicons name="trash-outline" size={18} color={C.error} />
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                    ))
-                  )}
-                </SectionCard>
-              )}
-
-              <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C} style={{ marginTop: 16 }}>
-                {sectionsLoading.activities ? (
-                  <SkeletonLines C={C} />
-                ) : sectionErrors.activities ? (
-                  <Text style={styles.errorInlineText}>Couldn't load activities — try refreshing.</Text>
-                ) : activities.length === 0 ? (
-                  <Text style={styles.emptyText}>No activities yet.</Text>
-                ) : (
-                  activities.map(a => (
-                    <TouchableOpacity
-                      key={a.id}
-                      style={styles.activityRow}
-                      onPress={() => navigation.navigate('ActivityDetail', { activityId: a.id })}
-                      activeOpacity={0.75}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <Text style={styles.activityTitle}>{a.title}</Text>
-                        <Text style={styles.activityMeta}>
-                          {ACTIVITY_TYPE_LABELS[a.type] || a.type}
-                          {a.startsAt && a.endsAt ? ` · ${formatActivityDateRange(a.startsAt, a.endsAt)}` : ''}
-                        </Text>
-                      </View>
-                      <Pill
-                        label={a.status}
-                        C={C}
-                        bg={a.status === 'active' ? C.warningLight : a.status === 'completed' ? C.successLight : C.surfaceElevated}
-                        color={a.status === 'active' ? C.warning : a.status === 'completed' ? C.success : C.textSecondary}
-                      />
-                    </TouchableOpacity>
-                  ))
-                )}
-              </SectionCard>
-
-              <SectionCard title="Matches" icon="people-outline" C={C} style={{ marginTop: 16 }}>
-                {isAdmin ? (
-                  matchPairs === null ? (
-                    <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
-                  ) : matchPairs.length === 0 ? (
-                    <Text style={styles.emptyText}>No matches computed yet for this founder.</Text>
-                  ) : (
-                    matchPairs.map((pair) => (
-                      <MatchCard
-                        key={`${pair.a.id}-${pair.b.id}`}
-                        pair={pair}
-                        C={C}
-                        onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [pair.a.id, pair.b.id] })}
-                        onViewMatch={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
-                      />
-                    ))
-                  )
-                ) : (
-                  <CompareMyMatches
-                    myMatches={myMatches}
-                    selectedMatchIds={selectedMatchIds}
-                    onToggleSelect={toggleSelectedMatch}
-                    onCompare={handleCompareMyMatches}
-                    comparing={comparing}
-                    compareResult={compareResult}
-                    founderId={founderId}
-                    C={C}
-                    styles={styles}
-                  />
-                )}
-              </SectionCard>
+          <WidgetStack pages={stackPages} height={480} C={C} />
         </View>
       </ScrollView>
     </AppShell>
@@ -615,7 +653,7 @@ function CompareResultCard({ detail, founderId, C, styles }) {
 function makeStyles(C) {
   return StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
-    scrollContent: { paddingBottom: 48, paddingHorizontal: 20, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+    scrollContent: { paddingBottom: 48, paddingHorizontal: 20, maxWidth: 1680, width: '100%', alignSelf: 'center' },
 
     backRow: { marginTop: 16 },
     backText: { color: C.primary, ...typography.labelLarge },

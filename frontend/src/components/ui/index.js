@@ -1,4 +1,5 @@
-import { View, Text, Image, StyleSheet, useWindowDimensions } from 'react-native';
+import { useRef, useState } from 'react';
+import { View, Text, Image, StyleSheet, useWindowDimensions, ScrollView, TouchableOpacity, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { radius, cardShadow, typography, brandGradient } from '../../theme';
@@ -126,6 +127,73 @@ export function ResponsiveRow({ children, gap = 16, style }) {
   );
 }
 
+// iOS-widget-style vertical stack — one page fills a fixed-height box and a
+// swipe/scroll up or down slides to the next or previous page, instead of
+// every page's content just stacking into one long scroll. Web-only (relies
+// on CSS scroll-snap); RN Native would need a gesture-based carousel, out of
+// scope here since this app only ships to web.
+export function WidgetStack({ pages, height = 440, C }) {
+  const scrollRef = useRef(null);
+  const [index, setIndex] = useState(0);
+
+  const goTo = (i) => {
+    const next = Math.max(0, Math.min(pages.length - 1, i));
+    scrollRef.current?.scrollTo({ y: next * height, animated: true });
+    setIndex(next);
+  };
+
+  const onScroll = (e) => {
+    const y = e.nativeEvent.contentOffset.y;
+    const next = Math.round(y / height);
+    if (next !== index) setIndex(Math.max(0, Math.min(pages.length - 1, next)));
+  };
+
+  if (pages.length === 1) return pages[0].node;
+
+  return (
+    <View>
+      <View style={[styles.widgetStackFrame, { height }]}>
+        <ScrollView
+          ref={scrollRef}
+          showsVerticalScrollIndicator={false}
+          onScroll={onScroll}
+          scrollEventThrottle={16}
+          style={Platform.OS === 'web' ? { scrollSnapType: 'y mandatory' } : null}
+        >
+          {pages.map((p) => (
+            <View
+              key={p.key}
+              style={[{ height }, Platform.OS === 'web' ? { scrollSnapAlign: 'start', scrollSnapStop: 'always' } : null]}
+            >
+              <ScrollView showsVerticalScrollIndicator={false} nestedScrollEnabled>
+                {p.node}
+              </ScrollView>
+            </View>
+          ))}
+        </ScrollView>
+        {index > 0 && (
+          <TouchableOpacity style={[styles.widgetStackChevron, { top: 8 }]} onPress={() => goTo(index - 1)} activeOpacity={0.75}>
+            <Ionicons name="chevron-up" size={16} color={C.textSecondary} />
+          </TouchableOpacity>
+        )}
+        {index < pages.length - 1 && (
+          <TouchableOpacity style={[styles.widgetStackChevron, { bottom: 8 }]} onPress={() => goTo(index + 1)} activeOpacity={0.75}>
+            <Ionicons name="chevron-down" size={16} color={C.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+      <View style={styles.widgetStackDots}>
+        {pages.map((p, i) => (
+          <TouchableOpacity key={p.key} onPress={() => goTo(i)} hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}>
+            <View style={[styles.widgetStackDot, { backgroundColor: i === index ? C.primary : C.surfaceBorder }]} />
+          </TouchableOpacity>
+        ))}
+        <Text style={[styles.widgetStackLabel, { color: C.textHint }]}>{pages[index].label}</Text>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   iconCircle: { justifyContent: 'center', alignItems: 'center' },
 
@@ -152,4 +220,13 @@ const styles = StyleSheet.create({
   sectionCardTitle: { ...typography.titleSmall },
 
   avatarPlaceholder: { justifyContent: 'center', alignItems: 'center' },
+
+  widgetStackFrame: { borderRadius: radius.lg, overflow: 'hidden', position: 'relative' },
+  widgetStackChevron: {
+    position: 'absolute', right: 8, width: 26, height: 26, borderRadius: 13,
+    backgroundColor: 'rgba(255,255,255,0.9)', justifyContent: 'center', alignItems: 'center',
+  },
+  widgetStackDots: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10, justifyContent: 'center' },
+  widgetStackDot: { width: 6, height: 6, borderRadius: 3 },
+  widgetStackLabel: { ...typography.caption, marginLeft: 8 },
 });

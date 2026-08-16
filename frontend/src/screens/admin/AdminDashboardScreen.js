@@ -173,7 +173,7 @@ function ActionCard({ label, icon, onPress, styles, C, primary }) {
 function makeStyles(C) {
   return StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    scrollContent: { padding: 20, paddingBottom: 48, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+    scrollContent: { padding: 20, paddingBottom: 48, maxWidth: 1680, width: '100%', alignSelf: 'center' },
     errorBanner: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
       backgroundColor: C.errorLight, borderRadius: radius.md, padding: 12, marginBottom: 16,
