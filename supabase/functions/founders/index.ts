@@ -5,6 +5,8 @@ import { route } from "../_shared/router.ts";
 import { serveFunction } from "../_shared/serve.ts";
 import { uploadBuffer, BUCKETS } from "../_shared/storage.ts";
 import { supabase } from "../_shared/supabase.ts";
+import { background } from "../_shared/background.ts";
+import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
 import { FoundersModel } from "./model.ts";
 
 const FN = "founders";
@@ -150,6 +152,10 @@ async function putProfile(req: Request, params: Record<string, string>): Promise
 
   const body = await req.json().catch(() => ({}));
   await FoundersModel.upsertProfile(params.id, body);
+  // Profile fields feed compatibility scoring — an edit here can make
+  // existing match rows stale, so recompute in the background rather than
+  // leaving them looking confidently "final" against outdated inputs.
+  background(recomputeMatchesForFounder(params.id));
   return json({ ok: true });
 }
 

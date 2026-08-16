@@ -199,7 +199,31 @@ export default function EditFounderProfileScreen({ route, navigation }) {
     setDealBreakers([...dealBreakers, label]);
   };
 
+  // Same required-field rules as onboarding's validateStep — this screen
+  // edits the exact same profile, so it shouldn't be possible to leave it
+  // in a state onboarding itself would never have allowed.
+  const validate = () => {
+    if (!basics.role_title.trim() || !basics.industry.trim() || !basics.location.trim() || !basics.current_stage) {
+      return 'Fill in role, industry, location, and current stage.';
+    }
+    if (!commitment.commitment_type || !commitment.commitment_hours || Number(commitment.commitment_hours) <= 0) {
+      return 'Enter your hours per week and pick a commitment type.';
+    }
+    if (provides.length === 0) return 'Select at least one capability you bring to a team.';
+    if (needs.length === 0) return 'Select at least one capability you need from a co-founder.';
+    if (!partner.role_wanted.trim() || !partner.commitment_required.trim()) {
+      return 'Fill in the role and commitment you\'re looking for in a partner.';
+    }
+    if (dealBreakers.length === 0) return 'Select or add at least one deal breaker.';
+    return null;
+  };
+
   const handleSave = async () => {
+    const validationError = validate();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
     setSaving(true);
     setError('');
     try {
