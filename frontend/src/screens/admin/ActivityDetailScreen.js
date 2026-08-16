@@ -33,9 +33,20 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // supabase/functions/activities/model.ts's STATUS_SQL) — the admin picks a date range, not a
 // status. These helpers convert between the plain "YYYY-MM-DD" the date inputs use and the
 // start/end-of-day ISO timestamps the range actually needs.
+// DATE-01: toISOString() reads the UTC date, which for a timestamp built
+// from local midnight (see startOfDayISO below) shows the day BEFORE the
+// one actually picked for any timezone ahead of UTC (e.g. Israel, UTC+2/3)
+// — deriving the string from the Date object's own local getters instead
+// keeps it matching whatever the picker/input actually showed.
+function toLocalDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
 function toDateInputValue(isoString) {
   if (!isoString) return '';
-  return new Date(isoString).toISOString().slice(0, 10);
+  return toLocalDateStr(new Date(isoString));
 }
 function startOfDayISO(dateStr) {
   return new Date(`${dateStr}T00:00:00`).toISOString();
@@ -84,7 +95,7 @@ function DateField({ value, onChange, inputStyle, C }) {
           display="default"
           onChange={(event, selected) => {
             setShowPicker(false);
-            if (event.type === 'set' && selected) onChange(selected.toISOString().slice(0, 10));
+            if (event.type === 'set' && selected) onChange(toLocalDateStr(selected));
           }}
         />
       )}
