@@ -1,4 +1,4 @@
-import { authenticate, requireAdmin } from "../_shared/auth.ts";
+import { authenticate } from "../_shared/auth.ts";
 import { json } from "../_shared/respond.ts";
 import { route } from "../_shared/router.ts";
 import { serveFunction } from "../_shared/serve.ts";
@@ -28,17 +28,21 @@ async function topMatches(req: Request): Promise<Response> {
   return json(matches);
 }
 
-// GET /functions/v1/matches/top-pairs?limit=&founderId=  (admin — Suggested
-// Matches: cohort-wide ranked pairs, optionally scoped to one founder)
+// GET /functions/v1/matches/top-pairs?limit=&founderId=  (admin for the
+// cohort-wide view; a founder may also fetch their own pairs scoped to
+// their own founderId — same privacy scope as /top, just richer fields)
 async function topPairs(req: Request): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
-  const adminErr = requireAdmin(user);
-  if (adminErr) return adminErr;
 
   const url = new URL(req.url);
-  const limit = Math.min(Number(url.searchParams.get("limit") ?? 20) || 20, 50);
   const founderId = url.searchParams.get("founderId") || null;
+  const isAdmin = user.role === "admin";
+  if (!isAdmin && founderId !== user.id) {
+    return json({ error: "Admin only" }, 403);
+  }
+
+  const limit = Math.min(Number(url.searchParams.get("limit") ?? 20) || 20, 50);
   const pairs = await MatchesModel.topPairs(limit, founderId);
   return json(pairs);
 }
