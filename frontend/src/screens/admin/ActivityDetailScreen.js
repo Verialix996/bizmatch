@@ -520,19 +520,29 @@ export default function ActivityDetailScreen({ route, navigation }) {
   );
 }
 
+// Every dimension gets its own row with an independent, optional score —
+// previously this forced picking ONE dimension via a chip selector before a
+// score could even be entered, which read as "you must rate exactly one
+// dimension" rather than "rate whichever ones you have an opinion on."
 function PeerFeedbackRow({ founder, activityId, C, styles }) {
   const [open, setOpen] = useState(false);
-  const [dimension, setDimension] = useState(null);
-  const [score, setScore] = useState(null);
+  const [scores, setScores] = useState({}); // { [dimension]: score }
   const [observation, setObservation] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  const setDimensionScore = (dim, n) => {
+    setScores(prev => ({ ...prev, [dim]: prev[dim] === n ? undefined : n }));
+  };
+
+  const ratedDimensions = DIMENSIONS.filter(d => scores[d] != null);
+
   const handleSubmit = async () => {
-    if (!dimension || score == null) return;
+    if (ratedDimensions.length === 0) return;
     setSubmitting(true);
     try {
-      await submitPeerFeedback({ founderId: founder.id, activityId, dimension, score, observation: observation.trim() || null });
+      const items = ratedDimensions.map(d => ({ dimension: d, score: scores[d], observation: observation.trim() || null }));
+      await submitPeerFeedback({ founderId: founder.id, activityId, items });
       setSubmitted(true);
       setOpen(false);
     } catch (err) {
@@ -550,45 +560,42 @@ function PeerFeedbackRow({ founder, activityId, C, styles }) {
       </TouchableOpacity>
       {open && (
         <View style={styles.peerFeedbackForm}>
-          <View style={styles.typeRow}>
-            {DIMENSIONS.map(d => (
-              <TouchableOpacity
-                key={d}
-                style={[styles.typeChip, dimension === d && styles.typeChipActive]}
-                onPress={() => setDimension(d)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.typeChipText, dimension === d && styles.typeChipTextActive]}>{DIMENSION_LABELS[d]}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-          <View style={styles.scaleRow}>
-            {SCORE_OPTIONS.map(n => (
-              <TouchableOpacity
-                key={n}
-                style={[styles.scaleBtn, score === n && styles.scaleBtnActive]}
-                onPress={() => setScore(n)}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.scaleBtnText, score === n && styles.scaleBtnTextActive]}>{n}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+          <Text style={styles.peerFeedbackHint}>Rate whichever dimensions you have an opinion on — all optional.</Text>
+          {DIMENSIONS.map(d => (
+            <View key={d} style={styles.dimensionRow}>
+              <Text style={styles.dimensionRowLabel}>{DIMENSION_LABELS[d]}</Text>
+              <View style={styles.scaleRow}>
+                {SCORE_OPTIONS.map(n => (
+                  <TouchableOpacity
+                    key={n}
+                    style={[styles.scaleBtn, scores[d] === n && styles.scaleBtnActive]}
+                    onPress={() => setDimensionScore(d, n)}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={[styles.scaleBtnText, scores[d] === n && styles.scaleBtnTextActive]}>{n}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          ))}
           <TextInput
             style={[styles.input, styles.multiline]}
             value={observation}
             onChangeText={setObservation}
             multiline
-            placeholder="Optional observation..."
+            placeholder="Optional observation (applies to every dimension rated above)..."
             placeholderTextColor={C.textHint}
           />
           <TouchableOpacity
-            style={[styles.btnPrimary, (submitting || !dimension || score == null) && styles.btnDisabled]}
+            style={[styles.btnPrimary, (submitting || ratedDimensions.length === 0) && styles.btnDisabled]}
             onPress={handleSubmit}
-            disabled={submitting || !dimension || score == null}
+            disabled={submitting || ratedDimensions.length === 0}
             activeOpacity={0.85}
           >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Submit Feedback</Text>}
+            {submitting
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={styles.btnPrimaryText}>Submit Feedback{ratedDimensions.length > 0 ? ` (${ratedDimensions.length})` : ''}</Text>
+            }
           </TouchableOpacity>
         </View>
       )}
@@ -656,6 +663,9 @@ function makeStyles(C) {
 
     peerFeedbackBlock: {},
     peerFeedbackForm: { paddingVertical: 12, gap: 10 },
+    peerFeedbackHint: { ...typography.caption, color: C.textHint, marginBottom: 4 },
+    dimensionRow: { gap: 6, paddingVertical: 6 },
+    dimensionRowLabel: { ...typography.labelSmall, color: C.textSecondary, fontWeight: '600' },
     scaleRow: { flexDirection: 'row', gap: 8 },
     scaleBtn: { flex: 1, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1.5, borderColor: C.surfaceBorder, alignItems: 'center' },
     scaleBtnActive: { backgroundColor: C.primary, borderColor: C.primary },
