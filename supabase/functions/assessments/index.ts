@@ -7,6 +7,7 @@ import { background } from "../_shared/background.ts";
 import { SOURCE_WEIGHTS, type EvidenceDimension } from "../_shared/founderScoring.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
 import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
+import { assertActivityHasStarted } from "../_shared/activityGuard.ts";
 
 const FN = "assessments";
 
@@ -49,6 +50,11 @@ async function submitAssessment(req: Request): Promise<Response> {
     founderId?: string; activityId?: number; notes?: string; items?: AssessmentItemInput[];
   };
   if (!founderId || !items?.length) return json({ error: "founderId and items are required" }, 400);
+
+  if (activityId != null) {
+    const activityErr = await assertActivityHasStarted(activityId);
+    if (activityErr) return json({ error: activityErr }, 400);
+  }
 
   // Dedup guard: the same evaluator submitting for the same founder within a
   // minute is almost always a double-tap/duplicate submission, not two

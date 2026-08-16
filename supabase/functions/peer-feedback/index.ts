@@ -7,6 +7,7 @@ import { background } from "../_shared/background.ts";
 import { SOURCE_WEIGHTS, type EvidenceDimension } from "../_shared/founderScoring.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
 import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
+import { assertActivityHasStarted } from "../_shared/activityGuard.ts";
 
 const FN = "peer-feedback";
 
@@ -27,6 +28,24 @@ async function submitPeerFeedback(req: Request): Promise<Response> {
     return json({ error: "founderId, dimension, and score are required" }, 400);
   }
   if (founderId === user.id) return json({ error: "Cannot give peer feedback about yourself" }, 400);
+
+  if (activityId != null) {
+    const activityErr = await assertActivityHasStarted(activityId);
+    if (activityErr) return json({ error: activityErr }, 400);
+
+    // PEER-01: block a duplicate submission (same author, same subject,
+    // same activity, same dimension) rather than silently letting it fan
+    // out into a second evidence row and skew the founder's weighted score
+    // — mirrors the same-minded dedup guard evaluator_assessments already
+    // has. The DB also carries a matching unique index as a backstop.
+    const dupeRows = await query<{ id: number }>(
+      `SELECT id FROM peer_feedback WHERE author_id = $1 AND founder_id = $2 AND activity_id = $3 AND dimension = $4`,
+      [user.id, founderId, activityId, dimension],
+    );
+    if (dupeRows.length > 0) {
+      return json({ error: "You already gave feedback on this dimension for this founder in this activity." }, 409);
+    }
+  }
 
   const feedbackRows = await query<{ id: number }>(
     `INSERT INTO peer_feedback (founder_id, author_id, activity_id, dimension, score, observation)
