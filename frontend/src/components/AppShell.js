@@ -61,10 +61,6 @@ export default function AppShell({ navigation, active, items, children }) {
           <View style={styles2.searchBar}>
             <Ionicons name="search" size={15} color={C.textHint} />
             <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
-            <View style={{ flex: 1 }} />
-            <View style={styles2.searchKbdHint}>
-              <Text style={styles2.searchKbdHintText}>⌘K</Text>
-            </View>
           </View>
           <View style={[styles2.topBarSide, styles2.topBarSideRight]}>
             <NotificationBell tintColor={C.primary} />
@@ -271,11 +267,6 @@ function makeStyles(C) {
       width: 420, maxWidth: '100%',
     },
     searchPlaceholder: { ...typography.bodySmall, color: C.textHint },
-    searchKbdHint: {
-      backgroundColor: C.surface, borderRadius: radius.sm,
-      paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: C.surfaceBorder,
-    },
-    searchKbdHintText: { ...typography.caption, color: C.textHint, fontWeight: '600' },
 
     // ── Mobile header + tab bar layout ──────────────────────
     mobileRoot: { flex: 1, backgroundColor: C.backgroundSoft },
