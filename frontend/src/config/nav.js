@@ -13,12 +13,11 @@ export const ADMIN_NAV_ITEMS = [
 // No 'Team' tab yet — TeamProfile requires an explicit teamId and there's no
 // "my team" resolution endpoint; founders reach their team via the link on
 // their own profile (FounderProfileScreen) instead.
-// DNA/Matches both land back on FounderProfile (the single-page dashboard
-// already shows those sections inline) — no "Evidence" item, since founders
-// don't see their own raw evidence (evaluator-only, by design).
+// No dedicated DNA/Matches items — both already live inline on the single-
+// page Overview dashboard, so a separate nav entry just re-navigated to the
+// same screen. No "Evidence" item either, since founders don't see their
+// own raw evidence (evaluator-only, by design).
 export const FOUNDER_NAV_ITEMS = [
   { key: 'home',       label: 'Overview',   icon: 'home-outline',        activeIcon: 'home',        route: 'FounderProfile', params: {} },
-  { key: 'dna',         label: 'DNA',        icon: 'analytics-outline',   activeIcon: 'analytics',   route: 'FounderProfile', params: {} },
   { key: 'activities', label: 'Activities', icon: 'calendar-outline',    activeIcon: 'calendar',    route: 'Activities' },
-  { key: 'matches',     label: 'Matches',    icon: 'git-merge-outline',   activeIcon: 'git-merge',   route: 'FounderProfile', params: {} },
 ];
