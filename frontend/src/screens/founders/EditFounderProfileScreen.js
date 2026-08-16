@@ -435,9 +435,12 @@ function makeStyles(C) {
     backText: { color: C.primary, ...typography.labelLarge },
     pageTitle: { ...typography.displayMedium, color: C.textPrimary },
 
-    card: { marginBottom: 16 },
+    // Overrides SectionCard's shared padding (18) down to 14 and tightens the
+    // gap between cards — scoped to this screen only, since this form stacks
+    // six cards in a row and the default spacing made it feel oversized.
+    card: { marginBottom: 12, padding: 14 },
 
-    fieldLabel: { ...typography.labelSmall, color: C.textSecondary, marginBottom: 8, marginTop: 14, textTransform: 'uppercase' },
+    fieldLabel: { ...typography.labelSmall, color: C.textSecondary, marginBottom: 6, marginTop: 10, textTransform: 'uppercase' },
     helperText: { ...typography.caption, color: C.textHint, marginTop: 8 },
     input: {
       backgroundColor: C.backgroundSoft, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 12,
