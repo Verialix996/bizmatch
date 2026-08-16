@@ -19,7 +19,12 @@ function forbidden(user: { role: string | null; id: string }, founderId: string)
 
 // GET /functions/v1/dna-self-assessment/:founderId — question bank + whether
 // this founder has already completed it, plus the background-scoring status
-// of their most recent submission (admin or self).
+// of their most recent submission (admin or self), plus any answers already
+// saved for the current assessment version — DNA-02 made each answer save
+// to the server as soon as it's completed, but without returning them here
+// the standalone questionnaire screen had no way to resume with what was
+// already saved, so closing the tab mid-assessment looked like data loss
+// even though it wasn't.
 async function getAssessment(req: Request, params: Record<string, string>): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
@@ -30,10 +35,18 @@ async function getAssessment(req: Request, params: Record<string, string>): Prom
     "SELECT dna_self_assessment_completed_at, dna_scoring_status FROM founder_profiles WHERE user_id = $1",
     [params.founderId],
   );
+  const answerRows = await query<{ dimension: EvidenceDimension; answer: string }>(
+    "SELECT dimension, answer FROM dna_self_assessment_responses WHERE founder_id = $1 AND assessment_version = $2",
+    [params.founderId, DNA_ASSESSMENT_VERSION],
+  );
+  const answers: Partial<Record<EvidenceDimension, string>> = {};
+  for (const r of answerRows) answers[r.dimension] = r.answer;
+
   return json({
     questions: DNA_QUESTIONS,
     completedAt: rows[0]?.dna_self_assessment_completed_at ?? null,
     dnaScoringStatus: rows[0]?.dna_scoring_status ?? "unscored",
+    answers,
   });
 }
 
