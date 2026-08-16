@@ -221,8 +221,11 @@ export default function FounderProfileScreen({ route, navigation }) {
     <AppShell navigation={navigation} active={activeNav} items={navItems}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
         {isAdmin && navigation.canGoBack() && (
+          // NAV-01: this screen is reached from Founders list, Team Profile
+          // (member tap), and the Dashboard's Needs Attention list — "←
+          // Founders" was wrong whenever it wasn't the first of those.
           <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
-            <Text style={styles.backText}>← Founders</Text>
+            <Text style={styles.backText}>← Back</Text>
           </TouchableOpacity>
         )}
 

@@ -16,7 +16,11 @@ export default function MatchCard({ pair, onCreateTeam, onViewMatch, C, selectab
 
   const CardWrapper = selectable ? TouchableOpacity : View;
   const wrapperProps = selectable
-    ? { onPress: onToggleSelect, activeOpacity: 0.8, style: [styles.card, selected && styles.cardSelected] }
+    ? {
+      onPress: onToggleSelect, activeOpacity: 0.8, style: [styles.card, selected && styles.cardSelected],
+      accessibilityRole: 'checkbox', accessibilityState: { checked: !!selected },
+      accessibilityLabel: `${pair.a?.name || 'Unnamed'} and ${pair.b?.name || 'Unnamed'} pair, for comparison`,
+    }
     : { style: styles.card };
 
   return (

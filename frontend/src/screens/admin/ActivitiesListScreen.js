@@ -19,6 +19,12 @@ const ADMIN_FILTERS = ['all', 'upcoming', 'active', 'completed'];
 // Active/Completed only ever contain activities they're approved into.
 const FOUNDER_FILTERS = ['upcoming', 'active', 'completed'];
 const FILTER_LABELS = { all: 'All', upcoming: 'Upcoming', active: 'Active', completed: 'Completed' };
+// COPY-01: for a founder, the "active" bucket isn't lifecycle-active — it's
+// "approved + not yet completed," which includes activities that haven't
+// started yet. "Active" read as a claim about the activity's own state;
+// "Registered" (matching the same word already on each row's status pill)
+// says what's actually true: these are the ones you're signed up for.
+const FOUNDER_FILTER_LABELS = { ...FILTER_LABELS, active: 'Registered' };
 
 const MY_STATUS_LABELS = { pending: 'Pending approval', approved: 'Registered', rejected: 'Not approved' };
 const MY_STATUS_COLORS = {
@@ -100,7 +106,7 @@ export default function ActivitiesListScreen({ navigation }) {
               activeOpacity={0.8}
             >
               <Text style={[styles.filterChipText, filter === f && styles.filterChipTextActive]}>
-                {FILTER_LABELS[f]}
+                {(isAdmin ? FILTER_LABELS : FOUNDER_FILTER_LABELS)[f]}
               </Text>
             </TouchableOpacity>
           ))}
@@ -110,7 +116,7 @@ export default function ActivitiesListScreen({ navigation }) {
           <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
         ) : filtered.length === 0 ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyText}>No activities {filter === 'all' ? 'scheduled yet' : `in "${FILTER_LABELS[filter]}"`}</Text>
+            <Text style={styles.emptyText}>No activities {filter === 'all' ? 'scheduled yet' : `in "${(isAdmin ? FILTER_LABELS : FOUNDER_FILTER_LABELS)[filter]}"`}</Text>
           </View>
         ) : (
           <FlatList

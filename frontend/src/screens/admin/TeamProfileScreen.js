@@ -76,8 +76,10 @@ export default function TeamProfileScreen({ route, navigation }) {
   return (
     <AppShell navigation={navigation} active={activeNav} items={navItems}>
       <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* NAV-01: reached from both Teams list and a Founder Profile's
+            "Team: X →" link — "← Teams" was wrong for the latter. */}
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
-          <Text style={styles.backText}>← Teams</Text>
+          <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
 
         <View style={styles.titleRow}>

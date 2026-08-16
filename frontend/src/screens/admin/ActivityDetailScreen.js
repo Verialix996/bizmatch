@@ -297,8 +297,11 @@ export default function ActivityDetailScreen({ route, navigation }) {
   return (
     <AppShell navigation={navigation} active="activities" items={navItems}>
       <View style={styles.header}>
+        {/* NAV-01: also reached from a Team Profile's or Founder Profile's
+            activity row, not just the Activities list — "← Activities" was
+            wrong for those. */}
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backRow}>
-          <Text style={styles.backText}>← Activities</Text>
+          <Text style={styles.backText}>← Back</Text>
         </TouchableOpacity>
       </View>
 

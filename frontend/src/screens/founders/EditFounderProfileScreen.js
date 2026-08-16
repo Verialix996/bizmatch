@@ -54,6 +54,9 @@ function Chip({ label, selected, onPress, C, styles }) {
       style={[styles.chip, selected && { backgroundColor: C.primary, borderColor: C.primary }]}
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: selected }}
+      accessibilityLabel={label}
     >
       <Text style={[styles.chipText, selected && { color: '#fff' }]}>{label}</Text>
     </TouchableOpacity>
@@ -413,6 +416,9 @@ export default function EditFounderProfileScreen({ route, navigation }) {
             style={styles.noneRow}
             onPress={() => { setNoDealBreakers(!noDealBreakers); if (!noDealBreakers) setDealBreakers([]); }}
             activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: noDealBreakers }}
+            accessibilityLabel="I genuinely don't have any deal breakers right now"
           >
             <Ionicons
               name={noDealBreakers ? 'checkbox' : 'square-outline'}

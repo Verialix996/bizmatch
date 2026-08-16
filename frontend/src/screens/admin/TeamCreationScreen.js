@@ -126,7 +126,12 @@ export default function TeamCreationScreen({ route, navigation }) {
                       <Text style={styles.founderName}>{f.name || 'Unnamed'}</Text>
                       <Text style={styles.founderRole}>{f.role || ''}</Text>
                     </View>
-                    <TouchableOpacity onPress={() => toggleFounder(f.id)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                    <TouchableOpacity
+                      onPress={() => toggleFounder(f.id)}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remove ${f.name || 'Unnamed founder'} from the team`}
+                    >
                       <Ionicons name="close-circle" size={20} color={C.error} />
                     </TouchableOpacity>
                   </View>
@@ -135,7 +140,15 @@ export default function TeamCreationScreen({ route, navigation }) {
 
               <Text style={[styles.label, { marginTop: 16 }]}>Add Founders</Text>
               {unselectedFounders.map(f => (
-                <TouchableOpacity key={f.id} style={styles.checkRow} onPress={() => toggleFounder(f.id)} activeOpacity={0.7}>
+                <TouchableOpacity
+                  key={f.id}
+                  style={styles.checkRow}
+                  onPress={() => toggleFounder(f.id)}
+                  activeOpacity={0.7}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: false }}
+                  accessibilityLabel={`Add ${f.name || 'Unnamed founder'} to the team`}
+                >
                   <View style={styles.checkbox} />
                   <Avatar photoUrl={f.photoUrl} name={f.name} size={32} C={C} />
                   <Text style={styles.founderName}>{f.name || 'Unnamed'}</Text>
@@ -194,6 +207,9 @@ export default function TeamCreationScreen({ route, navigation }) {
                         style={styles.ackRow}
                         onPress={() => setRisksAcknowledged(!risksAcknowledged)}
                         activeOpacity={0.7}
+                        accessibilityRole="checkbox"
+                        accessibilityState={{ checked: risksAcknowledged }}
+                        accessibilityLabel="I acknowledge these gaps/risks and want to proceed anyway"
                       >
                         <Ionicons
                           name={risksAcknowledged ? 'checkbox' : 'square-outline'}
