@@ -64,7 +64,7 @@ async function listInterviews(req: Request): Promise<Response> {
 
   const url = new URL(req.url);
   const founderId = url.searchParams.get("founderId");
-  if (!founderId) return json({ error: "founderId required" }, 400);
+  if (!founderId) return json(await FounderInterviewsModel.listAll());
 
   return json(await FounderInterviewsModel.list(founderId));
 }

@@ -6,6 +6,7 @@ export const ADMIN_NAV_ITEMS = [
   { key: 'dashboard',  label: 'Dashboard',  icon: 'home-outline',        activeIcon: 'home',        route: 'AdminDashboard' },
   { key: 'founders',   label: 'Founders',   icon: 'people-outline',      activeIcon: 'people',      route: 'FounderList' },
   { key: 'activities', label: 'Activities', icon: 'calendar-outline',    activeIcon: 'calendar',    route: 'Activities' },
+  { key: 'interviews', label: 'Interviews', icon: 'mic-outline',         activeIcon: 'mic',         route: 'InterviewsList' },
   { key: 'matching',   label: 'Matching',   icon: 'git-merge-outline',   activeIcon: 'git-merge',   route: 'Matching', params: {} },
   { key: 'teams', label: 'Teams', icon: 'people-circle-outline', activeIcon: 'people-circle', route: 'TeamList' },
 ];

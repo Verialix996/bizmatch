@@ -16,6 +16,14 @@ function row(r: Record<string, unknown>) {
   };
 }
 
+function rowWithFounder(r: Record<string, unknown>) {
+  return {
+    ...row(r),
+    founderName: r.founder_name ?? null,
+    founderPhotoUrl: r.founder_photo_url ?? null,
+  };
+}
+
 export const FounderInterviewsModel = {
   async list(founderId: string) {
     const rows = await query<Record<string, unknown>>(
@@ -27,6 +35,21 @@ export const FounderInterviewsModel = {
       [founderId],
     );
     return rows.map(row);
+  },
+
+  // Cohort-wide list for the Interviews dashboard (MVP screen: interview
+  // tab) — every interview across every founder, most recently active
+  // first, with enough founder identity to render a list row without an
+  // extra per-row fetch.
+  async listAll() {
+    const rows = await query<Record<string, unknown>>(
+      `SELECT fi.*, u.name AS interviewer_name, fu.name AS founder_name, fu.photo_url AS founder_photo_url
+       FROM founder_interviews fi
+       LEFT JOIN users u ON u.id = fi.interviewer_id
+       JOIN users fu ON fu.id = fi.founder_id
+       ORDER BY fi.updated_at DESC`,
+    );
+    return rows.map(rowWithFounder);
   },
 
   async get(id: string) {
