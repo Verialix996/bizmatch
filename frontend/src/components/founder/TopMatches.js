@@ -5,10 +5,24 @@ import { typography, radius } from '../../theme';
 import { getTopPairs } from '../../services/matches.service';
 import { Avatar } from '../ui';
 
-// "Top potential matches" — photo-forward cards (avatar, name, role,
-// location, match score + progress bar, top skill tags) matching the
-// profile page mockup. Reuses the cohort-wide ranked-pairs endpoint scoped
-// to this founder, same data source as the Matching screen.
+function matchLabel(score) {
+  if (score >= 80) return 'Strong match';
+  if (score >= 60) return 'Good match';
+  if (score >= 40) return 'Fair match';
+  return 'Weak match';
+}
+
+function scoreColor(score, C) {
+  if (score >= 80) return C.success;
+  if (score >= 40) return C.warning;
+  return C.error;
+}
+
+// "Top potential matches" — matches the profile page mockup: avatar + name/
+// role/location on the left, big score % + match label on the right, an
+// evidence-based checklist below, and an "Open match analysis" button.
+// Reuses the cohort-wide ranked-pairs endpoint scoped to this founder, same
+// data source as the Matching screen.
 export default function TopMatches({ founderId, navigation, limit = 2, C }) {
   const styles = makeStyles(C);
   const [pairs, setPairs] = useState(null);
@@ -26,49 +40,58 @@ export default function TopMatches({ founderId, navigation, limit = 2, C }) {
 
   return (
     <View style={styles.wrap}>
-      {pairs.map((pair, i) => {
+      {pairs.map((pair) => {
         const other = pair.a.id === founderId ? pair.b : pair.a;
-        const tags = [...(pair.explanation?.positives || []), ...(pair.explanation?.risks || [])].slice(0, 3);
+        const positives = pair.explanation?.positives || [];
+        const risks = pair.explanation?.risks || [];
         return (
-          <TouchableOpacity
-            key={other.id}
-            style={styles.card}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate('MatchDetail', { a: founderId, b: other.id })}
-          >
-            {i === 0 ? (
-              <View style={styles.bestBadge}>
-                <Ionicons name="star" size={11} color="#fff" />
-                <Text style={styles.bestBadgeText}>Best Match</Text>
+          <View key={other.id} style={styles.card}>
+            <View style={styles.topRow}>
+              <Avatar photoUrl={other.photoUrl} name={other.name} size={48} C={C} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <Text style={styles.name} numberOfLines={1}>{other.name || 'Unnamed'}</Text>
+                {other.roleTitle ? <Text style={styles.role} numberOfLines={1}>{other.roleTitle}</Text> : null}
+                {other.location ? (
+                  <View style={styles.locationRow}>
+                    <Ionicons name="location-outline" size={12} color={C.textHint} />
+                    <Text style={styles.location} numberOfLines={1}>{other.location}</Text>
+                  </View>
+                ) : null}
               </View>
-            ) : null}
-
-            <Avatar photoUrl={other.photoUrl} name={other.name} size={56} C={C} />
-            <Text style={styles.name} numberOfLines={1}>{other.name || 'Unnamed'}</Text>
-            {other.roleTitle ? <Text style={styles.role} numberOfLines={1}>{other.roleTitle}</Text> : null}
-            {other.location ? (
-              <View style={styles.locationRow}>
-                <Ionicons name="location-outline" size={12} color={C.textHint} />
-                <Text style={styles.location} numberOfLines={1}>{other.location}</Text>
+              <View style={styles.scoreCol}>
+                <Text style={[styles.score, { color: scoreColor(pair.score, C) }]}>{pair.score}%</Text>
+                <Text style={[styles.scoreLabel, { color: scoreColor(pair.score, C) }]} numberOfLines={1}>
+                  {matchLabel(pair.score)}
+                </Text>
+                {pair.isProvisional ? <Text style={styles.provisionalLabel}>Provisional</Text> : null}
               </View>
-            ) : null}
-
-            <Text style={styles.score}>{pair.score}%</Text>
-            <Text style={styles.scoreLabel}>Match Score{pair.isProvisional ? ' · Provisional' : ''}</Text>
-            <View style={styles.track}>
-              <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, pair.score))}%` }]} />
             </View>
 
-            {tags.length ? (
-              <View style={styles.tagRow}>
-                {tags.map((t, ti) => (
-                  <View key={ti} style={styles.tag}>
-                    <Text style={styles.tagText} numberOfLines={1}>{t}</Text>
+            {(positives.length || risks.length) ? (
+              <View style={styles.checklist}>
+                {positives.map((p, i) => (
+                  <View key={`p${i}`} style={styles.checklistItem}>
+                    <Ionicons name="checkmark-circle" size={14} color={C.success} />
+                    <Text style={styles.checklistText} numberOfLines={1}>{p}</Text>
+                  </View>
+                ))}
+                {risks.map((r, i) => (
+                  <View key={`r${i}`} style={styles.checklistItem}>
+                    <Ionicons name="warning" size={14} color={C.warning} />
+                    <Text style={styles.checklistText} numberOfLines={1}>{r}</Text>
                   </View>
                 ))}
               </View>
             ) : null}
-          </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.analysisBtn}
+              activeOpacity={0.75}
+              onPress={() => navigation.navigate('MatchDetail', { a: founderId, b: other.id })}
+            >
+              <Text style={styles.analysisBtnText}>Open match analysis</Text>
+            </TouchableOpacity>
+          </View>
         );
       })}
     </View>
@@ -78,28 +101,27 @@ export default function TopMatches({ founderId, navigation, limit = 2, C }) {
 function makeStyles(C) {
   return StyleSheet.create({
     emptyText: { ...typography.bodySmall, color: C.textHint },
-    wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+    wrap: { gap: 12 },
     card: {
-      flex: 1, minWidth: 140, alignItems: 'center', textAlign: 'center',
       backgroundColor: C.surfaceElevated, borderRadius: radius.lg, padding: 14,
-      borderWidth: 1, borderColor: C.surfaceBorder, gap: 3,
+      borderWidth: 1, borderColor: C.surfaceBorder, gap: 10,
     },
-    bestBadge: {
-      flexDirection: 'row', alignItems: 'center', gap: 3,
-      backgroundColor: C.primary, borderRadius: radius.pill,
-      paddingHorizontal: 8, paddingVertical: 3, marginBottom: 6,
-    },
-    bestBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-    name: { ...typography.labelLarge, color: C.textPrimary, marginTop: 8, textAlign: 'center' },
-    role: { ...typography.caption, color: C.textSecondary, textAlign: 'center' },
-    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginBottom: 4 },
+    topRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    name: { ...typography.labelLarge, color: C.textPrimary },
+    role: { ...typography.caption, color: C.textSecondary },
+    locationRow: { flexDirection: 'row', alignItems: 'center', gap: 3, marginTop: 2 },
     location: { ...typography.caption, color: C.textHint },
-    score: { fontSize: 22, fontWeight: '800', color: C.primary, marginTop: 6 },
-    scoreLabel: { ...typography.caption, color: C.textHint, marginBottom: 6 },
-    track: { height: 4, borderRadius: 2, backgroundColor: C.surfaceBorder, alignSelf: 'stretch', overflow: 'hidden', marginBottom: 8 },
-    fill: { height: 4, borderRadius: 2, backgroundColor: C.primary },
-    tagRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, justifyContent: 'center' },
-    tag: { backgroundColor: C.surface, borderRadius: radius.pill, paddingHorizontal: 7, paddingVertical: 3 },
-    tagText: { fontSize: 10, fontWeight: '600', color: C.textSecondary, maxWidth: 100 },
+    scoreCol: { alignItems: 'flex-end', maxWidth: 110 },
+    score: { fontSize: 20, fontWeight: '800' },
+    scoreLabel: { ...typography.caption, fontWeight: '600' },
+    provisionalLabel: { ...typography.caption, color: C.textHint, fontSize: 10 },
+    checklist: { gap: 4 },
+    checklistItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+    checklistText: { ...typography.caption, color: C.textSecondary, flexShrink: 1 },
+    analysisBtn: {
+      borderWidth: 1, borderColor: C.primary, borderRadius: radius.md,
+      paddingVertical: 8, alignItems: 'center',
+    },
+    analysisBtnText: { ...typography.labelSmall, color: C.primary, fontWeight: '700' },
   });
 }

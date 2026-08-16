@@ -338,51 +338,50 @@ export default function FounderProfileScreen({ route, navigation }) {
                     </SectionCard>
                   </View>
                 )}
-                {isAdmin && (
-                  <View style={{ flex: 1 }}>
-                    <SectionCard title="Interviews" icon="mic-outline" C={C}>
-                      {interviews.length === 0 ? (
-                        <Text style={styles.emptyText}>No interviews yet.</Text>
-                      ) : (
-                        interviews.map((iv) => (
-                          <View key={iv.id} style={styles.activityRow}>
-                            <TouchableOpacity
-                              style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
-                              onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
-                              activeOpacity={0.75}
-                            >
-                              <View style={{ flex: 1 }}>
-                                <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
-                                <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
-                              </View>
-                              <Pill
-                                label={iv.status === 'completed' ? 'Completed' : 'In progress'}
-                                C={C}
-                                bg={iv.status === 'completed' ? C.successLight : C.warningLight}
-                                color={iv.status === 'completed' ? C.success : C.warning}
-                              />
-                            </TouchableOpacity>
-                            {iv.status !== 'completed' && (
-                              <TouchableOpacity
-                                onPress={() => confirmDeleteInterview(iv.id)}
-                                activeOpacity={0.75}
-                                style={{ paddingLeft: 10, paddingVertical: 4 }}
-                              >
-                                <Ionicons name="trash-outline" size={18} color={C.error} />
-                              </TouchableOpacity>
-                            )}
-                          </View>
-                        ))
-                      )}
-                    </SectionCard>
-                  </View>
-                )}
                 <View style={{ flex: 1.4 }}>
                   <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
                     <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
                   </SectionCard>
                 </View>
               </ResponsiveRow>
+
+              {isAdmin && (
+                <SectionCard title="Interviews" icon="mic-outline" C={C} style={{ marginTop: 16 }}>
+                  {interviews.length === 0 ? (
+                    <Text style={styles.emptyText}>No interviews yet.</Text>
+                  ) : (
+                    interviews.map((iv) => (
+                      <View key={iv.id} style={styles.activityRow}>
+                        <TouchableOpacity
+                          style={{ flex: 1, flexDirection: 'row', alignItems: 'center' }}
+                          onPress={() => navigation.navigate('InterviewRunner', { interviewId: iv.id })}
+                          activeOpacity={0.75}
+                        >
+                          <View style={{ flex: 1 }}>
+                            <Text style={styles.activityTitle}>{iv.meta?.ventureField || 'Interview'}</Text>
+                            <Text style={styles.activityMeta}>{new Date(iv.createdAt).toLocaleDateString()}</Text>
+                          </View>
+                          <Pill
+                            label={iv.status === 'completed' ? 'Completed' : 'In progress'}
+                            C={C}
+                            bg={iv.status === 'completed' ? C.successLight : C.warningLight}
+                            color={iv.status === 'completed' ? C.success : C.warning}
+                          />
+                        </TouchableOpacity>
+                        {iv.status !== 'completed' && (
+                          <TouchableOpacity
+                            onPress={() => confirmDeleteInterview(iv.id)}
+                            activeOpacity={0.75}
+                            style={{ paddingLeft: 10, paddingVertical: 4 }}
+                          >
+                            <Ionicons name="trash-outline" size={18} color={C.error} />
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    ))
+                  )}
+                </SectionCard>
+              )}
 
               <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C} style={{ marginTop: 16 }}>
                 {activities.length === 0 ? (
