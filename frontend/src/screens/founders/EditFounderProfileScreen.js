@@ -359,7 +359,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={[styles.btnPrimary, { flex: 0, alignSelf: 'flex-start', maxWidth: 220 }, cvUploading && styles.btnDisabled]} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.btnPrimary, styles.cvUploadBtn, cvUploading && styles.btnDisabled]} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.85}>
               {cvUploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Upload CV (PDF)</Text>}
             </TouchableOpacity>
           )}
@@ -481,6 +481,11 @@ function makeStyles(C) {
     },
     btnOutlineText: { color: C.textSecondary, fontWeight: '700', fontSize: 14 },
     btnPrimary: { flex: 2, backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 14, alignItems: 'center', maxWidth: 220 },
+    // React Native Web flex children default to minWidth:0, so the `flex:0`
+    // shorthand this button used to have let it shrink below its own text's
+    // width instead of sizing to content — explicit flexGrow/flexShrink
+    // (not the flex shorthand) plus real horizontal padding fixes it.
+    cvUploadBtn: { flexGrow: 0, flexShrink: 0, alignSelf: 'flex-start', paddingHorizontal: 24, maxWidth: 260 },
     btnDisabled: { opacity: 0.6 },
     btnPrimaryText: { color: '#fff', fontWeight: '700', fontSize: 14 },
   });
