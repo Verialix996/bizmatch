@@ -16,6 +16,7 @@ import {
 } from '../../services/founders.service';
 import CapabilityPriorityList from '../../components/founder/CapabilityPriorityList';
 import DnaQuestionnaire from '../../components/founder/DnaQuestionnaire';
+import { DNA_DIMENSIONS } from '../../config/dnaQuestions';
 
 // Founder Profile creation wizard (spec sections 20-21), replacing the old
 // swipe-app walkthrough. Values Scenarios / Work Style steps are omitted
@@ -26,7 +27,26 @@ const STAGES = ['idea', 'mvp', 'growth', 'scale'];
 const STAGE_LABELS = { idea: 'Idea', mvp: 'MVP', growth: 'Growth', scale: 'Scale' };
 const COMMITMENT_TYPES = ['full_time', 'part_time'];
 const COMMITMENT_LABELS = { full_time: 'Full Time', part_time: 'Part Time' };
-const DEAL_BREAKER_SUGGESTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
+// Interview-grounded taxonomy (BizMatch_Interview_Grounded_Onboarding_Spec) —
+// replaces the earlier ad-hoc 4-item list. Selection capped at 3 (see
+// MAX_DEAL_BREAKERS) same as capabilities.
+const DEAL_BREAKER_SUGGESTIONS = [
+  'Dishonesty / broken trust',
+  'Low commitment / insufficient availability',
+  'Repeated missed deadlines / low accountability',
+  'Ego / overclaiming / overselling',
+  'Disrespect / boundary crossing',
+  'Hidden motives / self-serving behavior',
+  'Poor communication',
+  'Major values mismatch',
+  'Lack of complementary ability',
+];
+const MAX_CAPABILITIES = 3;
+const MAX_DEAL_BREAKERS = 3;
+
+function emptyDnaAnswers() {
+  return DNA_DIMENSIONS.reduce((acc, dim) => { acc[dim] = ''; return acc; }, {});
+}
 
 // The backend still stores a per-capability `score` (used elsewhere), but the
 // UI is now a ranked priority list rather than a numeric rating — this
@@ -94,6 +114,12 @@ export default function OnboardingScreen() {
   const [needs, setNeeds] = useState([]);
   const [partner, setPartner] = useState({ role_wanted: '', commitment_required: '', ambition_required: '' });
   const [dealBreakers, setDealBreakers] = useState([]);
+  // Lifted out of DnaQuestionnaire (which supports being controlled this
+  // way) specifically so it's included in the draft autosave below —
+  // previously DNA answers weren't persisted at all if the app backgrounded
+  // mid-question.
+  const [dnaAnswers, setDnaAnswers] = useState(emptyDnaAnswers);
+  const [dnaDimIndex, setDnaDimIndex] = useState(0);
 
   // Restore an in-progress draft once on mount so backgrounding/closing the
   // app mid-wizard doesn't lose everything the founder already entered.
@@ -109,6 +135,8 @@ export default function OnboardingScreen() {
           if (draft.needs) setNeeds(draft.needs);
           if (draft.partner) setPartner(draft.partner);
           if (draft.dealBreakers) setDealBreakers(draft.dealBreakers);
+          if (draft.dnaAnswers) setDnaAnswers({ ...emptyDnaAnswers(), ...draft.dnaAnswers });
+          if (typeof draft.dnaDimIndex === 'number') setDnaDimIndex(draft.dnaDimIndex);
           if (typeof draft.stepIndex === 'number') setStepIndex(draft.stepIndex);
         }
       } catch {
@@ -124,22 +152,25 @@ export default function OnboardingScreen() {
   useEffect(() => {
     if (hydrating.current) return;
     AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
-      basics, commitment, provides, needs, partner, dealBreakers, stepIndex,
+      basics, commitment, provides, needs, partner, dealBreakers, dnaAnswers, dnaDimIndex, stepIndex,
     })).catch(() => {});
-  }, [basics, commitment, provides, needs, partner, dealBreakers, stepIndex]);
+  }, [basics, commitment, provides, needs, partner, dealBreakers, dnaAnswers, dnaDimIndex, stepIndex]);
 
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
 
-  const toggleItem = (list, setList, item) => {
-    setList(list.includes(item) ? list.filter(i => i !== item) : [...list, item]);
+  const toggleItem = (list, setList, item, max) => {
+    if (list.includes(item)) { setList(list.filter(i => i !== item)); return; }
+    if (max && list.length >= max) return;
+    setList([...list, item]);
   };
   const toggleCapability = (list, setList, capability) => {
     if (list.some(c => c.capability === capability)) {
       setList(list.filter(c => c.capability !== capability));
-    } else {
-      setList([...list, { capability, score: 0 }]);
+      return;
     }
+    if (list.length >= MAX_CAPABILITIES) return;
+    setList([...list, { capability, score: 0 }]);
   };
 
   const validateStep = () => {
@@ -256,6 +287,10 @@ export default function OnboardingScreen() {
           <DnaQuestionnaire
             founderId={currentUser.id}
             C={C}
+            answers={dnaAnswers}
+            onAnswersChange={setDnaAnswers}
+            dimIndex={dnaDimIndex}
+            onDimIndexChange={setDnaDimIndex}
             onBack={goBack}
             onSkip={() => setStepIndex(stepIndex + 1)}
             onComplete={() => setStepIndex(stepIndex + 1)}
@@ -323,7 +358,7 @@ export default function OnboardingScreen() {
         {step === 'provides' && (
           <View>
             <Text style={styles.title}>What can you own?</Text>
-            <Text style={styles.subtitle}>Select the capabilities you bring to a team, then order them by priority — top is your strongest.</Text>
+            <Text style={styles.subtitle}>Select up to {MAX_CAPABILITIES} capabilities you bring to a team, then order them by priority — top is your strongest.</Text>
             <View style={styles.chipRow}>
               {CAPABILITIES.map(c => (
                 <Chip key={c} label={c} selected={provides.some(p => p.capability === c)}
@@ -337,7 +372,7 @@ export default function OnboardingScreen() {
         {step === 'needs' && (
           <View>
             <Text style={styles.title}>What do you need?</Text>
-            <Text style={styles.subtitle}>Select what you need from a co-founder, then order them by priority — top matters most.</Text>
+            <Text style={styles.subtitle}>Select up to {MAX_CAPABILITIES} things you need from a co-founder, then order them by priority — top matters most.</Text>
             <View style={styles.chipRow}>
               {CAPABILITIES.map(c => (
                 <Chip key={c} label={c} selected={needs.some(n => n.capability === c)}
@@ -370,18 +405,20 @@ export default function OnboardingScreen() {
         {step === 'dealbreakers' && (
           <View>
             <Text style={styles.title}>Deal breakers</Text>
-            <Text style={styles.subtitle}>What would make you walk away from a partnership?</Text>
+            <Text style={styles.subtitle}>What would make you walk away from a partnership? Choose up to {MAX_DEAL_BREAKERS}.</Text>
             <View style={styles.chipRow}>
               {DEAL_BREAKER_SUGGESTIONS.map(d => (
                 <Chip key={d} label={d} selected={dealBreakers.includes(d)}
-                  onPress={() => toggleItem(dealBreakers, setDealBreakers, d)} C={C} styles={styles} />
+                  onPress={() => toggleItem(dealBreakers, setDealBreakers, d, MAX_DEAL_BREAKERS)} C={C} styles={styles} />
               ))}
               {dealBreakers.filter(d => !DEAL_BREAKER_SUGGESTIONS.includes(d)).map(d => (
                 <Chip key={d} label={d} selected
-                  onPress={() => toggleItem(dealBreakers, setDealBreakers, d)} C={C} styles={styles} />
+                  onPress={() => toggleItem(dealBreakers, setDealBreakers, d, MAX_DEAL_BREAKERS)} C={C} styles={styles} />
               ))}
             </View>
-            <TagInput value={dealBreakers} onAdd={(d) => setDealBreakers([...dealBreakers, d])} styles={styles} C={C} />
+            {dealBreakers.length < MAX_DEAL_BREAKERS && (
+              <TagInput value={dealBreakers} onAdd={(d) => setDealBreakers([...dealBreakers, d])} styles={styles} C={C} />
+            )}
           </View>
         )}
 

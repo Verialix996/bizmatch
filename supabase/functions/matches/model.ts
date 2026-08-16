@@ -10,6 +10,7 @@ export interface MatchSummary {
   photoUrl: string | null;
   score: number;
   requiresAdminReview: boolean;
+  isProvisional: boolean;
 }
 
 interface PairFounder {
@@ -22,6 +23,7 @@ interface PairFounder {
 export interface PairSummary {
   score: number;
   requiresAdminReview: boolean;
+  isProvisional: boolean;
   explanation: { positives: string[]; risks: string[] };
   a: PairFounder;
   b: PairFounder;
@@ -39,7 +41,7 @@ export const MatchesModel = {
   // teamed founder can never actually be turned into a team anyway.
   async topPairs(limit: number, founderId: string | null): Promise<PairSummary[]> {
     const rows = await query<Record<string, unknown>>(
-      `SELECT fc.score, fc.requires_admin_review, fc.explanation,
+      `SELECT fc.score, fc.requires_admin_review, fc.is_provisional, fc.explanation,
               ua.id AS a_id, ua.name AS a_name, ua.photo_url AS a_photo_url, fpa.role_title AS a_role,
               ub.id AS b_id, ub.name AS b_name, ub.photo_url AS b_photo_url, fpb.role_title AS b_role
        FROM founder_compatibility fc
@@ -59,6 +61,7 @@ export const MatchesModel = {
     return rows.map((r) => ({
       score: Number(r.score),
       requiresAdminReview: !!r.requires_admin_review,
+      isProvisional: !!r.is_provisional,
       explanation: parseJsonColumn(r.explanation, { positives: [], risks: [] } as PairSummary["explanation"]),
       a: { id: r.a_id as string, name: r.a_name as string | null, photoUrl: r.a_photo_url as string | null, roleTitle: r.a_role as string | null },
       b: { id: r.b_id as string, name: r.b_name as string | null, photoUrl: r.b_photo_url as string | null, roleTitle: r.b_role as string | null },
@@ -70,7 +73,7 @@ export const MatchesModel = {
     const rows = await query<Record<string, unknown>>(
       `SELECT
          CASE WHEN fc.founder_a_id = $1 THEN fc.founder_b_id ELSE fc.founder_a_id END AS other_id,
-         fc.score, fc.requires_admin_review, u.name, u.photo_url
+         fc.score, fc.requires_admin_review, fc.is_provisional, u.name, u.photo_url
        FROM founder_compatibility fc
        JOIN users u ON u.id = (CASE WHEN fc.founder_a_id = $1 THEN fc.founder_b_id ELSE fc.founder_a_id END)
        WHERE fc.founder_a_id = $1 OR fc.founder_b_id = $1
@@ -84,6 +87,7 @@ export const MatchesModel = {
       photoUrl: r.photo_url as string | null,
       score: Number(r.score),
       requiresAdminReview: !!r.requires_admin_review,
+      isProvisional: !!r.is_provisional,
     }));
   },
 
@@ -92,7 +96,7 @@ export const MatchesModel = {
     const [aId, bId] = canonicalPair(founderAId, founderBId);
     const rows = await query<Record<string, unknown>>(
       `SELECT fc.score, fc.dimension_breakdown, fc.explanation, fc.deal_breaker_flags,
-              fc.requires_admin_review, fc.computed_at,
+              fc.requires_admin_review, fc.is_provisional, fc.computed_at,
               ua.id AS a_id, ua.name AS a_name, ua.photo_url AS a_photo_url,
               ub.id AS b_id, ub.name AS b_name, ub.photo_url AS b_photo_url
        FROM founder_compatibility fc

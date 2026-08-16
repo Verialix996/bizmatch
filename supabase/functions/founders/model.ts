@@ -62,7 +62,8 @@ export const FoundersModel = {
       `SELECT u.id, u.name, u.email, u.photo_url, u.cv_url,
               fp.role_title, fp.venture_name, fp.industry, fp.location, fp.current_stage,
               fp.commitment_hours, fp.commitment_type, fp.commitment_risk_appetite,
-              fp.program_id, fp.status, fp.onboarding_completed_at, fp.dna_self_assessment_completed_at
+              fp.program_id, fp.status, fp.onboarding_completed_at, fp.dna_self_assessment_completed_at,
+              fp.dna_scoring_status
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
        WHERE u.id = $1 AND u.deleted_at IS NULL`,
@@ -107,6 +108,7 @@ export const FoundersModel = {
       status: base.status,
       onboardingCompletedAt: base.onboarding_completed_at,
       dnaSelfAssessmentCompletedAt: base.dna_self_assessment_completed_at,
+      dnaScoringStatus: base.dna_scoring_status ?? "unscored",
       provides: capabilities.filter((c) => c.kind === "provide"),
       needs: capabilities.filter((c) => c.kind === "need"),
       partnerRequirements: partnerReqRows[0]

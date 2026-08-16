@@ -340,27 +340,45 @@ function complementarityScore(
   return Math.round(parts.reduce((s, v) => s + v, 0) / parts.length);
 }
 
-// How close two founders sit on a set of dimensions, 100 = identical,
-// 0 = maximally apart (a 100-point gap). Only considers dimensions where
-// both founders have a non-null score; null if none overlap.
+// How close two founders sit on a set of dimensions, quality-adjusted: raw
+// closeness (100 = identical, 0 = maximally apart) scaled by how strong the
+// weaker of the two scores actually is. Without this, two founders who both
+// score e.g. 20 on Integrity get a full 100 "aligned" — closeness alone
+// can't tell "both genuinely strong" apart from "both genuinely weak but
+// coincidentally similar." Only considers dimensions where both founders
+// have a non-null score; null if none overlap.
 function dimensionAlignment(
   a: Record<EvidenceDimension, DimensionResult>,
   b: Record<EvidenceDimension, DimensionResult>,
   dims: EvidenceDimension[],
 ): number | null {
-  const gaps: number[] = [];
+  const adjusted: number[] = [];
   for (const dim of dims) {
     const scoreA = a[dim]?.score;
     const scoreB = b[dim]?.score;
     if (scoreA == null || scoreB == null) continue;
-    gaps.push(100 - Math.abs(scoreA - scoreB));
+    const closeness = 100 - Math.abs(scoreA - scoreB);
+    adjusted.push(closeness * Math.min(scoreA, scoreB) / 100);
   }
-  if (gaps.length === 0) return null;
-  return Math.round(gaps.reduce((s, v) => s + v, 0) / gaps.length);
+  if (adjusted.length === 0) return null;
+  return Math.round(adjusted.reduce((s, v) => s + v, 0) / adjusted.length);
+}
+
+export interface CompatibilityCoverage {
+  complementarity: boolean;
+  valuesAlignment: boolean;
+  workStyleAlignment: boolean;
 }
 
 export interface CompatibilityResult {
   score: number;
+  coverage: CompatibilityCoverage;
+  // True when Values or Work-Style alignment is missing (no DNA evidence on
+  // one/both sides yet) — the score can otherwise look deceptively complete
+  // when it's really just capability complementarity. Screens showing a
+  // match should visibly label it "Provisional" rather than presenting it
+  // with the same confidence as a fully-covered score.
+  isProvisional: boolean;
   dimensionBreakdown: Record<EvidenceDimension, { a: number | null; b: number | null; gap: number | null }>;
   explanation: { positives: string[]; risks: string[] };
   dealBreakerFlags: string[];
@@ -425,8 +443,16 @@ export function computeCompatibility(
     risks.push("Not enough evidence on either founder yet to compute a meaningful match.");
   }
 
+  const coverage: CompatibilityCoverage = {
+    complementarity: complementarity != null,
+    valuesAlignment: valuesAlignment != null,
+    workStyleAlignment: workStyleAlignment != null,
+  };
+
   return {
     score,
+    coverage,
+    isProvisional: !coverage.valuesAlignment || !coverage.workStyleAlignment,
     dimensionBreakdown,
     explanation: { positives, risks },
     dealBreakerFlags: dealBreakerCheck.flags,

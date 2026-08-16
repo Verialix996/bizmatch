@@ -54,7 +54,7 @@ export default function TopMatches({ founderId, navigation, limit = 2, C }) {
             ) : null}
 
             <Text style={styles.score}>{pair.score}%</Text>
-            <Text style={styles.scoreLabel}>Match Score</Text>
+            <Text style={styles.scoreLabel}>Match Score{pair.isProvisional ? ' · Provisional' : ''}</Text>
             <View style={styles.track}>
               <View style={[styles.fill, { width: `${Math.max(0, Math.min(100, pair.score))}%` }]} />
             </View>

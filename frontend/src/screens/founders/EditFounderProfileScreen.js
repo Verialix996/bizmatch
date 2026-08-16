@@ -24,7 +24,22 @@ const STAGES = ['idea', 'mvp', 'growth', 'scale'];
 const STAGE_LABELS = { idea: 'Idea', mvp: 'MVP', growth: 'Growth', scale: 'Scale' };
 const COMMITMENT_TYPES = ['full_time', 'part_time'];
 const COMMITMENT_LABELS = { full_time: 'Full Time', part_time: 'Part Time' };
-const DEAL_BREAKER_SUGGESTIONS = ['Dishonesty', 'Part-time', 'Low accountability', 'Major values mismatch'];
+// Interview-grounded taxonomy (BizMatch_Interview_Grounded_Onboarding_Spec) —
+// replaces the earlier ad-hoc 4-item list. Selection capped at 3 (see
+// MAX_DEAL_BREAKERS) same as capabilities.
+const DEAL_BREAKER_SUGGESTIONS = [
+  'Dishonesty / broken trust',
+  'Low commitment / insufficient availability',
+  'Repeated missed deadlines / low accountability',
+  'Ego / overclaiming / overselling',
+  'Disrespect / boundary crossing',
+  'Hidden motives / self-serving behavior',
+  'Poor communication',
+  'Major values mismatch',
+  'Lack of complementary ability',
+];
+const MAX_CAPABILITIES = 3;
+const MAX_DEAL_BREAKERS = 3;
 
 // The backend still stores a per-capability `score` (used elsewhere), but the
 // UI is now a ranked priority list rather than a numeric rating — this
@@ -170,15 +185,18 @@ export default function EditFounderProfileScreen({ route, navigation }) {
   const toggleCapability = (list, setList, capability) => {
     if (list.some(c => c.capability === capability)) {
       setList(list.filter(c => c.capability !== capability));
-    } else {
-      setList([...list, { capability, score: 0 }]);
+      return;
     }
+    if (list.length >= MAX_CAPABILITIES) return;
+    setList([...list, { capability, score: 0 }]);
   };
   const toggleMustProvide = (capability) => {
     setMustProvide(mustProvide.includes(capability) ? mustProvide.filter(c => c !== capability) : [...mustProvide, capability]);
   };
   const toggleDealBreakerSuggestion = (label) => {
-    setDealBreakers(dealBreakers.includes(label) ? dealBreakers.filter(d => d !== label) : [...dealBreakers, label]);
+    if (dealBreakers.includes(label)) { setDealBreakers(dealBreakers.filter(d => d !== label)); return; }
+    if (dealBreakers.length >= MAX_DEAL_BREAKERS) return;
+    setDealBreakers([...dealBreakers, label]);
   };
 
   const handleSave = async () => {
@@ -280,7 +298,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
         </SectionCard>
 
         <SectionCard title="Capability profile" icon="bar-chart-outline" C={C} style={styles.card}>
-          <Text style={styles.fieldLabel}>WHAT YOU PROVIDE</Text>
+          <Text style={styles.fieldLabel}>WHAT YOU PROVIDE (up to {MAX_CAPABILITIES})</Text>
           <View style={styles.chipRow}>
             {CAPABILITIES.map(c => (
               <Chip key={c} label={c} selected={provides.some(p => p.capability === c)}
@@ -292,7 +310,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
           )}
           <CapabilityPriorityList items={provides} onChange={setProvides} C={C} color={C.primary} />
 
-          <Text style={[styles.fieldLabel, { marginTop: 20 }]}>WHAT YOU NEED</Text>
+          <Text style={[styles.fieldLabel, { marginTop: 20 }]}>WHAT YOU NEED (up to {MAX_CAPABILITIES})</Text>
           <View style={styles.chipRow}>
             {CAPABILITIES.map(c => (
               <Chip key={c} label={c} selected={needs.some(n => n.capability === c)}
@@ -350,7 +368,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
         </SectionCard>
 
         <SectionCard title="Deal breakers" icon="close-circle-outline" C={C} style={styles.card}>
-          <Text style={styles.fieldLabel}>QUICK ADD</Text>
+          <Text style={styles.fieldLabel}>QUICK ADD (up to {MAX_DEAL_BREAKERS})</Text>
           <View style={styles.chipRow}>
             {DEAL_BREAKER_SUGGESTIONS.map(d => (
               <Chip key={d} label={d} selected={dealBreakers.includes(d)}
@@ -360,7 +378,9 @@ export default function EditFounderProfileScreen({ route, navigation }) {
 
           <Text style={[styles.fieldLabel, { marginTop: 20 }]}>YOUR DEAL BREAKERS</Text>
           <TagList items={dealBreakers} onRemove={(d) => setDealBreakers(dealBreakers.filter(x => x !== d))} C={C} styles={styles} />
-          <TagInput placeholder="e.g. Avoids conflict or difficult conversations" onAdd={(d) => setDealBreakers([...dealBreakers, d])} C={C} styles={styles} />
+          {dealBreakers.length < MAX_DEAL_BREAKERS && (
+            <TagInput placeholder="e.g. Avoids conflict or difficult conversations" onAdd={(d) => setDealBreakers([...dealBreakers, d])} C={C} styles={styles} />
+          )}
         </SectionCard>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}

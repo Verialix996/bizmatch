@@ -40,8 +40,9 @@ export const uploadFounderCvWeb = (founderId, file, fileName) => {
 // Founder Insights (MVP screen 7) — derived from evidence, distinct from Profile
 export const getFounderInsights = (founderId) => api.get(`/founder-dna/${founderId}`);
 
-// Founder DNA self-assessment — 40 open-ended questions (5/dimension), scored
-// by Gemini into one 'self' evidence row per dimension.
+// Founder DNA self-assessment — 8 interview-grounded open-ended questions
+// (1/dimension, v2), scored by Gemini in the background into one 'self'
+// evidence row per answered dimension.
 export const getDnaSelfAssessment = (founderId) => api.get(`/dna-self-assessment/${founderId}`);
 export const submitDnaSelfAssessment = (founderId, answers) =>
   api.post(`/dna-self-assessment/${founderId}`, { answers });

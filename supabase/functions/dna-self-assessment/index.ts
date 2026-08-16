@@ -6,7 +6,7 @@ import { serveFunction } from "../_shared/serve.ts";
 import { background } from "../_shared/background.ts";
 import { generateText, isGeminiConfigured } from "../_shared/gemini.ts";
 import { SOURCE_WEIGHTS, type EvidenceDimension } from "../_shared/founderScoring.ts";
-import { DNA_QUESTIONS, DNA_DIMENSIONS } from "../_shared/dnaQuestions.ts";
+import { DNA_QUESTIONS, DNA_DIMENSIONS, DNA_ASSESSMENT_VERSION } from "../_shared/dnaQuestions.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
 import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
 
@@ -18,28 +18,28 @@ function forbidden(user: { role: string | null; id: string }, founderId: string)
 }
 
 // GET /functions/v1/dna-self-assessment/:founderId — question bank + whether
-// this founder has already completed it (admin or self).
+// this founder has already completed it, plus the background-scoring status
+// of their most recent submission (admin or self).
 async function getAssessment(req: Request, params: Record<string, string>): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
   const err = forbidden(user, params.founderId);
   if (err) return err;
 
-  const rows = await query<{ dna_self_assessment_completed_at: string | null }>(
-    "SELECT dna_self_assessment_completed_at FROM founder_profiles WHERE user_id = $1",
+  const rows = await query<{ dna_self_assessment_completed_at: string | null; dna_scoring_status: string }>(
+    "SELECT dna_self_assessment_completed_at, dna_scoring_status FROM founder_profiles WHERE user_id = $1",
     [params.founderId],
   );
   return json({
     questions: DNA_QUESTIONS,
     completedAt: rows[0]?.dna_self_assessment_completed_at ?? null,
+    dnaScoringStatus: rows[0]?.dna_scoring_status ?? "unscored",
   });
 }
 
-type Answers = Partial<Record<EvidenceDimension, string[]>>;
+// One answer per dimension now (was up to 5) — blank/missing = skipped.
+type Answers = Partial<Record<EvidenceDimension, string>>;
 
-// A question is "skipped" if left blank — those don't count toward that
-// dimension's score, and a dimension with zero answered questions gets no
-// evidence row at all rather than a score fabricated from nothing.
 function isAnswered(ans: unknown): ans is string {
   return typeof ans === "string" && ans.trim().length > 0;
 }
@@ -48,14 +48,8 @@ function validateAnswers(answers: unknown): string | null {
   if (!answers || typeof answers !== "object") return "answers is required";
   const a = answers as Answers;
   for (const dim of DNA_DIMENSIONS) {
-    const list = a[dim];
-    const expected = DNA_QUESTIONS[dim];
-    if (!Array.isArray(list) || list.length !== expected.length) {
-      return `answers.${dim} must have ${expected.length} entries`;
-    }
-    for (const ans of list) {
-      if (ans != null && typeof ans !== "string") return `answers.${dim} has an invalid response`;
-    }
+    const ans = a[dim];
+    if (ans != null && typeof ans !== "string") return `answers.${dim} must be a string`;
   }
   return null;
 }
@@ -65,30 +59,36 @@ interface DimensionEval {
   observation: string;
 }
 
-// Only dimensions with at least one answered question get scored — Gemini's
-// output schema is built dynamically so it never has to invent a score for a
+// Only dimensions with an answered question get scored — Gemini's output
+// schema is built dynamically so it never has to invent a score for a
 // dimension the founder left entirely blank.
 function answeredDimensions(answers: Answers): EvidenceDimension[] {
-  return DNA_DIMENSIONS.filter((dim) => (answers[dim] as string[] | undefined)?.some(isAnswered));
+  return DNA_DIMENSIONS.filter((dim) => isAnswered(answers[dim]));
 }
 
 function buildPrompt(answers: Answers, dims: EvidenceDimension[]): string {
   const sections = dims.map((dim) => {
-    const qas = DNA_QUESTIONS[dim]
-      .map((q, i) => ({ q, a: (answers[dim] as string[])[i] }))
-      .filter(({ a }) => isAnswered(a))
-      .map(({ q, a }) => `Q: ${q}\nA: ${a}`)
-      .join("\n\n");
-    return `## ${dim}\n${qas}`;
+    const { text } = DNA_QUESTIONS[dim];
+    return `## ${dim}\nQ: ${text}\nA: ${answers[dim]}`;
   }).join("\n\n");
 
   const schema = dims
     .map((dim) => `  "${dim}": { "score": <1-100 integer>, "observation": "<one sentence, <=25 words>" }`)
     .join(",\n");
 
-  return `You are assessing a startup founder's self-reported answers to a behavioral questionnaire, one section per character dimension. Some dimensions may have fewer than 5 Q&A pairs — the founder skipped the rest, so judge each dimension only on the answers actually given.
+  // Scoring rubric mirrors the spec's 0-3 "quality of behavioral evidence"
+  // scale (No evidence / Weak / Adequate / Strong), remapped onto the
+  // existing 1-100 scale this pipeline already uses elsewhere: judge the
+  // ANSWER's evidence quality only — never English fluency, length, or
+  // charisma — and never infer a negative trait from a thin answer alone.
+  return `You are assessing a startup founder's self-reported answers to a behavioral interview, one question per character dimension. Each answer should describe a real, specific example: what the founder personally did, and what happened as a result.
 
-For EACH dimension below, read its Q&A pairs and rate how strongly the ANSWERS (not just the topic) demonstrate that trait, on a 1-100 scale. Score based on specificity, concrete detail, and evidence of real behavior — vague, generic, or clearly rehearsed/inspirational answers with no specifics should score low-to-mid regardless of how positive they sound. Score 1-30 for weak/evasive/generic answers, 31-60 for plausible but thin answers, 61-85 for specific and credible answers, 86-100 only for exceptionally detailed, self-aware, and consistent answers.
+For EACH dimension below, rate how strongly the ANSWER demonstrates that trait on a 1-100 scale, based only on the concreteness and quality of the behavioral evidence given — never on English fluency, answer length, or writing style.
+- 1-25 ("No evidence" / "Weak"): no real example, a generic trait description with no personal action, or an answer that dodges the question.
+- 26-55 ("Adequate"): a specific example with a personal action, but limited depth, trade-off, or learning shown.
+- 56-85 ("Strong"): a specific example with a real trade-off or decision, a clear personal action, a concrete outcome, and evidence of learning.
+- 86-100: exceptionally detailed, self-aware, and consistent — reserve for answers that clearly exceed "Strong".
+Do not infer a negative trait purely from a short or vague answer — score it low for lack of evidence, not as proof of a flaw.
 
 Respond with ONLY a JSON object, no markdown fences, no commentary, in exactly this shape:
 {
@@ -119,10 +119,58 @@ function parseEvaluation(raw: string, dims: EvidenceDimension[]): Record<Evidenc
   return out;
 }
 
-// POST /functions/v1/dna-self-assessment/:founderId — submit up to 40
-// answers (blank = skipped), evaluate once via Gemini, write one 'self'
-// evidence row per dimension that has at least one answer (plus the raw
-// responses for audit), and mark the assessment complete.
+// Runs after the fast response below has already gone out: scores the
+// already-saved answers via Gemini, writes one 'self' evidence row per
+// answered dimension, and flips dna_scoring_status to 'scored'/'failed'. A
+// Gemini failure here never surfaces to the client that submitted the
+// request — it already got its 201 — so onboarding is never blocked by AI
+// scoring being slow or down. Re-running this (e.g. a user-triggered retry,
+// which is just calling submitAssessment again) simply re-attempts scoring;
+// answers were already persisted synchronously, nothing is re-typed.
+async function scoreInBackground(founderId: string, answers: Answers, dims: EvidenceDimension[]): Promise<void> {
+  try {
+    if (dims.length === 0) {
+      await query(
+        "UPDATE founder_profiles SET dna_scoring_status = 'scored', dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1",
+        [founderId],
+      );
+      return;
+    }
+    if (!isGeminiConfigured()) throw new Error("Gemini not configured");
+
+    const raw = await generateText(buildPrompt(answers, dims));
+    const evaluation = parseEvaluation(raw, dims);
+    if (!evaluation) throw new Error("Gemini returned unparseable output");
+
+    for (const dim of dims) {
+      const { score, observation } = evaluation[dim];
+      await query(
+        `INSERT INTO evidence (founder_id, source_type, dimension, signal, score, observation, is_negative, weight)
+         VALUES ($1, 'self', $2, 'DNA self-assessment', $3, $4, false, $5)`,
+        [founderId, dim, score, observation, SOURCE_WEIGHTS.self],
+      );
+    }
+
+    await query(
+      "UPDATE founder_profiles SET dna_scoring_status = 'scored', dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1",
+      [founderId],
+    );
+    await recomputeFounderDna(founderId);
+    await recomputeMatchesForFounder(founderId);
+  } catch (e) {
+    console.error("[dna-self-assessment] background scoring failed", e);
+    await query(
+      "UPDATE founder_profiles SET dna_scoring_status = 'failed', updated_at = now() WHERE user_id = $1",
+      [founderId],
+    ).catch(() => {});
+  }
+}
+
+// POST /functions/v1/dna-self-assessment/:founderId — submit up to 8 answers
+// (blank = skipped). Saves answers and responds immediately; AI scoring runs
+// in the background (see scoreInBackground) so a slow/failed Gemini call
+// never blocks onboarding. Calling this again (e.g. a retry after a failed
+// scoring attempt) simply re-saves and re-attempts scoring.
 async function submitAssessment(req: Request, params: Record<string, string>): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
@@ -135,58 +183,28 @@ async function submitAssessment(req: Request, params: Record<string, string>): P
   const answers = body.answers as Answers;
 
   const founderId = params.founderId;
-  const weight = SOURCE_WEIGHTS.self;
   const dims = answeredDimensions(answers);
 
-  let evaluation: Record<EvidenceDimension, DimensionEval> = {} as Record<EvidenceDimension, DimensionEval>;
-  if (dims.length > 0) {
-    if (!isGeminiConfigured()) return json({ error: "DNA scoring is not configured" }, 503);
-    try {
-      const raw = await generateText(buildPrompt(answers, dims));
-      const parsed = parseEvaluation(raw, dims);
-      if (!parsed) {
-        console.error("[dna-self-assessment] Gemini returned unparseable output");
-        return json({ error: "DNA scoring failed — please try again" }, 502);
-      }
-      evaluation = parsed;
-    } catch (e) {
-      console.error("[dna-self-assessment] Gemini call failed", e);
-      return json({ error: "DNA scoring failed — please try again" }, 502);
-    }
-  }
-
   for (const dim of DNA_DIMENSIONS) {
-    const questions = DNA_QUESTIONS[dim];
-    const dimAnswers = answers[dim] as string[];
-    for (let i = 0; i < questions.length; i++) {
-      if (!isAnswered(dimAnswers[i])) continue;
-      await query(
-        `INSERT INTO dna_self_assessment_responses (founder_id, dimension, question_index, question, answer)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (founder_id, dimension, question_index)
-         DO UPDATE SET question = EXCLUDED.question, answer = EXCLUDED.answer, created_at = now()`,
-        [founderId, dim, i + 1, questions[i], dimAnswers[i]],
-      );
-    }
-
-    if (!dims.includes(dim)) continue;
-    const { score, observation } = evaluation[dim];
+    if (!isAnswered(answers[dim])) continue;
+    const { id: questionId, text: question } = DNA_QUESTIONS[dim];
     await query(
-      `INSERT INTO evidence (founder_id, source_type, dimension, signal, score, observation, is_negative, weight)
-       VALUES ($1, 'self', $2, 'DNA self-assessment', $3, $4, false, $5)`,
-      [founderId, dim, score, observation, weight],
+      `INSERT INTO dna_self_assessment_responses (founder_id, dimension, question_index, question, answer, assessment_version, question_id)
+       VALUES ($1, $2, 1, $3, $4, $5, $6)
+       ON CONFLICT (founder_id, assessment_version, dimension, question_id)
+       DO UPDATE SET question = EXCLUDED.question, answer = EXCLUDED.answer, created_at = now()`,
+      [founderId, dim, question, answers[dim], DNA_ASSESSMENT_VERSION, questionId],
     );
   }
 
   await query(
-    "UPDATE founder_profiles SET dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1",
+    "UPDATE founder_profiles SET dna_scoring_status = 'pending', updated_at = now() WHERE user_id = $1",
     [founderId],
   );
 
-  background(recomputeFounderDna(founderId));
-  background(recomputeMatchesForFounder(founderId));
+  background(scoreInBackground(founderId, answers, dims));
 
-  return json({ completedAt: new Date().toISOString() }, 201);
+  return json({ status: "pending" }, 201);
 }
 
 serveFunction(FN, [

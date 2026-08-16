@@ -89,7 +89,7 @@ export default function MatchDetailScreen({ route, navigation }) {
             <Text style={styles.founderName}>{detail.b_name || 'Founder B'}</Text>
           </View>
           <Text style={styles.scoreValue}>{detail.score}</Text>
-          <Text style={styles.scoreLabel}>Match Score</Text>
+          <Text style={styles.scoreLabel}>Match Score{detail.is_provisional ? ' · Provisional (limited evidence)' : ''}</Text>
           {detail.requires_admin_review ? (
             <View style={styles.reviewBanner}>
               <Text style={styles.reviewBannerText}>⚠ Deal breakers stated — needs admin review before pairing.</Text>

@@ -57,14 +57,15 @@ function canonicalPair(x: string, y: string): [string, string] {
 async function upsertCompatibility(aId: string, bId: string, result: CompatibilityResult): Promise<void> {
   await query(
     `INSERT INTO founder_compatibility
-       (founder_a_id, founder_b_id, score, dimension_breakdown, explanation, deal_breaker_flags, requires_admin_review, computed_at)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, now())
+       (founder_a_id, founder_b_id, score, dimension_breakdown, explanation, deal_breaker_flags, requires_admin_review, is_provisional, computed_at)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
      ON CONFLICT (founder_a_id, founder_b_id) DO UPDATE SET
        score = EXCLUDED.score,
        dimension_breakdown = EXCLUDED.dimension_breakdown,
        explanation = EXCLUDED.explanation,
        deal_breaker_flags = EXCLUDED.deal_breaker_flags,
        requires_admin_review = EXCLUDED.requires_admin_review,
+       is_provisional = EXCLUDED.is_provisional,
        computed_at = now()`,
     [
       aId, bId, result.score,
@@ -72,6 +73,7 @@ async function upsertCompatibility(aId: string, bId: string, result: Compatibili
       JSON.stringify(result.explanation),
       JSON.stringify(result.dealBreakerFlags),
       result.requiresAdminReview,
+      result.isProvisional,
     ],
   );
 }

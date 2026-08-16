@@ -35,6 +35,9 @@ export default function MatchCard({ pair, onCreateTeam, onViewMatch, C }) {
 
       <View style={styles.scoreRow}>
         <Pill label={`${pair.score}% Match`} C={C} bg={C.successLight} color={C.success} />
+        {pair.isProvisional ? (
+          <Pill label="Provisional" C={C} bg={C.surfaceElevated} color={C.textSecondary} />
+        ) : null}
         {pair.requiresAdminReview ? (
           <Text style={styles.reviewFlag}>⚠ Needs review</Text>
         ) : null}

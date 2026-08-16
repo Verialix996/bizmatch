@@ -1,64 +1,44 @@
-// 5 open-ended, behavioral/reflection questions per DNA dimension (40 total).
+// v2: one interview-grounded, evidence-seeking question per DNA dimension
+// (was 5 self-rating-adjacent questions/dimension, 40 total). Derived from a
+// review of 47 founder interviews — see BizMatch_Interview_Grounded_Onboarding_Spec.
 // Mirrored in supabase/functions/_shared/dnaQuestions.ts — keep both in sync;
 // the edge-function copy is authoritative for scoring (it validates the
-// submitted questions match), this copy is what's rendered.
+// submitted question ids match), this copy is what's rendered.
 export const DNA_QUESTIONS = {
-  execution: [
-    "Describe a project you shipped end-to-end. What was your role and what shipped?",
-    "Tell us about a time you had to cut scope to hit a deadline. What did you cut and why?",
-    "What's a goal you set for yourself in the last year, and how close did you get to it?",
-    "Walk through how you prioritize your to-do list when everything feels urgent.",
-    "Describe a time a plan you made didn't survive contact with reality. What did you do next?",
-  ],
-  integrity: [
-    "Describe a time you made a mistake that affected someone else. How did you handle telling them?",
-    "Tell us about a situation where being fully honest would have cost you something. What did you do?",
-    "Have you ever caught yourself cutting an ethical corner under pressure? What happened?",
-    "Describe a time you had to deliver bad news to a boss, teammate, or customer.",
-    "What's a commitment you made that you later couldn't keep, and how did you handle it?",
-  ],
-  commitment: [
-    "What's the longest you've stuck with something difficult before giving up or breaking through?",
-    "Describe a time your motivation dropped mid-project. What kept you going, if anything?",
-    "What have you sacrificed (time, money, relationships) to pursue something you cared about?",
-    "Tell us about a commitment you walked away from. What led to that decision?",
-    "How do you decide when to keep pushing on something versus cutting your losses?",
-  ],
-  communication: [
-    "Describe a time you had to explain something technical or complex to someone non-technical.",
-    "Tell us about a misunderstanding with a teammate or partner. How did it get resolved?",
-    "How do you typically deliver critical feedback to someone you work closely with?",
-    "Describe a time you realized you'd misread a situation because you didn't ask enough questions.",
-    "What's your approach to keeping a team aligned when everyone's busy and distributed?",
-  ],
-  conflict: [
-    "Describe your most significant disagreement with a co-founder, partner, or manager. How did it resolve?",
-    "Tell us about a time you had to push back on someone more senior than you.",
-    "How do you typically respond in the moment when someone is angry or upset with you?",
-    "Describe a negotiation (formal or informal) that didn't go the way you wanted.",
-    "What's a recurring type of conflict you find yourself in, and what pattern have you noticed in how you handle it?",
-  ],
-  resilience: [
-    "Describe the biggest professional failure or setback you've experienced. What did you do in the weeks after?",
-    "Tell us about a time everything seemed to go wrong at once. How did you cope?",
-    "What's something you tried that didn't work, and what did you take away from it?",
-    "Describe a period of sustained pressure or stress you went through. How did it change how you work?",
-    "How do you typically recover after a rejection (investor, customer, job, etc.)?",
-  ],
-  ego: [
-    "Describe a time someone gave you feedback that stung but turned out to be right.",
-    "Tell us about a strongly-held opinion you changed your mind about, and what changed it.",
-    "What's something you're currently bad at that you're actively working to improve?",
-    "Describe a time you were wrong in front of other people. How did you handle it?",
-    "How do you usually react in the moment when someone challenges an idea you're proud of?",
-  ],
-  values: [
-    "What's a principle you won't compromise on, even if it costs you a deal or a hire?",
-    "Describe a decision where doing the \"right thing\" and the \"profitable thing\" pointed in different directions.",
-    "What kind of company culture would you refuse to work in, and why?",
-    "Tell us about a time your personal values shaped a business decision.",
-    "What do you want to be true about how you treated people, five years after this venture ends (win or lose)?",
-  ],
+  execution: {
+    id: 'execution_v2',
+    text: "Tell us about something you took from idea to a real result. What did you personally own, what shipped, and what did you cut or change when reality got in the way?",
+  },
+  integrity: {
+    id: 'integrity_v2',
+    text: "Tell us about a time you made a mistake or could not keep a commitment that affected someone else. When and how did you tell them, and what did you do next?",
+  },
+  commitment: {
+    id: 'commitment_v2',
+    text: "Tell us about the hardest goal you stayed committed to when progress was slow or uncertain. What did you keep doing, and what evidence would have made you stop?",
+  },
+  communication: {
+    id: 'communication_v2',
+    text: "Tell us about a meaningful misunderstanding with a teammate or partner. What did each side understand differently, how did you address it, and what changed afterward?",
+  },
+  conflict: {
+    id: 'conflict_v2',
+    text: "Tell us about a serious disagreement with a partner, teammate, or manager where you did not fully get your way. How did you behave, how was the decision made, and what happened to the relationship?",
+  },
+  resilience: {
+    id: 'resilience_v2',
+    text: "Tell us about a professional low point, failure, or rejection. What did you do in the first 72 hours, and what did you change in the weeks that followed?",
+  },
+  // Question id is "learning_v2", not "ego_v2" — intentional, matches the
+  // source spec exactly. Dimension key stays "ego".
+  ego: {
+    id: 'learning_v2',
+    text: "Tell us about feedback that was difficult to hear but turned out to be right. What did you change in your behavior or decisions because of it?",
+  },
+  values: {
+    id: 'values_v2',
+    text: "What is one principle you would not compromise on in a partnership, even if it cost money, growth, or an important opportunity? Give one real example of when that principle affected a decision.",
+  },
 };
 
 export const DNA_DIMENSIONS = Object.keys(DNA_QUESTIONS);

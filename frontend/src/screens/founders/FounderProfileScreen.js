@@ -200,7 +200,24 @@ export default function FounderProfileScreen({ route, navigation }) {
           </TouchableOpacity>
         )}
 
-        {!isAdmin && !founder?.dnaSelfAssessmentCompletedAt && (
+        {!isAdmin && founder?.dnaScoringStatus === 'pending' && (
+          <View style={styles.dnaBanner}>
+            <Ionicons name="hourglass-outline" size={18} color={C.primary} />
+            <Text style={styles.dnaBannerText}>Scoring your DNA assessment answers…</Text>
+          </View>
+        )}
+        {!isAdmin && founder?.dnaScoringStatus === 'failed' && (
+          <TouchableOpacity
+            style={[styles.dnaBanner, { borderColor: C.error }]}
+            activeOpacity={0.85}
+            onPress={() => navigation.navigate('DnaQuestionnaire')}
+          >
+            <Ionicons name="alert-circle-outline" size={18} color={C.error} />
+            <Text style={[styles.dnaBannerText, { color: C.error }]}>DNA scoring failed — tap to retry</Text>
+            <Ionicons name="chevron-forward" size={16} color={C.error} />
+          </TouchableOpacity>
+        )}
+        {!isAdmin && !founder?.dnaSelfAssessmentCompletedAt && founder?.dnaScoringStatus !== 'pending' && founder?.dnaScoringStatus !== 'failed' && (
           <TouchableOpacity
             style={styles.dnaBanner}
             activeOpacity={0.85}
@@ -532,7 +549,7 @@ function CompareResultCard({ detail, founderId, C, styles }) {
   return (
     <View style={styles.compareCard}>
       <Text style={styles.compareCardName}>{otherName || 'Unnamed'}</Text>
-      <Text style={styles.scoreValue}>{detail.score}%</Text>
+      <Text style={styles.scoreValue}>{detail.score}%{detail.is_provisional ? ' · Provisional' : ''}</Text>
       {(detail.explanation?.positives || []).slice(0, 3).map((p, i) => (
         <Text key={`p${i}`} style={[styles.bullet, { color: C.success }]}>+ {p}</Text>
       ))}
