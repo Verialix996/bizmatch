@@ -359,7 +359,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
               </TouchableOpacity>
             </View>
           ) : (
-            <TouchableOpacity style={[styles.btnPrimary, { maxWidth: 220 }, cvUploading && styles.btnDisabled]} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.85}>
+            <TouchableOpacity style={[styles.btnPrimary, { flex: 0, alignSelf: 'flex-start', maxWidth: 220 }, cvUploading && styles.btnDisabled]} onPress={handlePickCv} disabled={cvUploading} activeOpacity={0.85}>
               {cvUploading ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Upload CV (PDF)</Text>}
             </TouchableOpacity>
           )}
