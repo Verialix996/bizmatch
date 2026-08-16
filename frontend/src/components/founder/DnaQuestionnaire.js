@@ -51,21 +51,29 @@ export default function DnaQuestionnaire({
 
   const goNext = async () => {
     setError('');
+    const trimmed = answer.trim();
+    // DNA-02: save this question's answer to the server as soon as it's
+    // completed, rather than accumulating all 8 locally and only submitting
+    // once on Finish — the endpoint already upserts one dimension at a time
+    // (ON CONFLICT DO UPDATE), so this is safe to call once per question.
+    // Fast save-and-respond — scoring itself happens in the background, so
+    // this resolves as soon as the answer is persisted server-side.
+    if (trimmed) {
+      setSubmitting(true);
+      try {
+        await submitDnaSelfAssessment(founderId, { [dim]: answer });
+      } catch (e) {
+        setError(e.response?.data?.error || 'Could not save your answer. Please try again.');
+        setSubmitting(false);
+        return;
+      }
+      setSubmitting(false);
+    }
     if (!isLast) {
       setDimIndex(dimIndex + 1);
       return;
     }
-    setSubmitting(true);
-    try {
-      // Fast save-and-respond — scoring itself happens in the background,
-      // so this resolves as soon as the answers are persisted server-side.
-      await submitDnaSelfAssessment(founderId, answers);
-      onComplete?.();
-    } catch (e) {
-      setError(e.response?.data?.error || 'Could not save your answers. Please try again.');
-    } finally {
-      setSubmitting(false);
-    }
+    onComplete?.();
   };
 
   const goBack = () => {
