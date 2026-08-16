@@ -185,7 +185,7 @@ async function putPartnerRequirements(req: Request, params: Record<string, strin
   return json({ ok: true });
 }
 
-// PUT /functions/v1/founders/:id/deal-breakers  { labels: string[] }
+// PUT /functions/v1/founders/:id/deal-breakers  { labels: string[], noneDeclared?: boolean }
 async function putDealBreakers(req: Request, params: Record<string, string>): Promise<Response> {
   const user = await authenticate(req);
   if (!user) return json({ error: "Unauthorized" }, 401);
@@ -193,8 +193,8 @@ async function putDealBreakers(req: Request, params: Record<string, string>): Pr
   if (forbidden) return forbidden;
 
   const body = await req.json().catch(() => ({}));
-  const { labels } = body as { labels?: string[] };
-  await FoundersModel.replaceDealBreakers(params.id, labels ?? []);
+  const { labels, noneDeclared } = body as { labels?: string[]; noneDeclared?: boolean };
+  await FoundersModel.replaceDealBreakers(params.id, labels ?? [], !!noneDeclared);
   return json({ ok: true });
 }
 

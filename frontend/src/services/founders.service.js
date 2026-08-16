@@ -16,8 +16,8 @@ export const updateFounderCapabilities = (founderId, kind, items) =>
   api.put(`/founders/${founderId}/capabilities`, { kind, items });
 export const updatePartnerRequirements = (founderId, payload) =>
   api.put(`/founders/${founderId}/partner-requirements`, payload);
-export const updateDealBreakers = (founderId, labels) =>
-  api.put(`/founders/${founderId}/deal-breakers`, { labels });
+export const updateDealBreakers = (founderId, labels, noneDeclared = false) =>
+  api.put(`/founders/${founderId}/deal-breakers`, { labels, noneDeclared });
 export const completeOnboarding = (founderId) => api.post(`/founders/${founderId}/onboarding/complete`);
 export const setFounderStatus = (founderId, status) => api.patch(`/founders/${founderId}/status`, { status });
 export const assignProgram = (founderId, programId) => api.patch(`/founders/${founderId}/program`, { programId });

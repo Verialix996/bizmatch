@@ -63,7 +63,7 @@ export const FoundersModel = {
               fp.role_title, fp.venture_name, fp.industry, fp.location, fp.current_stage,
               fp.commitment_hours, fp.commitment_type, fp.commitment_risk_appetite,
               fp.program_id, fp.status, fp.onboarding_completed_at, fp.dna_self_assessment_completed_at,
-              fp.dna_scoring_status
+              fp.dna_scoring_status, fp.no_deal_breakers_declared
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
        WHERE u.id = $1 AND u.deleted_at IS NULL`,
@@ -121,6 +121,7 @@ export const FoundersModel = {
         }
         : null,
       dealBreakers: dealBreakers.map((d) => d.label),
+      noDealBreakersDeclared: !!base.no_deal_breakers_declared,
       team: inTeamRows[0] ? { id: Number(inTeamRows[0].team_id), name: inTeamRows[0].name } : null,
     };
   },
@@ -185,7 +186,11 @@ export const FoundersModel = {
     );
   },
 
-  async replaceDealBreakers(founderId: string, labels: string[]): Promise<void> {
+  // noneDeclared distinguishes "deliberately no deal breakers" from "hasn't
+  // filled this in yet" — both look like an empty labels array otherwise,
+  // which is what made the old required-at-least-one validation impossible
+  // to relax safely (COPY-02).
+  async replaceDealBreakers(founderId: string, labels: string[], noneDeclared: boolean): Promise<void> {
     await query("DELETE FROM deal_breakers WHERE founder_id = $1", [founderId]);
     for (const label of labels) {
       await query(
@@ -193,6 +198,10 @@ export const FoundersModel = {
         [founderId, label],
       );
     }
+    await query(
+      "UPDATE founder_profiles SET no_deal_breakers_declared = $2, updated_at = now() WHERE user_id = $1",
+      [founderId, noneDeclared && labels.length === 0],
+    );
   },
 
   async completeOnboarding(founderId: string): Promise<void> {

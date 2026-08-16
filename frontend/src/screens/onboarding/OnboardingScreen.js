@@ -114,6 +114,9 @@ export default function OnboardingScreen() {
   const [needs, setNeeds] = useState([]);
   const [partner, setPartner] = useState({ role_wanted: '', commitment_required: '', ambition_required: '' });
   const [dealBreakers, setDealBreakers] = useState([]);
+  // COPY-02: distinct from an empty dealBreakers array so validation can
+  // tell "hasn't decided yet" apart from "genuinely has none".
+  const [noDealBreakers, setNoDealBreakers] = useState(false);
   // Lifted out of DnaQuestionnaire (which supports being controlled this
   // way) specifically so it's included in the draft autosave below —
   // previously DNA answers weren't persisted at all if the app backgrounded
@@ -135,6 +138,7 @@ export default function OnboardingScreen() {
           if (draft.needs) setNeeds(draft.needs);
           if (draft.partner) setPartner(draft.partner);
           if (draft.dealBreakers) setDealBreakers(draft.dealBreakers);
+          if (typeof draft.noDealBreakers === 'boolean') setNoDealBreakers(draft.noDealBreakers);
           if (draft.dnaAnswers) setDnaAnswers({ ...emptyDnaAnswers(), ...draft.dnaAnswers });
           if (typeof draft.dnaDimIndex === 'number') setDnaDimIndex(draft.dnaDimIndex);
           if (typeof draft.stepIndex === 'number') setStepIndex(draft.stepIndex);
@@ -152,9 +156,9 @@ export default function OnboardingScreen() {
   useEffect(() => {
     if (hydrating.current) return;
     AsyncStorage.setItem(DRAFT_KEY, JSON.stringify({
-      basics, commitment, provides, needs, partner, dealBreakers, dnaAnswers, dnaDimIndex, stepIndex,
+      basics, commitment, provides, needs, partner, dealBreakers, noDealBreakers, dnaAnswers, dnaDimIndex, stepIndex,
     })).catch(() => {});
-  }, [basics, commitment, provides, needs, partner, dealBreakers, dnaAnswers, dnaDimIndex, stepIndex]);
+  }, [basics, commitment, provides, needs, partner, dealBreakers, noDealBreakers, dnaAnswers, dnaDimIndex, stepIndex]);
 
   const step = STEPS[stepIndex];
   const isLast = stepIndex === STEPS.length - 1;
@@ -197,7 +201,7 @@ export default function OnboardingScreen() {
         }
         return null;
       case 'dealbreakers':
-        if (dealBreakers.length === 0) return 'Select or add at least one deal breaker.';
+        if (dealBreakers.length === 0 && !noDealBreakers) return 'Select or add at least one deal breaker, or check "I don\'t have any deal breakers".';
         return null;
       default:
         return null;
@@ -248,7 +252,7 @@ export default function OnboardingScreen() {
         updateFounderCapabilities(founderId, 'provide', scoreByRank(provides)),
         updateFounderCapabilities(founderId, 'need', scoreByRank(needs)),
         updatePartnerRequirements(founderId, partner),
-        updateDealBreakers(founderId, dealBreakers),
+        updateDealBreakers(founderId, dealBreakers, noDealBreakers),
         completeOnboarding(founderId),
         api.patch('/users/me/onboarding').catch(() => {}),
       ]);
@@ -406,7 +410,7 @@ export default function OnboardingScreen() {
           <View>
             <Text style={styles.title}>Deal breakers</Text>
             <Text style={styles.subtitle}>What would make you walk away from a partnership? Choose up to {MAX_DEAL_BREAKERS}.</Text>
-            <View style={styles.chipRow}>
+            <View style={[styles.chipRow, noDealBreakers && { opacity: 0.5 }]} pointerEvents={noDealBreakers ? 'none' : 'auto'}>
               {DEAL_BREAKER_SUGGESTIONS.map(d => (
                 <Chip key={d} label={d} selected={dealBreakers.includes(d)}
                   onPress={() => toggleItem(dealBreakers, setDealBreakers, d, MAX_DEAL_BREAKERS)} C={C} styles={styles} />
@@ -416,9 +420,21 @@ export default function OnboardingScreen() {
                   onPress={() => toggleItem(dealBreakers, setDealBreakers, d, MAX_DEAL_BREAKERS)} C={C} styles={styles} />
               ))}
             </View>
-            {dealBreakers.length < MAX_DEAL_BREAKERS && (
+            {dealBreakers.length < MAX_DEAL_BREAKERS && !noDealBreakers && (
               <TagInput value={dealBreakers} onAdd={(d) => setDealBreakers([...dealBreakers, d])} styles={styles} C={C} />
             )}
+            <TouchableOpacity
+              style={styles.noneRow}
+              onPress={() => { setNoDealBreakers(!noDealBreakers); if (!noDealBreakers) setDealBreakers([]); }}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={noDealBreakers ? 'checkbox' : 'square-outline'}
+                size={18}
+                color={noDealBreakers ? C.primary : C.textHint}
+              />
+              <Text style={styles.noneRowText}>I genuinely don't have any deal breakers right now.</Text>
+            </TouchableOpacity>
           </View>
         )}
 
@@ -464,6 +480,8 @@ function makeStyles(C) {
     inputMultiline: { height: 90, textAlignVertical: 'top' },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    noneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+    noneRowText: { ...typography.bodySmall, color: C.textSecondary, flex: 1 },
     chip: {
       borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10,
       backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder,

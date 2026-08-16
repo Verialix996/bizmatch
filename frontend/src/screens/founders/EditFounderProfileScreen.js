@@ -125,6 +125,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
   const [mustProvide, setMustProvide] = useState([]);
   const [preferredTraits, setPreferredTraits] = useState([]);
   const [dealBreakers, setDealBreakers] = useState([]);
+  const [noDealBreakers, setNoDealBreakers] = useState(false);
   const [cvUrl, setCvUrl] = useState(null);
   const [cvUploading, setCvUploading] = useState(false);
 
@@ -154,6 +155,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
       setMustProvide(founder.partnerRequirements?.mustProvide || []);
       setPreferredTraits(founder.partnerRequirements?.preferredTraits || []);
       setDealBreakers(founder.dealBreakers || []);
+      setNoDealBreakers(!!founder.noDealBreakersDeclared);
       setCvUrl(founder.cvUrl || null);
     } catch {
       showAlert('Error', 'Could not load your profile.');
@@ -214,7 +216,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
     if (!partner.role_wanted.trim() || !partner.commitment_required.trim()) {
       return 'Fill in the role and commitment you\'re looking for in a partner.';
     }
-    if (dealBreakers.length === 0) return 'Select or add at least one deal breaker.';
+    if (dealBreakers.length === 0 && !noDealBreakers) return 'Select or add at least one deal breaker, or check "I don\'t have any deal breakers".';
     return null;
   };
 
@@ -245,7 +247,7 @@ export default function EditFounderProfileScreen({ route, navigation }) {
           must_provide: mustProvide,
           preferred_traits: preferredTraits,
         }),
-        updateDealBreakers(founderId, dealBreakers),
+        updateDealBreakers(founderId, dealBreakers, noDealBreakers),
       ]);
       navigation.goBack();
     } catch (err) {
@@ -392,19 +394,33 @@ export default function EditFounderProfileScreen({ route, navigation }) {
         </SectionCard>
 
         <SectionCard title="Deal breakers" icon="close-circle-outline" C={C} style={styles.card}>
-          <Text style={styles.fieldLabel}>QUICK ADD (up to {MAX_DEAL_BREAKERS})</Text>
-          <View style={styles.chipRow}>
-            {DEAL_BREAKER_SUGGESTIONS.map(d => (
-              <Chip key={d} label={d} selected={dealBreakers.includes(d)}
-                onPress={() => toggleDealBreakerSuggestion(d)} C={C} styles={styles} />
-            ))}
-          </View>
+          <View style={[{ opacity: noDealBreakers ? 0.5 : 1 }]} pointerEvents={noDealBreakers ? 'none' : 'auto'}>
+            <Text style={styles.fieldLabel}>QUICK ADD (up to {MAX_DEAL_BREAKERS})</Text>
+            <View style={styles.chipRow}>
+              {DEAL_BREAKER_SUGGESTIONS.map(d => (
+                <Chip key={d} label={d} selected={dealBreakers.includes(d)}
+                  onPress={() => toggleDealBreakerSuggestion(d)} C={C} styles={styles} />
+              ))}
+            </View>
 
-          <Text style={[styles.fieldLabel, { marginTop: 20 }]}>YOUR DEAL BREAKERS</Text>
-          <TagList items={dealBreakers} onRemove={(d) => setDealBreakers(dealBreakers.filter(x => x !== d))} C={C} styles={styles} />
-          {dealBreakers.length < MAX_DEAL_BREAKERS && (
-            <TagInput placeholder="e.g. Avoids conflict or difficult conversations" onAdd={(d) => setDealBreakers([...dealBreakers, d])} C={C} styles={styles} />
-          )}
+            <Text style={[styles.fieldLabel, { marginTop: 20 }]}>YOUR DEAL BREAKERS</Text>
+            <TagList items={dealBreakers} onRemove={(d) => setDealBreakers(dealBreakers.filter(x => x !== d))} C={C} styles={styles} />
+            {dealBreakers.length < MAX_DEAL_BREAKERS && (
+              <TagInput placeholder="e.g. Avoids conflict or difficult conversations" onAdd={(d) => setDealBreakers([...dealBreakers, d])} C={C} styles={styles} />
+            )}
+          </View>
+          <TouchableOpacity
+            style={styles.noneRow}
+            onPress={() => { setNoDealBreakers(!noDealBreakers); if (!noDealBreakers) setDealBreakers([]); }}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name={noDealBreakers ? 'checkbox' : 'square-outline'}
+              size={18}
+              color={noDealBreakers ? C.primary : C.textHint}
+            />
+            <Text style={styles.noneRowText}>I genuinely don't have any deal breakers right now.</Text>
+          </TouchableOpacity>
         </SectionCard>
 
         {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -449,6 +465,8 @@ function makeStyles(C) {
     inputMultiline: { height: 80, textAlignVertical: 'top' },
 
     chipRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    noneRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16 },
+    noneRowText: { ...typography.bodySmall, color: C.textSecondary, flex: 1 },
     chip: {
       borderRadius: radius.pill, paddingHorizontal: 14, paddingVertical: 9,
       backgroundColor: C.surface, borderWidth: 1.5, borderColor: C.surfaceBorder,
