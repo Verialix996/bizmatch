@@ -1,25 +1,74 @@
 import { query } from "../_shared/db.ts";
+import { computeTeamComplementarity, type CapabilityLite, type TeamMemberInput } from "../_shared/founderScoring.ts";
 
 export interface TeamListItem {
   id: number;
   name: string;
   memberCount: number;
+  members: { id: string; name: string | null; photoUrl: string | null }[];
+  skills: string[];
 }
 
 export const TeamsModel = {
   // MVP screens 9/10's companion list — not a dedicated MVP screen itself,
   // but useful for admin navigation to an existing Team Profile.
+  //
+  // Fetches members + capabilities for every team in exactly 2 queries
+  // (regardless of team count) and computes complementarySkills in-process —
+  // the frontend previously called getTeam() per team to enrich this list,
+  // an N+1 that meant a screen with 10 teams paid for 11 full API round
+  // trips instead of 1.
   async list(programId: number | null): Promise<TeamListItem[]> {
-    const rows = await query<Record<string, unknown>>(
-      `SELECT t.id, t.name, count(tf.founder_id)::int AS member_count
+    const teamRows = await query<Record<string, unknown>>(
+      `SELECT t.id AS team_id, t.name AS team_name,
+              u.id AS member_id, u.name AS member_name, u.photo_url AS member_photo
        FROM teams t
        LEFT JOIN team_founders tf ON tf.team_id = t.id
+       LEFT JOIN users u ON u.id = tf.founder_id
        WHERE ($1::bigint IS NULL OR t.program_id = $1)
-       GROUP BY t.id
-       ORDER BY t.created_at DESC`,
+       ORDER BY t.created_at DESC, u.name ASC`,
       [programId],
     );
-    return rows.map((r) => ({ id: Number(r.id), name: r.name as string, memberCount: Number(r.member_count) }));
+
+    const teams = new Map<number, TeamListItem>();
+    const memberIds: string[] = [];
+    for (const r of teamRows) {
+      const teamId = Number(r.team_id);
+      if (!teams.has(teamId)) {
+        teams.set(teamId, { id: teamId, name: r.team_name as string, memberCount: 0, members: [], skills: [] });
+      }
+      if (r.member_id) {
+        teams.get(teamId)!.members.push({
+          id: r.member_id as string,
+          name: r.member_name as string | null,
+          photoUrl: r.member_photo as string | null,
+        });
+        memberIds.push(r.member_id as string);
+      }
+    }
+
+    const capabilitiesByFounder = new Map<string, CapabilityLite[]>();
+    if (memberIds.length > 0) {
+      const capRows = await query<{ founder_id: string; kind: "provide" | "need"; capability: string }>(
+        `SELECT founder_id, kind, capability FROM founder_capabilities WHERE founder_id = ANY($1::uuid[])`,
+        [memberIds],
+      );
+      for (const c of capRows) {
+        if (!capabilitiesByFounder.has(c.founder_id)) capabilitiesByFounder.set(c.founder_id, []);
+        capabilitiesByFounder.get(c.founder_id)!.push({ kind: c.kind, capability: c.capability });
+      }
+    }
+
+    for (const team of teams.values()) {
+      team.memberCount = team.members.length;
+      const memberInputs = team.members.map((m) => ({
+        founderId: m.id,
+        capabilities: capabilitiesByFounder.get(m.id) ?? [],
+      })) as unknown as TeamMemberInput[]; // dimensions unused by computeTeamComplementarity
+      team.skills = computeTeamComplementarity(memberInputs).complementarySkills;
+    }
+
+    return [...teams.values()];
   },
 
   async get(teamId: number): Promise<Record<string, unknown> | null> {

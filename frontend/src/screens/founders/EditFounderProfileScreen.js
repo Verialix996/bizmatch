@@ -185,20 +185,26 @@ export default function EditFounderProfileScreen({ route, navigation }) {
     setSaving(true);
     setError('');
     try {
-      await updateFounderProfile(founderId, {
-        ...basics,
-        commitment_hours: commitment.commitment_hours ? Number(commitment.commitment_hours) : null,
-        commitment_type: commitment.commitment_type || null,
-        commitment_risk_appetite: commitment.commitment_risk_appetite || null,
-      });
-      await updateFounderCapabilities(founderId, 'provide', scoreByRank(provides));
-      await updateFounderCapabilities(founderId, 'need', scoreByRank(needs));
-      await updatePartnerRequirements(founderId, {
-        ...partner,
-        must_provide: mustProvide,
-        preferred_traits: preferredTraits,
-      });
-      await updateDealBreakers(founderId, dealBreakers);
+      // Unlike onboarding's first-time save, this founder_profiles row is
+      // guaranteed to already exist (you can only reach Edit Profile after
+      // onboarding completes) — no creation-order dependency, so every write
+      // here is safe to run together.
+      await Promise.all([
+        updateFounderProfile(founderId, {
+          ...basics,
+          commitment_hours: commitment.commitment_hours ? Number(commitment.commitment_hours) : null,
+          commitment_type: commitment.commitment_type || null,
+          commitment_risk_appetite: commitment.commitment_risk_appetite || null,
+        }),
+        updateFounderCapabilities(founderId, 'provide', scoreByRank(provides)),
+        updateFounderCapabilities(founderId, 'need', scoreByRank(needs)),
+        updatePartnerRequirements(founderId, {
+          ...partner,
+          must_provide: mustProvide,
+          preferred_traits: preferredTraits,
+        }),
+        updateDealBreakers(founderId, dealBreakers),
+      ]);
       navigation.goBack();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to save your profile. Please try again.');

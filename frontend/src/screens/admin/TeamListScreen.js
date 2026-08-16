@@ -7,7 +7,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
-import { listTeams, getTeam } from '../../services/teams.service';
+import { listTeams } from '../../services/teams.service';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS } from '../../config/nav';
 import { Avatar, Pill, useIsDesktop } from '../../components/ui';
@@ -28,18 +28,10 @@ export default function TeamListScreen({ navigation }) {
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      // listTeams() already returns members + complementary skills per team
+      // in one call — no more per-team getTeam() enrichment round trips.
       const { data } = await listTeams();
-      const enriched = await Promise.all(
-        data.map(async (t) => {
-          try {
-            const { data: detail } = await getTeam(t.id);
-            return { ...t, members: detail.members || [], skills: detail.profile?.complementarySkills || [] };
-          } catch {
-            return { ...t, members: [], skills: [] };
-          }
-        }),
-      );
-      setTeams(enriched);
+      setTeams(data);
     } catch {
       setTeams([]);
     } finally {

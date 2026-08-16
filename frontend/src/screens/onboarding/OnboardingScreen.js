@@ -199,21 +199,31 @@ export default function OnboardingScreen() {
       // Every write below is a full-replace/upsert on the backend, so this
       // whole sequence is safe to simply retry from the same local state if
       // any single call fails partway through — nothing needs a rollback.
+      // updateFounderProfile runs first and alone because it's the upsert
+      // that *creates* the founder_profiles row for a brand-new founder —
+      // completeOnboarding is a plain UPDATE on that same row, so running it
+      // in parallel with the row's own creation could race and silently
+      // no-op (0 rows affected, no error). Capabilities/partner/deal-breakers
+      // have no such dependency (they FK to users, not founder_profiles), so
+      // those + completeOnboarding + the has_seen_onboarding flag all run
+      // together — this alone cuts onboarding's save time roughly 3x.
       await updateFounderProfile(founderId, {
         ...basics,
         commitment_hours: commitment.commitment_hours ? Number(commitment.commitment_hours) : null,
         commitment_type: commitment.commitment_type || null,
         commitment_risk_appetite: commitment.commitment_risk_appetite || null,
       });
-      await updateFounderCapabilities(founderId, 'provide', scoreByRank(provides));
-      await updateFounderCapabilities(founderId, 'need', scoreByRank(needs));
-      await updatePartnerRequirements(founderId, partner);
-      await updateDealBreakers(founderId, dealBreakers);
-      await completeOnboarding(founderId);
+      await Promise.all([
+        updateFounderCapabilities(founderId, 'provide', scoreByRank(provides)),
+        updateFounderCapabilities(founderId, 'need', scoreByRank(needs)),
+        updatePartnerRequirements(founderId, partner),
+        updateDealBreakers(founderId, dealBreakers),
+        completeOnboarding(founderId),
+        api.patch('/users/me/onboarding').catch(() => {}),
+      ]);
 
       await AsyncStorage.removeItem(DRAFT_KEY).catch(() => {});
       setHasSeenOnboarding();
-      await api.patch('/users/me/onboarding').catch(() => {});
       // No explicit navigation — AppNavigator's top-level conditional swaps
       // from FounderOnboardingNavigator to FounderNavigator automatically
       // once hasSeenOnboarding flips in the store.
