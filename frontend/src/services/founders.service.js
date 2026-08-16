@@ -6,6 +6,9 @@ export const listFounders = (params) => api.get('/founders', { params });
 // Admin Dashboard (MVP screen 2)
 export const getDashboard = () => api.get('/founders/dashboard');
 
+// Top bar's cohort switcher — list only, no create/edit yet.
+export const listPrograms = () => api.get('/founders/programs');
+
 // Founder Profile (MVP screen 4) — admin or self
 export const getFounder = (founderId) => api.get(`/founders/${founderId}`);
 export const updateFounderProfile = (founderId, payload) => api.put(`/founders/${founderId}/profile`, payload);

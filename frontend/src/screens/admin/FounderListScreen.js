@@ -17,6 +17,7 @@ import { Avatar, Pill } from '../../components/ui';
 // counts, no bulk actions (all explicitly excluded from the MVP screen).
 export default function FounderListScreen({ navigation }) {
   const darkMode = useAppStore(s => s.darkMode);
+  const activeProgramId = useAppStore(s => s.activeProgramId);
   const C = darkMode ? investorColors : colors;
   const styles2 = makeStyles(C);
 
@@ -27,14 +28,14 @@ export default function FounderListScreen({ navigation }) {
   const load = useCallback(async (query) => {
     setLoading(true);
     try {
-      const { data } = await listFounders({ search: query || undefined });
+      const { data } = await listFounders({ search: query || undefined, programId: activeProgramId || undefined });
       setFounders(data);
     } catch {
       // silent — empty list renders its own "no founders" state
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeProgramId]);
 
   useFocusEffect(useCallback(() => { load(search); }, [load]));
 

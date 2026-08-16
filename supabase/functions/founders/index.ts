@@ -270,9 +270,22 @@ async function serveCv(req: Request, params: Record<string, string>): Promise<Re
   });
 }
 
+// GET /functions/v1/founders/programs  (admin — top bar's cohort switcher)
+// List-only; no create/edit endpoint yet, out of scope for now.
+async function listPrograms(req: Request): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+
+  const rows = await query<{ id: number; name: string; cohort_label: string | null }>(
+    "SELECT id, name, cohort_label FROM programs ORDER BY id DESC",
+  );
+  return json(rows.map((r) => ({ id: Number(r.id), name: r.name, cohortLabel: r.cohort_label })));
+}
+
 serveFunction(FN, [
-  // /dashboard and /prospect must be registered before the /:id catch-all
+  // /dashboard, /prospect, /programs must be registered before the /:id catch-all
   route(FN, "GET", "/dashboard", getDashboard),
+  route(FN, "GET", "/programs", listPrograms),
   route(FN, "POST", "/prospect", createProspect),
   route(FN, "GET", "", listFounders),
   route(FN, "GET", "/:id", getFounder),

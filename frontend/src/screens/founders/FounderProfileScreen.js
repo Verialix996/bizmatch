@@ -30,8 +30,6 @@ const STATUS_OPTIONS = ['active', 'inactive', 'dropped'];
 // A founder only gets to compare matches that already clear a 50% compatibility score — below
 // that the match isn't strong enough to be worth comparing against another candidate.
 const MATCH_SUGGEST_THRESHOLD = 50;
-const TABS = ['overview', 'dna', 'evidence', 'activities', 'matches'];
-const TAB_LABELS = { overview: 'Overview', dna: 'DNA', evidence: 'Evidence', activities: 'Activities', matches: 'Matches' };
 
 export default function FounderProfileScreen({ route, navigation }) {
   const currentUser = useAuthStore(s => s.user);
@@ -43,7 +41,6 @@ export default function FounderProfileScreen({ route, navigation }) {
   const founderId = route.params?.founderId || currentUser?.id;
   const isAdmin = currentUser?.role === 'admin';
 
-  const [tab, setTab] = useState('overview');
   const [founder, setFounder] = useState(null);
   const [insights, setInsights] = useState(null);
   const [evidence, setEvidence] = useState([]);
@@ -56,6 +53,7 @@ export default function FounderProfileScreen({ route, navigation }) {
   const [interviews, setInterviews] = useState([]);
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
+  const [showAllEvidence, setShowAllEvidence] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -84,14 +82,14 @@ export default function FounderProfileScreen({ route, navigation }) {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useFocusEffect(useCallback(() => {
-    if (tab !== 'matches' || isAdmin) return;
+    if (isAdmin) return;
     setMyMatches(null);
     setSelectedMatchIds([]);
     setCompareResult(null);
     getTopMatches(founderId, 50)
       .then(({ data }) => setMyMatches(data.filter(m => m.score >= MATCH_SUGGEST_THRESHOLD)))
       .catch(() => setMyMatches([]));
-  }, [tab, isAdmin, founderId]));
+  }, [isAdmin, founderId]));
 
   const toggleSelectedMatch = (id) => {
     setCompareResult(null);
@@ -120,10 +118,10 @@ export default function FounderProfileScreen({ route, navigation }) {
   };
 
   useFocusEffect(useCallback(() => {
-    if (tab !== 'matches' || !isAdmin) return;
+    if (!isAdmin) return;
     setMatchPairs(null);
     getTopPairs(15, founderId).then(({ data }) => setMatchPairs(data)).catch(() => setMatchPairs([]));
-  }, [tab, isAdmin, founderId]));
+  }, [isAdmin, founderId]));
 
   const handleChangeStatus = () => {
     showAlert(
@@ -293,15 +291,7 @@ export default function FounderProfileScreen({ route, navigation }) {
           </View>
         )}
 
-        <View style={styles.tabRow}>
-          {TABS.filter(t => isAdmin || t !== 'evidence').map(t => (
-            <TabButton key={t} label={TAB_LABELS[t]} active={tab === t} onPress={() => setTab(t)} styles={styles} />
-          ))}
-        </View>
-
-        <View style={styles.body}>
-          {tab === 'overview' && (
-            <>
+        <View style={[styles.body, { marginTop: 20 }]}>
               <ResponsiveRow gap={16}>
                 <View style={{ flex: 1 }}>
                   <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
@@ -341,11 +331,11 @@ export default function FounderProfileScreen({ route, navigation }) {
                 )}
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
-                    <SectionCard title="Recent evidence" icon="time-outline" C={C}>
-                      <EvidenceTimeline evidence={evidence.slice(0, 2)} C={C} />
+                    <SectionCard title={showAllEvidence ? `All evidence (${evidence.length})` : 'Recent evidence'} icon="time-outline" C={C}>
+                      <EvidenceTimeline evidence={showAllEvidence ? evidence : evidence.slice(0, 2)} C={C} />
                       {evidence.length > 2 ? (
-                        <TouchableOpacity onPress={() => setTab('evidence')} activeOpacity={0.75}>
-                          <Text style={styles.linkText}>View all evidence ({evidence.length})</Text>
+                        <TouchableOpacity onPress={() => setShowAllEvidence(v => !v)} activeOpacity={0.75}>
+                          <Text style={styles.linkText}>{showAllEvidence ? 'Show less' : `View all evidence (${evidence.length})`}</Text>
                         </TouchableOpacity>
                       ) : null}
                     </SectionCard>
@@ -390,97 +380,73 @@ export default function FounderProfileScreen({ route, navigation }) {
                     </SectionCard>
                   </View>
                 )}
-                {isAdmin && (
-                  <View style={{ flex: 1.4 }}>
-                    <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
-                      <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
-                      <TouchableOpacity onPress={() => setTab('matches')} activeOpacity={0.75}>
-                        <Text style={styles.linkText}>View all matches</Text>
-                      </TouchableOpacity>
-                    </SectionCard>
-                  </View>
-                )}
+                <View style={{ flex: 1.4 }}>
+                  <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
+                    <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
+                  </SectionCard>
+                </View>
               </ResponsiveRow>
-            </>
-          )}
 
-          {tab === 'dna' && (
-            <SectionCard title="Founder DNA" icon="analytics-outline" C={C}>
-              <View style={{ alignItems: 'center' }}>
-                <RadarChart axes={axes} size={isDesktop ? 420 : 340} C={C} />
-              </View>
-              <RadarLegend axes={axes} C={C} />
-            </SectionCard>
-          )}
+              <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C} style={{ marginTop: 16 }}>
+                {activities.length === 0 ? (
+                  <Text style={styles.emptyText}>No activities yet.</Text>
+                ) : (
+                  activities.map(a => (
+                    <TouchableOpacity
+                      key={a.id}
+                      style={styles.activityRow}
+                      onPress={() => navigation.navigate('ActivityDetail', { activityId: a.id })}
+                      activeOpacity={0.75}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.activityTitle}>{a.title}</Text>
+                        <Text style={styles.activityMeta}>
+                          {ACTIVITY_TYPE_LABELS[a.type] || a.type}
+                          {a.startsAt && a.endsAt ? ` · ${formatActivityDateRange(a.startsAt, a.endsAt)}` : ''}
+                        </Text>
+                      </View>
+                      <Pill
+                        label={a.status}
+                        C={C}
+                        bg={a.status === 'active' ? C.warningLight : a.status === 'completed' ? C.successLight : C.surfaceElevated}
+                        color={a.status === 'active' ? C.warning : a.status === 'completed' ? C.success : C.textSecondary}
+                      />
+                    </TouchableOpacity>
+                  ))
+                )}
+              </SectionCard>
 
-          {tab === 'evidence' && isAdmin && (
-            <SectionCard title={`All Evidence (${evidence.length})`} icon="time-outline" C={C}>
-              <EvidenceTimeline evidence={evidence} C={C} />
-            </SectionCard>
-          )}
-
-          {tab === 'activities' && (
-            <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C}>
-              {activities.length === 0 ? (
-                <Text style={styles.emptyText}>No activities yet.</Text>
-              ) : (
-                activities.map(a => (
-                  <TouchableOpacity
-                    key={a.id}
-                    style={styles.activityRow}
-                    onPress={() => navigation.navigate('ActivityDetail', { activityId: a.id })}
-                    activeOpacity={0.75}
-                  >
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.activityTitle}>{a.title}</Text>
-                      <Text style={styles.activityMeta}>
-                        {ACTIVITY_TYPE_LABELS[a.type] || a.type}
-                        {a.startsAt && a.endsAt ? ` · ${formatActivityDateRange(a.startsAt, a.endsAt)}` : ''}
-                      </Text>
-                    </View>
-                    <Pill
-                      label={a.status}
-                      C={C}
-                      bg={a.status === 'active' ? C.warningLight : a.status === 'completed' ? C.successLight : C.surfaceElevated}
-                      color={a.status === 'active' ? C.warning : a.status === 'completed' ? C.success : C.textSecondary}
-                    />
-                  </TouchableOpacity>
-                ))
-              )}
-            </SectionCard>
-          )}
-
-          {tab === 'matches' && (
-            isAdmin ? (
-              matchPairs === null ? (
-                <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
-              ) : matchPairs.length === 0 ? (
-                <Text style={styles.emptyText}>No matches computed yet for this founder.</Text>
-              ) : (
-                matchPairs.map((pair) => (
-                  <MatchCard
-                    key={`${pair.a.id}-${pair.b.id}`}
-                    pair={pair}
+              <SectionCard title="Matches" icon="people-outline" C={C} style={{ marginTop: 16 }}>
+                {isAdmin ? (
+                  matchPairs === null ? (
+                    <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>
+                  ) : matchPairs.length === 0 ? (
+                    <Text style={styles.emptyText}>No matches computed yet for this founder.</Text>
+                  ) : (
+                    matchPairs.map((pair) => (
+                      <MatchCard
+                        key={`${pair.a.id}-${pair.b.id}`}
+                        pair={pair}
+                        C={C}
+                        onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [pair.a.id, pair.b.id] })}
+                        onViewMatch={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
+                      />
+                    ))
+                  )
+                ) : (
+                  <CompareMyMatches
+                    myMatches={myMatches}
+                    selectedMatchIds={selectedMatchIds}
+                    onToggleSelect={toggleSelectedMatch}
+                    onCompare={handleCompareMyMatches}
+                    comparing={comparing}
+                    compareResult={compareResult}
+                    founderId={founderId}
                     C={C}
-                    onCreateTeam={() => navigation.navigate('TeamCreation', { founderIds: [pair.a.id, pair.b.id] })}
-                    onViewMatch={() => navigation.navigate('MatchDetail', { a: pair.a.id, b: pair.b.id })}
+                    styles={styles}
                   />
-                ))
-              )
-            ) : (
-              <CompareMyMatches
-                myMatches={myMatches}
-                selectedMatchIds={selectedMatchIds}
-                onToggleSelect={toggleSelectedMatch}
-                onCompare={handleCompareMyMatches}
-                comparing={comparing}
-                compareResult={compareResult}
-                founderId={founderId}
-                C={C}
-                styles={styles}
-              />
-            )
-          )}
+                )}
+              </SectionCard>
         </View>
       </ScrollView>
     </AppShell>
@@ -568,13 +534,6 @@ function CompareResultCard({ detail, founderId, C, styles }) {
   );
 }
 
-function TabButton({ label, active, onPress, styles }) {
-  return (
-    <TouchableOpacity style={[styles.tabBtn, active && styles.tabBtnActive]} onPress={onPress} activeOpacity={0.8}>
-      <Text style={[styles.tabBtnText, active && styles.tabBtnTextActive]}>{label}</Text>
-    </TouchableOpacity>
-  );
-}
 
 function makeStyles(C) {
   return StyleSheet.create({
@@ -638,12 +597,6 @@ function makeStyles(C) {
       borderWidth: 1.5, borderColor: C.surfaceBorder,
     },
     btnSecondaryText: { color: C.textSecondary, fontWeight: '700', fontSize: 13 },
-
-    tabRow: { flexDirection: 'row', gap: 8, marginTop: 16, marginBottom: 16, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder, flexWrap: 'wrap' },
-    tabBtn: { paddingVertical: 10, paddingHorizontal: 4, marginRight: 16, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-    tabBtnActive: { borderBottomColor: C.primary },
-    tabBtnText: { fontSize: 14, fontWeight: '700', color: C.textSecondary },
-    tabBtnTextActive: { color: C.primary },
 
     body: { paddingBottom: 20 },
     linkText: { ...typography.labelLarge, color: C.primary, marginTop: 8 },

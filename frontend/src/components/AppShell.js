@@ -1,11 +1,13 @@
 import { View, Text, Image, TouchableOpacity, StyleSheet, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import useAuthStore from '../store/authStore';
 import useAppStore from '../store/appStore';
-import { colors, investorColors, radius, typography } from '../theme';
+import { colors, investorColors, radius, typography, brandGradient } from '../theme';
 import NotificationBell from './NotificationBell';
 import HelpButton from './HelpButton';
+import CohortSwitcher from './CohortSwitcher';
 
 const DESKTOP_BREAKPOINT = 768;
 
@@ -52,23 +54,45 @@ export default function AppShell({ navigation, active, items, children }) {
     return (
       <View style={[styles2.desktopRoot, { paddingTop: insets.top }]}>
         <View style={styles2.desktopTopBar}>
-          <View style={styles2.topBarSide}>
+          <View style={[styles2.topBarSide, styles2.topBarSideLeft]}>
+            <CohortSwitcher C={C} />
             <HelpButton role={user?.role} tintColor={C.primary} />
           </View>
           <View style={styles2.searchBar}>
             <Ionicons name="search" size={15} color={C.textHint} />
             <Text style={styles2.searchPlaceholder}>Search founders, matches, or evidence…</Text>
+            <View style={{ flex: 1 }} />
+            <View style={styles2.searchKbdHint}>
+              <Text style={styles2.searchKbdHintText}>⌘K</Text>
+            </View>
           </View>
           <View style={[styles2.topBarSide, styles2.topBarSideRight]}>
             <NotificationBell tintColor={C.primary} />
+            <TouchableOpacity
+              style={styles2.topBarUser}
+              onPress={() => navigation.navigate('AccountSettings')}
+              activeOpacity={0.75}
+            >
+              <Avatar photoUrl={user?.photoUrl} name={user?.name} size={32} C={C} />
+              <View>
+                <Text style={styles2.topBarUserName} numberOfLines={1}>{user?.name || 'Account'}</Text>
+                <Text style={styles2.topBarUserRole} numberOfLines={1}>{user?.role === 'admin' ? 'Admin' : 'Founder'}</Text>
+              </View>
+              <Ionicons name="chevron-down" size={13} color={C.textHint} />
+            </TouchableOpacity>
           </View>
         </View>
 
         <View style={styles2.desktopBody}>
-          <View style={[styles2.sidebar, { paddingTop: 20 }]}>
+          <LinearGradient
+            colors={[brandGradient.start, brandGradient.middle, brandGradient.end]}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 0, y: 1 }}
+            style={[styles2.sidebar, { paddingTop: 20 }]}
+          >
             <View style={styles2.sidebarBrand}>
-              <LogoMark color={C.primary} />
-              <Text style={[styles2.wordmark, { color: C.primary }]}>BizMatch</Text>
+              <LogoMark color="#fff" />
+              <Text style={[styles2.wordmark, { color: '#fff' }]}>BizMatch</Text>
             </View>
 
             <View style={styles2.sidebarNav}>
@@ -84,9 +108,9 @@ export default function AppShell({ navigation, active, items, children }) {
                     <Ionicons
                       name={isActive ? item.activeIcon : item.icon}
                       size={20}
-                      color={isActive ? C.primary : C.textSecondary}
+                      color={isActive ? '#fff' : 'rgba(255,255,255,0.65)'}
                     />
-                    <Text style={[styles2.sidebarLabel, isActive && { color: C.primary, fontWeight: '700' }]}>
+                    <Text style={[styles2.sidebarLabel, isActive && { color: '#fff', fontWeight: '700' }]}>
                       {item.label}
                     </Text>
                   </TouchableOpacity>
@@ -96,22 +120,33 @@ export default function AppShell({ navigation, active, items, children }) {
 
             <View style={{ flex: 1 }} />
 
+            <View style={styles2.upsellCard}>
+              <Ionicons name="sparkles-outline" size={18} color="#fff" />
+              <Text style={styles2.upsellTitle}>Unlock deeper insights</Text>
+              <Text style={styles2.upsellBody}>Get full behavioral breakdowns and evidence-backed match scoring.</Text>
+              <TouchableOpacity style={styles2.upsellButton} activeOpacity={0.8}>
+                <Text style={styles2.upsellButtonText}>Learn more</Text>
+              </TouchableOpacity>
+            </View>
+
             <TouchableOpacity
               style={styles2.sidebarFooterUser}
               onPress={() => navigation.navigate('AccountSettings')}
               activeOpacity={0.75}
             >
-              <Avatar photoUrl={user?.photoUrl} name={user?.name} size={34} C={C} />
-              <View style={{ flex: 1 }}>
-                <Text style={styles2.footerName} numberOfLines={1}>{user?.name || 'Account'}</Text>
-                <Text style={styles2.footerSub}>Settings</Text>
-              </View>
+              <Ionicons name="settings-outline" size={18} color="rgba(255,255,255,0.65)" />
+              <Text style={styles2.footerSub}>Settings</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles2.sidebarLogout} activeOpacity={0.75}>
+              <Ionicons name="help-circle-outline" size={18} color="rgba(255,255,255,0.65)" />
+              <Text style={styles2.footerSub}>Help & Support</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles2.sidebarLogout} onPress={logout} activeOpacity={0.75}>
-              <Ionicons name="log-out-outline" size={18} color={C.textSecondary} />
+              <Ionicons name="log-out-outline" size={18} color="rgba(255,255,255,0.65)" />
               <Text style={styles2.footerSub}>Log Out</Text>
             </TouchableOpacity>
-          </View>
+          </LinearGradient>
+
 
           <View style={styles2.desktopMain}>
             <View style={styles2.desktopContent}>
@@ -193,16 +228,26 @@ function makeStyles(C) {
       flexDirection: 'row', alignItems: 'center', gap: 12,
       paddingVertical: 11, paddingHorizontal: 12, borderRadius: radius.md,
     },
-    sidebarItemActive: { backgroundColor: C.surfaceElevated },
-    sidebarLabel: { ...typography.bodyMedium, color: C.textSecondary, fontWeight: '600' },
+    sidebarItemActive: { backgroundColor: 'rgba(255,255,255,0.16)' },
+    sidebarLabel: { ...typography.bodyMedium, color: 'rgba(255,255,255,0.65)', fontWeight: '600' },
     sidebarFooterUser: {
       flexDirection: 'row', alignItems: 'center', gap: 10,
       paddingHorizontal: 10, paddingVertical: 10, borderRadius: radius.md,
-      borderTopWidth: 1, borderTopColor: C.surfaceBorder, marginTop: 8,
+      borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.15)', marginTop: 8,
     },
-    footerName: { ...typography.labelLarge, color: C.textPrimary },
-    footerSub: { ...typography.caption, color: C.textHint },
+    footerSub: { ...typography.caption, color: 'rgba(255,255,255,0.65)' },
     sidebarLogout: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
+    upsellCard: {
+      backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: radius.lg,
+      padding: 14, marginBottom: 12, gap: 4,
+    },
+    upsellTitle: { ...typography.labelLarge, color: '#fff', fontWeight: '700', marginTop: 4 },
+    upsellBody: { ...typography.caption, color: 'rgba(255,255,255,0.75)', marginBottom: 8 },
+    upsellButton: {
+      backgroundColor: '#fff', borderRadius: radius.pill,
+      paddingVertical: 7, alignItems: 'center',
+    },
+    upsellButtonText: { ...typography.labelSmall, color: brandGradient.end, fontWeight: '700' },
 
     desktopMain: { flex: 1 },
     desktopTopBar: {
@@ -212,7 +257,12 @@ function makeStyles(C) {
     desktopContent: { flex: 1 },
 
     topBarSide: { flex: 1 },
-    topBarSideRight: { flexDirection: 'row', justifyContent: 'flex-end' },
+    topBarSideLeft: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    topBarSideRight: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 16 },
+
+    topBarUser: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    topBarUserName: { ...typography.labelLarge, color: C.textPrimary, maxWidth: 140 },
+    topBarUserRole: { ...typography.caption, color: C.textHint },
 
     searchBar: {
       flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -221,6 +271,11 @@ function makeStyles(C) {
       width: 420, maxWidth: '100%',
     },
     searchPlaceholder: { ...typography.bodySmall, color: C.textHint },
+    searchKbdHint: {
+      backgroundColor: C.surface, borderRadius: radius.sm,
+      paddingHorizontal: 6, paddingVertical: 2, borderWidth: 1, borderColor: C.surfaceBorder,
+    },
+    searchKbdHintText: { ...typography.caption, color: C.textHint, fontWeight: '600' },
 
     // ── Mobile header + tab bar layout ──────────────────────
     mobileRoot: { flex: 1, backgroundColor: C.backgroundSoft },
