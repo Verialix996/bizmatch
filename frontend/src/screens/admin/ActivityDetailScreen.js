@@ -251,8 +251,8 @@ export default function ActivityDetailScreen({ route, navigation }) {
       await setActivityParticipants(activityId, [...selectedFounderIds]);
       setManagingParticipants(false);
       load();
-    } catch {
-      showAlert('Error', 'Could not update participants.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not update participants.');
     } finally {
       setSaving(false);
     }
@@ -275,8 +275,8 @@ export default function ActivityDetailScreen({ route, navigation }) {
     try {
       await decideActivityParticipant(activityId, founderId, status);
       load();
-    } catch {
-      showAlert('Error', 'Could not update this registration.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not update this registration.');
     } finally {
       setDecidingId(null);
     }
@@ -535,8 +535,8 @@ function PeerFeedbackRow({ founder, activityId, C, styles }) {
       await submitPeerFeedback({ founderId: founder.id, activityId, dimension, score, observation: observation.trim() || null });
       setSubmitted(true);
       setOpen(false);
-    } catch {
-      showAlert('Error', 'Could not submit peer feedback.');
+    } catch (err) {
+      showAlert('Error', err.response?.data?.error || 'Could not submit peer feedback.');
     } finally {
       setSubmitting(false);
     }
