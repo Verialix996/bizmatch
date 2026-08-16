@@ -235,30 +235,47 @@ export default function FounderProfileScreen({ route, navigation }) {
             </View>
             <Text style={styles.founderName}>{founder?.name}</Text>
           </View>
-          {(founder?.cvUrl || !isAdmin) && (
-            <View style={styles.titleActions}>
-              {founder?.cvUrl && (
-                <TouchableOpacity
-                  style={styles.btnSecondary}
-                  activeOpacity={0.85}
-                  onPress={() => Linking.openURL(founder.cvUrl)}
-                >
-                  <Ionicons name="document-text-outline" size={15} color={C.textSecondary} />
-                  <Text style={styles.btnSecondaryText}>View CV</Text>
+          <View style={styles.titleActions}>
+            {isAdmin && (
+              <>
+                <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('Evaluation', { founderId })} activeOpacity={0.85}>
+                  <Ionicons name="add-circle-outline" size={15} color={C.textSecondary} />
+                  <Text style={styles.btnSecondaryText}>Add Evaluation</Text>
                 </TouchableOpacity>
-              )}
-              {!isAdmin && (
-                <TouchableOpacity
-                  style={styles.btnPrimary}
-                  activeOpacity={0.85}
-                  onPress={() => navigation.navigate('EditFounderProfile', { founderId })}
-                >
-                  <Ionicons name="create-outline" size={15} color="#fff" />
-                  <Text style={styles.btnPrimaryText}>Edit Profile</Text>
+                <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('NewInterview', { founderId, founderName: founder?.name })} activeOpacity={0.85}>
+                  <Ionicons name="mic-outline" size={15} color={C.textSecondary} />
+                  <Text style={styles.btnSecondaryText}>Run Interview</Text>
                 </TouchableOpacity>
-              )}
-            </View>
-          )}
+                <TouchableOpacity style={styles.btnSecondary} onPress={handleChangeStatus} disabled={statusUpdating} activeOpacity={0.85}>
+                  <Text style={styles.btnSecondaryText}>{statusUpdating ? 'Updating…' : 'Change Status'}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })} activeOpacity={0.85}>
+                  <Ionicons name="people" size={15} color="#fff" />
+                  <Text style={styles.btnPrimaryText}>Find Matches</Text>
+                </TouchableOpacity>
+              </>
+            )}
+            {founder?.cvUrl && (
+              <TouchableOpacity
+                style={styles.btnSecondary}
+                activeOpacity={0.85}
+                onPress={() => Linking.openURL(founder.cvUrl)}
+              >
+                <Ionicons name="document-text-outline" size={15} color={C.textSecondary} />
+                <Text style={styles.btnSecondaryText}>View CV</Text>
+              </TouchableOpacity>
+            )}
+            {!isAdmin && (
+              <TouchableOpacity
+                style={styles.btnPrimary}
+                activeOpacity={0.85}
+                onPress={() => navigation.navigate('EditFounderProfile', { founderId })}
+              >
+                <Ionicons name="create-outline" size={15} color="#fff" />
+                <Text style={styles.btnPrimaryText}>Edit Profile</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
 
         <FounderHeader
@@ -270,26 +287,6 @@ export default function FounderProfileScreen({ route, navigation }) {
           isAdmin={isAdmin}
           onTeamPress={() => navigation.navigate('TeamProfile', { teamId: founder.team.id })}
         />
-
-        {isAdmin && (
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })} activeOpacity={0.85}>
-              <Ionicons name="people" size={15} color="#fff" />
-              <Text style={styles.btnPrimaryText}>Find Matches</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('Evaluation', { founderId })} activeOpacity={0.85}>
-              <Ionicons name="add-circle-outline" size={15} color={C.textSecondary} />
-              <Text style={styles.btnSecondaryText}>Add Evaluation</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnSecondary} onPress={() => navigation.navigate('NewInterview', { founderId, founderName: founder?.name })} activeOpacity={0.85}>
-              <Ionicons name="mic-outline" size={15} color={C.textSecondary} />
-              <Text style={styles.btnSecondaryText}>Run Interview</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.btnSecondary} onPress={handleChangeStatus} disabled={statusUpdating} activeOpacity={0.85}>
-              <Text style={styles.btnSecondaryText}>{statusUpdating ? 'Updating…' : 'Change Status'}</Text>
-            </TouchableOpacity>
-          </View>
-        )}
 
         <View style={[styles.body, { marginTop: 20 }]}>
               <ResponsiveRow gap={16}>
@@ -555,9 +552,7 @@ function makeStyles(C) {
     titleLine: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     pageTitle: { ...typography.displayMedium, color: C.textPrimary },
     founderName: { ...typography.titleMedium, color: C.primary, marginTop: 2 },
-    titleActions: { flexDirection: 'row', gap: 10 },
-
-    actionsRow: { flexDirection: 'row', gap: 10, marginTop: 8, marginBottom: 8, flexWrap: 'wrap', justifyContent: 'center' },
+    titleActions: { flexDirection: 'row', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' },
     btnPrimary: {
       flexDirection: 'row', alignItems: 'center', gap: 6,
       backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 10, paddingHorizontal: 18,
