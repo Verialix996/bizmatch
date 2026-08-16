@@ -29,6 +29,7 @@ export default function MatchingScreen({ route, navigation }) {
 
   const [pairs, setPairs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [recomputing, setRecomputing] = useState(false);
 
   // MAT-06: evaluator-side mirror of the founder's own "compare my matches"
@@ -82,8 +83,14 @@ export default function MatchingScreen({ route, navigation }) {
     try {
       const { data } = await getTopPairs(20, scopedFounderId ?? undefined);
       setPairs(data);
+      setLoadError(false);
     } catch {
       setPairs([]);
+      // ERR-01/03: previously silent — an outage here rendered the exact
+      // same "No compatibility computed yet" empty state as a genuinely
+      // empty cohort, with no way to tell the two apart.
+      setLoadError(true);
+      showAlert('Error', 'Could not load match suggestions. Try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -165,7 +172,9 @@ export default function MatchingScreen({ route, navigation }) {
           <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
         ) : pairs.length === 0 ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyText}>No compatibility computed yet for this cohort.</Text>
+            <Text style={loadError ? styles.errorText : styles.emptyText}>
+              {loadError ? "Couldn't load match suggestions — try refreshing the page." : 'No compatibility computed yet for this cohort.'}
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -221,6 +230,7 @@ function makeStyles(C) {
     content: { flex: 1, padding: 20, maxWidth: 900, width: '100%', alignSelf: 'center' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
     emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center', paddingHorizontal: 32 },
+    errorText: { ...typography.bodyMedium, color: C.error, textAlign: 'center', paddingHorizontal: 32 },
     header: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 4 },
     headerTitle: { ...typography.displayMedium, color: C.textPrimary },
     headerSubtitle: { ...typography.bodyMedium, color: C.textSecondary, marginTop: 4 },

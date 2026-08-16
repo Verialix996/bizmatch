@@ -5,6 +5,7 @@ import {
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../services/alert';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
 import { getDashboard } from '../../services/founders.service';
@@ -23,14 +24,20 @@ export default function AdminDashboardScreen({ navigation }) {
 
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
+  // ERR-01: a failed load previously just left dashboard null, and every
+  // stat tile below reads `dashboard?.x ?? 0` — indistinguishable from a
+  // genuinely-empty cohort. This flag lets the page say so instead.
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await getDashboard();
       setDashboard(data);
+      setLoadError(false);
     } catch {
-      // silent — stat tiles just render 0/empty
+      setLoadError(true);
+      showAlert('Error', 'Could not load dashboard data. Try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -52,6 +59,12 @@ export default function AdminDashboardScreen({ navigation }) {
   return (
     <AppShell navigation={navigation} active="dashboard" items={ADMIN_NAV_ITEMS}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+        {loadError && (
+          <View style={styles.errorBanner}>
+            <Ionicons name="alert-circle" size={16} color={C.error} />
+            <Text style={styles.errorBannerText}>Couldn't load dashboard data — the numbers below may be stale or empty.</Text>
+          </View>
+        )}
         <GradientHero style={styles.hero}>
           <Text style={styles.heroLabel}>{program?.cohort_label || 'No active program'}</Text>
           <Text style={styles.heroTitle}>{program?.name || 'Admin Dashboard'}</Text>
@@ -161,6 +174,11 @@ function makeStyles(C) {
   return StyleSheet.create({
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     scrollContent: { padding: 20, paddingBottom: 48, maxWidth: 1200, width: '100%', alignSelf: 'center' },
+    errorBanner: {
+      flexDirection: 'row', alignItems: 'center', gap: 8,
+      backgroundColor: C.errorLight, borderRadius: radius.md, padding: 12, marginBottom: 16,
+    },
+    errorBannerText: { ...typography.bodySmall, color: C.error, flex: 1 },
 
     hero: { padding: 24, marginBottom: 24 },
     heroLabel: { ...typography.labelSmall, color: 'rgba(255,255,255,0.75)', textTransform: 'uppercase' },

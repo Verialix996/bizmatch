@@ -92,6 +92,28 @@ export function Avatar({ photoUrl, name, size = 44, C }) {
   );
 }
 
+// PERF-01: section-level loading placeholder — a SectionCard's contents
+// swap to this while that section's own fetch is still pending, instead of
+// blocking the whole page behind one full-page spinner until every section
+// (including ones the viewer doesn't scroll to) has loaded. Deliberately
+// static (no pulse animation) rather than Animated, to sidestep RN Web's
+// animation quirks this project already hit elsewhere this session.
+export function SkeletonLines({ count = 3, C }) {
+  return (
+    <View style={{ gap: 10 }}>
+      {Array.from({ length: count }).map((_, i) => (
+        <View
+          key={i}
+          style={{
+            height: 14, borderRadius: 4, backgroundColor: C.surfaceElevated,
+            width: i === count - 1 ? '60%' : '100%',
+          }}
+        />
+      ))}
+    </View>
+  );
+}
+
 // Simple responsive row that becomes a column below the desktop breakpoint —
 // the "two cards side by side on desktop, stacked on mobile" pattern used
 // throughout the mockups.

@@ -5,6 +5,7 @@ import {
 import { useState, useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
+import { showAlert } from '../../services/alert';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
 import { listTeams } from '../../services/teams.service';
@@ -24,6 +25,9 @@ export default function TeamListScreen({ navigation }) {
   const [search, setSearch] = useState('');
   const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
+  // ERR-01: a failed load previously just left teams=[], rendering the same
+  // "No teams created yet" empty state as a genuinely-empty cohort.
+  const [loadError, setLoadError] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -32,8 +36,11 @@ export default function TeamListScreen({ navigation }) {
       // in one call — no more per-team getTeam() enrichment round trips.
       const { data } = await listTeams();
       setTeams(data);
+      setLoadError(false);
     } catch {
       setTeams([]);
+      setLoadError(true);
+      showAlert('Error', 'Could not load teams. Try refreshing the page.');
     } finally {
       setLoading(false);
     }
@@ -81,7 +88,9 @@ export default function TeamListScreen({ navigation }) {
           <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
         ) : filtered.length === 0 ? (
           <View style={styles.centered}>
-            <Text style={styles.emptyText}>{teams.length === 0 ? 'No teams created yet' : 'No teams match your search'}</Text>
+            <Text style={loadError ? styles.errorText : styles.emptyText}>
+              {loadError ? "Couldn't load teams — try refreshing the page." : teams.length === 0 ? 'No teams created yet' : 'No teams match your search'}
+            </Text>
           </View>
         ) : (
           <FlatList
@@ -136,6 +145,7 @@ function makeStyles(C) {
     content: { flex: 1, padding: 20, maxWidth: 1100, width: '100%', alignSelf: 'center' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingTop: 60 },
     emptyText: { ...typography.bodyMedium, color: C.textHint },
+    errorText: { ...typography.bodyMedium, color: C.error },
 
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16, gap: 12, flexWrap: 'wrap' },
     headerTitle: { ...typography.displayMedium, color: C.textPrimary },

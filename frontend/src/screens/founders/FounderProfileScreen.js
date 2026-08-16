@@ -24,7 +24,7 @@ import RadarChart, { RadarLegend, RadarSeriesLegend } from '../../components/fou
 import MatchCard from '../../components/founder/MatchCard';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
-import { ResponsiveRow, SectionCard, Pill, Avatar, useIsDesktop } from '../../components/ui';
+import { ResponsiveRow, SectionCard, Pill, Avatar, useIsDesktop, SkeletonLines } from '../../components/ui';
 
 const STATUS_OPTIONS = ['active', 'inactive', 'dropped'];
 // A founder only gets to compare matches that already clear a 50% compatibility score — below
@@ -54,29 +54,56 @@ export default function FounderProfileScreen({ route, navigation }) {
   const [loading, setLoading] = useState(true);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [showAllEvidence, setShowAllEvidence] = useState(false);
+  // ERR-02: each of these tracks whether that ONE section's fetch failed,
+  // so e.g. an activities outage shows "couldn't load" only on the
+  // Activities card instead of blanking the whole page (or worse, letting
+  // an activities failure look identical to "no activities yet").
+  const [sectionErrors, setSectionErrors] = useState({ insights: false, evidence: false, activities: false, interviews: false });
+  // PERF-01: each section fetches independently (not awaited together) so
+  // one loads and renders the moment it's ready, instead of every section —
+  // including ones below the fold — waiting on the slowest one behind a
+  // single full-page spinner.
+  const [sectionsLoading, setSectionsLoading] = useState({ insights: true, evidence: true, activities: true, interviews: true });
 
   const load = useCallback(async () => {
     setLoading(true);
+    setSectionsLoading({ insights: true, evidence: true, activities: true, interviews: true });
     try {
-      // Individual evidence entries (who said what) are admin-only — a
-      // founder only ever sees their own aggregate scores, fetched below.
-      const [founderRes, insightsRes, evidenceRes, activitiesRes, interviewsRes] = await Promise.all([
-        getFounder(founderId),
-        getFounderInsights(founderId),
-        isAdmin ? listEvidence(founderId) : Promise.resolve({ data: [] }),
-        listActivities(undefined, undefined, founderId),
-        isAdmin ? listFounderInterviews(founderId) : Promise.resolve({ data: [] }),
-      ]);
+      // The founder record itself is load-bearing for the whole page shell
+      // (name, header, section frames) — if this fails there's nothing
+      // meaningful to render, so it stays a hard failure.
+      const founderRes = await getFounder(founderId);
       setFounder(founderRes.data);
-      setInsights(insightsRes.data);
-      setEvidence(evidenceRes.data);
-      setActivities(activitiesRes.data);
-      setInterviews(interviewsRes.data);
-    } catch (err) {
+    } catch {
       showAlert('Error', 'Could not load this founder profile.');
-    } finally {
       setLoading(false);
+      return;
     }
+    setLoading(false);
+
+    // Individual evidence entries (who said what) are admin-only — a
+    // founder only ever sees their own aggregate scores, fetched below.
+    // Each call updates its own section's state as soon as IT resolves,
+    // rather than all four being gated on the slowest of the batch.
+    getFounderInsights(founderId)
+      .then(({ data }) => { setInsights(data); setSectionErrors(e => ({ ...e, insights: false })); })
+      .catch(() => setSectionErrors(e => ({ ...e, insights: true })))
+      .finally(() => setSectionsLoading(s => ({ ...s, insights: false })));
+
+    (isAdmin ? listEvidence(founderId) : Promise.resolve({ data: [] }))
+      .then(({ data }) => { setEvidence(data); setSectionErrors(e => ({ ...e, evidence: false })); })
+      .catch(() => setSectionErrors(e => ({ ...e, evidence: true })))
+      .finally(() => setSectionsLoading(s => ({ ...s, evidence: false })));
+
+    listActivities(undefined, undefined, founderId)
+      .then(({ data }) => { setActivities(data); setSectionErrors(e => ({ ...e, activities: false })); })
+      .catch(() => setSectionErrors(e => ({ ...e, activities: true })))
+      .finally(() => setSectionsLoading(s => ({ ...s, activities: false })));
+
+    (isAdmin ? listFounderInterviews(founderId) : Promise.resolve({ data: [] }))
+      .then(({ data }) => { setInterviews(data); setSectionErrors(e => ({ ...e, interviews: false })); })
+      .catch(() => setSectionErrors(e => ({ ...e, interviews: true })))
+      .finally(() => setSectionsLoading(s => ({ ...s, interviews: false })));
   }, [founderId, isAdmin]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -293,11 +320,19 @@ export default function FounderProfileScreen({ route, navigation }) {
               <ResponsiveRow gap={16}>
                 <View style={{ flex: 1 }}>
                   <SectionCard title="Founder DNA" icon="analytics-outline" C={C} style={{ flex: 1 }}>
-                    <View style={{ alignItems: 'center' }}>
-                      <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
-                      <RadarSeriesLegend axes={axes} C={C} />
-                    </View>
-                    <RadarLegend axes={axes} C={C} />
+                    {sectionsLoading.insights ? (
+                      <SkeletonLines C={C} count={4} />
+                    ) : sectionErrors.insights ? (
+                      <Text style={styles.errorInlineText}>Couldn't load Founder DNA — try refreshing.</Text>
+                    ) : (
+                      <>
+                        <View style={{ alignItems: 'center' }}>
+                          <RadarChart axes={axes} size={isDesktop ? 260 : 280} C={C} />
+                          <RadarSeriesLegend axes={axes} C={C} />
+                        </View>
+                        <RadarLegend axes={axes} C={C} />
+                      </>
+                    )}
                   </SectionCard>
                 </View>
                 <View style={{ flex: 1 }}>
@@ -309,7 +344,13 @@ export default function FounderProfileScreen({ route, navigation }) {
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
                     <SectionCard title="Behavioral signals" icon="pulse-outline" C={C} style={{ flex: 1 }}>
-                      <BehavioralSignals insights={insights} C={C} />
+                      {sectionsLoading.insights ? (
+                        <SkeletonLines C={C} />
+                      ) : sectionErrors.insights ? (
+                        <Text style={styles.errorInlineText}>Couldn't load — try refreshing.</Text>
+                      ) : (
+                        <BehavioralSignals insights={insights} C={C} />
+                      )}
                     </SectionCard>
                   </View>
                 )}
@@ -324,19 +365,33 @@ export default function FounderProfileScreen({ route, navigation }) {
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
                     <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C} style={{ flex: 1 }}>
-                      <EvidenceConfidenceTable insights={insights} C={C} />
+                      {sectionsLoading.insights ? (
+                        <SkeletonLines C={C} count={4} />
+                      ) : sectionErrors.insights ? (
+                        <Text style={styles.errorInlineText}>Couldn't load — try refreshing.</Text>
+                      ) : (
+                        <EvidenceConfidenceTable insights={insights} C={C} />
+                      )}
                     </SectionCard>
                   </View>
                 )}
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
                     <SectionCard title={showAllEvidence ? `All evidence (${evidence.length})` : 'Recent evidence'} icon="time-outline" C={C} style={{ flex: 1 }}>
-                      <EvidenceTimeline evidence={showAllEvidence ? evidence : evidence.slice(0, 2)} C={C} />
-                      {evidence.length > 2 ? (
-                        <TouchableOpacity onPress={() => setShowAllEvidence(v => !v)} activeOpacity={0.75}>
-                          <Text style={styles.linkText}>{showAllEvidence ? 'Show less' : `View all evidence (${evidence.length})`}</Text>
-                        </TouchableOpacity>
-                      ) : null}
+                      {sectionsLoading.evidence ? (
+                        <SkeletonLines C={C} />
+                      ) : sectionErrors.evidence ? (
+                        <Text style={styles.errorInlineText}>Couldn't load evidence — try refreshing.</Text>
+                      ) : (
+                        <>
+                          <EvidenceTimeline evidence={showAllEvidence ? evidence : evidence.slice(0, 2)} C={C} />
+                          {evidence.length > 2 ? (
+                            <TouchableOpacity onPress={() => setShowAllEvidence(v => !v)} activeOpacity={0.75}>
+                              <Text style={styles.linkText}>{showAllEvidence ? 'Show less' : `View all evidence (${evidence.length})`}</Text>
+                            </TouchableOpacity>
+                          ) : null}
+                        </>
+                      )}
                     </SectionCard>
                   </View>
                 )}
@@ -362,7 +417,11 @@ export default function FounderProfileScreen({ route, navigation }) {
 
               {isAdmin && (
                 <SectionCard title="Interviews" icon="mic-outline" C={C} style={{ marginTop: 16 }}>
-                  {interviews.length === 0 ? (
+                  {sectionsLoading.interviews ? (
+                    <SkeletonLines C={C} />
+                  ) : sectionErrors.interviews ? (
+                    <Text style={styles.errorInlineText}>Couldn't load interviews — try refreshing.</Text>
+                  ) : interviews.length === 0 ? (
                     <Text style={styles.emptyText}>No interviews yet.</Text>
                   ) : (
                     interviews.map((iv) => (
@@ -399,7 +458,11 @@ export default function FounderProfileScreen({ route, navigation }) {
               )}
 
               <SectionCard title={`Activities (${activities.length})`} icon="calendar-outline" C={C} style={{ marginTop: 16 }}>
-                {activities.length === 0 ? (
+                {sectionsLoading.activities ? (
+                  <SkeletonLines C={C} />
+                ) : sectionErrors.activities ? (
+                  <Text style={styles.errorInlineText}>Couldn't load activities — try refreshing.</Text>
+                ) : activities.length === 0 ? (
                   <Text style={styles.emptyText}>No activities yet.</Text>
                 ) : (
                   activities.map(a => (
@@ -610,6 +673,7 @@ function makeStyles(C) {
     body: { paddingBottom: 20 },
     linkText: { ...typography.labelLarge, color: C.primary, marginTop: 8 },
     emptyText: { ...typography.bodyMedium, color: C.textHint, textAlign: 'center', paddingVertical: 20 },
+    errorInlineText: { ...typography.bodyMedium, color: C.error, textAlign: 'center', paddingVertical: 20 },
 
     activityRow: {
       flexDirection: 'row', alignItems: 'center', gap: 10,
