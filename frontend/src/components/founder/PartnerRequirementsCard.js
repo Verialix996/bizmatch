@@ -62,7 +62,7 @@ function makeStyles(C) {
     dataValue: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary },
 
     group: { marginTop: 14 },
-    groupLabel: { ...typography.labelLarge, color: C.success, marginBottom: 8 },
+    groupLabel: { ...typography.labelLarge, color: C.primary, marginBottom: 8 },
     checkRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, paddingVertical: 5 },
     checkText: { ...typography.bodySmall, color: C.textPrimary, flex: 1 },
   });
