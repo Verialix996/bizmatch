@@ -18,6 +18,36 @@ import { questionTree } from '../../interview/data/questionTree.bizmatch';
 const TREE = compileTree(questionTree);
 const DURATION_UNITS = ['minutes', 'hours', 'days', 'months', 'years'];
 
+// Renders one answer record as plain text for the completed-interview
+// review — mirrors the same record shapes recordAnswer()/skipQuestion()
+// produce (value.type discriminates, or a bare `skipped` flag).
+function formatAnswerForReview(question, record) {
+  if (!record) return '—';
+  if (record.skipped) return 'Skipped';
+  const v = record.value;
+  if (!v) return '—';
+  switch (v.type) {
+    case 'yes_no': return v.value ? 'Yes' : 'No';
+    case 'single_choice': {
+      const opt = (question.options || []).find((o) => o.id === v.optionId);
+      return opt?.label || v.optionId;
+    }
+    case 'multi_choice': {
+      const labels = (v.optionIds || []).map((id) => (question.options || []).find((o) => o.id === id)?.label || id);
+      return labels.length ? labels.join(', ') : '—';
+    }
+    case 'short_text':
+    case 'long_text':
+      return v.text?.trim() || '—';
+    case 'number':
+      return String(v.value ?? '—');
+    case 'duration':
+      return `${v.amount ?? '—'} ${v.unit || ''}`.trim();
+    default:
+      return '—';
+  }
+}
+
 export default function InterviewRunnerScreen({ route, navigation }) {
   const darkMode = useAppStore(s => s.darkMode);
   const C = darkMode ? investorColors : colors;
@@ -159,9 +189,15 @@ export default function InterviewRunnerScreen({ route, navigation }) {
   }
 
   // Completed interviews are read-only (server rejects PUT/DELETE with 409)
-  // — show a plain summary instead of the interactive runner so it isn't
-  // possible to type into an input that can never actually save.
+  // — show every answered question instead of the interactive runner, so
+  // it isn't possible to type into an input that can never actually save,
+  // but the evaluator's actual answers are still reviewable (previously
+  // this was just a banner with no way to see what was recorded).
   if (status === 'completed') {
+    const reviewIds = activePath.filter((id) => {
+      const q = TREE.byId[id];
+      return q && q.type !== 'info' && q.type !== 'end';
+    });
     return (
       <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
         <View style={styles.container}>
@@ -171,6 +207,19 @@ export default function InterviewRunnerScreen({ route, navigation }) {
           <View style={styles.completedBanner}>
             <Text style={styles.completedBannerText}>This interview is completed and read-only.</Text>
           </View>
+          <ScrollView contentContainerStyle={styles.reviewScrollContent}>
+            {reviewIds.map((id) => {
+              const question = TREE.byId[id];
+              const section = TREE.sections.find((s) => s.id === question.section);
+              return (
+                <View key={id} style={styles.reviewRow}>
+                  <Text style={styles.reviewSectionLabel}>{section?.label}</Text>
+                  <Text style={styles.reviewQuestion}>{substituteQuestionPlaceholders(question.text, meta || {})}</Text>
+                  <Text style={styles.reviewAnswer}>{formatAnswerForReview(question, answers[id])}</Text>
+                </View>
+              );
+            })}
+          </ScrollView>
           <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
             <Text style={styles.primaryBtnText}>Done</Text>
           </TouchableOpacity>
@@ -362,6 +411,12 @@ function makeStyles(C) {
       backgroundColor: C.successLight, borderRadius: radius.md, padding: 16, marginTop: 20,
     },
     completedBannerText: { ...typography.bodyMedium, color: C.success, fontWeight: '700' },
+
+    reviewScrollContent: { paddingVertical: 20, paddingBottom: 40 },
+    reviewRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder },
+    reviewSectionLabel: { ...typography.caption, color: C.textHint, textTransform: 'uppercase', marginBottom: 4 },
+    reviewQuestion: { ...typography.bodyMedium, color: C.textPrimary, fontWeight: '600', marginBottom: 6 },
+    reviewAnswer: { ...typography.bodyMedium, color: C.textSecondary },
 
     progressTrack: { height: 5, borderRadius: 3, backgroundColor: C.surfaceBorder, marginTop: 10, overflow: 'hidden' },
     progressFill: { height: 5, borderRadius: 3, backgroundColor: C.primary },
