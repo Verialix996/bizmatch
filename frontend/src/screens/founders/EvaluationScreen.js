@@ -12,19 +12,20 @@ import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS, FOUNDER_NAV_ITEMS } from '../../config/nav';
 import { Avatar } from '../../components/ui';
 
-// Interview / Evaluation form (MVP screen 6) — mixes open questions, 1-5
-// scales, and yes/no, per the reconciled screen spec. Each scaled/yes-no
-// answer is tagged with a dimension so the backend can fan it out into
-// evidence; the open question is captured as evaluation notes only.
+// Interview / Evaluation form (MVP screen 6) — one question per canonical
+// evidence dimension (must match _shared/founderScoring.ts's DIMENSIONS
+// exactly — previously this asked about "execution" twice and never asked
+// about "values" at all, so a submitted evaluation silently never produced
+// Values evidence no matter how many questions were answered).
 const QUESTIONS = [
   { key: 'execution_scale', text: 'How would you rate their execution and follow-through?', type: 'scale_1_5', dimension: 'execution' },
-  { key: 'execution_ownership', text: 'Did they take ownership without being asked?', type: 'yes_no', dimension: 'execution' },
   { key: 'integrity_scale', text: 'How honest and consistent were they between words and actions?', type: 'scale_1_5', dimension: 'integrity' },
   { key: 'commitment_scale', text: 'How committed and available did they seem?', type: 'scale_1_5', dimension: 'commitment' },
   { key: 'communication_scale', text: 'How direct and clear was their communication?', type: 'scale_1_5', dimension: 'communication' },
   { key: 'conflict_scale', text: 'How did they handle disagreement or critique?', type: 'scale_1_5', dimension: 'conflict' },
   { key: 'resilience_scale', text: 'How did they handle pressure or setbacks?', type: 'scale_1_5', dimension: 'resilience' },
   { key: 'ego_yesno', text: 'Were they coachable and open to feedback?', type: 'yes_no', dimension: 'ego' },
+  { key: 'values_scale', text: 'How well did their actions reflect a clear, consistent set of values?', type: 'scale_1_5', dimension: 'values' },
 ];
 
 function ScaleInput({ value, onChange, C }) {
@@ -94,11 +95,9 @@ export default function EvaluationScreen({ route, navigation }) {
   const answeredCount = QUESTIONS.filter(q => answers[q.key] !== undefined).length;
   const progressPct = Math.round((answeredCount / QUESTIONS.length) * 100);
 
-  const minRequired = Math.ceil(QUESTIONS.length / 2);
-
   const handleSubmit = async () => {
-    if (answeredCount < minRequired) {
-      setError(`Answer at least ${minRequired} of ${QUESTIONS.length} questions before submitting — a single answer isn't enough to move a founder's score.`);
+    if (answeredCount < QUESTIONS.length) {
+      setError(`Answer all ${QUESTIONS.length} questions before submitting — a partial evaluation would leave some dimensions with no evidence at all.`);
       return;
     }
     setError('');
