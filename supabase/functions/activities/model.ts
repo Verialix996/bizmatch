@@ -170,15 +170,34 @@ export const ActivitiesModel = {
     );
   },
 
-  // Admin bulk-replace — a direct assignment, not a request, so it's
-  // inserted pre-approved rather than going through the pending queue.
+  // Admin bulk-set of the *approved* roster — diff-aware against the current
+  // approved set so a no-op save can never touch pending/rejected rows (a
+  // prior version deleted+reinserted every participant regardless of
+  // status, silently flipping rejected requests back to approved on every
+  // save). founderIds is the desired set of approved participants; anyone
+  // currently pending/rejected and not in this set is left untouched.
   async setParticipants(activityId: number, founderIds: string[]): Promise<void> {
-    await query("DELETE FROM activity_participants WHERE activity_id = $1", [activityId]);
-    for (const founderId of founderIds) {
+    const desired = new Set(founderIds);
+    const current = await query<{ founder_id: string }>(
+      `SELECT founder_id FROM activity_participants WHERE activity_id = $1 AND status = 'approved'`,
+      [activityId],
+    );
+    const currentIds = new Set(current.map((r) => r.founder_id));
+
+    const toRemove = [...currentIds].filter((id) => !desired.has(id));
+    const toAdd = [...desired].filter((id) => !currentIds.has(id));
+
+    if (toRemove.length) {
+      await query(
+        `DELETE FROM activity_participants WHERE activity_id = $1 AND status = 'approved' AND founder_id = ANY($2::uuid[])`,
+        [activityId, toRemove],
+      );
+    }
+    for (const founderId of toAdd) {
       await query(
         `INSERT INTO activity_participants (activity_id, founder_id, status, requested_at, decided_at)
          VALUES ($1, $2, 'approved', now(), now())
-         ON CONFLICT DO NOTHING`,
+         ON CONFLICT (activity_id, founder_id) DO UPDATE SET status = 'approved', decided_at = now()`,
         [activityId, founderId],
       );
     }

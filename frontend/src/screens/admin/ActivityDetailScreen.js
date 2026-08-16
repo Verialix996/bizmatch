@@ -139,7 +139,7 @@ export default function ActivityDetailScreen({ route, navigation }) {
       const { data } = await getActivity(activityId);
       setActivity(data);
       const approvedIds = (data.participants || []).filter(p => p.status === 'approved').map(p => p.id);
-      setSelectedFounderIds(new Set((data.participants || []).map(p => p.id)));
+      setSelectedFounderIds(new Set(approvedIds));
 
       if (isAdmin && approvedIds.length > 0) {
         const results = await Promise.all(approvedIds.map(id =>
