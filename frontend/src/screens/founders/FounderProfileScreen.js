@@ -304,6 +304,13 @@ export default function FounderProfileScreen({ route, navigation }) {
                     <CapabilityList title="Needs" items={founder?.needs} C={C} color={C.warning} />
                   </SectionCard>
                 </View>
+                {isAdmin && (
+                  <View style={{ flex: 1 }}>
+                    <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
+                      <BehavioralSignals insights={insights} C={C} />
+                    </SectionCard>
+                  </View>
+                )}
                 <View style={{ flex: 1 }}>
                   <SectionCard title="Partner requirements" icon="person-add-outline" C={C}>
                     <PartnerRequirementsCard requirements={founder?.partnerRequirements} dealBreakers={founder?.dealBreakers} C={C} />
@@ -312,13 +319,6 @@ export default function FounderProfileScreen({ route, navigation }) {
               </ResponsiveRow>
 
               <ResponsiveRow gap={16} style={{ marginTop: 16 }}>
-                {isAdmin && (
-                  <View style={{ flex: 1 }}>
-                    <SectionCard title="Behavioral signals" icon="pulse-outline" C={C}>
-                      <BehavioralSignals insights={insights} C={C} />
-                    </SectionCard>
-                  </View>
-                )}
                 {isAdmin && (
                   <View style={{ flex: 1 }}>
                     <SectionCard title="Evidence confidence" icon="shield-checkmark-outline" C={C}>
