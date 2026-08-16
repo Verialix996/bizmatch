@@ -47,8 +47,8 @@ export const getFounderInsights = (founderId) => api.get(`/founder-dna/${founder
 // (1/dimension, v2), scored by Gemini in the background into one 'self'
 // evidence row per answered dimension.
 export const getDnaSelfAssessment = (founderId) => api.get(`/dna-self-assessment/${founderId}`);
-export const submitDnaSelfAssessment = (founderId, answers) =>
-  api.post(`/dna-self-assessment/${founderId}`, { answers });
+export const submitDnaSelfAssessment = (founderId, answers, finished = false) =>
+  api.post(`/dna-self-assessment/${founderId}`, { answers, finished });
 
 // Evidence (MVP screen 4/7 timeline, filters)
 export const listEvidence = (founderId, filters) =>

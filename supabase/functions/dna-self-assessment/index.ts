@@ -140,11 +140,18 @@ function parseEvaluation(raw: string, dims: EvidenceDimension[]): Record<Evidenc
 // scoring being slow or down. Re-running this (e.g. a user-triggered retry,
 // which is just calling submitAssessment again) simply re-attempts scoring;
 // answers were already persisted synchronously, nothing is re-typed.
-async function scoreInBackground(founderId: string, answers: Answers, dims: EvidenceDimension[]): Promise<void> {
+// `finished` is a separate concept from "scoring done" — DNA-02 made this
+// fire once per question as it's answered, so scoring completing after just
+// one dimension must NOT mark the whole assessment as completed (that
+// previously hid the "fill in DNA" prompt after the very first answer, with
+// no way back in); only the client's own last-question submit sets it.
+async function scoreInBackground(founderId: string, answers: Answers, dims: EvidenceDimension[], finished: boolean): Promise<void> {
   try {
     if (dims.length === 0) {
       await query(
-        "UPDATE founder_profiles SET dna_scoring_status = 'scored', dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1",
+        finished
+          ? "UPDATE founder_profiles SET dna_scoring_status = 'scored', dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1"
+          : "UPDATE founder_profiles SET dna_scoring_status = 'scored', updated_at = now() WHERE user_id = $1",
         [founderId],
       );
       return;
@@ -165,7 +172,9 @@ async function scoreInBackground(founderId: string, answers: Answers, dims: Evid
     }
 
     await query(
-      "UPDATE founder_profiles SET dna_scoring_status = 'scored', dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1",
+      finished
+        ? "UPDATE founder_profiles SET dna_scoring_status = 'scored', dna_self_assessment_completed_at = now(), updated_at = now() WHERE user_id = $1"
+        : "UPDATE founder_profiles SET dna_scoring_status = 'scored', updated_at = now() WHERE user_id = $1",
       [founderId],
     );
     await recomputeFounderDna(founderId);
@@ -194,6 +203,7 @@ async function submitAssessment(req: Request, params: Record<string, string>): P
   const validationError = validateAnswers(body?.answers);
   if (validationError) return json({ error: validationError }, 400);
   const answers = body.answers as Answers;
+  const finished = !!body.finished;
 
   const founderId = params.founderId;
   const dims = answeredDimensions(answers);
@@ -215,7 +225,7 @@ async function submitAssessment(req: Request, params: Record<string, string>): P
     [founderId],
   );
 
-  background(scoreInBackground(founderId, answers, dims));
+  background(scoreInBackground(founderId, answers, dims, finished));
 
   return json({ status: "pending" }, 201);
 }

@@ -56,12 +56,14 @@ export default function DnaQuestionnaire({
     // completed, rather than accumulating all 8 locally and only submitting
     // once on Finish — the endpoint already upserts one dimension at a time
     // (ON CONFLICT DO UPDATE), so this is safe to call once per question.
-    // Fast save-and-respond — scoring itself happens in the background, so
-    // this resolves as soon as the answer is persisted server-side.
-    if (trimmed) {
+    // `finished` only goes true on the actual last-question submit — every
+    // earlier per-question save must NOT mark the assessment completed
+    // server-side, or the "fill in your DNA" prompt vanishes after just one
+    // answer with no way back in (a real bug this surfaced).
+    if (trimmed || isLast) {
       setSubmitting(true);
       try {
-        await submitDnaSelfAssessment(founderId, { [dim]: answer });
+        await submitDnaSelfAssessment(founderId, trimmed ? { [dim]: answer } : {}, isLast);
       } catch (e) {
         setError(e.response?.data?.error || 'Could not save your answer. Please try again.');
         setSubmitting(false);
