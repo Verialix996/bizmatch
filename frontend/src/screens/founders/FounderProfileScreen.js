@@ -339,7 +339,19 @@ export default function FounderProfileScreen({ route, navigation }) {
                   </View>
                 )}
                 <View style={{ flex: 1.4 }}>
-                  <SectionCard title="Top potential matches" icon="git-merge-outline" C={C}>
+                  <SectionCard
+                    title="Top potential matches"
+                    icon="git-merge-outline"
+                    C={C}
+                    right={isAdmin ? (
+                      <TouchableOpacity
+                        onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
+                        activeOpacity={0.75}
+                      >
+                        <Text style={styles.linkText}>View all matches →</Text>
+                      </TouchableOpacity>
+                    ) : null}
+                  >
                     <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
                   </SectionCard>
                 </View>
