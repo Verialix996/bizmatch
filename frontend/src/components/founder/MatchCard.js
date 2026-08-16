@@ -6,13 +6,27 @@ import { Avatar, Pill } from '../ui';
 // Suggested Matches pair card — two founders linked by a match score, with
 // "why they match" / "potential friction" pulled straight from the
 // cohort-wide ranked pairs endpoint (no extra per-row fetch needed).
-export default function MatchCard({ pair, onCreateTeam, onViewMatch, C }) {
+// MAT-06: `selectable` swaps the normal Create Team/View Match actions for a
+// pick-two-to-compare checkbox (evaluator-side mirror of the founder's own
+// "compare my matches" feature) — the card itself becomes the tap target.
+export default function MatchCard({ pair, onCreateTeam, onViewMatch, C, selectable, selected, onToggleSelect }) {
   const styles = makeStyles(C);
   const positives = pair.explanation?.positives || [];
   const risks = pair.explanation?.risks || [];
 
+  const CardWrapper = selectable ? TouchableOpacity : View;
+  const wrapperProps = selectable
+    ? { onPress: onToggleSelect, activeOpacity: 0.8, style: [styles.card, selected && styles.cardSelected] }
+    : { style: styles.card };
+
   return (
-    <View style={styles.card}>
+    <CardWrapper {...wrapperProps}>
+      {selectable ? (
+        <View style={styles.selectRow}>
+          <Ionicons name={selected ? 'checkbox' : 'square-outline'} size={18} color={selected ? C.primary : C.textHint} />
+          <Text style={styles.selectRowText}>{selected ? 'Selected for comparison' : 'Tap to select'}</Text>
+        </View>
+      ) : null}
       <View style={styles.pairRow}>
         <View style={styles.person}>
           <Avatar photoUrl={pair.a?.photoUrl} name={pair.a?.name} size={44} C={C} />
@@ -74,23 +88,29 @@ export default function MatchCard({ pair, onCreateTeam, onViewMatch, C }) {
         </View>
       )}
 
-      <View style={styles.actionsRow}>
-        <TouchableOpacity style={styles.btnPrimary} onPress={onCreateTeam} activeOpacity={0.85}>
-          <Text style={styles.btnPrimaryText}>Create Team</Text>
-        </TouchableOpacity>
-        <TouchableOpacity onPress={onViewMatch} activeOpacity={0.75} style={styles.viewMatchBtn}>
-          <Text style={styles.viewMatchText}>View Match</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
+      {!selectable && (
+        <View style={styles.actionsRow}>
+          <TouchableOpacity style={styles.btnPrimary} onPress={onCreateTeam} activeOpacity={0.85}>
+            <Text style={styles.btnPrimaryText}>Create Team</Text>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={onViewMatch} activeOpacity={0.75} style={styles.viewMatchBtn}>
+            <Text style={styles.viewMatchText}>View Match</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+    </CardWrapper>
   );
 }
 
 function makeStyles(C) {
   return StyleSheet.create({
     card: {
-      backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14, ...cardShadow,
+      backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, marginBottom: 14,
+      borderWidth: 2, borderColor: 'transparent', ...cardShadow,
     },
+    cardSelected: { borderColor: C.primary },
+    selectRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 10 },
+    selectRowText: { ...typography.caption, color: C.textSecondary, fontWeight: '600' },
     pairRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 },
     person: { flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 },
     linkIcon: { marginHorizontal: 4 },
