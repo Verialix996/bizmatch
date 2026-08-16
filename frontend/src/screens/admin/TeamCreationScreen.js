@@ -25,6 +25,7 @@ export default function TeamCreationScreen({ route, navigation }) {
   const [selectedIds, setSelectedIds] = useState(new Set(route.params?.founderIds || []));
   const [preview, setPreview] = useState(null);
   const [previewing, setPreviewing] = useState(false);
+  const [previewError, setPreviewError] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -43,13 +44,15 @@ export default function TeamCreationScreen({ route, navigation }) {
 
   const loadPreview = useCallback(async () => {
     const ids = [...selectedIds];
-    if (ids.length < 2) { setPreview(null); return; }
+    if (ids.length < 2) { setPreview(null); setPreviewError(false); return; }
     setPreviewing(true);
+    setPreviewError(false);
     try {
       const { data } = await previewTeam(ids);
       setPreview(data.profile);
     } catch {
       setPreview(null);
+      setPreviewError(true);
     } finally {
       setPreviewing(false);
     }
@@ -60,6 +63,14 @@ export default function TeamCreationScreen({ route, navigation }) {
   const handleCreate = async () => {
     if (!name.trim()) { showAlert('Missing Name', 'Give this team a name.'); return; }
     if (selectedIds.size < 2) { showAlert('Not Enough Members', 'Select at least two founders.'); return; }
+    if (previewing) { showAlert('Please Wait', 'Still checking this team’s compatibility — try again in a moment.'); return; }
+    // Creating without a successful preview means the evaluator never saw
+    // the coverage/risk warnings the preview surfaces — block it rather
+    // than let a transient failure silently skip that review step.
+    if (previewError || !preview) {
+      showAlert('Preview Unavailable', 'Could not check this team’s compatibility. Try again before creating.');
+      return;
+    }
     setSaving(true);
     try {
       const { data } = await createTeam({ name: name.trim(), founderIds: [...selectedIds] });
@@ -169,6 +180,8 @@ export default function TeamCreationScreen({ route, navigation }) {
                     </View>
                   )}
                 </>
+              ) : previewError ? (
+                <Text style={[styles.emptyText, { color: C.error }]}>Couldn't check compatibility — Create is disabled until this succeeds.</Text>
               ) : (
                 <Text style={styles.emptyText}>Not enough evidence yet to preview.</Text>
               )}
@@ -176,7 +189,12 @@ export default function TeamCreationScreen({ route, navigation }) {
           </View>
         </ResponsiveRow>
 
-        <TouchableOpacity style={[styles.btnPrimary, saving && styles.btnDisabled]} onPress={handleCreate} disabled={saving} activeOpacity={0.85}>
+        <TouchableOpacity
+          style={[styles.btnPrimary, (saving || previewError || previewing) && styles.btnDisabled]}
+          onPress={handleCreate}
+          disabled={saving || previewError || previewing}
+          activeOpacity={0.85}
+        >
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Create Team</Text>}
         </TouchableOpacity>
       </ScrollView>

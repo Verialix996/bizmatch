@@ -104,6 +104,22 @@ export const TeamsModel = {
       throw new Error(`${names} already ${alreadyTeamed.length === 1 ? "has" : "have"} a team.`);
     }
 
+    // A prospect (added by an evaluator, no real account activity yet) or an
+    // inactive/dropped founder isn't eligible for team membership — this was
+    // previously only filtered client-side in the picker, so a stale list or
+    // a direct request could create a team with someone like an unconverted
+    // prospect in it.
+    const ineligible = await query<{ name: string | null; is_prospect: boolean; status: string }>(
+      `SELECT u.name, fp.is_prospect, fp.status
+       FROM founder_profiles fp JOIN users u ON u.id = fp.user_id
+       WHERE fp.user_id = ANY($1::uuid[]) AND (fp.is_prospect OR fp.status <> 'active')`,
+      [founderIds],
+    );
+    if (ineligible.length > 0) {
+      const names = ineligible.map((r) => r.name || "A founder").join(", ");
+      throw new Error(`${names} ${ineligible.length === 1 ? "is" : "are"} not eligible for a team (prospect or inactive).`);
+    }
+
     const rows = await query<{ id: number }>(
       `INSERT INTO teams (name, program_id, created_by) VALUES ($1, $2, $3) RETURNING id`,
       [name, programId, createdBy],
