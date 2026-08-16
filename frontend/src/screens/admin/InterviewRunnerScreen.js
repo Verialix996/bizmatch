@@ -34,6 +34,12 @@ export default function InterviewRunnerScreen({ route, navigation }) {
   const [draftNumber, setDraftNumber] = useState('');
   const [draftDurationUnit, setDraftDurationUnit] = useState('minutes');
   const [draftMulti, setDraftMulti] = useState([]);
+  // The answer record last showing on this question when navigated back to
+  // via Back — used to re-populate the draft inputs / highlight the prior
+  // choice, so "Back" reads as "review what you answered" instead of
+  // silently erasing it (the underlying record is still cleared, since the
+  // frontier position is derived from which answers exist).
+  const [restoredAnswer, setRestoredAnswer] = useState(null);
 
   const saveTimer = useRef(null);
 
@@ -61,12 +67,16 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     [activePath, answers, currentQuestionId],
   );
 
-  // Reset the local draft input whenever the active question changes.
+  // Reset (or restore) the local draft input whenever the active question
+  // changes. If we just navigated Back to review an answered question,
+  // restoredAnswer carries its previous value so the input isn't blank.
   useEffect(() => {
-    setDraftText('');
-    setDraftNumber('');
-    setDraftDurationUnit('minutes');
-    setDraftMulti([]);
+    const v = restoredAnswer?.value;
+    setDraftText(v?.text ?? '');
+    setDraftNumber(v?.value != null && typeof v.value === 'number' ? String(v.value) : v?.amount != null ? String(v.amount) : '');
+    setDraftDurationUnit(v?.unit || 'minutes');
+    setDraftMulti(v?.optionIds || []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestionId]);
 
   const scheduleSave = useCallback((nextAnswers) => {
@@ -87,6 +97,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     const record = { value, updatedAt: new Date().toISOString() };
     const next = { ...answers, [currentQuestionId]: record };
     setAnswers(next);
+    setRestoredAnswer(null);
     scheduleSave(next);
   };
 
@@ -94,6 +105,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     const record = { skipped: true, updatedAt: new Date().toISOString() };
     const next = { ...answers, [currentQuestionId]: record };
     setAnswers(next);
+    setRestoredAnswer(null);
     scheduleSave(next);
   };
 
@@ -111,6 +123,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     const idx = activePath.indexOf(prev);
     for (const id of activePath.slice(idx)) delete trimmed[id];
     setAnswers(trimmed);
+    setRestoredAnswer(record);
     scheduleSave(trimmed);
   };
 
@@ -141,6 +154,27 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     return (
       <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
         <View style={styles.centered}><Text style={styles.emptyText}>This interview has no questions to show.</Text></View>
+      </AppShell>
+    );
+  }
+
+  // Completed interviews are read-only (server rejects PUT/DELETE with 409)
+  // — show a plain summary instead of the interactive runner so it isn't
+  // possible to type into an input that can never actually save.
+  if (status === 'completed') {
+    return (
+      <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
+        <View style={styles.container}>
+          <View style={styles.headerRow}>
+            <Text style={styles.entrepreneurName}>{meta?.entrepreneurName}</Text>
+          </View>
+          <View style={styles.completedBanner}>
+            <Text style={styles.completedBannerText}>This interview is completed and read-only.</Text>
+          </View>
+          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
+            <Text style={styles.primaryBtnText}>Done</Text>
+          </TouchableOpacity>
+        </View>
       </AppShell>
     );
   }
@@ -178,10 +212,16 @@ export default function InterviewRunnerScreen({ route, navigation }) {
 
           {currentQuestion.type === 'yes_no' && (
             <View style={styles.rowGap}>
-              <TouchableOpacity style={styles.choiceBtn} onPress={() => recordAnswer({ type: 'yes_no', value: true })} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[styles.choiceBtn, restoredAnswer?.value?.type === 'yes_no' && restoredAnswer.value.value === true && { borderColor: C.primary }]}
+                onPress={() => recordAnswer({ type: 'yes_no', value: true })} activeOpacity={0.85}
+              >
                 <Text style={styles.choiceBtnText}>Yes</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.choiceBtn} onPress={() => recordAnswer({ type: 'yes_no', value: false })} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={[styles.choiceBtn, restoredAnswer?.value?.type === 'yes_no' && restoredAnswer.value.value === false && { borderColor: C.primary }]}
+                onPress={() => recordAnswer({ type: 'yes_no', value: false })} activeOpacity={0.85}
+              >
                 <Text style={styles.choiceBtnText}>No</Text>
               </TouchableOpacity>
             </View>
@@ -190,7 +230,11 @@ export default function InterviewRunnerScreen({ route, navigation }) {
           {currentQuestion.type === 'single_choice' && (
             <View style={styles.chipRow}>
               {(currentQuestion.options || []).map((opt) => (
-                <TouchableOpacity key={opt.id} style={styles.choiceBtnFull} onPress={() => recordAnswer({ type: 'single_choice', optionId: opt.id })} activeOpacity={0.85}>
+                <TouchableOpacity
+                  key={opt.id}
+                  style={[styles.choiceBtnFull, restoredAnswer?.value?.type === 'single_choice' && restoredAnswer.value.optionId === opt.id && { borderColor: C.primary }]}
+                  onPress={() => recordAnswer({ type: 'single_choice', optionId: opt.id })} activeOpacity={0.85}
+                >
                   <Text style={styles.choiceBtnText}>{opt.label}</Text>
                 </TouchableOpacity>
               ))}
@@ -314,6 +358,10 @@ function makeStyles(C) {
     headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
     entrepreneurName: { ...typography.titleMedium, color: C.textPrimary },
     savingText: { ...typography.caption, color: C.textHint },
+    completedBanner: {
+      backgroundColor: C.successLight, borderRadius: radius.md, padding: 16, marginTop: 20,
+    },
+    completedBannerText: { ...typography.bodyMedium, color: C.success, fontWeight: '700' },
 
     progressTrack: { height: 5, borderRadius: 3, backgroundColor: C.surfaceBorder, marginTop: 10, overflow: 'hidden' },
     progressFill: { height: 5, borderRadius: 3, backgroundColor: C.primary },

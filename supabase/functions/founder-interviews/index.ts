@@ -103,6 +103,16 @@ async function saveInterview(req: Request, params: Record<string, string>): Prom
   const adminErr = requireAdmin(user);
   if (adminErr) return adminErr;
 
+  const existing = await FounderInterviewsModel.get(params.id);
+  if (!existing) return json({ error: "Interview not found" }, 404);
+  // Completed interviews are the scored evidence source of record — letting
+  // autosave silently keep overwriting answers after completion (previously
+  // possible, no status check at all here) would make that evidence mutable
+  // with no audit trail.
+  if (existing.status === "completed") {
+    return json({ error: "This interview is completed and read-only." }, 409);
+  }
+
   const body = await req.json().catch(() => ({}));
   const { meta, answers } = body as { meta?: unknown; answers?: unknown };
   await FounderInterviewsModel.save(params.id, meta, answers);
@@ -139,6 +149,12 @@ async function deleteInterview(req: Request, params: Record<string, string>): Pr
   if (!user) return json({ error: "Unauthorized" }, 401);
   const adminErr = requireAdmin(user);
   if (adminErr) return adminErr;
+
+  const existing = await FounderInterviewsModel.get(params.id);
+  if (!existing) return json({ error: "Interview not found" }, 404);
+  if (existing.status === "completed") {
+    return json({ error: "Completed interviews can't be deleted." }, 409);
+  }
 
   await FounderInterviewsModel.remove(params.id);
   return json({ ok: true });
