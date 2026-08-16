@@ -22,6 +22,10 @@ const SHORT_LABEL = {
 // shape never lies about missing data). No fabricated "Founder Score" —
 // each axis is labeled with its own real number, same as the DimRow list
 // this chart supplements rather than replaces.
+// A null score plotted at 0 looks identical to a genuine 0 score, which
+// reads as "scored zero" rather than "no evidence" — the dot for a null
+// axis is rendered as a hollow ring instead of a filled dot so the two
+// cases stay visually distinct even though both pull the shape inward.
 export default function RadarChart({ axes, size = 280, C }) {
   const center = size / 2;
   const radius = size * 0.22; // leave generous room for axis labels
@@ -68,7 +72,11 @@ export default function RadarChart({ axes, size = 280, C }) {
         <Polygon points={dataPolygon} fill={C.primary} fillOpacity={0.18} stroke={C.primary} strokeWidth={2} />
 
         {dataPoints.map((p, i) => (
-          <Circle key={i} cx={p.x} cy={p.y} r={3.5} fill={C.primary} />
+          axes[i].score == null ? (
+            <Circle key={i} cx={p.x} cy={p.y} r={3.5} fill={C.surface} stroke={C.textHint} strokeWidth={1.5} strokeDasharray="2,2" />
+          ) : (
+            <Circle key={i} cx={p.x} cy={p.y} r={3.5} fill={C.primary} />
+          )
         ))}
 
         {axes.map((a, i) => {

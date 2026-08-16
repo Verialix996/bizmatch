@@ -27,6 +27,7 @@ export default function TeamCreationScreen({ route, navigation }) {
   const [previewing, setPreviewing] = useState(false);
   const [previewError, setPreviewError] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [risksAcknowledged, setRisksAcknowledged] = useState(false);
 
   useEffect(() => {
     // team_founders.founder_id is unique (one team per founder) — exclude
@@ -47,6 +48,7 @@ export default function TeamCreationScreen({ route, navigation }) {
     if (ids.length < 2) { setPreview(null); setPreviewError(false); return; }
     setPreviewing(true);
     setPreviewError(false);
+    setRisksAcknowledged(false);
     try {
       const { data } = await previewTeam(ids);
       setPreview(data.profile);
@@ -71,6 +73,11 @@ export default function TeamCreationScreen({ route, navigation }) {
       showAlert('Preview Unavailable', 'Could not check this team’s compatibility. Try again before creating.');
       return;
     }
+    const hasRisks = preview.capabilityGaps.length > 0 || preview.potentialFriction.length > 0;
+    if (hasRisks && !risksAcknowledged) {
+      showAlert('Unresolved Risks', 'This team has capability gaps or friction risks — check the acknowledgment box below to confirm you want to proceed anyway.');
+      return;
+    }
     setSaving(true);
     try {
       const { data } = await createTeam({ name: name.trim(), founderIds: [...selectedIds] });
@@ -84,6 +91,8 @@ export default function TeamCreationScreen({ route, navigation }) {
 
   const selectedFounders = allFounders.filter(f => selectedIds.has(f.id));
   const unselectedFounders = allFounders.filter(f => !selectedIds.has(f.id));
+  const hasRisks = !!preview && (preview.capabilityGaps.length > 0 || preview.potentialFriction.length > 0);
+  const blockedByRisks = hasRisks && !risksAcknowledged;
 
   return (
     <AppShell navigation={navigation} active="teams" items={ADMIN_NAV_ITEMS}>
@@ -177,6 +186,18 @@ export default function TeamCreationScreen({ route, navigation }) {
                       {preview.potentialFriction.map((f, i) => (
                         <Text key={i} style={styles.riskLine}>⚠ {f}</Text>
                       ))}
+                      <TouchableOpacity
+                        style={styles.ackRow}
+                        onPress={() => setRisksAcknowledged(!risksAcknowledged)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons
+                          name={risksAcknowledged ? 'checkbox' : 'square-outline'}
+                          size={18}
+                          color={risksAcknowledged ? C.warning : C.textHint}
+                        />
+                        <Text style={styles.ackText}>I acknowledge these gaps/risks and want to proceed anyway.</Text>
+                      </TouchableOpacity>
                     </View>
                   )}
                 </>
@@ -190,9 +211,9 @@ export default function TeamCreationScreen({ route, navigation }) {
         </ResponsiveRow>
 
         <TouchableOpacity
-          style={[styles.btnPrimary, (saving || previewError || previewing) && styles.btnDisabled]}
+          style={[styles.btnPrimary, (saving || previewError || previewing || blockedByRisks) && styles.btnDisabled]}
           onPress={handleCreate}
-          disabled={saving || previewError || previewing}
+          disabled={saving || previewError || previewing || blockedByRisks}
           activeOpacity={0.85}
         >
           {saving ? <ActivityIndicator color="#fff" /> : <Text style={styles.btnPrimaryText}>Create Team</Text>}
@@ -236,6 +257,8 @@ function makeStyles(C) {
 
     riskBox: { backgroundColor: C.warningLight, borderRadius: radius.md, padding: 12, marginBottom: 0 },
     riskLine: { ...typography.bodySmall, color: C.warning, marginTop: 4 },
+    ackRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 10 },
+    ackText: { ...typography.bodySmall, color: C.textPrimary, flex: 1 },
 
     btnPrimary: { backgroundColor: C.primary, borderRadius: radius.pill, paddingVertical: 16, alignItems: 'center', marginTop: 20 },
     btnDisabled: { opacity: 0.6 },

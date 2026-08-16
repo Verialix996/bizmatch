@@ -533,6 +533,13 @@ export interface TeamProfile {
   capabilityGaps: string[];
   compatibility: number | null;
   potentialFriction: string[];
+  // Mirrors CompatibilityResult.isProvisional at team scale — true whenever
+  // any scored pair is itself provisional, or when fewer pairs have a cached
+  // score than the full N-choose-2 set (i.e. this "Final" number is an
+  // average over incomplete pairwise data, not a confident whole-team read).
+  isProvisional: boolean;
+  pairsScored: number;
+  pairsExpected: number;
 }
 
 const TEAM_STRENGTH_THRESHOLD = 75;
@@ -557,5 +564,12 @@ export function computeTeamProfile(
     : null;
   const potentialFriction = [...new Set(pairwiseResults.flatMap((r) => r.explanation.risks))];
 
-  return { dimensionScores, strengths, potentialGaps, complementarySkills, capabilityGaps, compatibility, potentialFriction };
+  const pairsExpected = (members.length * (members.length - 1)) / 2;
+  const pairsScored = pairwiseResults.length;
+  const isProvisional = pairsScored < pairsExpected || pairwiseResults.some((r) => r.isProvisional);
+
+  return {
+    dimensionScores, strengths, potentialGaps, complementarySkills, capabilityGaps, compatibility, potentialFriction,
+    isProvisional, pairsScored, pairsExpected,
+  };
 }

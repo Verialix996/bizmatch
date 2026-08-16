@@ -122,6 +122,12 @@ export default function TeamProfileScreen({ route, navigation }) {
             <SectionCard title="Compatibility" icon="heart-outline" iconColor={C.success} iconBg={C.successLight} C={C} style={{ flex: 1 }}>
               <View style={styles.scoreBlock}>
                 <Text style={styles.scoreValue}>{profile?.compatibility ?? '—'}%</Text>
+                {profile?.isProvisional ? (
+                  <Pill label="Provisional" C={C} bg={C.surfaceElevated} color={C.textSecondary} />
+                ) : null}
+                <Text style={styles.scoreCaption}>
+                  {profile?.pairsScored ?? 0} of {profile?.pairsExpected ?? 0} member pairs scored
+                </Text>
               </View>
             </SectionCard>
           </View>
@@ -220,8 +226,9 @@ function makeStyles(C) {
     memberName: { ...typography.bodyMedium, color: C.textPrimary },
     memberRole: { ...typography.bodySmall, color: C.textHint },
 
-    scoreBlock: { alignItems: 'center', paddingVertical: 8 },
+    scoreBlock: { alignItems: 'center', paddingVertical: 8, gap: 6 },
     scoreValue: { fontSize: 40, fontWeight: '800', color: C.success },
+    scoreCaption: { ...typography.caption, color: C.textHint, marginTop: 2 },
 
     checkLine: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5 },
     checkLineText: { ...typography.bodyMedium, color: C.textPrimary },
