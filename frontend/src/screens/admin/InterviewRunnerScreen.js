@@ -1,13 +1,20 @@
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, ActivityIndicator, Platform,
 } from 'react-native';
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { Ionicons } from '@expo/vector-icons';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, typography } from '../../theme';
-import { getFounderInterview, saveFounderInterview, completeFounderInterview } from '../../services/interviews.service';
+import {
+  getFounderInterview, saveFounderInterview, completeFounderInterview,
+  resetFounderInterview, uploadInterviewRecording, uploadInterviewRecordingBlob,
+} from '../../services/interviews.service';
 import { showAlert } from '../../services/alert';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS } from '../../config/nav';
+import RecordingPlayer from '../../components/interview/RecordingPlayer';
+import { useInterviewRecording } from '../../hooks/useInterviewRecording';
+import { formatDuration, groupBookmarksBySection } from '../../interview/formatAnswer';
 
 import { compileTree, computeActivePath, getCurrentFrontierId, isQuestionDynamicallyRequired } from '../../interview/engine/InterviewEngine';
 import { getPreviousQuestionId } from '../../interview/engine/NavigationManager';
@@ -17,36 +24,6 @@ import { questionTree } from '../../interview/data/questionTree.bizmatch';
 
 const TREE = compileTree(questionTree);
 const DURATION_UNITS = ['minutes', 'hours', 'days', 'months', 'years'];
-
-// Renders one answer record as plain text for the completed-interview
-// review — mirrors the same record shapes recordAnswer()/skipQuestion()
-// produce (value.type discriminates, or a bare `skipped` flag).
-function formatAnswerForReview(question, record) {
-  if (!record) return '—';
-  if (record.skipped) return 'Skipped';
-  const v = record.value;
-  if (!v) return '—';
-  switch (v.type) {
-    case 'yes_no': return v.value ? 'Yes' : 'No';
-    case 'single_choice': {
-      const opt = (question.options || []).find((o) => o.id === v.optionId);
-      return opt?.label || v.optionId;
-    }
-    case 'multi_choice': {
-      const labels = (v.optionIds || []).map((id) => (question.options || []).find((o) => o.id === id)?.label || id);
-      return labels.length ? labels.join(', ') : '—';
-    }
-    case 'short_text':
-    case 'long_text':
-      return v.text?.trim() || '—';
-    case 'number':
-      return String(v.value ?? '—');
-    case 'duration':
-      return `${v.amount ?? '—'} ${v.unit || ''}`.trim();
-    default:
-      return '—';
-  }
-}
 
 export default function InterviewRunnerScreen({ route, navigation }) {
   const darkMode = useAppStore(s => s.darkMode);
@@ -71,7 +48,24 @@ export default function InterviewRunnerScreen({ route, navigation }) {
   // frontier position is derived from which answers exist).
   const [restoredAnswer, setRestoredAnswer] = useState(null);
 
+  // Recording state, mirrored from the server and kept in sync as the interviewer records,
+  // pauses, and moves between questions. Each entry in recordingSegments is one independent
+  // start/stop take ({ url, durationSeconds }) — see the recording_segments migration for why
+  // they're never merged into a single file.
+  const [recordingSegments, setRecordingSegments] = useState([]);
+  const [recordingBookmarks, setRecordingBookmarks] = useState([]);
+  const [recordingPanelOpen, setRecordingPanelOpen] = useState(false);
+  const [uploadingRecording, setUploadingRecording] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  // Shown once when reopening an interview that already has answers, so the
+  // interviewer immediately sees where they left off — dismissed on the
+  // first interaction rather than lingering the whole session.
+  const [showResumeBanner, setShowResumeBanner] = useState(false);
+
   const saveTimer = useRef(null);
+  const playerRef = useRef(null);
+  const lastBookmarkedQuestionRef = useRef(null);
+  const recording = useInterviewRecording();
 
   useEffect(() => {
     (async () => {
@@ -80,6 +74,11 @@ export default function InterviewRunnerScreen({ route, navigation }) {
         setAnswers(data.answers || {});
         setMeta(data.meta || {});
         setStatus(data.status);
+        setRecordingSegments(data.recordingSegments || []);
+        setRecordingBookmarks(data.recordingBookmarks || []);
+        if (data.status === 'in_progress' && Object.keys(data.answers || {}).length > 0) {
+          setShowResumeBanner(true);
+        }
       } catch {
         showAlert('Error', 'Could not load this interview.');
         navigation.goBack();
@@ -88,6 +87,15 @@ export default function InterviewRunnerScreen({ route, navigation }) {
       }
     })();
   }, [interviewId]);
+
+  // Completed interviews live on their own read-only Summary screen (with
+  // playback + the full bookmark outline) rather than duplicating that view
+  // here — bounce there as soon as we know the status.
+  useEffect(() => {
+    if (status === 'completed') {
+      navigation.replace('InterviewSummary', { interviewId });
+    }
+  }, [status, interviewId]);
 
   const activePath = useMemo(() => computeActivePath(TREE, answers), [answers]);
   const currentQuestionId = getCurrentFrontierId(activePath);
@@ -109,12 +117,39 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestionId]);
 
-  const scheduleSave = useCallback((nextAnswers) => {
+  // Auto-bookmark the current question the moment it changes while
+  // recording is live — mirrors the reference tool's behaviour so the
+  // interviewer never has to remember to tag anything manually.
+  useEffect(() => {
+    if (recording.isRecording) lastBookmarkedQuestionRef.current = null;
+  }, [recording.isRecording]);
+
+  useEffect(() => {
+    if (!recording.isRecording || !currentQuestionId) return;
+    if (lastBookmarkedQuestionRef.current === currentQuestionId) return;
+    lastBookmarkedQuestionRef.current = currentQuestionId;
+    setRecordingBookmarks((prev) => {
+      // Only the most recent timestamp per question is kept — revisiting a question during
+      // any recording replaces its old bookmark (even one from an earlier segment) rather
+      // than piling up duplicates. timeSeconds is relative to THIS segment's own start (0),
+      // not a running total — segmentIndex says which segment it belongs to.
+      const next = [...prev.filter((b) => b.questionId !== currentQuestionId), {
+        questionId: currentQuestionId,
+        segmentIndex: recordingSegments.length,
+        timeSeconds: recording.elapsedSeconds,
+      }];
+      scheduleSave({ recordingBookmarks: next });
+      return next;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [recording.isRecording, currentQuestionId]);
+
+  const scheduleSave = useCallback((patch) => {
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(async () => {
       setSaving(true);
       try {
-        await saveFounderInterview(interviewId, { answers: nextAnswers });
+        await saveFounderInterview(interviewId, patch);
       } catch {
         // Silent — next successful save will catch up; nothing to lose locally.
       } finally {
@@ -123,23 +158,28 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     }, 600);
   }, [interviewId]);
 
+  const dismissResumeBanner = () => setShowResumeBanner(false);
+
   const recordAnswer = (value) => {
+    dismissResumeBanner();
     const record = { value, updatedAt: new Date().toISOString() };
     const next = { ...answers, [currentQuestionId]: record };
     setAnswers(next);
     setRestoredAnswer(null);
-    scheduleSave(next);
+    scheduleSave({ answers: next });
   };
 
   const skipQuestion = () => {
+    dismissResumeBanner();
     const record = { skipped: true, updatedAt: new Date().toISOString() };
     const next = { ...answers, [currentQuestionId]: record };
     setAnswers(next);
     setRestoredAnswer(null);
-    scheduleSave(next);
+    scheduleSave({ answers: next });
   };
 
   const goBack = () => {
+    dismissResumeBanner();
     const prev = getPreviousQuestionId(activePath, currentQuestionId);
     if (!prev) return;
     // Reviewing an earlier answer: clear it so the frontier lands back there,
@@ -154,16 +194,16 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     for (const id of activePath.slice(idx)) delete trimmed[id];
     setAnswers(trimmed);
     setRestoredAnswer(record);
-    scheduleSave(trimmed);
+    scheduleSave({ answers: trimmed });
   };
 
   const handleFinish = async () => {
     setSaving(true);
     try {
-      await saveFounderInterview(interviewId, { answers });
+      await saveFounderInterview(interviewId, { answers, recordingBookmarks });
       await completeFounderInterview(interviewId);
       showAlert('Interview complete', `${meta?.entrepreneurName || 'This interview'} has been saved.`, [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        { text: 'OK', onPress: () => navigation.replace('InterviewSummary', { interviewId }) },
       ]);
     } catch {
       showAlert('Error', 'Could not complete the interview. Your answers are saved — try finishing again.');
@@ -172,9 +212,92 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     }
   };
 
-  if (loading) {
+  const handleRecordToggle = async () => {
+    if (recording.isRecording) {
+      recording.pause();
+      return;
+    }
+    // hasSession tells us whether there's a live, merely-paused recorder to continue in
+    // place. Once it's false — after any Stop, or on a fresh mount/reload — the next Start
+    // always begins a brand-new independent segment; there's nothing to "resume" onto.
+    if (recording.hasSession && !recording.error) {
+      recording.resume();
+      return;
+    }
+    await recording.start();
+  };
+
+  const handleStopRecording = async () => {
+    const { uri, durationSeconds } = await recording.stop();
+    if (!uri) return;
+    setUploadingRecording(true);
+    try {
+      // Web's expo-audio recorder yields a blob: URL (audio/webm), not a native file
+      // path — resolve it to a real Blob first, same fix as founders.service.js's
+      // upload{FounderCv,FounderCvWeb} split.
+      const { data } = Platform.OS === 'web'
+        ? await uploadInterviewRecordingBlob(interviewId, await (await fetch(uri)).blob(), durationSeconds, `interview-${interviewId}-${Date.now()}.webm`)
+        : await uploadInterviewRecording(interviewId, uri, durationSeconds, `interview-${interviewId}-${Date.now()}.m4a`);
+      setRecordingSegments((prev) => [...prev, { url: data.url, durationSeconds: data.durationSeconds }]);
+      setRecordingPanelOpen(true);
+    } catch {
+      showAlert('Error', 'Could not upload the recording. It stayed on this device — try stopping again.');
+    } finally {
+      setUploadingRecording(false);
+    }
+  };
+
+  const goToBookmark = (segmentIndex, timeSeconds) => {
+    playerRef.current?.seekAndPlay(segmentIndex, timeSeconds);
+  };
+
+  // Pauses the mic (if live) and leaves — progress is already autosaved, so this is really
+  // just a clearly-labeled exit, but also flushes any still-debounced save immediately rather
+  // than leaving it to fire after the screen's already gone, and stopping the mic explicitly
+  // means the interviewer isn't relying on remembering to do it themselves before walking away.
+  const handlePauseInterview = () => {
+    if (recording.isRecording) recording.pause();
+    if (saveTimer.current) {
+      clearTimeout(saveTimer.current);
+      saveTimer.current = null;
+      saveFounderInterview(interviewId, { answers, recordingBookmarks }).catch(() => {});
+    }
+    navigation.goBack();
+  };
+
+  const handleReset = () => {
+    showAlert(
+      'Reset interview',
+      'This clears every answer, the recording, and its bookmarks — the interview starts over from question 1. This can\'t be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Reset',
+          style: 'destructive',
+          onPress: async () => {
+            setResetting(true);
+            try {
+              await resetFounderInterview(interviewId);
+              setAnswers({});
+              setRestoredAnswer(null);
+              setRecordingSegments([]);
+              setRecordingBookmarks([]);
+              setShowResumeBanner(false);
+              setRecordingPanelOpen(false);
+            } catch {
+              showAlert('Error', 'Could not reset this interview. Try again.');
+            } finally {
+              setResetting(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  if (loading || status === 'completed') {
     return (
-      <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
+      <AppShell navigation={navigation} active="interviews" items={ADMIN_NAV_ITEMS}>
         <View style={styles.centered}><ActivityIndicator size="large" color={C.primary} /></View>
       </AppShell>
     );
@@ -182,66 +305,128 @@ export default function InterviewRunnerScreen({ route, navigation }) {
 
   if (!currentQuestion) {
     return (
-      <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
+      <AppShell navigation={navigation} active="interviews" items={ADMIN_NAV_ITEMS}>
         <View style={styles.centered}><Text style={styles.emptyText}>This interview has no questions to show.</Text></View>
-      </AppShell>
-    );
-  }
-
-  // Completed interviews are read-only (server rejects PUT/DELETE with 409)
-  // — show every answered question instead of the interactive runner, so
-  // it isn't possible to type into an input that can never actually save,
-  // but the evaluator's actual answers are still reviewable (previously
-  // this was just a banner with no way to see what was recorded).
-  if (status === 'completed') {
-    const reviewIds = activePath.filter((id) => {
-      const q = TREE.byId[id];
-      return q && q.type !== 'info' && q.type !== 'end';
-    });
-    return (
-      <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
-        <View style={styles.container}>
-          <View style={styles.headerRow}>
-            <Text style={styles.entrepreneurName}>{meta?.entrepreneurName}</Text>
-          </View>
-          <View style={styles.completedBanner}>
-            <Text style={styles.completedBannerText}>This interview is completed and read-only.</Text>
-          </View>
-          <ScrollView contentContainerStyle={styles.reviewScrollContent}>
-            {reviewIds.map((id) => {
-              const question = TREE.byId[id];
-              const section = TREE.sections.find((s) => s.id === question.section);
-              return (
-                <View key={id} style={styles.reviewRow}>
-                  <Text style={styles.reviewSectionLabel}>{section?.label}</Text>
-                  <Text style={styles.reviewQuestion}>{substituteQuestionPlaceholders(question.text, meta || {})}</Text>
-                  <Text style={styles.reviewAnswer}>{formatAnswerForReview(question, answers[id])}</Text>
-                </View>
-              );
-            })}
-          </ScrollView>
-          <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.goBack()} activeOpacity={0.85}>
-            <Text style={styles.primaryBtnText}>Done</Text>
-          </TouchableOpacity>
-        </View>
       </AppShell>
     );
   }
 
   const required = isQuestionDynamicallyRequired(currentQuestion);
   const section = TREE.sections.find(s => s.id === currentQuestion.section);
+  const sortedBookmarks = [...recordingBookmarks].sort((a, b) => a.timeSeconds - b.timeSeconds);
+  const bookmarkGroups = groupBookmarksBySection(TREE, sortedBookmarks);
 
   return (
-    <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
+    <AppShell navigation={navigation} active="interviews" items={ADMIN_NAV_ITEMS}>
       <View style={styles.container}>
         <View style={styles.headerRow}>
           <Text style={styles.entrepreneurName}>{meta?.entrepreneurName}</Text>
-          {saving ? <Text style={styles.savingText}>Saving…</Text> : null}
+          <View style={styles.headerActions}>
+            {saving ? <Text style={styles.savingText}>Saving…</Text> : null}
+            <TouchableOpacity onPress={handlePauseInterview}>
+              <Text style={styles.pauseInterviewText}>Pause interview</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleReset} disabled={resetting}>
+              <Text style={styles.resetText}>Reset</Text>
+            </TouchableOpacity>
+          </View>
         </View>
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
         </View>
         <Text style={styles.sectionLabel}>{section?.label} · {progress.completedCount}/{progress.totalActiveCount}</Text>
+
+        {showResumeBanner && (
+          <View style={styles.resumeBanner}>
+            <Text style={styles.resumeBannerText}>
+              Resuming at question {progress.completedCount + 1} of {progress.totalActiveCount}
+            </Text>
+            <TouchableOpacity onPress={dismissResumeBanner}>
+              <Ionicons name="close" size={16} color={C.textHint} />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        <View style={styles.recordingCard}>
+          <TouchableOpacity
+            style={styles.recordingHeader}
+            onPress={() => setRecordingPanelOpen((o) => !o)}
+            activeOpacity={0.8}
+          >
+            <View style={styles.recordingHeaderLeft}>
+              {recording.isRecording && <View style={styles.recDot} />}
+              <Text style={styles.recordingHeaderText}>Interview recording</Text>
+              {recording.isRecording && <Text style={styles.recordingTime}>{formatDuration(recording.elapsedSeconds)}</Text>}
+            </View>
+            <Ionicons name={recordingPanelOpen ? 'chevron-up' : 'chevron-down'} size={16} color={C.textHint} />
+          </TouchableOpacity>
+
+          {recordingPanelOpen && (
+            <View style={styles.recordingBody}>
+              {recording.error ? (
+                <View style={styles.recordingError}>
+                  <Text style={styles.recordingErrorText}>{recording.error}</Text>
+                  <TouchableOpacity onPress={recording.clearError}><Ionicons name="close" size={14} color={C.error} /></TouchableOpacity>
+                </View>
+              ) : null}
+
+              <View style={styles.recordingBtnRow}>
+                {!recording.isRecording ? (
+                  <TouchableOpacity style={styles.recordBtn} onPress={handleRecordToggle} activeOpacity={0.85} disabled={uploadingRecording}>
+                    <Ionicons name="mic" size={16} color="#fff" />
+                    <Text style={styles.recordBtnText}>
+                      {recording.hasSession
+                        ? 'Resume recording'
+                        : recordingSegments.length > 0 ? 'Record another segment' : 'Start recording'}
+                    </Text>
+                  </TouchableOpacity>
+                ) : (
+                  <>
+                    <TouchableOpacity style={styles.pauseBtn} onPress={handleRecordToggle} activeOpacity={0.85}>
+                      <Ionicons name="pause" size={16} color={C.textPrimary} />
+                      <Text style={styles.pauseBtnText}>Pause</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.stopBtn} onPress={handleStopRecording} activeOpacity={0.85} disabled={uploadingRecording}>
+                      {uploadingRecording ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="stop" size={16} color="#fff" />}
+                      <Text style={styles.recordBtnText}>Stop</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+
+              {recordingSegments.length > 0 && !recording.isRecording && (
+                <RecordingPlayer ref={playerRef} segments={recordingSegments} C={C} />
+              )}
+
+              {sortedBookmarks.length > 0 && (
+                <View style={styles.bookmarkList}>
+                  <Text style={styles.bookmarkListLabel}>Bookmarks — tap to jump the recording to that question:</Text>
+                  {bookmarkGroups.map((group) => (
+                    <View key={group.sectionId} style={{ marginTop: 8 }}>
+                      <Text style={styles.bookmarkSectionLabel}>{group.sectionLabel}</Text>
+                      {group.bookmarks.map((b) => {
+                        const q = TREE.byId?.[b.questionId];
+                        const isCurrent = b.questionId === currentQuestionId;
+                        return (
+                          <TouchableOpacity
+                            key={b.questionId}
+                            style={[styles.bookmarkRow, isCurrent && styles.bookmarkRowActive]}
+                            onPress={() => goToBookmark(b.segmentIndex, b.timeSeconds)}
+                            disabled={recordingSegments.length === 0}
+                            activeOpacity={0.75}
+                          >
+                            <Text style={styles.bookmarkTime}>{formatDuration(b.timeSeconds)}</Text>
+                            <Text style={styles.bookmarkQuestion} numberOfLines={1}>{q?.text ?? b.questionId}</Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
 
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
           <Text style={styles.questionText}>{substituteQuestionPlaceholders(currentQuestion.text, meta || {})}</Text>
@@ -404,23 +589,64 @@ function makeStyles(C) {
     emptyText: { ...typography.bodyMedium, color: C.textHint },
 
     container: { flex: 1, maxWidth: 680, width: '100%', alignSelf: 'center', paddingHorizontal: 20, paddingTop: 16 },
-    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', rowGap: 8 },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 14, flexWrap: 'wrap' },
     entrepreneurName: { ...typography.titleMedium, color: C.textPrimary },
     savingText: { ...typography.caption, color: C.textHint },
-    completedBanner: {
-      backgroundColor: C.successLight, borderRadius: radius.md, padding: 16, marginTop: 20,
-    },
-    completedBannerText: { ...typography.bodyMedium, color: C.success, fontWeight: '700' },
-
-    reviewScrollContent: { paddingVertical: 20, paddingBottom: 40 },
-    reviewRow: { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.surfaceBorder },
-    reviewSectionLabel: { ...typography.caption, color: C.textHint, textTransform: 'uppercase', marginBottom: 4 },
-    reviewQuestion: { ...typography.bodyMedium, color: C.textPrimary, fontWeight: '600', marginBottom: 6 },
-    reviewAnswer: { ...typography.bodyMedium, color: C.textSecondary },
+    pauseInterviewText: { ...typography.labelLarge, color: C.primary, fontWeight: '700' },
+    resetText: { ...typography.labelLarge, color: C.error, fontWeight: '700' },
 
     progressTrack: { height: 5, borderRadius: 3, backgroundColor: C.surfaceBorder, marginTop: 10, overflow: 'hidden' },
     progressFill: { height: 5, borderRadius: 3, backgroundColor: C.primary },
     sectionLabel: { ...typography.caption, color: C.textHint, marginTop: 6 },
+
+    resumeBanner: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: C.surfaceElevated, borderRadius: radius.md, paddingVertical: 10, paddingHorizontal: 14, marginTop: 12,
+    },
+    resumeBannerText: { ...typography.bodySmall, color: C.textPrimary, fontWeight: '600', flex: 1, marginRight: 8 },
+
+    recordingCard: {
+      backgroundColor: C.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: C.surfaceBorder, marginTop: 12, overflow: 'hidden',
+    },
+    recordingHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 12 },
+    recordingHeaderLeft: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    recordingHeaderText: { ...typography.bodyMedium, fontWeight: '700', color: C.textPrimary },
+    recordingTime: { ...typography.caption, color: C.error, fontVariant: ['tabular-nums'] },
+    recDot: { width: 9, height: 9, borderRadius: 5, backgroundColor: C.error },
+
+    recordingBody: { paddingHorizontal: 14, paddingBottom: 14, gap: 10 },
+    recordingError: {
+      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+      backgroundColor: C.errorLight, borderRadius: radius.md, paddingHorizontal: 12, paddingVertical: 8,
+    },
+    recordingErrorText: { ...typography.bodySmall, color: C.error, flex: 1, marginRight: 8 },
+
+    recordingBtnRow: { flexDirection: 'row', gap: 10 },
+    recordBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.primary,
+      borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10,
+    },
+    pauseBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.surfaceElevated,
+      borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10, borderWidth: 1, borderColor: C.surfaceBorder,
+    },
+    stopBtn: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: C.error,
+      borderRadius: radius.pill, paddingHorizontal: 16, paddingVertical: 10,
+    },
+    recordBtnText: { color: '#fff', fontWeight: '700', fontSize: 13 },
+    pauseBtnText: { color: C.textPrimary, fontWeight: '700', fontSize: 13 },
+
+    bookmarkList: { marginTop: 4 },
+    bookmarkListLabel: { ...typography.caption, color: C.textHint },
+    bookmarkSectionLabel: { ...typography.caption, color: C.textHint, textTransform: 'uppercase', marginBottom: 4 },
+    bookmarkRow: {
+      flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6, paddingHorizontal: 8, borderRadius: radius.sm,
+    },
+    bookmarkRowActive: { backgroundColor: C.surfaceElevated },
+    bookmarkTime: { ...typography.caption, color: C.primary, fontVariant: ['tabular-nums'], width: 42 },
+    bookmarkQuestion: { ...typography.bodySmall, color: C.textSecondary, flex: 1 },
 
     scrollContent: { paddingVertical: 24, paddingBottom: 60 },
     questionText: {

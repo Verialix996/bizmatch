@@ -113,7 +113,10 @@ export default function InterviewsListScreen({ navigation }) {
             renderItem={({ item }) => (
               <TouchableOpacity
                 style={styles.row}
-                onPress={() => navigation.navigate('InterviewRunner', { interviewId: item.id })}
+                onPress={() => navigation.navigate(
+                  item.status === 'completed' ? 'InterviewSummary' : 'InterviewRunner',
+                  { interviewId: item.id },
+                )}
                 activeOpacity={0.75}
               >
                 <Avatar photoUrl={item.founderPhotoUrl} name={item.founderName} size={40} C={C} />
@@ -123,7 +126,7 @@ export default function InterviewsListScreen({ navigation }) {
                     {item.interviewerName ? `Interviewer: ${item.interviewerName} · ` : ''}
                     {item.status === 'completed' && item.completedAt
                       ? `Completed ${new Date(item.completedAt).toLocaleDateString()}`
-                      : `Started ${new Date(item.startedAt || item.createdAt).toLocaleDateString()}`}
+                      : `Started ${new Date(item.startedAt || item.createdAt).toLocaleDateString()}${item.answeredCount ? ` · ${item.answeredCount} answered` : ''}`}
                   </Text>
                 </View>
                 <Pill

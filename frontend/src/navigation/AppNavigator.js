@@ -20,6 +20,7 @@ import DnaQuestionnaireScreen from '../screens/founders/DnaQuestionnaireScreen';
 import InterviewsListScreen from '../screens/admin/InterviewsListScreen';
 import NewInterviewScreen   from '../screens/admin/NewInterviewScreen';
 import InterviewRunnerScreen from '../screens/admin/InterviewRunnerScreen';
+import InterviewSummaryScreen from '../screens/admin/InterviewSummaryScreen';
 import ComingSoonScreen     from '../screens/founders/ComingSoonScreen';
 import ActivitiesListScreen from '../screens/admin/ActivitiesListScreen';
 import ActivityDetailScreen from '../screens/admin/ActivityDetailScreen';
@@ -58,6 +59,7 @@ function AdminNavigator() {
       <Stack.Screen name="InterviewsList" component={InterviewsListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="NewInterview" component={NewInterviewScreen} options={{ headerShown: false }} />
       <Stack.Screen name="InterviewRunner" component={InterviewRunnerScreen} options={{ headerShown: false }} />
+      <Stack.Screen name="InterviewSummary" component={InterviewSummaryScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Activities" component={ActivitiesListScreen} options={{ headerShown: false }} />
       <Stack.Screen name="ActivityDetail" component={ActivityDetailScreen} options={{ headerShown: false }} />
       <Stack.Screen name="Matching" component={MatchingScreen} options={{ headerShown: false }} />

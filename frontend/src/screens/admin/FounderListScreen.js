@@ -2,7 +2,7 @@ import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAppStore from '../../store/appStore';
@@ -15,11 +15,22 @@ import { Avatar, Pill } from '../../components/ui';
 // MVP screen 3 — Founders List: search by name, photo/name/short role, team
 // status only. No Add Founder button, no completion %, no evaluation
 // counts, no bulk actions (all explicitly excluded from the MVP screen).
-export default function FounderListScreen({ navigation }) {
+const FILTER_LABELS = {
+  active: 'Active founders',
+  missingInfo: 'Missing info',
+  evaluated: 'Evaluations done',
+};
+
+export default function FounderListScreen({ route, navigation }) {
   const darkMode = useAppStore(s => s.darkMode);
   const activeProgramId = useAppStore(s => s.activeProgramId);
   const C = darkMode ? investorColors : colors;
   const styles2 = makeStyles(C);
+
+  // Set when arriving from a Dashboard stat tile ("Active Founders", "Missing
+  // Info", "Evaluations Done") — narrows the same list down to what that
+  // number was counting, using fields the list already returns per founder.
+  const filter = route.params?.filter;
 
   const [search, setSearch] = useState('');
   const [founders, setFounders] = useState([]);
@@ -39,6 +50,16 @@ export default function FounderListScreen({ navigation }) {
 
   useFocusEffect(useCallback(() => { load(search); }, [load]));
 
+  const filteredFounders = useMemo(() => {
+    if (filter === 'active') return founders.filter((f) => f.status === 'active');
+    // Matches the dashboard's own count exactly (founder_profiles.onboarding_completed_at
+    // IS NULL, no other conditions) — prospects are included there, so they can't be
+    // excluded here too, or the drill-down shows fewer founders than the tile said.
+    if (filter === 'missingInfo') return founders.filter((f) => !f.profileComplete);
+    if (filter === 'evaluated') return founders.filter((f) => f.hasEvaluation);
+    return founders;
+  }, [founders, filter]);
+
   return (
     <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
       <View style={styles2.content}>
@@ -46,7 +67,9 @@ export default function FounderListScreen({ navigation }) {
           <View style={{ flex: 1 }}>
             <Text style={styles2.headerTitle}>Founders</Text>
             <Text style={styles2.headerSubtitle}>
-              {loading ? 'Loading…' : `${founders.length} founder${founders.length === 1 ? '' : 's'} in cohort`}
+              {loading
+                ? 'Loading…'
+                : `${filteredFounders.length} founder${filteredFounders.length === 1 ? '' : 's'}${filter ? ` · ${FILTER_LABELS[filter]}` : ' in cohort'}`}
             </Text>
           </View>
           <TouchableOpacity style={styles2.newInterviewBtn} onPress={() => navigation.navigate('NewInterview')} activeOpacity={0.85}>
@@ -66,15 +89,26 @@ export default function FounderListScreen({ navigation }) {
           />
         </View>
 
+        {filter && (
+          <TouchableOpacity
+            style={styles2.filterChip}
+            onPress={() => navigation.setParams({ filter: undefined })}
+            activeOpacity={0.8}
+          >
+            <Text style={styles2.filterChipText}>{FILTER_LABELS[filter]}</Text>
+            <Ionicons name="close" size={14} color={C.primary} />
+          </TouchableOpacity>
+        )}
+
         {loading ? (
           <View style={styles2.centered}><ActivityIndicator size="large" color={C.primary} /></View>
-        ) : founders.length === 0 ? (
+        ) : filteredFounders.length === 0 ? (
           <View style={styles2.centered}>
-            <Text style={styles2.emptyText}>No founders found</Text>
+            <Text style={styles2.emptyText}>No founders {filter ? `match "${FILTER_LABELS[filter]}"` : 'found'}</Text>
           </View>
         ) : (
           <FlatList
-            data={founders}
+            data={filteredFounders}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles2.listContent}
             renderItem={({ item }) => (
@@ -86,7 +120,10 @@ export default function FounderListScreen({ navigation }) {
                 <Avatar photoUrl={item.photoUrl} name={item.name} size={44} C={C} />
                 <View style={styles2.rowBody}>
                   <Text style={styles2.rowName}>{item.name || 'Unnamed'}</Text>
-                  <Text style={styles2.rowRole}>{item.role || 'No role set'}</Text>
+                  <Text style={styles2.rowRole}>
+                    {item.role || 'No role set'}
+                    {filter === 'evaluated' ? ` · ${item.evaluationCount} evaluation${item.evaluationCount === 1 ? '' : 's'}` : ''}
+                  </Text>
                 </View>
                 <View style={styles2.pillStack}>
                   {item.isProspect ? (
@@ -135,6 +172,13 @@ function makeStyles(C) {
     },
     searchIcon: {},
     searchInput: { flex: 1, paddingVertical: 12, fontSize: 14, color: C.textPrimary },
+
+    filterChip: {
+      flexDirection: 'row', alignItems: 'center', gap: 6, alignSelf: 'flex-start',
+      backgroundColor: C.surfaceElevated, borderRadius: radius.pill, borderWidth: 1, borderColor: C.primary,
+      paddingHorizontal: 12, paddingVertical: 6, marginBottom: 16,
+    },
+    filterChipText: { fontSize: 13, fontWeight: '600', color: C.primary },
 
     listContent: { paddingBottom: 40 },
     row: {

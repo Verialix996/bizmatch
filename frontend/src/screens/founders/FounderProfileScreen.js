@@ -19,7 +19,6 @@ import PartnerRequirementsCard from '../../components/founder/PartnerRequirement
 import EvidenceTimeline from '../../components/founder/EvidenceTimeline';
 import BehavioralSignals from '../../components/founder/BehavioralSignals';
 import EvidenceConfidenceTable from '../../components/founder/EvidenceConfidenceTable';
-import TopMatches from '../../components/founder/TopMatches';
 import RadarChart, { RadarLegend, RadarSeriesLegend } from '../../components/founder/RadarChart';
 import MatchCard from '../../components/founder/MatchCard';
 import AppShell from '../../components/AppShell';
@@ -319,26 +318,6 @@ export default function FounderProfileScreen({ route, navigation }) {
         </ResponsiveRow>
       ),
     },
-    {
-      key: 'topmatches', label: 'Top Matches',
-      node: (
-        <SectionCard
-          title="Top potential matches"
-          icon="git-merge-outline"
-          C={C}
-          right={isAdmin ? (
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
-              activeOpacity={0.75}
-            >
-              <Text style={styles.linkText}>View all matches →</Text>
-            </TouchableOpacity>
-          ) : null}
-        >
-          <TopMatches founderId={founderId} navigation={navigation} limit={3} C={C} />
-        </SectionCard>
-      ),
-    },
     isAdmin && {
       key: 'interviews', label: 'Interviews',
       node: (
@@ -423,7 +402,23 @@ export default function FounderProfileScreen({ route, navigation }) {
     {
       key: 'matches', label: 'Matches',
       node: (
-        <SectionCard title="Matches" icon="people-outline" C={C}>
+        <SectionCard
+          title="Matches"
+          icon="people-outline"
+          C={C}
+          // Ranked by match score (already sorted server-side, ORDER BY score DESC — see
+          // matches/model.ts) — this used to be split across a "Top Matches" preview tab
+          // (top 3, nicer cards) and this "Matches" tab (up to 15, admin tools); merged into
+          // one ranked list so there's a single place to look, not a duplicate top-3 subset.
+          right={isAdmin ? (
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Matching', { founderId, founderName: founder?.name })}
+              activeOpacity={0.75}
+            >
+              <Text style={styles.linkText}>View all matches →</Text>
+            </TouchableOpacity>
+          ) : null}
+        >
           {isAdmin ? (
             matchPairs === null ? (
               <View style={styles.centered}><ActivityIndicator color={C.primary} /></View>

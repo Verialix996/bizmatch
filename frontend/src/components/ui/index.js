@@ -24,14 +24,24 @@ export function IconCircle({ name, color, bg, size = 40, iconSize }) {
 }
 
 // Card with a big number, label, and optional icon — dashboard/program
-// overview tiles.
-export function StatTile({ icon, iconColor, iconBg, value, label, warn, C }) {
+// overview tiles. Pass onPress to make it a drill-down into what the number
+// actually counts (e.g. the founders behind "Missing Info") — plain View
+// otherwise, so tiles with nowhere useful to go don't look falsely tappable.
+export function StatTile({ icon, iconColor, iconBg, value, label, warn, C, onPress }) {
+  const Wrapper = onPress ? TouchableOpacity : View;
   return (
-    <View style={[styles.statTile, { backgroundColor: C.surface }, cardShadow]}>
-      {icon ? <IconCircle name={icon} color={iconColor || C.primary} bg={iconBg || C.surfaceElevated} size={40} /> : null}
+    <Wrapper
+      style={[styles.statTile, { backgroundColor: C.surface }, cardShadow]}
+      onPress={onPress}
+      activeOpacity={onPress ? 0.75 : 1}
+    >
+      <View style={styles.statTileTop}>
+        {icon ? <IconCircle name={icon} color={iconColor || C.primary} bg={iconBg || C.surfaceElevated} size={40} /> : null}
+        {onPress ? <Ionicons name="chevron-forward" size={16} color={C.textHint} /> : null}
+      </View>
       <Text style={[styles.statValue, { color: warn ? C.warning : C.textPrimary }]}>{value}</Text>
       <Text style={[styles.statLabel, { color: C.textSecondary }]}>{label}</Text>
-    </View>
+    </Wrapper>
   );
 }
 
@@ -198,6 +208,7 @@ const styles = StyleSheet.create({
   iconCircle: { justifyContent: 'center', alignItems: 'center' },
 
   statTile: { flex: 1, minWidth: 150, borderRadius: radius.lg, padding: 16, gap: 10 },
+  statTileTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   statValue: { fontSize: 26, fontWeight: '800' },
   statLabel: { ...typography.bodySmall },
 

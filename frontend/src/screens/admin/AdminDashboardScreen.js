@@ -74,17 +74,21 @@ export default function AdminDashboardScreen({ navigation }) {
         <View style={styles.statsGrid}>
           <StatTile
             icon="people-outline" value={dashboard?.activeFounderCount ?? 0} label="Active Founders" C={C}
+            onPress={() => navigation.navigate('FounderList', { filter: 'active' })}
           />
           <StatTile
             icon="checkmark-done-outline" value={dashboard?.completedEvaluationsCount ?? 0} label="Evaluations Done" C={C}
+            onPress={() => navigation.navigate('FounderList', { filter: 'evaluated' })}
           />
           <StatTile
             icon="alert-circle-outline" value={dashboard?.missingInfoCount ?? 0} label="Missing Info" C={C}
             warn={(dashboard?.missingInfoCount ?? 0) > 0}
             iconColor={C.warning} iconBg={C.warningLight}
+            onPress={() => navigation.navigate('FounderList', { filter: 'missingInfo' })}
           />
           <StatTile
             icon="people-circle-outline" value={dashboard?.teamsCreatedCount ?? 0} label="Teams Created" C={C}
+            onPress={() => navigation.navigate('TeamList')}
           />
         </View>
 

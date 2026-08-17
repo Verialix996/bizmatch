@@ -1,5 +1,5 @@
 import {
-  View, Text, TouchableOpacity, FlatList,
+  View, Text, TouchableOpacity,
   StyleSheet, ActivityIndicator,
 } from 'react-native';
 import { useState, useCallback, useMemo } from 'react';
@@ -119,44 +119,41 @@ export default function ActivitiesListScreen({ navigation }) {
             <Text style={styles.emptyText}>No activities {filter === 'all' ? 'scheduled yet' : `in "${(isAdmin ? FILTER_LABELS : FOUNDER_FILTER_LABELS)[filter]}"`}</Text>
           </View>
         ) : (
-          <FlatList
-            data={filtered}
-            keyExtractor={(item) => String(item.id)}
-            contentContainerStyle={styles.listContent}
-            renderItem={({ item }) => (
+          <View style={styles.grid}>
+            {filtered.map((item) => (
               <TouchableOpacity
-                style={styles.row}
+                key={item.id}
+                style={styles.card}
                 onPress={() => navigation.navigate('ActivityDetail', { activityId: item.id })}
                 activeOpacity={0.75}
               >
-                <IconCircle name={TYPE_ICONS[item.type] || 'calendar-outline'} color={C.primary} bg={C.surfaceElevated} size={40} />
-                <View style={styles.rowBody}>
-                  <Text style={styles.rowTitle}>{item.title}</Text>
-                  <Text style={styles.rowMeta}>
-                    {ACTIVITY_TYPE_LABELS[item.type] || item.type}
-                    {item.startsAt && item.endsAt ? ` · ${formatActivityDateRange(item.startsAt, item.endsAt)}` : ''}
-                    {' · '}{item.participantCount} participant{item.participantCount === 1 ? '' : 's'}
-                  </Text>
+                <View style={styles.cardTop}>
+                  <IconCircle name={TYPE_ICONS[item.type] || 'calendar-outline'} color={C.primary} bg={C.surfaceElevated} size={40} />
+                  {!isAdmin && item.myStatus ? (
+                    <Pill
+                      label={MY_STATUS_LABELS[item.myStatus] || item.myStatus}
+                      C={C}
+                      bg={MY_STATUS_COLORS[item.myStatus](C).bg}
+                      color={MY_STATUS_COLORS[item.myStatus](C).color}
+                    />
+                  ) : (
+                    <Pill
+                      label={STATUS_LABELS[item.status] || item.status}
+                      C={C}
+                      bg={item.status === 'active' ? C.warningLight : item.status === 'completed' ? C.successLight : C.surfaceElevated}
+                      color={item.status === 'active' ? C.warning : item.status === 'completed' ? C.success : C.textSecondary}
+                    />
+                  )}
                 </View>
-                {!isAdmin && item.myStatus ? (
-                  <Pill
-                    label={MY_STATUS_LABELS[item.myStatus] || item.myStatus}
-                    C={C}
-                    bg={MY_STATUS_COLORS[item.myStatus](C).bg}
-                    color={MY_STATUS_COLORS[item.myStatus](C).color}
-                  />
-                ) : (
-                  <Pill
-                    label={STATUS_LABELS[item.status] || item.status}
-                    C={C}
-                    bg={item.status === 'active' ? C.warningLight : item.status === 'completed' ? C.successLight : C.surfaceElevated}
-                    color={item.status === 'active' ? C.warning : item.status === 'completed' ? C.success : C.textSecondary}
-                  />
-                )}
-                <Ionicons name="chevron-forward" size={18} color={C.textHint} />
+                <Text style={styles.cardTitle} numberOfLines={2}>{item.title}</Text>
+                <Text style={styles.cardMeta}>
+                  {ACTIVITY_TYPE_LABELS[item.type] || item.type}
+                  {item.startsAt && item.endsAt ? ` · ${formatActivityDateRange(item.startsAt, item.endsAt)}` : ''}
+                </Text>
+                <Text style={styles.cardMeta}>{item.participantCount} participant{item.participantCount === 1 ? '' : 's'}</Text>
               </TouchableOpacity>
-            )}
-          />
+            ))}
+          </View>
         )}
       </View>
     </AppShell>
@@ -184,13 +181,13 @@ function makeStyles(C) {
     filterChipText: { fontSize: 13, fontWeight: '600', color: C.textSecondary },
     filterChipTextActive: { color: C.primary },
 
-    listContent: { paddingBottom: 40 },
-    row: {
-      flexDirection: 'row', alignItems: 'center', gap: 12,
-      backgroundColor: C.surface, borderRadius: radius.lg, padding: 14, marginBottom: 10, ...cardShadow,
+    grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, paddingBottom: 40 },
+    card: {
+      flexBasis: '31%', flexGrow: 1, minWidth: 240,
+      backgroundColor: C.surface, borderRadius: radius.lg, padding: 16, gap: 8, ...cardShadow,
     },
-    rowBody: { flex: 1 },
-    rowTitle: { ...typography.titleSmall, color: C.textPrimary },
-    rowMeta: { ...typography.bodySmall, color: C.textSecondary, marginTop: 2 },
+    cardTop: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    cardTitle: { ...typography.titleSmall, color: C.textPrimary, marginTop: 4 },
+    cardMeta: { ...typography.bodySmall, color: C.textSecondary },
   });
 }

@@ -8,6 +8,7 @@ import { SOURCE_WEIGHTS } from "../_shared/founderScoring.ts";
 import { INTERVIEW_EVALUATION_QUESTIONS } from "../_shared/interviewEvaluationQuestions.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
 import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
+import { BUCKETS, uploadBuffer } from "../_shared/storage.ts";
 import { FounderInterviewsModel } from "./model.ts";
 
 const FN = "founder-interviews";
@@ -114,8 +115,69 @@ async function saveInterview(req: Request, params: Record<string, string>): Prom
   }
 
   const body = await req.json().catch(() => ({}));
-  const { meta, answers } = body as { meta?: unknown; answers?: unknown };
-  await FounderInterviewsModel.save(params.id, meta, answers);
+  const { meta, answers, recordingBookmarks } = body as {
+    meta?: unknown;
+    answers?: unknown;
+    recordingBookmarks?: unknown;
+  };
+  await FounderInterviewsModel.save(params.id, meta, answers, recordingBookmarks);
+  return json({ ok: true });
+}
+
+// POST /functions/v1/founder-interviews/:id/recording  (admin, multipart form fields
+// "recording" + "durationSeconds") — appends one finished take as its own segment (see the
+// recording_segments migration for why segments are never merged into one file).
+async function uploadRecording(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const existing = await FounderInterviewsModel.get(params.id);
+  if (!existing) return json({ error: "Interview not found" }, 404);
+  if (existing.status === "completed") {
+    return json({ error: "This interview is completed and read-only." }, 409);
+  }
+
+  // A request with no multipart body at all (wrong/missing Content-Type) makes
+  // req.formData() itself throw, before there's a "file" to check for — catch that
+  // as the same 400 as an empty form, not an uncaught 500.
+  const form = await req.formData().catch(() => null);
+  const file = form?.get("recording") as File | null;
+  if (!file) return json({ error: "recording file required" }, 400);
+  const durationSeconds = Number(form?.get("durationSeconds"));
+  if (!Number.isFinite(durationSeconds) || durationSeconds < 0) {
+    return json({ error: "durationSeconds required" }, 400);
+  }
+
+  // Content type/extension vary by client: native records .m4a (audio/m4a), web
+  // records .webm (audio/webm, via MediaRecorder) — trust what the upload actually
+  // sent rather than assuming one format, so playback's Content-Type always matches
+  // the real bytes.
+  const contentType = file.type || "audio/m4a";
+  const ext = file.name.includes(".") ? file.name.split(".").pop() : "m4a";
+  const buffer = new Uint8Array(await file.arrayBuffer());
+  const url = await uploadBuffer(BUCKETS.recording, `${params.id}-${Date.now()}.${ext}`, buffer, contentType);
+  await FounderInterviewsModel.appendRecordingSegment(params.id, { url, durationSeconds });
+  return json({ url, durationSeconds });
+}
+
+// POST /functions/v1/founder-interviews/:id/reset  (admin) — clears answers, recording and
+// bookmarks back to a fresh in-progress interview at question 1 (user-confirmed: full reset,
+// not answers-only, since leftover bookmarks would point at a recording that no longer exists).
+async function resetInterview(req: Request, params: Record<string, string>): Promise<Response> {
+  const user = await authenticate(req);
+  if (!user) return json({ error: "Unauthorized" }, 401);
+  const adminErr = requireAdmin(user);
+  if (adminErr) return adminErr;
+
+  const existing = await FounderInterviewsModel.get(params.id);
+  if (!existing) return json({ error: "Interview not found" }, 404);
+  if (existing.status === "completed") {
+    return json({ error: "This interview is completed and read-only." }, 409);
+  }
+
+  await FounderInterviewsModel.reset(params.id);
   return json({ ok: true });
 }
 
@@ -166,5 +228,7 @@ serveFunction(FN, [
   route(FN, "GET", "/:id", getInterview),
   route(FN, "PUT", "/:id", saveInterview),
   route(FN, "POST", "/:id/complete", completeInterview),
+  route(FN, "POST", "/:id/recording", uploadRecording),
+  route(FN, "POST", "/:id/reset", resetInterview),
   route(FN, "DELETE", "/:id", deleteInterview),
 ]);

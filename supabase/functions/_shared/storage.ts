@@ -6,6 +6,7 @@ import { supabase } from "./supabase.ts";
 export const BUCKETS = {
   photo: "photos",
   cv: "cvs",
+  recording: "interview-recordings",
 } as const;
 
 export async function uploadBuffer(

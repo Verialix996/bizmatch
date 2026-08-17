@@ -20,6 +20,8 @@ export interface FounderListItem {
   industry: string | null;
   ventureName: string | null;
   isProspect: boolean;
+  hasEvaluation: boolean;
+  evaluationCount: number;
 }
 
 export const FoundersModel = {
@@ -33,7 +35,8 @@ export const FoundersModel = {
     const rows = await query<Record<string, unknown>>(
       `SELECT u.id, u.name, u.photo_url, fp.role_title, fp.status, fp.program_id,
               fp.onboarding_completed_at, fp.industry, fp.venture_name, fp.is_prospect,
-              (tf.team_id IS NOT NULL) AS in_team
+              (tf.team_id IS NOT NULL) AS in_team,
+              (SELECT count(*) FROM evaluator_assessments ea WHERE ea.founder_id = u.id) AS evaluation_count
        FROM users u
        LEFT JOIN founder_profiles fp ON fp.user_id = u.id
        LEFT JOIN team_founders tf ON tf.founder_id = u.id
@@ -54,6 +57,8 @@ export const FoundersModel = {
       industry: r.industry as string | null,
       ventureName: r.venture_name as string | null,
       isProspect: !!r.is_prospect,
+      hasEvaluation: Number(r.evaluation_count ?? 0) > 0,
+      evaluationCount: Number(r.evaluation_count ?? 0),
     }));
   },
 

@@ -54,9 +54,17 @@ async function getDashboard(req: Request): Promise<Response> {
   const evaluationsRows = await query<{ count: string }>(
     "SELECT count(*)::int AS count FROM evaluator_assessments",
   );
+  // LEFT JOIN from users, not a plain scan of founder_profiles — a founder_profiles row
+  // isn't created until onboarding starts, so a founder who never even started (no row at
+  // all) is invisible to a query that only reads founder_profiles directly. That's *more*
+  // missing than a partial profile, not less, so it has to count too — same reasoning as
+  // FoundersModel.list's LEFT JOIN, which is what the Missing Info tile drills down into
+  // (a mismatch here means the tile's number and the filtered list disagree).
   const missingInfoRows = await query<{ count: string }>(
-    `SELECT count(*)::int AS count FROM founder_profiles fp
-     WHERE fp.onboarding_completed_at IS NULL`,
+    `SELECT count(*)::int AS count FROM users u
+     LEFT JOIN founder_profiles fp ON fp.user_id = u.id
+     WHERE u.role = 'founder' AND u.deleted_at IS NULL
+       AND fp.onboarding_completed_at IS NULL`,
   );
   const teamsRows = await query<{ count: string }>(
     "SELECT count(*)::int AS count FROM teams",
@@ -71,9 +79,10 @@ async function getDashboard(req: Request): Promise<Response> {
   );
 
   const needsAttentionFounders = await query<{ id: string; name: string | null }>(
-    `SELECT u.id, u.name FROM founder_profiles fp
-     JOIN users u ON u.id = fp.user_id
-     WHERE fp.onboarding_completed_at IS NULL
+    `SELECT u.id, u.name FROM users u
+     LEFT JOIN founder_profiles fp ON fp.user_id = u.id
+     WHERE u.role = 'founder' AND u.deleted_at IS NULL
+       AND fp.onboarding_completed_at IS NULL
      LIMIT 10`,
   );
 

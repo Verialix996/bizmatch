@@ -92,7 +92,7 @@ export default function NewInterviewScreen({ route, navigation }) {
   };
 
   return (
-    <AppShell navigation={navigation} active="founders" items={ADMIN_NAV_ITEMS}>
+    <AppShell navigation={navigation} active="interviews" items={ADMIN_NAV_ITEMS}>
       <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>New Interview</Text>
 
