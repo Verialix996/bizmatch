@@ -41,6 +41,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
   const [draftNumber, setDraftNumber] = useState('');
   const [draftDurationUnit, setDraftDurationUnit] = useState('minutes');
   const [draftMulti, setDraftMulti] = useState([]);
+  const [draftNote, setDraftNote] = useState('');
   // The answer record last showing on this question when navigated back to
   // via Back — used to re-populate the draft inputs / highlight the prior
   // choice, so "Back" reads as "review what you answered" instead of
@@ -136,6 +137,11 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     setDraftNumber(v?.value != null && typeof v.value === 'number' ? String(v.value) : v?.amount != null ? String(v.amount) : '');
     setDraftDurationUnit(v?.unit || 'minutes');
     setDraftMulti(v?.optionIds || []);
+    // restoredAnswer only carries the prior record when jumping back to an
+    // already-reached question (jumpToQuestion trims it out of `answers`
+    // first) — for a freshly-arrived question, the note (if one was left
+    // before this question was answered) still lives in `answers` itself.
+    setDraftNote((restoredAnswer ?? answers[currentQuestionId])?.interviewerNote ?? '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentQuestionId]);
 
@@ -182,9 +188,15 @@ export default function InterviewRunnerScreen({ route, navigation }) {
 
   const dismissResumeBanner = () => setShowResumeBanner(false);
 
+  // Answering/skipping a question that already has a note (left before it was answered, or
+  // while reviewing it via Back/the outline) must not clobber that note — both functions
+  // carry forward whatever's already on the record.
+  const existingNote = () => answers[currentQuestionId]?.interviewerNote ?? restoredAnswer?.interviewerNote;
+
   const recordAnswer = (value) => {
     dismissResumeBanner();
-    const record = { value, updatedAt: new Date().toISOString() };
+    const note = existingNote();
+    const record = { value, updatedAt: new Date().toISOString(), ...(note ? { interviewerNote: note } : {}) };
     const next = { ...answers, [currentQuestionId]: record };
     setAnswers(next);
     setRestoredAnswer(null);
@@ -193,10 +205,23 @@ export default function InterviewRunnerScreen({ route, navigation }) {
 
   const skipQuestion = () => {
     dismissResumeBanner();
-    const record = { skipped: true, updatedAt: new Date().toISOString() };
+    const note = existingNote();
+    const record = { skipped: true, updatedAt: new Date().toISOString(), ...(note ? { interviewerNote: note } : {}) };
     const next = { ...answers, [currentQuestionId]: record };
     setAnswers(next);
     setRestoredAnswer(null);
+    scheduleSave({ answers: next });
+  };
+
+  // Notes save independently of answering — an evaluator can jot one down before, while
+  // reviewing, or after answering a question, and it's carried forward regardless of what
+  // recordAnswer/skipQuestion do to the rest of the record afterward (see existingNote above).
+  const setNote = (text) => {
+    setDraftNote(text);
+    const prev = answers[currentQuestionId];
+    const record = { ...prev, interviewerNote: text, updatedAt: prev?.updatedAt ?? new Date().toISOString() };
+    const next = { ...answers, [currentQuestionId]: record };
+    setAnswers(next);
     scheduleSave({ answers: next });
   };
 
@@ -504,6 +529,20 @@ export default function InterviewRunnerScreen({ route, navigation }) {
           <Text style={styles.questionText}>{substituteQuestionPlaceholders(currentQuestion.text, meta || {})}</Text>
           {currentQuestion.helpText ? <Text style={styles.helpText}>{currentQuestion.helpText}</Text> : null}
 
+          {currentQuestion.type !== 'info' && currentQuestion.type !== 'end' && (
+            <View style={styles.noteBlock}>
+              <Text style={styles.noteLabel}>Evaluator note (optional, not shown to the founder)</Text>
+              <TextInput
+                style={styles.noteInput}
+                multiline
+                placeholder="Add a note about this answer…"
+                placeholderTextColor={C.textHint}
+                value={draftNote}
+                onChangeText={setNote}
+              />
+            </View>
+          )}
+
           {currentQuestion.type === 'info' && (
             <TouchableOpacity style={styles.primaryBtn} onPress={() => recordAnswer({ type: 'info', acknowledged: true })} activeOpacity={0.85}>
               <Text style={styles.primaryBtnText}>Continue</Text>
@@ -748,6 +787,13 @@ function makeStyles(C) {
     },
     helpText: {
       ...typography.bodySmall, color: C.textSecondary, marginBottom: 16,
+    },
+
+    noteBlock: { marginBottom: 18 },
+    noteLabel: { ...typography.caption, color: C.textHint, marginBottom: 6 },
+    noteInput: {
+      backgroundColor: C.backgroundSoft, borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 10,
+      fontSize: 13, color: C.textPrimary, borderWidth: 1, borderColor: C.surfaceBorder, minHeight: 44, textAlignVertical: 'top',
     },
 
     rowGap: { flexDirection: 'row', gap: 12, marginTop: 8 },

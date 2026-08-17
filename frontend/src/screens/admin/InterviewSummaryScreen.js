@@ -83,6 +83,8 @@ export default function InterviewSummaryScreen({ route, navigation }) {
       }
       lines.push(`Q: ${substituteQuestionPlaceholders(question.text, interview.meta || {})}`);
       lines.push(`A: ${formatAnswerForReview(question, interview.answers?.[id])}`);
+      const note = interview.answers?.[id]?.interviewerNote;
+      if (note) lines.push(`   Note: ${note}`);
     }
     const text = lines.join('\n');
     try {
@@ -166,11 +168,18 @@ export default function InterviewSummaryScreen({ route, navigation }) {
           {reviewIds.map((id) => {
             const question = TREE.byId[id];
             const section = TREE.sections.find((s) => s.id === question.section);
+            const note = interview.answers?.[id]?.interviewerNote;
             return (
               <View key={id} style={styles.reviewRow}>
                 <Text style={styles.reviewSectionLabel}>{section?.label}</Text>
                 <Text style={styles.reviewQuestion}>{substituteQuestionPlaceholders(question.text, interview.meta || {})}</Text>
                 <Text style={styles.reviewAnswer}>{formatAnswerForReview(question, interview.answers?.[id])}</Text>
+                {note ? (
+                  <View style={styles.reviewNoteRow}>
+                    <Ionicons name="create-outline" size={13} color={C.textHint} />
+                    <Text style={styles.reviewNoteText}>{note}</Text>
+                  </View>
+                ) : null}
               </View>
             );
           })}
@@ -206,5 +215,7 @@ function makeStyles(C) {
     reviewSectionLabel: { ...typography.caption, color: C.textHint, textTransform: 'uppercase', marginBottom: 4 },
     reviewQuestion: { ...typography.bodyMedium, color: C.textPrimary, fontWeight: '600', marginBottom: 6 },
     reviewAnswer: { ...typography.bodyMedium, color: C.textSecondary },
+    reviewNoteRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, marginTop: 8, backgroundColor: C.surfaceElevated, borderRadius: radius.sm, padding: 8 },
+    reviewNoteText: { ...typography.bodySmall, color: C.textSecondary, flex: 1, fontStyle: 'italic' },
   });
 }

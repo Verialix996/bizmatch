@@ -57,9 +57,14 @@ export const FounderInterviewsModel = {
               -- which parseJsonColumn compensates for on the JS side. This raw SQL count has no
               -- such helper, so it unwraps the same way by hand: read the app through both forms
               -- rather than trusting whichever one a given row happens to be in.
+              -- Only counts records with a real value or an explicit skip — a record holding just
+              -- an evaluator note (left on a question before/without answering it) is neither, so
+              -- it doesn't inflate "N answered" on the interviews list.
               CASE
-                WHEN jsonb_typeof(fi.answers) = 'object' THEN (SELECT count(*) FROM jsonb_object_keys(fi.answers))
-                WHEN jsonb_typeof(fi.answers) = 'string' THEN (SELECT count(*) FROM jsonb_object_keys((fi.answers #>> '{}')::jsonb))
+                WHEN jsonb_typeof(fi.answers) = 'object' THEN
+                  (SELECT count(*) FROM jsonb_each(fi.answers) e WHERE (e.value ? 'value') OR (e.value->>'skipped') = 'true')
+                WHEN jsonb_typeof(fi.answers) = 'string' THEN
+                  (SELECT count(*) FROM jsonb_each((fi.answers #>> '{}')::jsonb) e WHERE (e.value ? 'value') OR (e.value->>'skipped') = 'true')
                 ELSE 0
               END AS answered_count,
               u.name AS interviewer_name, fu.name AS founder_name, fu.photo_url AS founder_photo_url
