@@ -15,23 +15,42 @@ import { IconCircle, Pill } from '../../components/ui';
 
 const STATUS_LABELS = { upcoming: 'Upcoming', active: 'Active', completed: 'Completed' };
 const ADMIN_FILTERS = ['all', 'upcoming', 'active', 'completed'];
-// Founders never see an "all" bucket — Upcoming is the browse/sign-up list,
-// Active/Completed only ever contain activities they're approved into.
-const FOUNDER_FILTERS = ['upcoming', 'active', 'completed'];
 const FILTER_LABELS = { all: 'All', upcoming: 'Upcoming', active: 'Active', completed: 'Completed' };
-// COPY-01: for a founder, the "active" bucket isn't lifecycle-active — it's
-// "approved + not yet completed," which includes activities that haven't
-// started yet. "Active" read as a claim about the activity's own state;
-// "Registered" (matching the same word already on each row's status pill)
-// says what's actually true: these are the ones you're signed up for.
-const FOUNDER_FILTER_LABELS = { ...FILTER_LABELS, active: 'Registered' };
 
-const MY_STATUS_LABELS = { pending: 'Pending approval', approved: 'Registered', rejected: 'Not approved' };
-const MY_STATUS_COLORS = {
-  pending: (C) => ({ bg: C.warningLight, color: C.warning }),
-  approved: (C) => ({ bg: C.successLight, color: C.success }),
-  rejected: (C) => ({ bg: C.surfaceElevated, color: C.textSecondary }),
+// Founder tabs are registration-status-driven, not the activity's own
+// lifecycle status — every activity a founder can see lands in exactly one
+// of these five buckets, so there's never a question of which tab to check:
+// browsable-but-not-requested, my request awaiting a decision, approved for
+// something that hasn't started, approved for something underway right now,
+// and approved for something already done.
+const FOUNDER_FILTERS = ['upcoming', 'pending', 'registered', 'active', 'completed'];
+const FOUNDER_FILTER_LABELS = {
+  upcoming: 'Upcoming',
+  pending: 'Pending approval',
+  registered: 'Registered',
+  active: 'Happening now',
+  completed: 'Completed',
 };
+
+const PILL_TONES = {
+  warning: (C) => ({ bg: C.warningLight, color: C.warning }),
+  success: (C) => ({ bg: C.successLight, color: C.success }),
+  neutral: (C) => ({ bg: C.surfaceElevated, color: C.textSecondary }),
+};
+
+// A founder-facing card's pill reflects both the request status and, once approved, where
+// the activity itself actually is — approved-but-not-started reads "Registered," the same
+// activity once it's underway reads "Happening now," not still "Registered."
+function founderStatusPill(item) {
+  if (item.myStatus === 'pending') return { label: 'Pending approval', tone: 'warning' };
+  if (item.myStatus === 'rejected') return { label: 'Not approved', tone: 'neutral' };
+  if (item.myStatus === 'approved') {
+    if (item.status === 'active') return { label: 'Happening now', tone: 'warning' };
+    if (item.status === 'completed') return { label: 'Completed', tone: 'success' };
+    return { label: 'Registered', tone: 'success' };
+  }
+  return { label: STATUS_LABELS[item.status] || item.status, tone: 'neutral' };
+}
 
 const TYPE_ICONS = {
   hackathon: 'flash-outline',
@@ -71,13 +90,14 @@ export default function ActivitiesListScreen({ navigation }) {
   const filtered = useMemo(() => {
     if (filter === 'all') return activities;
     if (isAdmin) return activities.filter(a => a.status === filter);
-    // Founder tabs are registration-status-driven, not activity-lifecycle-
-    // driven, and mutually exclusive: the moment a request is approved it
-    // moves out of Upcoming and into Active — it doesn't wait for the
-    // activity itself to be marked 'active', and it no longer clutters the
-    // browse/sign-up list once you're already in.
-    if (filter === 'upcoming') return activities.filter(a => a.status === 'upcoming' && a.myStatus !== 'approved');
-    if (filter === 'active') return activities.filter(a => a.myStatus === 'approved' && a.status !== 'completed');
+    // Each founder tab is a single mutually-exclusive bucket — an activity
+    // with a request out moves from Upcoming into Pending, then Registered/
+    // Happening now/Completed as both the request and the activity's own
+    // lifecycle progress, never showing in more than one tab at a time.
+    if (filter === 'upcoming') return activities.filter(a => a.status === 'upcoming' && a.myStatus == null);
+    if (filter === 'pending') return activities.filter(a => a.myStatus === 'pending');
+    if (filter === 'registered') return activities.filter(a => a.myStatus === 'approved' && a.status === 'upcoming');
+    if (filter === 'active') return activities.filter(a => a.myStatus === 'approved' && a.status === 'active');
     return activities.filter(a => a.status === 'completed' && a.myStatus === 'approved');
   }, [activities, filter, isAdmin]);
 
@@ -120,7 +140,9 @@ export default function ActivitiesListScreen({ navigation }) {
           </View>
         ) : (
           <View style={styles.grid}>
-            {filtered.map((item) => (
+            {filtered.map((item) => {
+              const founderPill = !isAdmin ? founderStatusPill(item) : null;
+              return (
               <TouchableOpacity
                 key={item.id}
                 style={styles.card}
@@ -129,12 +151,12 @@ export default function ActivitiesListScreen({ navigation }) {
               >
                 <View style={styles.cardTop}>
                   <IconCircle name={TYPE_ICONS[item.type] || 'calendar-outline'} color={C.primary} bg={C.surfaceElevated} size={40} />
-                  {!isAdmin && item.myStatus ? (
+                  {!isAdmin ? (
                     <Pill
-                      label={MY_STATUS_LABELS[item.myStatus] || item.myStatus}
+                      label={founderPill.label}
                       C={C}
-                      bg={MY_STATUS_COLORS[item.myStatus](C).bg}
-                      color={MY_STATUS_COLORS[item.myStatus](C).color}
+                      bg={PILL_TONES[founderPill.tone](C).bg}
+                      color={PILL_TONES[founderPill.tone](C).color}
                     />
                   ) : (
                     <Pill
@@ -152,7 +174,8 @@ export default function ActivitiesListScreen({ navigation }) {
                 </Text>
                 <Text style={styles.cardMeta}>{item.participantCount} participant{item.participantCount === 1 ? '' : 's'}</Text>
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </View>
         )}
       </View>

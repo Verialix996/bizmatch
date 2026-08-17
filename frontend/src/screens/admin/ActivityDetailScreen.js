@@ -364,7 +364,9 @@ export default function ActivityDetailScreen({ route, navigation }) {
 
               {!isAdmin && (
                 <View style={styles.registerRow}>
-                  {activity?.myStatus === 'approved' ? (
+                  {activity?.myStatus === 'approved' && activity?.status === 'active' ? (
+                    <Pill label="Happening now" C={C} bg={C.warningLight} color={C.warning} />
+                  ) : activity?.myStatus === 'approved' ? (
                     <Pill label="You're registered" C={C} bg={C.successLight} color={C.success} />
                   ) : activity?.myStatus === 'pending' ? (
                     <Pill label="Registration pending approval" C={C} bg={C.warningLight} color={C.warning} />
