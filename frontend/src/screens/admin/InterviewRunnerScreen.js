@@ -61,6 +61,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
   // interviewer immediately sees where they left off — dismissed on the
   // first interaction rather than lingering the whole session.
   const [showResumeBanner, setShowResumeBanner] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(false);
 
   const saveTimer = useRef(null);
   const playerRef = useRef(null);
@@ -104,6 +105,27 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     () => calculateProgress(TREE, activePath, answers, currentQuestionId),
     [activePath, answers, currentQuestionId],
   );
+
+  // Section-grouped outline of every question reached so far (activePath always ends at the
+  // current — possibly still-unanswered — frontier). Only these are jumpable: anything past
+  // the frontier depends on answers not given yet, so the tree can't say what it even is.
+  const outlineGroups = useMemo(() => {
+    const groups = [];
+    const bySection = new Map();
+    for (const qId of activePath) {
+      const q = TREE.byId[qId];
+      if (!q) continue;
+      let group = bySection.get(q.section);
+      if (!group) {
+        const label = TREE.sections.find((s) => s.id === q.section)?.label ?? q.section;
+        group = { sectionId: q.section, label, questions: [] };
+        bySection.set(q.section, group);
+        groups.push(group);
+      }
+      group.questions.push(q);
+    }
+    return groups;
+  }, [activePath]);
 
   // Reset (or restore) the local draft input whenever the active question
   // changes. If we just navigated Back to review an answered question,
@@ -178,24 +200,34 @@ export default function InterviewRunnerScreen({ route, navigation }) {
     scheduleSave({ answers: next });
   };
 
-  const goBack = () => {
+  // Continue on an empty free-text/number/duration/multi-choice input reads the same as
+  // tapping "Skip this question" — there's nothing to distinguish "typed nothing" from "chose
+  // not to answer" for these types, so recording an empty string / a bare 0 as if it were a
+  // real answer would be misleading in the review/summary later.
+  const submitOrSkip = (hasValue, value) => (hasValue ? recordAnswer(value) : skipQuestion());
+
+  // Jumps back to any already-reached question (anywhere on activePath, not just the
+  // immediately previous one) — used by both the single-step Back button and the outline
+  // panel's tap-to-jump. Reviewing an earlier answer clears it so the frontier lands back
+  // there, letting the interviewer re-answer it; anything already answered after it stays
+  // intact in `answers` until it's overwritten by whatever path is taken from here on
+  // (computeActivePath derives visibility fresh from answers every time, so nothing is lost,
+  // just temporarily out of the active path).
+  const jumpToQuestion = (targetId) => {
+    if (targetId === currentQuestionId) return;
     dismissResumeBanner();
-    const prev = getPreviousQuestionId(activePath, currentQuestionId);
-    if (!prev) return;
-    // Reviewing an earlier answer: clear it so the frontier lands back there,
-    // letting the interviewer re-answer it (and anything already answered
-    // after it stays intact until it's overwritten by the new path).
-    const record = answers[prev];
+    const record = answers[targetId];
     if (!record) return;
     const trimmed = { ...answers };
-    // Walk forward from prev, dropping every answer from there on so the
-    // active path recomputes to stop exactly at `prev`.
-    const idx = activePath.indexOf(prev);
+    const idx = activePath.indexOf(targetId);
+    if (idx === -1) return;
     for (const id of activePath.slice(idx)) delete trimmed[id];
     setAnswers(trimmed);
     setRestoredAnswer(record);
     scheduleSave({ answers: trimmed });
   };
+
+  const goBack = () => jumpToQuestion(getPreviousQuestionId(activePath, currentQuestionId));
 
   const handleFinish = async () => {
     setSaving(true);
@@ -334,7 +366,47 @@ export default function InterviewRunnerScreen({ route, navigation }) {
         <View style={styles.progressTrack}>
           <View style={[styles.progressFill, { width: `${progress.percent}%` }]} />
         </View>
-        <Text style={styles.sectionLabel}>{section?.label} · {progress.completedCount}/{progress.totalActiveCount}</Text>
+        <TouchableOpacity style={styles.sectionLabelRow} onPress={() => setOutlineOpen((o) => !o)} activeOpacity={0.7}>
+          <Text style={styles.sectionLabel}>{section?.label} · {progress.completedCount}/{progress.totalActiveCount}</Text>
+          <Ionicons name={outlineOpen ? 'chevron-up' : 'list-outline'} size={14} color={C.textHint} />
+        </TouchableOpacity>
+
+        {outlineOpen && (
+          <View style={styles.outlinePanel}>
+          <ScrollView nestedScrollEnabled keyboardShouldPersistTaps="handled">
+            {outlineGroups.map((group) => (
+              <View key={group.sectionId} style={{ marginBottom: 10 }}>
+                <Text style={styles.outlineSectionLabel}>{group.label}</Text>
+                {group.questions.map((q) => {
+                  const isCurrent = q.id === currentQuestionId;
+                  const isSkipped = answers[q.id]?.skipped;
+                  return (
+                    <TouchableOpacity
+                      key={q.id}
+                      style={[styles.outlineRow, isCurrent && styles.outlineRowActive]}
+                      onPress={() => { jumpToQuestion(q.id); setOutlineOpen(false); }}
+                      disabled={isCurrent}
+                      activeOpacity={0.7}
+                    >
+                      <Ionicons
+                        name={isCurrent ? 'radio-button-on' : isSkipped ? 'remove-circle-outline' : 'checkmark-circle'}
+                        size={14}
+                        color={isCurrent ? C.primary : isSkipped ? C.textHint : C.success}
+                      />
+                      <Text
+                        style={[styles.outlineQuestionText, isCurrent && styles.outlineQuestionTextActive]}
+                        numberOfLines={1}
+                      >
+                        {substituteQuestionPlaceholders(q.text, meta || {})}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            ))}
+          </ScrollView>
+          </View>
+        )}
 
         {showResumeBanner && (
           <View style={styles.resumeBanner}>
@@ -492,7 +564,11 @@ export default function InterviewRunnerScreen({ route, navigation }) {
                   );
                 })}
               </View>
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => recordAnswer({ type: 'multi_choice', optionIds: draftMulti })} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => submitOrSkip(draftMulti.length > 0, { type: 'multi_choice', optionIds: draftMulti })}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.primaryBtnText}>Continue</Text>
               </TouchableOpacity>
             </View>
@@ -510,7 +586,7 @@ export default function InterviewRunnerScreen({ route, navigation }) {
               />
               <TouchableOpacity
                 style={styles.primaryBtn}
-                onPress={() => recordAnswer({ type: currentQuestion.type, text: draftText })}
+                onPress={() => submitOrSkip(draftText.trim().length > 0, { type: currentQuestion.type, text: draftText })}
                 activeOpacity={0.85}
               >
                 <Text style={styles.primaryBtnText}>Continue</Text>
@@ -528,7 +604,11 @@ export default function InterviewRunnerScreen({ route, navigation }) {
                 value={draftNumber}
                 onChangeText={setDraftNumber}
               />
-              <TouchableOpacity style={styles.primaryBtn} onPress={() => recordAnswer({ type: 'number', value: Number(draftNumber) || 0 })} activeOpacity={0.85}>
+              <TouchableOpacity
+                style={styles.primaryBtn}
+                onPress={() => submitOrSkip(draftNumber.trim().length > 0 && !Number.isNaN(Number(draftNumber)), { type: 'number', value: Number(draftNumber) })}
+                activeOpacity={0.85}
+              >
                 <Text style={styles.primaryBtnText}>Continue</Text>
               </TouchableOpacity>
             </View>
@@ -558,7 +638,10 @@ export default function InterviewRunnerScreen({ route, navigation }) {
               </View>
               <TouchableOpacity
                 style={styles.primaryBtn}
-                onPress={() => recordAnswer({ type: 'duration', amount: Number(draftNumber) || 0, unit: draftDurationUnit })}
+                onPress={() => submitOrSkip(
+                  draftNumber.trim().length > 0 && !Number.isNaN(Number(draftNumber)),
+                  { type: 'duration', amount: Number(draftNumber), unit: draftDurationUnit },
+                )}
                 activeOpacity={0.85}
               >
                 <Text style={styles.primaryBtnText}>Continue</Text>
@@ -598,7 +681,18 @@ function makeStyles(C) {
 
     progressTrack: { height: 5, borderRadius: 3, backgroundColor: C.surfaceBorder, marginTop: 10, overflow: 'hidden' },
     progressFill: { height: 5, borderRadius: 3, backgroundColor: C.primary },
-    sectionLabel: { ...typography.caption, color: C.textHint, marginTop: 6 },
+    sectionLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, alignSelf: 'flex-start' },
+    sectionLabel: { ...typography.caption, color: C.textHint },
+
+    outlinePanel: {
+      backgroundColor: C.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: C.surfaceBorder,
+      marginTop: 10, padding: 12, maxHeight: 260, overflow: 'hidden',
+    },
+    outlineSectionLabel: { ...typography.caption, color: C.textHint, textTransform: 'uppercase', marginBottom: 4 },
+    outlineRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, paddingHorizontal: 4, borderRadius: radius.sm },
+    outlineRowActive: { backgroundColor: C.surfaceElevated },
+    outlineQuestionText: { ...typography.bodySmall, color: C.textSecondary, flex: 1 },
+    outlineQuestionTextActive: { color: C.primary, fontWeight: '700' },
 
     resumeBanner: {
       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
