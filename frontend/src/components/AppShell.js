@@ -116,15 +116,6 @@ export default function AppShell({ navigation, active, items, children }) {
 
             <View style={{ flex: 1 }} />
 
-            <View style={styles2.upsellCard}>
-              <Ionicons name="sparkles-outline" size={18} color="#fff" />
-              <Text style={styles2.upsellTitle}>Unlock deeper insights</Text>
-              <Text style={styles2.upsellBody}>Get full behavioral breakdowns and evidence-backed match scoring.</Text>
-              <TouchableOpacity style={styles2.upsellButton} activeOpacity={0.8}>
-                <Text style={styles2.upsellButtonText}>Learn more</Text>
-              </TouchableOpacity>
-            </View>
-
             <TouchableOpacity
               style={styles2.sidebarFooterUser}
               onPress={() => navigation.navigate('AccountSettings')}
@@ -233,17 +224,6 @@ function makeStyles(C) {
     },
     footerSub: { ...typography.caption, color: 'rgba(255,255,255,0.65)' },
     sidebarLogout: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 },
-    upsellCard: {
-      backgroundColor: 'rgba(255,255,255,0.10)', borderRadius: radius.lg,
-      padding: 14, marginBottom: 12, gap: 4,
-    },
-    upsellTitle: { ...typography.labelLarge, color: '#fff', fontWeight: '700', marginTop: 4 },
-    upsellBody: { ...typography.caption, color: 'rgba(255,255,255,0.75)', marginBottom: 8 },
-    upsellButton: {
-      backgroundColor: '#fff', borderRadius: radius.pill,
-      paddingVertical: 7, alignItems: 'center',
-    },
-    upsellButtonText: { ...typography.labelSmall, color: brandGradient.end, fontWeight: '700' },
 
     desktopMain: { flex: 1 },
     desktopTopBar: {

@@ -7,7 +7,8 @@ import { useFocusEffect } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import useAppStore from '../../store/appStore';
 import { colors, investorColors, radius, cardShadow, typography } from '../../theme';
-import { listAllInterviews } from '../../services/interviews.service';
+import { listAllInterviews, deleteFounderInterview } from '../../services/interviews.service';
+import { showAlert } from '../../services/alert';
 import AppShell from '../../components/AppShell';
 import { ADMIN_NAV_ITEMS } from '../../config/nav';
 import { Avatar, Pill } from '../../components/ui';
@@ -54,6 +55,31 @@ export default function InterviewsListScreen({ navigation }) {
     inProgress: interviews.filter(iv => iv.status === 'in_progress').length,
     completed: interviews.filter(iv => iv.status === 'completed').length,
   }), [interviews]);
+
+  // Completed interviews are the scored evidence source of record — the server rejects
+  // deleting them with a 409, same guard as everywhere else completed status shows up, so
+  // the option is hidden entirely here rather than offered and then failing.
+  const confirmDelete = (interview) => {
+    showAlert(
+      'Delete interview',
+      `This in-progress interview for ${interview.founderName || 'this founder'} and its answers will be permanently deleted. This can't be undone.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteFounderInterview(interview.id);
+              setInterviews((prev) => prev.filter((iv) => iv.id !== interview.id));
+            } catch {
+              showAlert('Error', 'Could not delete this interview.');
+            }
+          },
+        },
+      ],
+    );
+  };
 
   return (
     <AppShell navigation={navigation} active="interviews" items={ADMIN_NAV_ITEMS}>
@@ -135,6 +161,15 @@ export default function InterviewsListScreen({ navigation }) {
                   bg={item.status === 'completed' ? C.successLight : C.warningLight}
                   color={item.status === 'completed' ? C.success : C.warning}
                 />
+                {item.status !== 'completed' && (
+                  <TouchableOpacity
+                    onPress={(e) => { e.stopPropagation?.(); confirmDelete(item); }}
+                    style={styles.deleteBtn}
+                    activeOpacity={0.75}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={C.error} />
+                  </TouchableOpacity>
+                )}
                 <Ionicons name="chevron-forward" size={18} color={C.textHint} />
               </TouchableOpacity>
             )}
@@ -181,5 +216,6 @@ function makeStyles(C) {
     rowBody: { flex: 1 },
     rowTitle: { ...typography.titleSmall, color: C.textPrimary },
     rowMeta: { ...typography.bodySmall, color: C.textSecondary, marginTop: 2 },
+    deleteBtn: { padding: 6 },
   });
 }
