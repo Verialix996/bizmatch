@@ -8,6 +8,7 @@ import { SOURCE_WEIGHTS, type EvidenceDimension } from "../_shared/founderScorin
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
 import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
 import { assertActivityHasStarted } from "../_shared/activityGuard.ts";
+import { notifyAdmins } from "../_shared/notifications.ts";
 
 const FN = "peer-feedback";
 
@@ -84,6 +85,15 @@ async function submitPeerFeedback(req: Request): Promise<Response> {
 
   background(recomputeFounderDna(founderId));
   background(recomputeMatchesForFounder(founderId));
+
+  const founderRows = await query<{ name: string | null }>("SELECT name FROM users WHERE id = $1", [founderId]);
+  // ref_id is bigint — founderId is a uuid, so it can't go there; the founder is
+  // carried in payload.founderId instead (which is what the bell's tap-to-navigate reads).
+  background(notifyAdmins("evidence_added", null, {
+    founderId,
+    name: founderRows[0]?.name ?? undefined,
+    dimension: "peer feedback",
+  }));
 
   return json({ ids: createdIds, skippedDimensions }, 201);
 }

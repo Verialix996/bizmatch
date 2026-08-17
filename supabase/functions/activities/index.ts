@@ -2,6 +2,8 @@ import { authenticate, requireAdmin } from "../_shared/auth.ts";
 import { json } from "../_shared/respond.ts";
 import { route } from "../_shared/router.ts";
 import { serveFunction } from "../_shared/serve.ts";
+import { background } from "../_shared/background.ts";
+import { emitNotification } from "../_shared/notifications.ts";
 import { ActivitiesModel } from "./model.ts";
 
 const FN = "activities";
@@ -136,7 +138,11 @@ async function setEvaluators(req: Request, params: Record<string, string>): Prom
 
   const body = await req.json().catch(() => ({}));
   const { evaluatorIds } = body as { evaluatorIds?: string[] };
-  await ActivitiesModel.setEvaluators(Number(params.id), evaluatorIds ?? []);
+  const activityId = Number(params.id);
+  const added = await ActivitiesModel.setEvaluators(activityId, evaluatorIds ?? []);
+  for (const evaluatorId of added) {
+    background(emitNotification(evaluatorId, "assessment_requested", activityId, { activityId }));
+  }
   return json({ ok: true });
 }
 

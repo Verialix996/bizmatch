@@ -39,3 +39,15 @@ export async function emitNotification(
     console.error("[emitNotification] failed:", type, (err as Error).message);
   }
 }
+
+// Fans a notification out to every admin/evaluator account — the events that
+// use this (new evidence, a flagged deal breaker) are things the cohort's
+// evaluator(s) should see regardless of which one happens to be looking.
+export async function notifyAdmins(
+  type: string,
+  refId: string | number | null,
+  payload: Record<string, unknown> = {},
+): Promise<void> {
+  const admins = await query<{ id: string }>("SELECT id FROM users WHERE role = 'admin'");
+  await Promise.all(admins.map((a) => emitNotification(a.id, type, refId, payload)));
+}

@@ -7,6 +7,12 @@ import {
   type EvidenceDimension,
   type EvidenceRow,
 } from "./founderScoring.ts";
+import { notifyAdmins, emitNotification } from "./notifications.ts";
+
+// A pair only counts as a "ready" match once it clears this bar with full
+// (non-provisional) coverage and no flagged deal breaker — below it, or
+// still provisional, it's not yet worth surfacing as a suggestion.
+const MATCH_READY_THRESHOLD = 70;
 
 // Shared by the `matches` Edge Function. Fetches the inputs
 // computeCompatibility needs for a founder (dimension scores derived from
@@ -54,7 +60,51 @@ function canonicalPair(x: string, y: string): [string, string] {
   return x < y ? [x, y] : [y, x];
 }
 
+// Fires the two match-related notification types, but only on the specific
+// transition each one means — never on every recompute, which fires on
+// nearly every evidence-producing write and would otherwise spam both the
+// admins and every founder on each other's behalf constantly.
+async function notifyOnTransition(
+  aId: string, bId: string, result: CompatibilityResult, previous: { score: number; requiresAdminReview: boolean } | null,
+): Promise<void> {
+  const becameReviewFlagged = result.requiresAdminReview && !previous?.requiresAdminReview;
+  const crossedReadyThreshold = !result.requiresAdminReview && !result.isProvisional
+    && result.score >= MATCH_READY_THRESHOLD
+    && !(previous && !previous.requiresAdminReview && previous.score >= MATCH_READY_THRESHOLD);
+
+  if (!becameReviewFlagged && !crossedReadyThreshold) return;
+
+  const names = await query<{ id: string; name: string | null }>(
+    "SELECT id, name FROM users WHERE id = ANY($1::uuid[])", [[aId, bId]],
+  );
+  const nameOf = (id: string) => names.find((n) => n.id === id)?.name ?? undefined;
+
+  if (becameReviewFlagged) {
+    await notifyAdmins("deal_breaker_flagged", null, {
+      founderId: aId,
+      title: `${nameOf(aId) ?? "A founder"} × ${nameOf(bId) ?? "a founder"}`,
+      detail: result.dealBreakerFlags[0] ?? "A potential deal breaker needs review.",
+    });
+  }
+  if (crossedReadyThreshold) {
+    // ref_id is bigint — the other founder's id is a uuid, so it can't go there;
+    // it's carried in payload.founderId instead (what the bell's tap-to-navigate reads).
+    await Promise.all([
+      emitNotification(aId, "match_ready", null, { founderId: bId, founderName: nameOf(bId), name: nameOf(bId) }),
+      emitNotification(bId, "match_ready", null, { founderId: aId, founderName: nameOf(aId), name: nameOf(aId) }),
+    ]);
+  }
+}
+
 async function upsertCompatibility(aId: string, bId: string, result: CompatibilityResult): Promise<void> {
+  const previousRows = await query<{ score: string; requires_admin_review: boolean }>(
+    "SELECT score, requires_admin_review FROM founder_compatibility WHERE founder_a_id = $1 AND founder_b_id = $2",
+    [aId, bId],
+  );
+  const previous = previousRows[0]
+    ? { score: Number(previousRows[0].score), requiresAdminReview: previousRows[0].requires_admin_review }
+    : null;
+
   await query(
     `INSERT INTO founder_compatibility
        (founder_a_id, founder_b_id, score, dimension_breakdown, explanation, deal_breaker_flags, requires_admin_review, is_provisional, computed_at)
@@ -76,6 +126,8 @@ async function upsertCompatibility(aId: string, bId: string, result: Compatibili
       result.isProvisional,
     ],
   );
+
+  await notifyOnTransition(aId, bId, result, previous);
 }
 
 // Recomputes and caches compatibility between `founderId` and every other

@@ -9,6 +9,7 @@ import { SOURCE_WEIGHTS, type EvidenceDimension } from "../_shared/founderScorin
 import { DNA_QUESTIONS, DNA_DIMENSIONS, DNA_ASSESSMENT_VERSION } from "../_shared/dnaQuestions.ts";
 import { recomputeFounderDna } from "../_shared/dnaRecompute.ts";
 import { recomputeMatchesForFounder } from "../_shared/matchRecompute.ts";
+import { notifyAdmins } from "../_shared/notifications.ts";
 
 const FN = "dna-self-assessment";
 
@@ -145,6 +146,20 @@ function parseEvaluation(raw: string, dims: EvidenceDimension[]): Record<Evidenc
 // one dimension must NOT mark the whole assessment as completed (that
 // previously hid the "fill in DNA" prompt after the very first answer, with
 // no way back in); only the client's own last-question submit sets it.
+// Only fires once, when the founder's own last-question submit finishes the
+// assessment (see the `finished` param note above) — not on every per-
+// question autosave.
+async function notifyDnaAssessmentComplete(founderId: string): Promise<void> {
+  const rows = await query<{ name: string | null }>("SELECT name FROM users WHERE id = $1", [founderId]);
+  // ref_id is bigint — founderId is a uuid, so it can't go there; the founder is
+  // carried in payload.founderId instead (which is what the bell's tap-to-navigate reads).
+  await notifyAdmins("evidence_added", null, {
+    founderId,
+    name: rows[0]?.name ?? undefined,
+    dimension: "DNA self-assessment",
+  });
+}
+
 async function scoreInBackground(founderId: string, answers: Answers, dims: EvidenceDimension[], finished: boolean): Promise<void> {
   try {
     if (dims.length === 0) {
@@ -154,6 +169,7 @@ async function scoreInBackground(founderId: string, answers: Answers, dims: Evid
           : "UPDATE founder_profiles SET dna_scoring_status = 'scored', updated_at = now() WHERE user_id = $1",
         [founderId],
       );
+      if (finished) await notifyDnaAssessmentComplete(founderId);
       return;
     }
     if (!isGeminiConfigured()) throw new Error("Gemini not configured");
@@ -190,6 +206,7 @@ async function scoreInBackground(founderId: string, answers: Answers, dims: Evid
     );
     await recomputeFounderDna(founderId);
     await recomputeMatchesForFounder(founderId);
+    if (finished) await notifyDnaAssessmentComplete(founderId);
   } catch (e) {
     console.error("[dna-self-assessment] background scoring failed", e);
     await query(

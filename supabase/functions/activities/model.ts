@@ -245,7 +245,16 @@ export const ActivitiesModel = {
     );
   },
 
-  async setEvaluators(activityId: number, evaluatorIds: string[]): Promise<void> {
+  // Returns the evaluator ids newly added by this save (i.e. not already assigned) so the
+  // caller can notify only them, not everyone re-saved into an unchanged roster.
+  async setEvaluators(activityId: number, evaluatorIds: string[]): Promise<string[]> {
+    const current = await query<{ evaluator_id: string }>(
+      "SELECT evaluator_id FROM activity_evaluators WHERE activity_id = $1",
+      [activityId],
+    );
+    const currentIds = new Set(current.map((r) => r.evaluator_id));
+    const added = evaluatorIds.filter((id) => !currentIds.has(id));
+
     await query("DELETE FROM activity_evaluators WHERE activity_id = $1", [activityId]);
     for (const evaluatorId of evaluatorIds) {
       await query(
@@ -253,6 +262,7 @@ export const ActivitiesModel = {
         [activityId, evaluatorId],
       );
     }
+    return added;
   },
 
   async remove(activityId: number): Promise<void> {
